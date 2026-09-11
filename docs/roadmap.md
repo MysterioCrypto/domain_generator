@@ -8,56 +8,60 @@ target: core-0.1
 
 # Roadmap Core 0.1
 
-## M0 — Project foundation
+## M0 — Project foundation — DONE
 
 Зафиксировать память проекта, архитектурные границы, glossary, ADR и правила совместной работы.
 
-**Готово, когда:** новый чат может восстановить состояние проекта из репозитория без чтения старого диалога.
+**Критерий:** новый чат может восстановить состояние проекта из репозитория без чтения старого диалога.
 
-## M1 — Data contracts
+## M1 — Data contracts — IN PROGRESS
 
-Определить `DomainSpec v0.1`, `GenerationPlan v0.1`, `DomainData v0.1`, базовые типы `Field`, `Network`, `Feature`, `Constraint` и схемы валидации.
+Определить `DomainSpec v0.1`, `GenerationPlan v0.1`, `LayoutCandidate`, `PlacementReservation`, `DomainData v0.1`, базовые типы `Field`, `Network`, `Feature`, `Constraint`, parameter domains и staged validation model.
+
+Текущий checkpoint: приняты координаты/grid, feature/preset/operator model, spatial selectors/constraints, plan/layout/data roles, placement reservations, validation ranking и design baselines Terrain/Hydrology/Surface. Следующий открытый вопрос: `POI suitability v0.1`.
+
+**Готово, когда:** контракты согласованы, имеют draft schemas/пример и достаточны для начала реализации без скрытых архитектурных решений.
 
 ## M2 — Deterministic pipeline
 
-Ввести стадии генерации и независимые RNG-потоки, производные от root seed и stage id.
+Ввести стадии генерации и независимые RNG-потоки, производные от root seed, stage, feature/purpose и attempt.
 
 ## M3 — Spatial foundation
 
-Координаты домена, расчётная сетка, маски, расстояния, непрерывные поля и первый debug renderer.
+World coordinates, Grid conversion, маски, расстояния, continuous fields и первый debug renderer.
 
 ## M4 — Constraint / layout engine
 
-Общие примитивы `point`, `area`, `corridor`, `band` и отношения `near`, `inside`, `crosses`, `connects`, `endpoint_near`, `preferred_region`.
+Общие geometry primitives `point`, `area`, `corridor`, `band`; SpatialSelector; generic evaluators/predicates для distance, containment, intersection, adjacency/overlap и related constraints; generation of `LayoutCandidate` и `PlacementReservation`.
 
 ## M5 — Elevation v0.1
 
-Базовый рельеф, influence fields, coherent/ridged noise, горы, холмы, равнины и ущелья без сценарных special cases.
+Base field, additive terrain contributions, shaping phase, coherent/ridged noise, горы, холмы, равнины и ущелья без scenario-specific special cases.
 
 ## M6 — Hydrology v0.1
 
-Depression handling, flow direction, flow accumulation, ручьи/реки, озёра, море/выход с карты и простое углубление русел.
+Depression analysis, conditioned routing surface, flow direction, flow accumulation, catchments, stream extraction, river network и lakes. Canonical elevation в v0.1 гидрологией не изменяется; край домена — open boundary, а не автоматически море.
 
 ## M7 — Surface v0.1
 
-Простые поля влажности, температуры и растительности без полной климатической модели.
+Простые continuous fields `moisture` и `vegetation_density` из terrain/hydrology плюс explicit surface-feature biases. Полноценная температура/климатические биомы не входят в v0.1.
 
-## M8 — Generic POI placement
+## M8 — Generic dependent feature placement
 
-Suitability-based размещение абстрактных POI после физической географии с учётом constraints.
+Suitability-based окончательное размещение POI/dependent features внутри `PlacementReservation` после физической географии с учётом hard site requirements и preferences.
 
-## M9 — Validation and scoring
+## M9 — Validation and ranking
 
-Hard constraints должны либо выполняться, либо отклонять candidate. Soft constraints влияют на score. Повторные attempts детерминированы.
+Staged engine invariants; hard constraints либо выполняются, либо отклоняют candidate; soft constraints ранжируются через worst effective violation и weighted mean. Повторные attempts детерминированы.
 
 ## M10 — Stable outputs
 
-Стабильные `manifest.json`, `domain.json`, статистика и debug PNG-слои.
+Стабильные `manifest.json`, `domain.json`, canonical/derived array storage и debug/preview outputs. Preview не является source of truth.
 
 ## M11 — Acceptance suite
 
-Набор фиксированных specs/seeds: минимальный домен, случайный домен, искусственные тесты отдельных возможностей и несколько ненормативных комплексных примеров.
+Набор фиксированных specs/seeds: минимальный домен, случайный домен, искусственные тесты отдельных возможностей и несколько ненормативных комплексных examples.
 
 # Вне Core 0.1
 
-Дороги, полноценная человеческая география, художественная стилизация, ImageGen, battlemap, экономика, NPC и campaign-specific extensions откладываются на последующие версии.
+Дороги, полноценная человеческая география, художественная стилизация, ImageGen, battlemap, экономика, NPC, полноценная climate/biome model и campaign-specific extensions откладываются на последующие версии.
