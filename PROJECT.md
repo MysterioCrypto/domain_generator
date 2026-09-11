@@ -1,11 +1,12 @@
 ---
 project: domain_generator
 target_version: core-0.1
-phase: foundation
-status: ready-for-review
-current_milestone: M0-project-foundation
-next_milestone: M1-data-contracts
+phase: data-contracts
+status: in-progress
+current_milestone: M1-data-contracts
+next_milestone: M2-deterministic-pipeline
 completed:
+  - M0-project-foundation
   - repository-bootstrap
   - project-state-memory
   - architecture-baseline
@@ -30,7 +31,9 @@ Build an independent procedural domain-generation core with constrained randomne
 
 ## Current state
 
-Milestone `M0 — Project foundation` is complete on the foundation branch and ready for review. The repository now contains the external project memory, architecture baseline, roadmap, glossary, example semantics, and initial ADRs. Generator code has not started.
+Milestone `M0 — Project foundation` has been reviewed and accepted. The repository contains the external project memory, architecture baseline, roadmap, glossary, example semantics, and initial ADRs. Generator code has not started.
+
+Current milestone: `M1 — Data contracts`.
 
 ## Guarantees established by M0
 
@@ -45,9 +48,13 @@ Milestone `M0 — Project foundation` is complete on the foundation branch and r
 
 No schemas, Python package, pipeline, generator stages, tests, renderers, or GitHub Actions workflows exist yet.
 
+## Current task
+
+Design `DomainSpec v0.1`, `GenerationPlan v0.1`, and `DomainData v0.1` before implementing terrain generation. The contracts must support constrained randomness without encoding campaign-specific examples as special cases.
+
 ## Next
 
-`M1 — Data contracts`: define `DomainSpec v0.1`, `GenerationPlan v0.1`, and `DomainData v0.1` before implementing terrain generation.
+After M1 is accepted, proceed to `M2 — Deterministic pipeline and RNG streams`.
 
 ## Invariants
 
