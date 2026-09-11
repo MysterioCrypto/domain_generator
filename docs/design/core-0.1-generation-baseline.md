@@ -15,7 +15,9 @@ implemented: false
 
 Structural features получают concrete macro geometry (`point`, `area`, `corridor`, `band`). Shape означает топологическую организацию, а не идеальную геометрическую фигуру.
 
-Dependent features получают `PlacementReservation`, если их окончательное размещение зависит от terrain/hydrology/surface.
+Dependent features получают materialized vector `PlacementReservation` (`RegionSet`), если их final placement зависит от terrain/hydrology/surface. Reservation строится только из hard spatial constraints относительно geometry, уже существующей на layout stage.
+
+Band full width хранится как width profile по normalized centerline parameter `t in [0,1]`. Band influence может выходить за domain и клиппится при rasterization; centerline остаётся inside/on boundary.
 
 ## Terrain
 
@@ -46,16 +48,18 @@ canonical elevation
 -> flow accumulation
 -> stream extraction
 -> river network + lakes
--> canonical water
+-> canonical water_depth
 ```
 
 - canonical elevation Core 0.1 гидрологией не изменяется;
 - мелкие depression artifacts могут исправляться только в routing surface;
 - крупные depressions анализируются как potential lakes;
-- flow accumulation представляет сбор стока из upstream catchment;
-- river thresholds должны по возможности выражаться в физических единицах, например km² catchment, а не в числе клеток;
-- край домена является open boundary, а не автоматически морем;
-- flow direction/accumulation — derived, river network/lakes/water — canonical result.
+- flow accumulation представляет upstream catchment;
+- river thresholds выражаются по возможности в physical units (например km² catchment), а не cell counts;
+- domain edge — open boundary, не автоматически море;
+- flow direction/accumulation — derived;
+- river network/lakes/`water_depth` — canonical result;
+- binary water mask — derived view `water_depth > 0`.
 
 ## Surface
 
@@ -64,48 +68,48 @@ elevation + slope + hydrology
 -> moisture
 -> vegetation potential
 + explicit surface-feature bias
--> vegetation density
+-> vegetation_density
 ```
 
-- moisture и vegetation density являются continuous semantic fields;
-- explicit forest-like features модифицируют поле, а не бинарно закрашивают клетки;
+- `moisture` и `vegetation_density` — continuous canonical fields;
+- explicit forest-like features модифицируют field, а не бинарно закрашивают cells;
 - terrain и surface presets разделяются;
-- гибриды вроде `forested_hills` предпочтительно выражать как terrain feature + surface feature + constraint;
-- полноценная климатическая/биомная модель не входит в Core 0.1.
+- гибриды вроде `forested_hills` выражаются как terrain feature + surface feature + constraint;
+- полноценная climate/biome model не входит в Core 0.1.
 
 ## Dependent feature placement / POI suitability
 
 ```text
 PlacementReservation
--> hard site requirements
+-> hard SiteProfile requirements
 -> valid sites
--> intrinsic preferences + soft spatial constraints
--> suitability scores
+-> intrinsic SiteProfile preferences
 -> near-best set
 -> deterministic weighted selection
 -> final geometry
 ```
 
-- global hard spatial constraints формируют/сужают reservation;
-- intrinsic preset requirements (например water fraction, buildable fraction) фильтруют sites;
-- site metrics могут оценивать footprint вокруг точки, а не одну cell;
-- intrinsic preferences и soft constraints дают score;
-- Core 0.1 не обязан всегда выбирать абсолютный argmax: выбор выполняется детерминированно среди near-best sites с preference к более высоким scores;
+- global hard spatial constraints формируют reservation;
+- intrinsic preset requirements фильтруют physically invalid sites;
+- site metrics оценивают footprint вокруг точки, а не только одну cell;
+- intrinsic preferences определяют site suitability внутри одного candidate;
+- Core 0.1 не обязан выбирать абсолютный argmax: deterministic weighted choice выполняется среди near-best sites;
+- user soft constraints не смешиваются с intrinsic site score: они оценивают уже получившийся candidate для global ranking;
 - если valid sites нет, attempt отклоняется;
 - Core 0.1 реализует dependent placement прежде всего для point features.
 
 ## Attempt model
 
-Один `attempt_index` означает одну независимую realization одного immutable `GenerationPlan`.
+Один `attempt_index` означает одну независимую realization immutable `GenerationPlan`.
 
 - hidden stage-local retries запрещены;
 - stochastic stages используют attempt-specific independent RNG streams;
 - deterministic stages не обязаны получать RNG;
-- early validation может остановить attempt до downstream stages;
+- early validation может остановить attempt;
 - late hard failure отклоняет весь attempt;
 - attempts не обучаются на предыдущих failures;
-- несколько valid candidates могут быть сгенерированы для ranking;
-- execution budget задаётся `GenerationConfig`, не `DomainSpec`.
+- execution budget задаётся semantic `GenerationConfig`;
+- `target_valid_candidates=1` означает first-valid behavior; большее значение собирает несколько valid candidates для ranking.
 
 ## RNG baseline
 
@@ -117,10 +121,16 @@ root seed + attempt + stage + scope + purpose
 
 и выводится stable cryptographic derivation. Никакого global mutable RNG и Python `hash()` как persistence contract. Feature identity и parameter/purpose scopes стабильны; module/function names в namespace не входят.
 
-## Validation
+## Validation и ranking
 
-Validation выполняется по стадиям. Engine invariants и hard constraints обязательны. Soft constraints используются для ranking: сначала минимизируется худшее значимое weighted violation, затем учитывается weighted mean. Validator не модифицирует candidate.
+Validation выполняется по стадиям. Engine invariants и hard constraints обязательны. Soft scores нормализуются в `[0,1]`; `0 < weight <= 1`.
+
+```text
+effective_violation = (1 - score) * weight
+```
+
+Valid candidates ранжируются: минимальный worst effective violation, затем максимальный weighted mean score, затем меньший `attempt_index`. При отсутствии soft constraints используются neutral values `0.0` и `1.0`. Validator не модифицирует candidate.
 
 ## Stage causality
 
-Stages образуют upstream-only DAG и не мутируют предыдущие outputs. Если поздний object должен формировать ранний слой мира, это выражается отдельным feature/constraint соответствующей стадии, а не скрытым side effect.
+Stages образуют upstream-only DAG и не мутируют предыдущие outputs. Если поздний object должен формировать ранний слой мира, это выражается отдельным feature/constraint соответствующей стадии, а не hidden side effect.
