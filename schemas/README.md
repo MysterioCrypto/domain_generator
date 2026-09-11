@@ -15,6 +15,6 @@ Regenerate them with:
 python -m domain_generator.schema_export
 ```
 
-The files target JSON Schema Draft 2020-12 and are generated from the Pydantic v2 models with aliases enabled.
+The files target JSON Schema Draft 2020-12 and are generated from the Pydantic v2 models with aliases enabled. Snapshots use compact deterministic JSON so diffs reflect schema changes rather than formatting.
 
 Important boundary: JSON Schema captures the structural constraints expressible by Pydantic's schema generator. Cross-field checks implemented by `model_validator` (for example exact grid divisibility, aggregate validation state, or canonical `DomainData` field requirements) still require validation by the Python contract model/Core. The committed snapshots are therefore interchange/documentation schemas, not a replacement for Core validation.
