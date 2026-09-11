@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M1-final-consistency
-next_topic: implement-pydantic-contracts-v0.1
+checkpoint: M2-pydantic-contracts-slice-1
+next_topic: implement-remaining-pydantic-contracts-v0.1
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -38,6 +38,10 @@ accepted_m1_topics:
   - validation-result-v0.1-design
   - generation-config-v0.1-design
   - m1-contract-consistency-review
+implemented_m2:
+  - minimal-python-package
+  - geometry-value-models-v0.1
+  - domain-spec-pydantic-v0.1
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
@@ -60,35 +64,33 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M0 — Project foundation` завершён.
 
-`M1 — Data contracts` завершён по roadmap criterion: роли, границы и draft contracts `DomainSpec`, `GenerationPlan`, `LayoutCandidate`, `PlacementReservation`, `ValidationResult`, `GenerationConfig` и `DomainData` согласованы и прошли consistency review. Генератор ещё не реализован.
+`M1 — Data contracts` завершён по roadmap criterion: роли, границы и draft contracts `DomainSpec`, `GenerationPlan`, `LayoutCandidate`, `PlacementReservation`, `ValidationResult`, `GenerationConfig` и `DomainData` согласованы и прошли consistency review.
 
-M1 final consistency зафиксировал:
+`M2 — Deterministic pipeline` начат с минимальной реализации contract layer. Создан Python package `src/domain_generator`, добавлена зависимость Pydantic v2, реализованы common enums/value types, geometry value models (`point`, `corridor`, `band`, `area`, `RegionSet`) и `DomainSpec v0.1` с structural/cross-field validation. Генерационных алгоритмов пока нет.
 
-- explicit `layout` vs `effect` ownership в GenerationPlan;
-- stable feature identity + non-semantic labels/metadata;
-- semantic plan/config fingerprints;
-- точные geometry-part semantics;
-- vector RegionSet reservations;
-- ограниченный relation registry без недоопределённого `connects`;
-- separation intrinsic site suitability vs global user soft ranking;
-- canonical `water_depth` вместо binary water field;
-- self-contained DomainData provenance/output semantics.
+Первый implementation slice также подтвердил важную реализационную границу: canonical contracts используют `extra="forbid"` и строгие scalar annotations, но не глобальный `ConfigDict(strict=True)`, потому что JSON/YAML lists должны нормализоваться в immutable tuples, а строковые enum — в `StrEnum` values.
 
 ## Следующий шаг
 
-Первый implementation task M2: создать минимальный Python package и реализовать Pydantic v2 contracts/enums/value models согласно M1 docs, без генерационных алгоритмов и без production architecture.
+Продолжить Pydantic contract implementation по уже принятому M1-дизайну:
 
-После этого: deterministic RNG derivation + basic attempt/pipeline skeleton.
+- `GenerationPlan v0.1`;
+- `LayoutCandidate v0.1` / `PlacementReservation`;
+- `ValidationResult v0.1`;
+- `GenerationConfig v0.1`;
+- `DomainData v0.1`.
+
+После закрытия contract implementation: generated JSON Schema/schema tests, затем deterministic RNG derivation + basic attempt/pipeline skeleton.
 
 ## Ещё не сделано
 
-- Python package и Pydantic contract implementation;
+- remaining Pydantic contract implementation;
 - generated JSON Schema / schema tests;
 - deterministic RNG implementation;
 - runtime CandidateState/dataclasses;
 - geometry/grid operators;
 - terrain/hydrology/surface/placement generators;
-- tests, renderers и GitHub Actions.
+- renderer и GitHub Actions.
 
 ## Инварианты
 
