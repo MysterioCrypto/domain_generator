@@ -39,7 +39,7 @@ def generate_schema_documents() -> dict[str, dict[str, object]]:
 
 def render_schema_document(schema: dict[str, object]) -> str:
     """Return a deterministic UTF-8 JSON representation suitable for snapshots."""
-    return json.dumps(schema, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    return json.dumps(schema, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
 
 
 def write_schema_snapshots(output_dir: Path) -> None:
