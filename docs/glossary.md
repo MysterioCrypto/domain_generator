@@ -9,39 +9,79 @@ normative: true
 
 ## Domain
 
-Один генерируемый пространственный регион. Не предполагается, что он является частью обычной планеты или евклидовой глобальной карты.
+Один генерируемый пространственный регион. Не предполагается, что он является частью обычной планеты или глобальной карты.
 
 ## DomainSpec
 
-Входной контракт. Описывает намерение пользователя, обязательные и желательные свойства, seed и ограничения. Не является результатом генерации.
+Публичный входной контракт. Описывает намерение пользователя: размер домена, seed, features, parameter overrides и constraints. Не содержит raster indices и внутренних алгоритмических деталей.
 
 ## GenerationPlan
 
-Конкретизированный план одного запуска: размещённые пространственные примитивы, разрешённые диапазоны и compiled constraints. Это внутренний мост между `DomainSpec` и процедурными стадиями.
+Внутренний сериализуемый resolved recipe. Presets раскрыты в generic geometry/operator definitions, semantic constraints — в generic evaluators/predicates. Диапазоны ещё не обязаны быть реализованы в конкретные значения.
+
+## LayoutCandidate
+
+Конкретная макрогеометрия одной детерминированной попытки layout. Structural features уже имеют geometry; dependent features могут иметь только `PlacementReservation`.
+
+## PlacementReservation
+
+Допустимая область/множество областей, внутри которых dependent feature должен искать финальное размещение после появления физической географии.
 
 ## DomainData
 
-Канонический структурированный результат генерации: поля, сети, features, metadata и validation results.
+Канонический структурированный результат принятой генерации: fields, networks, features, metadata и validation summary. Крупные raster fields могут храниться отдельными array-файлами.
+
+## DomainBundle
+
+Физический набор файлов результата: manifest, domain metadata, canonical/derived arrays, optional debug artifacts и previews.
 
 ## Field
 
-Значение, определённое в пространстве домена: elevation, moisture, vegetation density и т. п.
+Значение, определённое в пространстве домена: elevation, water, moisture, vegetation density и т. п.
 
 ## Network
 
-Связная графовая/линейная структура в пространстве: прежде всего river network; позже дороги и другие сети.
+Связная графовая/линейная структура: прежде всего river network; позже дороги и другие сети.
 
 ## Feature
 
-Семантически значимый пространственный объект: mountain range, gorge, lake, POI и т. п.
+Семантически значимый spatial object, заданный через preset и constraints. Внутренний resolved feature имеет family, shape, operator и parameters.
+
+## Spatial primitive
+
+Топологический тип geometry: `point`, `area`, `corridor`, `band`. Не означает идеальную геометрическую фигуру.
+
+## Preset
+
+Декларативная человекоосмысленная конфигурация generic operator: family, shape, defaults, parameter schema и sampling policy. Preset не содержит исполняемого кода.
+
+## Operator
+
+Generic Python-механизм, применяемый к geometry/fields: например ridge, depress, flatten или suitability placement.
 
 ## Constraint
 
-Условие на допустимый результат. `hard` обязательно; нарушение делает candidate невалидным. `soft` влияет на score. `optional` не гарантируется.
+Отношение между spatial selectors. `hard` обязательно; его нарушение отклоняет candidate. `soft` влияет на ranking через score и weight.
+
+## SpatialSelector
+
+Ссылка на geometry, участвующую в constraint: feature или его part, domain anchor/region, literal point/region.
 
 ## Candidate
 
-Одна детерминированная попытка построить домен для заданных spec/seed/attempt.
+Одна детерминированная попытка получить допустимый мир при заданных plan/seed/attempt.
+
+## Canonical data
+
+Данные, изменение которых означает изменение самого домена: например итоговая elevation, water, semantic features/networks.
+
+## Derived data
+
+Пересчитываемые представления canonical data: например slope, flow direction, flow accumulation.
+
+## Debug/Internal data
+
+Временные маски, distance fields, noise layers и другие детали работы алгоритма. Не входят в контракт мира.
 
 ## Coherent noise
 
@@ -49,11 +89,7 @@ normative: true
 
 ## Influence field
 
-Поле, описывающее силу воздействия feature или операции на разные точки пространства, например вклад горного пояса в elevation.
-
-## POI
-
-Point of Interest. Семантический объект, чья позиция может быть задана явно либо найдена процедурно по constraints и suitability score.
+Поле силы воздействия feature/operation на пространство, например вклад горного пояса в elevation.
 
 ## Normative document
 
@@ -61,4 +97,4 @@ Point of Interest. Семантический объект, чья позици�
 
 ## Illustrative example
 
-Пример для проверки или объяснения идеи. Сам по себе не создаёт требований и не должен обобщаться в правила Core.
+Пример для объяснения или проверки идеи. Сам по себе не создаёт требований и не должен обобщаться в правила Core.
