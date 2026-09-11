@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling>=1.27,<2"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "domain-generator"
@@ -17,8 +17,8 @@ dev = [
   "pytest>=8,<9",
 ]
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/domain_generator"]
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
