@@ -1,7 +1,23 @@
 # domain_generator
 
-Procedural domain generation engine with constrained randomness.
+Процедурный генератор доменов с управляемой случайностью.
 
-This repository is being built from an architecture-first roadmap. The canonical current project state will live in `PROJECT.md`; detailed design decisions will live under `docs/`.
+## С чего начать
 
-The generator core is intended to remain independent from ChatGPT, OpenAI-specific tooling, GitHub Actions, campaign-specific lore, and any particular renderer.
+- [`PROJECT.md`](PROJECT.md) — текущее каноническое состояние проекта и архитектурные инварианты.
+- [`docs/roadmap.md`](docs/roadmap.md) — этапы разработки Core 0.1.
+- [`docs/architecture.md`](docs/architecture.md) — актуальная архитектура.
+- [`docs/glossary.md`](docs/glossary.md) — общий словарь терминов.
+- [`docs/decisions/`](docs/decisions/) — принятые архитектурные решения и причины их принятия.
+
+## Основной принцип
+
+Ядро генератора независимо от ChatGPT/OpenAI-специфичных инструментов, GitHub Actions, лора конкретной кампании и конкретного renderer-а. Человек или LLM формируют формальный входной запрос, а детерминированное ядро создаёт структурированные данные домена.
+
+## Состояние разработки
+
+Этап M0 — архитектурный фундамент и внешняя память проекта — завершён и принят. Реализация самого генератора ещё не началась. Следующий этап — M1: контракты данных `DomainSpec v0.1`, `GenerationPlan v0.1` и `DomainData v0.1`.
+
+## Правило документации
+
+Нормативные документы проекта используют машиночитаемый YAML front matter и человекочитаемый Markdown. Иллюстративные примеры явно помечаются `normative: false` и не должны молча превращаться в требования к Core.
