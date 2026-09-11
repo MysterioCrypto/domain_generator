@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-pydantic-contracts-slice-1
-next_topic: implement-remaining-pydantic-contracts-v0.1
+checkpoint: M2-pydantic-contracts-slice-2
+next_topic: generated-json-schema-and-contract-schema-tests
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -42,6 +42,11 @@ implemented_m2:
   - minimal-python-package
   - geometry-value-models-v0.1
   - domain-spec-pydantic-v0.1
+  - generation-plan-pydantic-v0.1
+  - layout-candidate-pydantic-v0.1
+  - validation-result-pydantic-v0.1
+  - generation-config-pydantic-v0.1
+  - domain-data-pydantic-v0.1
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
@@ -66,26 +71,37 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M1 — Data contracts` завершён по roadmap criterion: роли, границы и draft contracts `DomainSpec`, `GenerationPlan`, `LayoutCandidate`, `PlacementReservation`, `ValidationResult`, `GenerationConfig` и `DomainData` согласованы и прошли consistency review.
 
-`M2 — Deterministic pipeline` начат с минимальной реализации contract layer. Создан Python package `src/domain_generator`, добавлена зависимость Pydantic v2, реализованы common enums/value types, geometry value models (`point`, `corridor`, `band`, `area`, `RegionSet`) и `DomainSpec v0.1` с structural/cross-field validation. Генерационных алгоритмов пока нет.
+`M2 — Deterministic pipeline` начат с реализации contract layer. Создан Python package `src/domain_generator`; Pydantic v2-моделями теперь представлены все основные Core 0.1 contracts и geometry/value types:
 
-Первый implementation slice также подтвердил важную реализационную границу: canonical contracts используют `extra="forbid"` и строгие scalar annotations, но не глобальный `ConfigDict(strict=True)`, потому что JSON/YAML lists должны нормализоваться в immutable tuples, а строковые enum — в `StrEnum` values.
+- `DomainSpec`;
+- `GenerationPlan`;
+- `LayoutCandidate` / `PlacementReservation`;
+- `ValidationResult`;
+- `GenerationConfig`;
+- `DomainData`;
+- point/corridor/band/area/RegionSet geometry.
+
+Contract models используют `extra="forbid"` и strict scalar annotations, но не глобальный `ConfigDict(strict=True)`: JSON/YAML lists должны нормализоваться в immutable tuples, а строки — в `StrEnum` values. Serialized floating-point values, где это требует contract, отклоняют `NaN`/`±Inf`.
+
+`GenerationPlan` сохраняет принятую M1-границу `metadata / layout recipe / effect recipe`. `DomainData` не использует универсальный `dict[str, Any]` для feature semantics: Core 0.1 типизирует уже определённые lake/river properties и оставляет новые property schemas будущим конкретным feature/network types.
+
+Генерационных алгоритмов, compiler и RNG implementation пока нет.
 
 ## Следующий шаг
 
-Продолжить Pydantic contract implementation по уже принятому M1-дизайну:
+Проверить contract layer как внешний сериализуемый API:
 
-- `GenerationPlan v0.1`;
-- `LayoutCandidate v0.1` / `PlacementReservation`;
-- `ValidationResult v0.1`;
-- `GenerationConfig v0.1`;
-- `DomainData v0.1`.
+- generated JSON Schema для основных contracts;
+- schema/serialization round-trip tests;
+- canonical alias behavior (`from`/`to` в river segments);
+- sanity review соответствия generated schemas M1 documents.
 
-После закрытия contract implementation: generated JSON Schema/schema tests, затем deterministic RNG derivation + basic attempt/pipeline skeleton.
+После этого: deterministic RNG derivation + basic attempt/pipeline skeleton.
 
 ## Ещё не сделано
 
-- remaining Pydantic contract implementation;
 - generated JSON Schema / schema tests;
+- compiler и preset registry implementation;
 - deterministic RNG implementation;
 - runtime CandidateState/dataclasses;
 - geometry/grid operators;
