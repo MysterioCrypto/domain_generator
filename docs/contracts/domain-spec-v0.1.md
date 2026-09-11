@@ -8,7 +8,7 @@ target: core-0.1
 
 # DomainSpec v0.1 — draft
 
-Этот документ фиксирует принятый дизайн пользовательского контракта. Он ещё не является JSON Schema и остаётся draft до закрытия M1.
+Этот документ фиксирует согласованный дизайн пользовательского контракта Core 0.1. Он ещё не является JSON Schema и остаётся draft до первой реализации M1 contracts.
 
 ## Корень
 
@@ -37,7 +37,7 @@ constraints: []
 - `seed` обязателен в canonical DomainSpec;
 - top-level `id` — identity документа/домена и не участвует в RNG;
 - `label` — только отображаемое имя;
-- размер мира и cell size задаются в физических единицах;
+- размеры мира и cell size задаются в физических единицах;
 - `width_km / cell_size_km` и `height_km / cell_size_km` должны давать целое число клеток; silent rounding запрещён;
 - пользователь не задаёт raster row/column или CRS;
 - world coordinates: origin southwest, `+x` east, `+y` north.
@@ -58,9 +58,9 @@ constraints: []
 
 `id` и `preset` обязательны; `label`, `parameters`, `tags` optional.
 
-Feature `id` — стабильная machine identity. Она используется в constraints, references и RNG namespace. Косметическое переименование делается через `label`; сознательная смена `id` означает новую identity и может изменить realization.
+Feature `id` — стабильная machine identity. Она используется в constraints, references и RNG namespace. Косметическое переименование делается через `label`; сознательная смена `id` означает новую procedural identity и может изменить realization.
 
-В `FeatureSpec v0.1` нет `family`, `shape`, `operator`, `placement`, sampler или `presence`: они либо следуют из preset, либо выражаются constraints. Все явно перечисленные features обязательны. Tags — metadata only и не влияют на Core скрытым образом.
+В `FeatureSpec v0.1` нет `family`, `shape`, `operator`, `placement`, sampler или `presence`: они следуют из preset либо выражаются constraints. Все явно перечисленные features обязательны. Tags — metadata only и не влияют на Core скрытым образом.
 
 ## Parameter overrides
 
@@ -105,9 +105,9 @@ profile:
 relation + SpatialSelector(subject) + SpatialSelector(target)
 ```
 
-`id`, `relation`, `subject`, `target`, `strength` обязательны. `parameters` optional. `weight` разрешён только для `soft`; default weight для soft = `1.0`.
+`id`, `relation`, `subject`, `target`, `strength` обязательны. `parameters` optional. `weight` разрешён только для `soft`; default `1.0`, допустимый диапазон `0 < weight <= 1`.
 
-`hard` constraint нельзя компенсировать score. `soft` constraint участвует в ranking.
+`hard` constraint нельзя компенсировать score. `soft` constraint участвует в ranking valid candidates.
 
 ### Relations v0.1
 
@@ -119,18 +119,19 @@ relation + SpatialSelector(subject) + SpatialSelector(target)
 - `outside`;
 - `crosses`;
 - `overlaps`;
-- `adjacent`;
-- `connects`.
+- `adjacent`.
 
-`transitions_to`, специальные `near_endpoint` и другие составные relation не входят в primitive registry v0.1.
+`connects`, `transitions_to`, специальные `near_endpoint` и другие составные relations не входят в primitive registry v0.1. `connects` отложен до появления явной network/route semantics.
 
-Relation определяет допустимые parameters. Примеры:
+Relation определяет допустимые parameters. Базовая семантика:
 
-- `near` → `max_distance_km`;
-- `far_from` → `min_distance_km`;
-- `overlaps` → `minimum_fraction` (fraction считается относительно площади subject);
-- `adjacent` → `max_gap_km`;
-- `crosses` может иметь optional minimum crossing length.
+- `near` → minimum distance между выбранными geometries `<= max_distance_km`;
+- `far_from` → minimum distance `>= min_distance_km`;
+- `inside` → subject полностью содержится в target;
+- `outside` → subject не пересекает interior target;
+- `overlaps` → `area(subject ∩ target) / area(subject) >= minimum_fraction`;
+- `adjacent` → minimum boundary-to-boundary distance `<= max_gap_km`; containment сам по себе не считается adjacency;
+- `crosses` v0.1 применяется к поддерживаемым line-like/area-like combinations и требует реального прохода через interior, а не простого касания boundary.
 
 ## SpatialSelector
 
@@ -202,12 +203,14 @@ Custom polygons в DomainSpec v0.1 не поддерживаются.
 
 Начальный набор: `whole` (default), `center`, `start`, `end`, `endpoints`, `boundary`.
 
-Совместимость проверяется semantic validator/compiler:
+Точная семантика:
 
-- point: `whole`, `center`;
-- corridor: `whole`, `center`, `start`, `end`, `endpoints`;
-- band: `whole`, `center`, `start`, `end`, `endpoints`, `boundary`;
-- area: `whole`, `center`, `boundary`.
+- point: `whole` и `center` — сама точка;
+- corridor: `whole` — polyline; `start`/`end` — первая/последняя точка centerline; `endpoints` — обе; `center` — точка на 50% длины centerline;
+- band: `whole` — footprint band; `start`/`end`/`endpoints`/`center` определяются по centerline; `boundary` — boundary footprint;
+- area: `whole` — polygon; `center` — geometric centroid; `boundary` — polygon boundary.
+
+Compiler проверяет совместимость part с resolved geometry shape.
 
 ## Built-in anchors and regions
 

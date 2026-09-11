@@ -1,13 +1,14 @@
 ---
 project: domain_generator
 target_version: core-0.1
-phase: data-contracts
+phase: implementation
 status: in-progress
-current_milestone: M1-data-contracts
-checkpoint: M1-contracts-checkpoint-2
-next_topic: layout-candidate-v0.1
+current_milestone: M2-deterministic-pipeline
+checkpoint: M1-final-consistency
+next_topic: implement-pydantic-contracts-v0.1
 completed:
   - M0-project-foundation
+  - M1-data-contracts
 accepted_m1_topics:
   - domain-size-and-grid
   - world-coordinate-convention
@@ -32,6 +33,11 @@ accepted_m1_topics:
   - python-data-model-v0.1
   - domain-spec-v0.1-design
   - generation-plan-v0.1-design
+  - layout-candidate-v0.1-design
+  - domain-data-v0.1-design
+  - validation-result-v0.1-design
+  - generation-config-v0.1-design
+  - m1-contract-consistency-review
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
@@ -48,30 +54,40 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 ## Цель
 
-Создать независимое процедурное ядро генерации доменов с управляемой случайностью. Пользователь описывает намерение и ограничения; Core компилирует их в исполняемый план и создаёт детерминированный структурированный результат.
+Создать независимое процедурное ядро генерации доменов с управляемой случайностью. Пользователь описывает намерение и ограничения; Core компилирует их в executable plan и создаёт детерминированный structured result.
 
 ## Текущее состояние
 
-`M0 — Project foundation` завершён и принят.
+`M0 — Project foundation` завершён.
 
-`M1 — Data contracts` продолжается. Второй checkpoint фиксирует принятые решения до точной проработки `LayoutCandidate v0.1`; реализация генератора ещё не начата.
+`M1 — Data contracts` завершён по roadmap criterion: роли, границы и draft contracts `DomainSpec`, `GenerationPlan`, `LayoutCandidate`, `PlacementReservation`, `ValidationResult`, `GenerationConfig` и `DomainData` согласованы и прошли consistency review. Генератор ещё не реализован.
 
-По смыслу уже закрыты дизайн `DomainSpec v0.1` и `GenerationPlan v0.1`, POI suitability, attempts, RNG namespaces, replay/versioning, dependency DAG и граница Python-моделей. Контрактные документы остаются `draft` до закрытия M1 и реализации схем.
+M1 final consistency зафиксировал:
 
-## Следующий вопрос
+- explicit `layout` vs `effect` ownership в GenerationPlan;
+- stable feature identity + non-semantic labels/metadata;
+- semantic plan/config fingerprints;
+- точные geometry-part semantics;
+- vector RegionSet reservations;
+- ограниченный relation registry без недоопределённого `connects`;
+- separation intrinsic site suitability vs global user soft ranking;
+- canonical `water_depth` вместо binary water field;
+- self-contained DomainData provenance/output semantics.
 
-`LayoutCandidate v0.1`: точный сериализуемый формат macro geometry (`point`, `corridor`, `band`, `area`) и `PlacementReservation` для deferred features.
+## Следующий шаг
 
-После него: точный `DomainData v0.1`, затем закрытие M1 и первая реализация Python contracts.
+Первый implementation task M2: создать минимальный Python package и реализовать Pydantic v2 contracts/enums/value models согласно M1 docs, без генерационных алгоритмов и без production architecture.
 
-## Что ещё не сделано
+После этого: deterministic RNG derivation + basic attempt/pipeline skeleton.
 
-- точный `LayoutCandidate v0.1`;
-- окончательная сверка `DomainData v0.1`;
-- JSON Schema контрактов;
-- Python package и runtime-модели;
+## Ещё не сделано
+
+- Python package и Pydantic contract implementation;
+- generated JSON Schema / schema tests;
 - deterministic RNG implementation;
-- генераторы terrain/hydrology/surface/placement;
+- runtime CandidateState/dataclasses;
+- geometry/grid operators;
+- terrain/hydrology/surface/placement generators;
 - tests, renderers и GitHub Actions.
 
 ## Инварианты
@@ -82,11 +98,11 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 - **INV-004:** illustrative examples ненормативны и не могут молча становиться правилами Core.
 - **INV-005:** Core использует generic fields, networks, features, geometry primitives и constraints вместо campaign-specific special cases.
 - **INV-006:** существенные архитектурные изменения сначала объясняются и обсуждаются; документация обновляется до реализации.
-- **INV-007:** RNG streams адресуются стабильными семантическими namespace и не зависят от порядка выполнения или random draws соседних подсистем.
-- **INV-008:** logging, debug export, instrumentation и preview generation не влияют на семантический результат.
-- **INV-009:** exact procedural replay определяется точной версией генератора; стабильность generated world между версиями не гарантируется.
-- **INV-010:** каждая стадия Core читает только явно объявленные upstream outputs и не мутирует результаты предыдущих стадий.
-- **INV-011:** воздействие feature на более ранний слой мира выражается отдельным feature/constraint соответствующей стадии, а не скрытым side effect позднего объекта.
+- **INV-007:** RNG streams адресуются стабильными semantic namespaces и не зависят от порядка выполнения или random draws соседних подсистем.
+- **INV-008:** logging, debug export, instrumentation и preview generation не влияют на semantic result.
+- **INV-009:** exact procedural replay определяется exact generator version; стабильность generated world между generator versions не гарантируется.
+- **INV-010:** каждая stage читает только declared upstream outputs и не мутирует результаты предыдущих stages.
+- **INV-011:** воздействие feature на более ранний слой мира выражается отдельным feature/constraint соответствующей stage, а не hidden side effect позднего объекта.
 
 ## Правило совместной работы
 

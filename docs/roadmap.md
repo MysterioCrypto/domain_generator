@@ -14,54 +14,70 @@ target: core-0.1
 
 **Критерий:** новый чат может восстановить состояние проекта из репозитория без чтения старого диалога.
 
-## M1 — Data contracts — IN PROGRESS
+## M1 — Data contracts — DONE
 
-Определить `DomainSpec v0.1`, `GenerationPlan v0.1`, `LayoutCandidate`, `PlacementReservation`, `DomainData v0.1`, базовые типы `Field`, `Network`, `Feature`, `Constraint`, parameter domains и staged validation model.
+Определить `DomainSpec v0.1`, `GenerationPlan v0.1`, `LayoutCandidate v0.1`, `PlacementReservation`, `ValidationResult v0.1`, `GenerationConfig v0.1`, `DomainData v0.1`, базовые geometry/data roles, parameter domains и staged validation/ranking model.
 
-Текущий checkpoint: приняты координаты/grid, feature/preset/operator model, spatial selectors/constraints, plan/layout/data roles, placement reservations, validation ranking и design baselines Terrain/Hydrology/Surface. Следующий открытый вопрос: `POI suitability v0.1`.
+Принято и согласовано:
 
-**Готово, когда:** контракты согласованы, имеют draft schemas/пример и достаточны для начала реализации без скрытых архитектурных решений.
+- physical domain/grid contract и world coordinates;
+- stable feature identities, labels и metadata boundary;
+- preset/operator/parameter model;
+- spatial selectors и primitive relation registry;
+- explicit layout/effect ownership в GenerationPlan;
+- concrete macro geometry + vector RegionSet reservations;
+- POI SiteProfile и dependent placement boundary;
+- attempts, semantic GenerationConfig, ranking and validation results;
+- semantic RNG namespaces/replay/versioning boundaries;
+- DomainData/DomainBundle canonical/derived/debug split;
+- canonical `elevation`, `water_depth`, `moisture`, `vegetation_density` baseline;
+- Pydantic/dataclass/NumPy implementation boundary;
+- final cross-contract consistency review (ADR-0009).
 
-## M2 — Deterministic pipeline
+**Критерий выполнен:** contracts согласованы, имеют draft serialized forms/examples и достаточны для начала реализации без скрытых архитектурных решений.
 
-Ввести стадии генерации и независимые RNG-потоки, производные от root seed, stage, feature/purpose и attempt.
+## M2 — Deterministic pipeline — IN PROGRESS
+
+Сначала реализовать минимальный Python package и Pydantic v2 contracts/value models, соответствующие M1. Затем ввести independent RNG streams, semantic fingerprints, attempt lifecycle и минимальный pipeline skeleton.
+
+**Первый task:** Pydantic contracts + structural validation/schema tests, без terrain/hydrology algorithms.
 
 ## M3 — Spatial foundation
 
-World coordinates, Grid conversion, маски, расстояния, continuous fields и первый debug renderer.
+World coordinates, Grid conversion, masks, distances, continuous fields и первый debug renderer.
 
 ## M4 — Constraint / layout engine
 
-Общие geometry primitives `point`, `area`, `corridor`, `band`; SpatialSelector; generic evaluators/predicates для distance, containment, intersection, adjacency/overlap и related constraints; generation of `LayoutCandidate` и `PlacementReservation`.
+Generic geometry primitives `point`, `area`, `corridor`, `band`; `RegionSet`; SpatialSelector; evaluators/predicates для distance, containment, crossing, adjacency/overlap; generation of `LayoutCandidate` and `PlacementReservation`.
 
 ## M5 — Elevation v0.1
 
-Base field, additive terrain contributions, shaping phase, coherent/ridged noise, горы, холмы, равнины и ущелья без scenario-specific special cases.
+Base field, additive terrain contributions, shaping phase, coherent/ridged noise, mountains/hills/plains/gorges без scenario-specific special cases.
 
 ## M6 — Hydrology v0.1
 
-Depression analysis, conditioned routing surface, flow direction, flow accumulation, catchments, stream extraction, river network и lakes. Canonical elevation в v0.1 гидрологией не изменяется; край домена — open boundary, а не автоматически море.
+Depression analysis, conditioned routing surface, flow direction, flow accumulation, catchments, stream extraction, directed river network, lakes и canonical `water_depth`. Canonical elevation не изменяется; domain edge — open boundary, не автоматически море.
 
 ## M7 — Surface v0.1
 
-Простые continuous fields `moisture` и `vegetation_density` из terrain/hydrology плюс explicit surface-feature biases. Полноценная температура/климатические биомы не входят в v0.1.
+Continuous canonical fields `moisture` и `vegetation_density` из terrain/hydrology плюс explicit surface-feature biases. Полноценная temperature/climate biome model не входит в v0.1.
 
 ## M8 — Generic dependent feature placement
 
-Suitability-based окончательное размещение POI/dependent features внутри `PlacementReservation` после физической географии с учётом hard site requirements и preferences.
+Suitability-based final placement point POI/dependent features внутри `PlacementReservation` после physical geography с hard SiteProfile requirements и intrinsic preferences. User soft constraints остаются global candidate ranking signals.
 
 ## M9 — Validation and ranking
 
-Staged engine invariants; hard constraints либо выполняются, либо отклоняют candidate; soft constraints ранжируются через worst effective violation и weighted mean. Повторные attempts детерминированы.
+Staged engine invariants; hard constraints reject; soft constraints ranking via worst effective violation and weighted mean; deterministic tie-break by lower `attempt_index`.
 
 ## M10 — Stable outputs
 
-Стабильные `manifest.json`, `domain.json`, canonical/derived array storage и debug/preview outputs. Preview не является source of truth.
+Stable `manifest.json`, `domain.json`, canonical/derived array storage и debug/preview outputs. Preview не source of truth.
 
 ## M11 — Acceptance suite
 
-Набор фиксированных specs/seeds: минимальный домен, случайный домен, искусственные тесты отдельных возможностей и несколько ненормативных комплексных examples.
+Набор fixed specs/seeds: minimal domain, random domain, isolated capability tests и несколько ненормативных complex examples.
 
 # Вне Core 0.1
 
-Дороги, полноценная человеческая география, художественная стилизация, ImageGen, battlemap, экономика, NPC, полноценная climate/biome model и campaign-specific extensions откладываются на последующие версии.
+Road networks, full human geography, artistic styling, ImageGen, battlemap, economy, NPC, full climate/biome model, deferred-to-deferred placement graph и campaign-specific extensions откладываются.
