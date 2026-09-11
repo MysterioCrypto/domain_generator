@@ -1,23 +1,23 @@
 # domain_generator
 
-Procedural domain generation engine with constrained randomness.
+Процедурный генератор доменов с управляемой случайностью.
 
-## Start here
+## С чего начать
 
-- [`PROJECT.md`](PROJECT.md) — current canonical project state and invariants.
-- [`docs/roadmap.md`](docs/roadmap.md) — Core 0.1 milestones.
-- [`docs/architecture.md`](docs/architecture.md) — current architecture.
-- [`docs/glossary.md`](docs/glossary.md) — shared terminology.
-- [`docs/decisions/`](docs/decisions/) — accepted architecture decisions and their rationale.
+- [`PROJECT.md`](PROJECT.md) — текущее каноническое состояние проекта и архитектурные инварианты.
+- [`docs/roadmap.md`](docs/roadmap.md) — этапы разработки Core 0.1.
+- [`docs/architecture.md`](docs/architecture.md) — актуальная архитектура.
+- [`docs/glossary.md`](docs/glossary.md) — общий словарь терминов.
+- [`docs/decisions/`](docs/decisions/) — принятые архитектурные решения и причины их принятия.
 
-## Core principle
+## Основной принцип
 
-The generator core is independent from ChatGPT/OpenAI-specific tooling, GitHub Actions, campaign-specific lore, and any particular renderer. Human/LLM interaction produces formal input; the deterministic core produces structured domain data.
+Ядро генератора независимо от ChatGPT/OpenAI-специфичных инструментов, GitHub Actions, лора конкретной кампании и конкретного renderer-а. Человек или LLM формируют формальный входной запрос, а детерминированное ядро создаёт структурированные данные домена.
 
-## Development status
+## Состояние разработки
 
-The project is currently in the architecture/foundation phase. Generator implementation has not started yet.
+Этап M0 — архитектурный фундамент и внешняя память проекта — завершён и принят. Реализация самого генератора ещё не началась. Следующий этап — M1: контракты данных `DomainSpec v0.1`, `GenerationPlan v0.1` и `DomainData v0.1`.
 
-## Documentation rule
+## Правило документации
 
-Normative project documents use machine-readable YAML front matter plus human-readable Markdown. Illustrative examples are explicitly marked `normative: false` and must not silently become Core requirements.
+Нормативные документы проекта используют машиночитаемый YAML front matter и человекочитаемый Markdown. Иллюстративные примеры явно помечаются `normative: false` и не должны молча превращаться в требования к Core.
