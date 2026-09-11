@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-pydantic-contracts-slice-2
-next_topic: generated-json-schema-and-contract-schema-tests
+checkpoint: M2-json-schema-slice-3
+next_topic: deterministic-rng-derivation-v1
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -47,6 +47,8 @@ implemented_m2:
   - validation-result-pydantic-v0.1
   - generation-config-pydantic-v0.1
   - domain-data-pydantic-v0.1
+  - generated-json-schema-v0.1
+  - contract-schema-roundtrip-tests
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
@@ -67,11 +69,9 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 ## Текущее состояние
 
-`M0 — Project foundation` завершён.
+`M0 — Project foundation` и `M1 — Data contracts` завершены.
 
-`M1 — Data contracts` завершён по roadmap criterion: роли, границы и draft contracts `DomainSpec`, `GenerationPlan`, `LayoutCandidate`, `PlacementReservation`, `ValidationResult`, `GenerationConfig` и `DomainData` согласованы и прошли consistency review.
-
-`M2 — Deterministic pipeline` начат с реализации contract layer. Создан Python package `src/domain_generator`; Pydantic v2-моделями теперь представлены все основные Core 0.1 contracts и geometry/value types:
+`M2 — Deterministic pipeline` начат с полного contract layer. В `src/domain_generator` реализованы Pydantic v2-модели всех основных Core 0.1 contracts и geometry/value types:
 
 - `DomainSpec`;
 - `GenerationPlan`;
@@ -81,29 +81,26 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 - `DomainData`;
 - point/corridor/band/area/RegionSet geometry.
 
-Contract models используют `extra="forbid"` и strict scalar annotations, но не глобальный `ConfigDict(strict=True)`: JSON/YAML lists должны нормализоваться в immutable tuples, а строки — в `StrEnum` values. Serialized floating-point values, где это требует contract, отклоняют `NaN`/`±Inf`.
+Для шести root serialized contracts теперь генерируются и коммитятся JSON Schema snapshots Draft 2020-12. Экспорт выполняется из текущих Pydantic models с aliases enabled; snapshots имеют deterministic compact JSON representation. Schema tests проверяют, что committed snapshots совпадают с моделями, сами schemas валидны как Draft 2020-12, а canonical JSON serialization проходит model round-trip и schema validation.
 
-`GenerationPlan` сохраняет принятую M1-границу `metadata / layout recipe / effect recipe`. `DomainData` не использует универсальный `dict[str, Any]` для feature semantics: Core 0.1 типизирует уже определённые lake/river properties и оставляет новые property schemas будущим конкретным feature/network types.
+JSON Schema является interchange/documentation layer, а не полной заменой Core validation: cross-field правила из `model_validator` (например exact grid divisibility, aggregate validation state и обязательный canonical field set `DomainData`) по-прежнему проверяются Python contract models.
+
+Contract models используют `extra="forbid"` и strict scalar annotations, но не глобальный `ConfigDict(strict=True)`, чтобы JSON/YAML lists могли нормализоваться в immutable tuples, а строки — в `StrEnum`. Где требует contract, serialized floats отклоняют `NaN`/`±Inf`.
+
+Локальный combined test suite после schema slice: **37/37 tests passed**.
 
 Генерационных алгоритмов, compiler и RNG implementation пока нет.
 
 ## Следующий шаг
 
-Проверить contract layer как внешний сериализуемый API:
-
-- generated JSON Schema для основных contracts;
-- schema/serialization round-trip tests;
-- canonical alias behavior (`from`/`to` в river segments);
-- sanity review соответствия generated schemas M1 documents.
-
-После этого: deterministic RNG derivation + basic attempt/pipeline skeleton.
+До реализации RNG зафиксировать exact reproducibility details `rng v1`: canonical namespace encoding, cryptographic derivation и concrete PRNG/seed width. После принятия реализовать deterministic RNG derivation и тесты isolation/order-independence, затем basic attempt/pipeline skeleton.
 
 ## Ещё не сделано
 
-- generated JSON Schema / schema tests;
+- exact RNG v1 derivation implementation;
 - compiler и preset registry implementation;
-- deterministic RNG implementation;
 - runtime CandidateState/dataclasses;
+- basic attempt/pipeline skeleton;
 - geometry/grid operators;
 - terrain/hydrology/surface/placement generators;
 - renderer и GitHub Actions.
