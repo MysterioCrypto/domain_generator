@@ -67,16 +67,60 @@ elevation + slope + hydrology
 -> vegetation density
 ```
 
-- moisture и vegetation density являются continuous fields;
+- moisture и vegetation density являются continuous semantic fields;
 - explicit forest-like features модифицируют поле, а не бинарно закрашивают клетки;
 - terrain и surface presets разделяются;
 - гибриды вроде `forested_hills` предпочтительно выражать как terrain feature + surface feature + constraint;
 - полноценная климатическая/биомная модель не входит в Core 0.1.
 
-## Dependent feature placement
+## Dependent feature placement / POI suitability
 
-Layout задаёт допустимую область, а post-physical stage выбирает финальную geometry по suitability. Если допустимого места нет, candidate отклоняется; terrain/validator не обязаны скрытно исправлять мир под POI.
+```text
+PlacementReservation
+-> hard site requirements
+-> valid sites
+-> intrinsic preferences + soft spatial constraints
+-> suitability scores
+-> near-best set
+-> deterministic weighted selection
+-> final geometry
+```
+
+- global hard spatial constraints формируют/сужают reservation;
+- intrinsic preset requirements (например water fraction, buildable fraction) фильтруют sites;
+- site metrics могут оценивать footprint вокруг точки, а не одну cell;
+- intrinsic preferences и soft constraints дают score;
+- Core 0.1 не обязан всегда выбирать абсолютный argmax: выбор выполняется детерминированно среди near-best sites с preference к более высоким scores;
+- если valid sites нет, attempt отклоняется;
+- Core 0.1 реализует dependent placement прежде всего для point features.
+
+## Attempt model
+
+Один `attempt_index` означает одну независимую realization одного immutable `GenerationPlan`.
+
+- hidden stage-local retries запрещены;
+- stochastic stages используют attempt-specific independent RNG streams;
+- deterministic stages не обязаны получать RNG;
+- early validation может остановить attempt до downstream stages;
+- late hard failure отклоняет весь attempt;
+- attempts не обучаются на предыдущих failures;
+- несколько valid candidates могут быть сгенерированы для ranking;
+- execution budget задаётся `GenerationConfig`, не `DomainSpec`.
+
+## RNG baseline
+
+Child RNG stream адресуется versioned semantic key:
+
+```text
+root seed + attempt + stage + scope + purpose
+```
+
+и выводится stable cryptographic derivation. Никакого global mutable RNG и Python `hash()` как persistence contract. Feature identity и parameter/purpose scopes стабильны; module/function names в namespace не входят.
 
 ## Validation
 
-Validation выполняется по стадиям. Engine invariants и hard constraints обязательны. Soft constraints используются для ranking: сначала минимизируется худшее значимое нарушение, затем учитывается weighted mean. Validator не модифицирует candidate.
+Validation выполняется по стадиям. Engine invariants и hard constraints обязательны. Soft constraints используются для ranking: сначала минимизируется худшее значимое weighted violation, затем учитывается weighted mean. Validator не модифицирует candidate.
+
+## Stage causality
+
+Stages образуют upstream-only DAG и не мутируют предыдущие outputs. Если поздний object должен формировать ранний слой мира, это выражается отдельным feature/constraint соответствующей стадии, а не скрытым side effect.
