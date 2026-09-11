@@ -1,8 +1,13 @@
 """Serializable Core 0.1 contracts and immutable value models."""
 
 from .common import ConstraintStrength, DomainCompass, FeaturePart, Relation
+from .config import GenerationConfig, ObservabilityConfig, SemanticGenerationConfig
+from .data import DomainData, FieldDescriptor, FieldRole, RiverNetwork
 from .geometry import AreaGeometry, BandGeometry, CorridorGeometry, Geometry, PointGeometry, RegionSet, WorldPoint
+from .layout import LayoutCandidate, PlacementReservation
+from .plan import GenerationPlan, ResolvedFeature
 from .spec import ConstraintSpec, DomainSpec, FeatureSpec
+from .validation import RankingResult, ValidationResult, ValidationStage
 
 __all__ = [
     "AreaGeometry",
@@ -11,12 +16,26 @@ __all__ = [
     "ConstraintStrength",
     "CorridorGeometry",
     "DomainCompass",
+    "DomainData",
     "DomainSpec",
     "FeaturePart",
     "FeatureSpec",
+    "FieldDescriptor",
+    "FieldRole",
+    "GenerationConfig",
+    "GenerationPlan",
     "Geometry",
+    "LayoutCandidate",
+    "ObservabilityConfig",
+    "PlacementReservation",
     "PointGeometry",
+    "RankingResult",
     "RegionSet",
     "Relation",
+    "ResolvedFeature",
+    "RiverNetwork",
+    "SemanticGenerationConfig",
+    "ValidationResult",
+    "ValidationStage",
     "WorldPoint",
 ]
