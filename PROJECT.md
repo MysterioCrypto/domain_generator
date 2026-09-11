@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-json-schema-slice-3
-next_topic: deterministic-rng-derivation-v1
+checkpoint: M2-rng-v1
+next_topic: basic-attempt-pipeline-skeleton
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -49,6 +49,9 @@ implemented_m2:
   - domain-data-pydantic-v0.1
   - generated-json-schema-v0.1
   - contract-schema-roundtrip-tests
+  - deterministic-rng-protocol-v1
+  - xoshiro256starstar-v1
+  - rng-golden-and-isolation-tests
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
@@ -71,7 +74,9 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены.
 
-`M2 — Deterministic pipeline` начат с полного contract layer. В `src/domain_generator` реализованы Pydantic v2-модели всех основных Core 0.1 contracts и geometry/value types:
+`M2 — Deterministic pipeline` содержит полный serialized contract layer Core 0.1, generated JSON Schema snapshots Draft 2020-12 и первую runtime infrastructure — deterministic RNG v1.
+
+В `src/domain_generator` реализованы Pydantic v2-модели основных contracts и geometry/value types:
 
 - `DomainSpec`;
 - `GenerationPlan`;
@@ -81,23 +86,28 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 - `DomainData`;
 - point/corridor/band/area/RegionSet geometry.
 
-Для шести root serialized contracts теперь генерируются и коммитятся JSON Schema snapshots Draft 2020-12. Экспорт выполняется из текущих Pydantic models с aliases enabled; snapshots имеют deterministic compact JSON representation. Schema tests проверяют, что committed snapshots совпадают с моделями, сами schemas валидны как Draft 2020-12, а canonical JSON serialization проходит model round-trip и schema validation.
+Для шести root serialized contracts генерируются и коммитятся JSON Schema snapshots. JSON Schema является interchange/documentation layer, а cross-field правила из `model_validator` остаются ответственностью Python Core models.
 
-JSON Schema является interchange/documentation layer, а не полной заменой Core validation: cross-field правила из `model_validator` (например exact grid divisibility, aggregate validation state и обязательный canonical field set `DomainData`) по-прежнему проверяются Python contract models.
+RNG v1 теперь зафиксирован нормативно в ADR-0010 и реализован без зависимости от `random.Random` или NumPy RNG:
 
-Contract models используют `extra="forbid"` и strict scalar annotations, но не глобальный `ConfigDict(strict=True)`, чтобы JSON/YAML lists могли нормализоваться в immutable tuples, а строки — в `StrEnum`. Где требует contract, serialized floats отклоняют `NaN`/`±Inf`.
+- semantic `RngKey = attempt_index + stage + scope + purpose`;
+- canonical length-prefixed binary namespace encoding;
+- BLAKE2b-256 с personalization `dg-rng-v1`;
+- 256-bit state `xoshiro256**`;
+- `next_u64`, `uniform01`, `uniform`, unbiased inclusive `integer_uniform`, `choice`;
+- independent streams per logical random task;
+- golden vectors и isolation/order-independence tests.
 
-Локальный combined test suite после schema slice: **37/37 tests passed**.
-
-Генерационных алгоритмов, compiler и RNG implementation пока нет.
+`root_seed` на RNG boundary должен быть unsigned uint64. До compiler implementation это проверяет `RngFactory`; compiler позже должен отклонять неподдерживаемый seed до generation.
 
 ## Следующий шаг
 
-До реализации RNG зафиксировать exact reproducibility details `rng v1`: canonical namespace encoding, cryptographic derivation и concrete PRNG/seed width. После принятия реализовать deterministic RNG derivation и тесты isolation/order-independence, затем basic attempt/pipeline skeleton.
+Собрать минимальный attempt/pipeline skeleton поверх уже существующих contracts и `RngFactory`, не реализуя пока terrain/hydrology algorithms. Skeleton должен показать lifecycle одного independent attempt, ранний reject и deterministic collection/ranking valid candidates без hidden stage-local retries.
+
+После этого можно переходить к compiler/preset registry и первым реальным geometry/grid operators.
 
 ## Ещё не сделано
 
-- exact RNG v1 derivation implementation;
 - compiler и preset registry implementation;
 - runtime CandidateState/dataclasses;
 - basic attempt/pipeline skeleton;
