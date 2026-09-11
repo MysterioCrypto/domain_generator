@@ -54,8 +54,9 @@ class DomainCompass(StrEnum):
     NORTHEAST = "northeast"
 
 
-Number = StrictInt | StrictFloat
-ScalarParameterValue = StrictBool | StrictInt | StrictFloat | StrictStr
+FiniteFloat = Annotated[StrictFloat, Field(allow_inf_nan=False)]
+Number = StrictInt | FiniteFloat
+ScalarParameterValue = StrictBool | StrictInt | FiniteFloat | StrictStr
 
 
 class NumericRangeOverride(FrozenStrictModel):
@@ -82,6 +83,6 @@ class OneOfOverride(FrozenStrictModel):
 ParameterOverride = ScalarParameterValue | NumericRangeOverride | OneOfOverride
 
 
-NormalizedValue = Annotated[StrictFloat, Field(ge=0.0, le=1.0)]
-NonNegativeFloat = Annotated[StrictFloat, Field(ge=0.0)]
-PositiveFloat = Annotated[StrictFloat, Field(gt=0.0)]
+NormalizedValue = Annotated[StrictFloat, Field(ge=0.0, le=1.0, allow_inf_nan=False)]
+NonNegativeFloat = Annotated[StrictFloat, Field(ge=0.0, allow_inf_nan=False)]
+PositiveFloat = Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
