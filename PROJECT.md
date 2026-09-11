@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-rng-v1
-next_topic: basic-attempt-pipeline-skeleton
+checkpoint: M2-attempt-pipeline-skeleton
+next_topic: compiler-and-preset-registry-minimal-slice
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -52,6 +52,9 @@ implemented_m2:
   - deterministic-rng-protocol-v1
   - xoshiro256starstar-v1
   - rng-golden-and-isolation-tests
+  - runtime-candidate-state-v0.1
+  - attempt-pipeline-skeleton-v0.1
+  - deterministic-candidate-ranking-v0.1
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
@@ -74,7 +77,7 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены.
 
-`M2 — Deterministic pipeline` содержит полный serialized contract layer Core 0.1, generated JSON Schema snapshots Draft 2020-12 и первую runtime infrastructure — deterministic RNG v1.
+`M2 — Deterministic pipeline` уже содержит полный serialized contract layer Core 0.1, generated JSON Schema snapshots Draft 2020-12, deterministic RNG v1 и минимальный runtime attempt orchestrator.
 
 В `src/domain_generator` реализованы Pydantic v2-модели основных contracts и geometry/value types:
 
@@ -88,7 +91,7 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 Для шести root serialized contracts генерируются и коммитятся JSON Schema snapshots. JSON Schema является interchange/documentation layer, а cross-field правила из `model_validator` остаются ответственностью Python Core models.
 
-RNG v1 теперь зафиксирован нормативно в ADR-0010 и реализован без зависимости от `random.Random` или NumPy RNG:
+RNG v1 зафиксирован нормативно в ADR-0010 и реализован без зависимости от `random.Random` или NumPy RNG:
 
 - semantic `RngKey = attempt_index + stage + scope + purpose`;
 - canonical length-prefixed binary namespace encoding;
@@ -100,19 +103,34 @@ RNG v1 теперь зафиксирован нормативно в ADR-0010 и
 
 `root_seed` на RNG boundary должен быть unsigned uint64. До compiler implementation это проверяет `RngFactory`; compiler позже должен отклонять неподдерживаемый seed до generation.
 
+Минимальный attempt/pipeline skeleton реализует уже принятый M1 lifecycle без реальных terrain/hydrology algorithms:
+
+- фиксированный порядок `layout -> terrain -> hydrology -> surface -> placement -> final`;
+- mutable runtime `CandidateState`, отдельный от serialized contracts;
+- один `AttemptContext` с immutable Plan, `attempt_index` и `RngFactory`;
+- каждый stage handler вызывается не более одного раза в attempt;
+- первый failed engine invariant или hard constraint завершает attempt немедленно;
+- завершённый valid attempt становится runtime `DomainCandidate`;
+- outer loop идёт по `attempt_index` по возрастанию, собирает до `target_valid_candidates` либо исчерпания budget;
+- если есть хотя бы один valid candidate, выбирается лучший по `worst_effective_violation`, затем `weighted_mean_score`, затем меньшему `attempt_index`;
+- если valid candidates нет, выбрасывается runtime `GenerationFailure`;
+- observability settings orchestrator не читает и на semantic result они не влияют.
+
+Stage handlers пока synthetic/injected: реальных layout/terrain/hydrology/surface/placement implementations ещё нет.
+
 ## Следующий шаг
 
-Собрать минимальный attempt/pipeline skeleton поверх уже существующих contracts и `RngFactory`, не реализуя пока terrain/hydrology algorithms. Skeleton должен показать lifecycle одного independent attempt, ранний reject и deterministic collection/ranking valid candidates без hidden stage-local retries.
+Перейти к минимальному compiler/preset registry slice: определить исполнимый registry boundary, несколько generic preset definitions для contract tests и compilation `DomainSpec -> GenerationPlan` без procedural geometry generation.
 
-После этого можно переходить к compiler/preset registry и первым реальным geometry/grid operators.
+После compiler можно подключить первый настоящий layout/geometry vertical slice к уже существующему attempt orchestrator.
 
 ## Ещё не сделано
 
 - compiler и preset registry implementation;
-- runtime CandidateState/dataclasses;
-- basic attempt/pipeline skeleton;
+- реальные stage handlers;
 - geometry/grid operators;
 - terrain/hydrology/surface/placement generators;
+- DomainData assembler/export bundle;
 - renderer и GitHub Actions.
 
 ## Инварианты
