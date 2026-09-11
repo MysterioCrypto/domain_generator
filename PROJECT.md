@@ -2,13 +2,21 @@
 project: domain_generator
 target_version: core-0.1
 phase: foundation
-status: in-progress
+status: ready-for-review
 current_milestone: M0-project-foundation
 next_milestone: M1-data-contracts
+completed:
+  - repository-bootstrap
+  - project-state-memory
+  - architecture-baseline
+  - roadmap-core-0.1
+  - glossary-baseline
+  - initial-adrs
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
   glossary: docs/glossary.md
+  decisions: docs/decisions/
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006]
 ---
 
@@ -22,7 +30,20 @@ Build an independent procedural domain-generation core with constrained randomne
 
 ## Current state
 
-Milestone `M0 — Project foundation` is in progress. We are creating the external project memory and architecture documents. Generator code has not started.
+Milestone `M0 — Project foundation` is complete on the foundation branch and ready for review. The repository now contains the external project memory, architecture baseline, roadmap, glossary, example semantics, and initial ADRs. Generator code has not started.
+
+## Guarantees established by M0
+
+- Core boundaries are explicit.
+- `DomainSpec`, `GenerationPlan`, and `DomainData` are separate concepts.
+- Determinism is an architectural requirement.
+- Examples are explicitly non-normative.
+- Significant architecture changes are discussed before implementation.
+- Repository documentation, not chat history, is the canonical project state.
+
+## Remaining limitations
+
+No schemas, Python package, pipeline, generator stages, tests, renderers, or GitHub Actions workflows exist yet.
 
 ## Next
 
