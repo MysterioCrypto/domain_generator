@@ -108,6 +108,15 @@ SpatialSelector = FeatureSelector | DomainAnchorSelector | DomainRegionSelector 
 
 
 class ConstraintSpec(FrozenStrictModel):
+    @model_validator(mode="before")
+    @classmethod
+    def default_soft_weight(cls, data: object) -> object:
+        if isinstance(data, dict) and data.get("strength") == ConstraintStrength.SOFT and "weight" not in data:
+            normalized = dict(data)
+            normalized["weight"] = 1.0
+            return normalized
+        return data
+
     id: Annotated[StrictStr, Field(min_length=1)]
     relation: Relation
     subject: SpatialSelector
