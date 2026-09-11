@@ -82,3 +82,19 @@ def test_literal_km_point_must_be_inside_domain() -> None:
     ]
     with pytest.raises(ValidationError, match="inside the domain"):
         DomainSpec.model_validate(data)
+
+
+def test_soft_constraint_defaults_weight_to_one() -> None:
+    data = minimal_spec()
+    data["constraints"] = [
+        {
+            "id": "soft-near-center",
+            "relation": "near",
+            "subject": {"domain_anchor": "west"},
+            "target": {"domain_anchor": "center"},
+            "strength": "soft",
+            "parameters": {"max_distance_km": 20.0},
+        }
+    ]
+    spec = DomainSpec.model_validate(data)
+    assert spec.constraints[0].weight == 1.0
