@@ -1,0 +1,79 @@
+{
+  "$defs": {
+    "ObservabilityConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "debug": {
+          "default": false,
+          "title": "Debug",
+          "type": "boolean"
+        },
+        "save_intermediate_fields": {
+          "default": false,
+          "title": "Save Intermediate Fields",
+          "type": "boolean"
+        },
+        "save_rejected_attempts": {
+          "default": false,
+          "title": "Save Rejected Attempts",
+          "type": "boolean"
+        },
+        "save_validation_details": {
+          "default": false,
+          "title": "Save Validation Details",
+          "type": "boolean"
+        }
+      },
+      "title": "ObservabilityConfig",
+      "type": "object"
+    },
+    "SemanticGenerationConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "max_attempts": {
+          "minimum": 1,
+          "title": "Max Attempts",
+          "type": "integer"
+        },
+        "target_valid_candidates": {
+          "minimum": 1,
+          "title": "Target Valid Candidates",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "max_attempts",
+        "target_valid_candidates"
+      ],
+      "title": "SemanticGenerationConfig",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "generation_config_version": {
+      "const": "0.1",
+      "title": "Generation Config Version",
+      "type": "string"
+    },
+    "observability": {
+      "$ref": "#/$defs/ObservabilityConfig",
+      "default": {
+        "debug": false,
+        "save_intermediate_fields": false,
+        "save_rejected_attempts": false,
+        "save_validation_details": false
+      }
+    },
+    "semantic": {
+      "$ref": "#/$defs/SemanticGenerationConfig"
+    }
+  },
+  "required": [
+    "generation_config_version",
+    "semantic"
+  ],
+  "title": "GenerationConfig",
+  "type": "object"
+}
