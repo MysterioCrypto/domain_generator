@@ -82,17 +82,6 @@ class OneOfOverride(FrozenStrictModel):
 ParameterOverride = ScalarParameterValue | NumericRangeOverride | OneOfOverride
 
 
-class AxisRange(FrozenStrictModel):
-    min: StrictFloat
-    max: StrictFloat
-
-    @model_validator(mode="after")
-    def validate_order(self) -> "AxisRange":
-        if self.min > self.max:
-            raise ValueError("min must be <= max")
-        return self
-
-
 NormalizedValue = Annotated[StrictFloat, Field(ge=0.0, le=1.0)]
 NonNegativeFloat = Annotated[StrictFloat, Field(ge=0.0)]
 PositiveFloat = Annotated[StrictFloat, Field(gt=0.0)]
