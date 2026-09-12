@@ -534,6 +534,8 @@ def compile_domain_spec(
             stream_threshold_km2=spec.hydrology.stream_threshold_km2,
             lake_min_area_km2=spec.hydrology.lake_min_area_km2,
             lake_min_depth_m=spec.hydrology.lake_min_depth_m,
+            river_depth_at_threshold_m=spec.hydrology.river_depth_at_threshold_m,
+            river_depth_exponent=spec.hydrology.river_depth_exponent,
         ),
         features=tuple(resolved_features),
         constraints=compiled_constraints,
