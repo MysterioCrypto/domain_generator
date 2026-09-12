@@ -107,7 +107,17 @@ Centerline peak всегда равен `height_m` до additive combination с 
 
 ## Coherent roughness
 
-Roughness использует `world-space coherent value noise v1`, документированный отдельно в `docs/design/world-space-value-noise-v1.md`.
+Roughness использует generic `world-space coherent value noise v1`, документированный отдельно в `docs/design/world-space-value-noise-v1.md`.
+
+Ridge задаёт caller namespace:
+
+```text
+stage = terrain
+scope = ("feature", feature_id, "ridge-noise")
+purpose = "value"
+```
+
+Noise primitive добавляет к scope `("node", decimal(i), decimal(j))` для каждого lattice node.
 
 Для cell center:
 
