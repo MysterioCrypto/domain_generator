@@ -77,7 +77,14 @@ A stream-to-stream directed edge exists from stream cell `A` to its D8 receiver 
 
 Accepted lake cells suppress internal visible river edges even though D8 still exists for routing.
 
-For every stream cell outside accepted lakes, define stream indegree as the number of upstream stream cells outside accepted lakes whose D8 receiver is that cell.
+For every stream cell outside accepted lakes define **effective visible indegree** as:
+
+```text
+ordinary upstream stream-to-stream edges
++ incoming lake_outlet transitions
+```
+
+This prevents a lake outlet and an ordinary tributary from joining the same downstream stream cell without a confluence node.
 
 ## Network nodes
 
@@ -85,13 +92,13 @@ A river node is created at each topological break in the visible stream graph.
 
 ### source
 
-A stream cell outside lakes with stream indegree `0`.
+A stream cell outside lakes with effective visible indegree `0`.
 
 Position: canonical world-space cell center.
 
 ### confluence
 
-A stream cell outside lakes with stream indegree `>= 2`.
+A stream cell outside lakes with effective visible indegree `>= 2`.
 
 Position: canonical world-space cell center.
 
@@ -177,6 +184,8 @@ For a segment ending at a domain outlet, use the terminal edge stream cell.
 
 For a segment ending at lake inflow, use the outside stream cell immediately before entering the lake.
 
+For a segment ending at a confluence, use the last upstream raster stream cell before the confluence; if a lake-outlet segment enters a confluence immediately, use the confluence receiver cell as the deterministic fallback.
+
 For a segment beginning at lake outlet, downstream accumulation remains the accumulation of the ordinary raster stream path after the lake.
 
 ## River depth proxy
@@ -256,8 +265,8 @@ Hydrology validation additionally checks:
 - stream cells outside accepted lakes equal the exact river-depth proxy after float32 cast;
 - non-lake/non-stream cells equal zero;
 - river-network node ids/segment ids canonical and references valid;
-- source nodes correspond to visible stream indegree 0;
-- confluence nodes correspond to visible stream indegree >= 2;
+- source nodes correspond to effective visible indegree 0;
+- confluence nodes correspond to effective visible indegree >= 2;
 - domain outlets lie on the declared boundary side;
 - lake nodes reference canonical accepted lake ids;
 - segment centerlines follow downstream D8 stream topology and never traverse accepted-lake interior;
