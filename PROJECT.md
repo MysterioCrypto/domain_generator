@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-point-layout-v0.1
-next_topic: corridor-layout-semantics
+checkpoint: M2-corridor-layout-v0.1
+next_topic: band-layout-semantics
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -23,6 +23,10 @@ implemented_m2:
   - semantic-plan-fingerprint
   - point-layout-generation-v0.1
   - point-layout-validation-v0.1
+  - generic-resolved-parameter-sampling-v0.1
+  - triangular-sampler-rng-v1-mapping
+  - corridor-layout-generation-v0.1
+  - corridor-layout-validation-v0.1
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
@@ -45,30 +49,41 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Уже реализованы serialized Pydantic contracts, JSON Schema snapshots, deterministic RNG v1, attempt orchestrator, deterministic candidate ranking и минимальный compiler/preset-registry boundary.
+Уже реализованы serialized Pydantic contracts, JSON Schema snapshots, deterministic RNG v1, attempt orchestrator, deterministic candidate ranking, compiler/preset-registry boundary и первые реальные layout paths.
 
-Первый настоящий procedural vertical slice — generic point layout — зафиксирован в `docs/design/point-layout-v0.1.md` и реализует:
+### Point layout
 
-- `GenerationPlan -> LayoutCandidate` для `layout.mode=geometry`, `shape=point`;
-- независимый RNG stream на feature с namespace `feature/<id>/geometry/point`, purpose `position`;
-- ровно два `uniform01()` draw на concrete `(x_km, y_km)`;
-- отсутствие hidden retries и constraint-aware steering;
-- semantic `plan_fingerprint` в `LayoutCandidate.source_plan`;
-- layout engine invariants для plan fingerprint, attempt index, полного набора point features и domain bounds;
-- hard point-to-point distance;
-- hard point-to-rectangle distance;
-- point-in-rectangle `contained_fraction` / `overlap_fraction`;
-- `ValidationResult(stage=layout)` и StageHandler adapter для существующего attempt orchestrator.
+Generic point layout реализует `GenerationPlan -> LayoutCandidate` для `shape=point` с независимым feature RNG stream, domain-bound validation и базовыми hard point/rectangle constraints.
 
-Geometry shapes кроме point и placement reservations пока явно unsupported, а не аппроксимируются. Soft constraint scoring также пока не реализован.
+### Corridor layout
+
+Принятый алгоритм зафиксирован в `docs/design/corridor-layout-v0.1.md` и реализует:
+
+- canonical corridor как ordered polyline;
+- обязательные layout parameters `control_point_count` и `curvature`;
+- независимые RNG streams для start, end и control points;
+- отдельные parameter sampling streams;
+- internal control points на равномерных `t` вдоль start→end;
+- signed perpendicular displacement через envelope `4*t*(1-t)`;
+- ограничение displacement доступным расстоянием до rectangular domain boundary без clamp/retry;
+- explicit degenerate-corridor rejection через layout engine invariant;
+- resolution `start`, `end`, `center` (50% arc length), `whole`;
+- point↔corridor minimum-distance hard evaluation;
+- mixed point+corridor deterministic geometry generation.
+
+### Parameter sampling
+
+Runtime sampler поддерживает `fixed`, float `uniform`, inclusive `integer_uniform`, `categorical` и float `triangular`. Triangular mapping использует зафиксированную inverse-CDF формулу и считается частью RNG v1 semantics.
+
+Никакого constraint-aware steering или hidden retries нет: geometry сначала materialize-ится, затем supported hard constraints могут отклонить весь attempt.
 
 ## Следующий шаг
 
-Перед реализацией второй procedural geometry path отдельно определить deterministic semantics для `corridor`: как выбираются endpoints/control points, какие layout parameters действительно нужны и где проходит granularity RNG streams. После принятия подключить corridor к существующему layout generator/validator без специальных content rules.
+Следующий bounded geometry path — `band`. До реализации нужно отдельно зафиксировать: как band переиспользует corridor centerline semantics, как sample-ится full-width profile и какие profile parameters входят в Core 0.1.
 
 ## Ещё не сделано
 
-- corridor/band/area layout generation;
+- band/area layout generation;
 - placement reservation materialization и RegionSet boolean operations;
 - YAML/file preset loader и production preset catalog;
 - soft constraint scoring compilation;
