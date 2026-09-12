@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-dependent-placement-site-metrics-v0.1
-next_topic: dependent-placement-candidate-lattice-and-requirements-v0.1
+checkpoint: M2-dependent-placement-candidate-filtering-v0.1
+next_topic: dependent-placement-preference-selection-v0.1
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -63,6 +63,7 @@ implemented_m2:
   - surface-validation-v0.1
   - surface-feature-bias-v0.1
   - dependent-placement-site-metrics-v0.1
+  - dependent-placement-candidate-filtering-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
 implemented_infrastructure:
@@ -77,6 +78,7 @@ canonical_documents:
   placement_reservations: docs/design/placement-reservation-materialization-v0.1.md
   dependent_placement: docs/design/dependent-placement-site-selection-v0.1.md
   dependent_placement_site_metrics: docs/design/dependent-placement-site-metrics-v0.1.md
+  dependent_placement_candidate_filtering: docs/design/dependent-placement-candidate-filtering-v0.1.md
   terrain_area_raise: docs/design/terrain-area-raise-v0.1.md
   terrain_band_ridge: docs/design/terrain-band-ridge-v0.1.md
   terrain_structural_flatten: docs/design/terrain-structural-flatten-v0.1.md
@@ -97,7 +99,7 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 Создать независимое setting-agnostic процедурное ядро генерации ограниченных пространственных регионов с управляемой случайностью. Пользователь или внешний consumer описывает намерение и ограничения; Core компилирует их в executable plan и создаёт детерминированный structured result.
 
-`Domain` в проекте означает generic bounded spatial region — кусок мира/карты, генерируемый как единое целое. Термин не несёт специальной лоровой семантики.
+`Domain` означает generic bounded spatial region — кусок мира/карты, генерируемый как единое целое. Термин не несёт специальной лоровой семантики.
 
 ## Граница продукта
 
@@ -119,13 +121,13 @@ world / setting / application
 
 В Core допустимы generic concepts: geometry, terrain, hydrology, fields, networks, constraints, procedural features и placement rules.
 
-В Core не входят setting identity, campaign lore, game-system rules, setting-specific preset catalogs, UI или presentation logic. Такие данные и adapters должны жить во внешнем extension/content layer.
+В Core не входят setting identity, campaign lore, game-system rules, setting-specific preset catalogs, UI или presentation logic.
 
 ## Текущее состояние
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology и canonical runtime water depth. Surface покрывает base moisture/vegetation и explicit area feature biases. Dependent placement теперь имеет зафиксированную и реализованную numerical site-metric основу.
+Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology и canonical runtime water depth. Surface покрывает base moisture/vegetation и explicit area feature biases. Dependent placement теперь покрывает site metrics и deterministic candidate filtering до множества valid sites.
 
 ## Карта прогресса простыми словами
 
@@ -137,9 +139,9 @@ Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReserva
 [готово] hydrology: routing / streams / lakes / RiverNetwork / water_depth
 [готово] базовые moisture + vegetation fields
 [готово] explicit surface feature biases
-[текущий PR] dependent-placement site metrics
-[следом] rotated candidate lattice + hard requirements
-[потом] preference scoring + near-best + final weighted selection
+[готово] dependent-placement site metrics
+[текущий PR] rotated candidate lattice + reservation filtering + hard requirements
+[следом] preference scoring + near-best + weighted final selection + PlacementState
 [потом] сборка финального DomainData
 
 [готово] GitHub Actions: pytest на push/PR
@@ -166,11 +168,9 @@ Canonical runtime fields:
 - generic area operators `moisture_bias` / `vegetation_bias`;
 - canonical water precedence after surface contributions.
 
-## Dependent Placement Site Metrics v0.1
+## Dependent Placement Site Metrics v0.1 — complete
 
 Normative semantics: `docs/design/dependent-placement-site-metrics-v0.1.md`.
-
-Этот checkpoint реализует только numerical evaluation candidate sites и не выполняет placement selection.
 
 Реализовано:
 
@@ -180,62 +180,81 @@ Normative semantics: `docs/design/dependent-placement-site-metrics-v0.1.md`.
 - north/east external boundary clamp to final in-domain cell;
 - circular footprint support через cell-center inclusion;
 - fallback to containing cell, если footprint не содержит raster centers;
-- attempt-global `SiteMetricContext`, который один раз precompute-ит slope и exact distance-to-water;
-- generic metric registry:
-  - `slope_mean`;
-  - `water_fraction`;
-  - `elevation_mean`;
-  - `local_relief`;
-  - `relative_elevation`;
-  - `moisture_mean`;
-  - `vegetation_density_mean`;
-  - `distance_to_water`;
+- attempt-global `SiteMetricContext` с precomputed slope и exact distance-to-water;
+- 8 generic metrics;
 - float64 aggregation;
 - no-water sentinel `distance_to_water = +inf`;
-- explicit capability errors для invalid upstream arrays/candidate/radius;
+- explicit capability errors;
 - no RNG and no upstream mutation.
+
+## Dependent Placement Candidate Filtering v0.1 — current checkpoint
+
+Normative semantics: `docs/design/dependent-placement-candidate-filtering-v0.1.md`.
+
+Реализовано:
+
+- semantic `candidate_spacing_km` через standard placement parameter sampling namespace;
+- deterministic square lattice с независимыми `rotation` и `phase` streams;
+- `rotation ∈ [0, pi/2)`;
+- два phase draws в rotated coordinates;
+- finite lattice enumeration через inverse-rotated domain bounds;
+- filtering по domain и `PlacementReservation.allowed_region`;
+- RegionSet `covers` semantics для inside/on placement;
+- exact duplicate removal и canonical sort `(x_km, y_km)`;
+- reuse `SiteMetricContext` для всех candidates;
+- hard evaluators `less_or_equal` / `greater_or_equal`;
+- empty reservation/valid set без fallback и hidden retry;
+- no preference scoring и no final selection.
 
 ## Dependent placement site selection — accepted design, partially implemented
 
 Normative semantics: `docs/design/dependent-placement-site-selection-v0.1.md`.
 
-Уже приняты:
-
-- world-space rotated candidate lattice;
-- semantic `candidate_spacing_km`;
-- circular footprint;
-- hard requirements;
-- intrinsic preferences;
-- near-best filtering;
-- isolated deterministic weighted choice;
-- runtime `PlacementState.final_points`.
-
-Site-metric implementation gate закрыт этим checkpoint.
-
-## Следующий шаг
-
-Следующий bounded implementation slice — **Dependent Placement Candidate Lattice + Hard Requirements v0.1**.
-
-Он должен реализовать только:
+Уже реализовано:
 
 ```text
 PlacementReservation
--> rotated/phase-shifted world-space lattice
+-> candidate lattice
 -> reservation containment
--> canonical site ordering
--> SiteMetricContext evaluation
--> hard SiteProfile requirements
+-> canonical candidate order
+-> site metrics
+-> hard requirements
 -> valid sites
 ```
 
-Preference scoring, near-best filtering, weighted final selection и `PlacementState` остаются следующим отдельным slice.
+Остаётся:
+
+```text
+valid sites
+-> intrinsic preferences
+-> suitability
+-> near-best
+-> deterministic weighted selection
+-> PlacementState.final_points
+-> placement validation / attempt rejection
+```
+
+## Следующий шаг
+
+Следующий bounded implementation slice — **Dependent Placement Preference Selection v0.1**.
+
+Он должен реализовать принятую семантику:
+
+- `maximize`, `minimize`, `preferred_range`;
+- normalized preference scores `[0,1]`;
+- weighted composite suitability;
+- semantic `near_best_delta`;
+- canonical near-best set;
+- deterministic weighted choice через `("feature", id, "site-selection") / "weighted-choice"`;
+- runtime `PlacementState.final_points`;
+- rejection attempt при empty valid-site set;
+- placement validation.
 
 ## Ещё не сделано
 
-- dependent-placement candidate lattice runtime;
-- hard SiteProfile requirement filtering runtime;
 - preference scoring / near-best / weighted final selection;
 - `PlacementState.final_points`;
+- placement-stage validation/rejection semantics;
 - lake polygon vectorization / canonical `HydroFeature` materialization;
 - physical river width/sub-cell rasterization;
 - runoff/discharge/climate model;
