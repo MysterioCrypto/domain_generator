@@ -5,7 +5,7 @@ from math import hypot, isfinite, sqrt
 
 from ..contracts.geometry import BandGeometry
 from ..fields.noise import value_noise_2d
-from ..pipeline.rng import RngFactory
+from ..pipeline.rng import RngFactory, RngStage
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,7 +85,6 @@ def nearest_centerline_distance_and_t(
         ddy = y - qy
         distance_sq = ddx * ddx + ddy * ddy
 
-        # Strict comparison deliberately preserves the earliest segment on exact ties.
         if best_distance_sq is None or distance_sq < best_distance_sq:
             best_distance_sq = distance_sq
             best_arc = segment.prefix_length + scalar * segment.length
@@ -154,7 +153,9 @@ def ridge_contribution_at(
             scale_km=roughness_scale_km,
             rng_factory=rng_factory,
             attempt_index=attempt_index,
-            feature_id=feature_id,
+            stage=RngStage.TERRAIN,
+            scope=("feature", feature_id, "ridge-noise"),
+            purpose="value",
         )
         denominator = 1.0 + roughness * 0.35 * noise
         u = u / denominator
