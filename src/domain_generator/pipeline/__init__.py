@@ -15,7 +15,6 @@ from .attempts import (
     run_generation,
     validation_passed,
 )
-from .final import FinalValidationCapabilityError, final_stage, validate_final
 from .rng import RngFactory, RngKey, RngStage, Xoshiro256StarStar
 
 __all__ = [
@@ -23,7 +22,6 @@ __all__ = [
     "AttemptContext",
     "CandidateState",
     "DomainCandidate",
-    "FinalValidationCapabilityError",
     "GenerationFailure",
     "GenerationRunResult",
     "PipelineInvariantError",
@@ -34,9 +32,7 @@ __all__ = [
     "StageStep",
     "Xoshiro256StarStar",
     "candidate_rank_key",
-    "final_stage",
     "run_attempt",
     "run_generation",
-    "validate_final",
     "validation_passed",
 ]
