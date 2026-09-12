@@ -184,9 +184,9 @@ For a segment ending at a domain outlet, use the terminal edge stream cell.
 
 For a segment ending at lake inflow, use the outside stream cell immediately before entering the lake.
 
-For a segment ending at a confluence, use the last upstream raster stream cell before the confluence; if a lake-outlet segment enters a confluence immediately, use the confluence receiver cell as the deterministic fallback.
+For a segment ending at a confluence, use the last upstream raster stream cell before the confluence. If a `lake_outlet` segment enters a confluence immediately, use the last lake cell before the outlet transition; the confluence receiver accumulation is not used because it already includes the other incoming branches.
 
-For a segment beginning at lake outlet, downstream accumulation remains the accumulation of the ordinary raster stream path after the lake.
+For a segment beginning at lake outlet and continuing through ordinary outside stream cells, downstream accumulation follows that outside stream path until the next node transition.
 
 ## River depth proxy
 
