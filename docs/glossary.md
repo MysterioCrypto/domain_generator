@@ -9,11 +9,11 @@ normative: true
 
 ## Domain
 
-Один генерируемый пространственный регион. Не предполагается, что он является частью обычной планеты или глобальной карты.
+Ограниченная пространственная область мира/карты, которая генерируется как единое целое. Термин setting-agnostic: Domain может быть частью планеты, островом, сектором, локальной игровой зоной, абстрактным регионом или иным bounded spatial region. Он не обозначает специальную лоровую сущность и не предполагает конкретный жанр, кампанию или игровую систему.
 
 ## DomainSpec
 
-Публичный входной контракт. Описывает намерение пользователя: physical size, seed, features, parameter overrides и constraints. Не содержит raster indices и внутренних алгоритмических деталей.
+Публичный входной контракт. Описывает намерение пользователя: physical size, seed, features, parameter overrides и constraints. Не содержит raster indices, setting identity и внутренних алгоритмических деталей.
 
 ## GenerationPlan
 
@@ -65,7 +65,7 @@ Optional human-readable имя domain/feature. Не участвует в proced
 
 ## Field
 
-Значение, определённое в пространстве домена: `elevation`, `water_depth`, `moisture`, `vegetation_density` и т. п.
+Значение, определённое в пространстве domain: `elevation`, `water_depth`, `moisture`, `vegetation_density` и т. п.
 
 ## Network
 
@@ -73,7 +73,7 @@ Optional human-readable имя domain/feature. Не участвует в proced
 
 ## Feature
 
-Semantic spatial object, заданный через preset и constraints. Resolved feature имеет family, metadata, layout recipe и effect recipe.
+Generic semantic spatial object, заданный через preset и constraints. Resolved feature имеет family, metadata, layout recipe и effect recipe. Setting-specific смысл может назначаться внешним consumer-ом, но не является частью primitive Core semantics.
 
 ## Spatial primitive
 
@@ -81,7 +81,7 @@ Semantic spatial object, заданный через preset и constraints. Reso
 
 ## Preset
 
-Декларативная человекоосмысленная конфигурация generic operator: family, shape, defaults, parameter schemas, sampling policies и optional site profile. Preset не содержит embedded scripting.
+Декларативная человекоосмысленная конфигурация generic operator: family, shape, defaults, parameter schemas, sampling policies и optional site profile. Preset не содержит embedded scripting. Core contract для preset generic; setting-specific preset catalogs относятся к внешнему extension/content layer.
 
 ## Operator
 
@@ -125,7 +125,7 @@ SHA-256 canonical semantic projection GenerationConfig. Observability settings �
 
 ## Canonical data
 
-Данные, изменение которых означает изменение самого домена: итоговые `elevation`, `water_depth`, `moisture`, `vegetation_density`, semantic features/networks.
+Данные, изменение которых означает изменение самого domain: итоговые `elevation`, `water_depth`, `moisture`, `vegetation_density`, semantic features/networks.
 
 ## Derived data
 
@@ -142,6 +142,10 @@ SHA-256 canonical semantic projection GenerationConfig. Observability settings �
 ## Influence field
 
 Поле силы воздействия feature/operation на пространство, например вклад горного пояса в elevation.
+
+## Setting-specific extension
+
+Внешний слой, который переводит понятия конкретного мира, кампании, жанра или игровой системы в generic contracts/presets `domain_generator`. Такой слой не является частью Core и не должен изменять primitive semantics скрытым образом.
 
 ## Normative document
 
