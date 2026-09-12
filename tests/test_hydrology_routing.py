@@ -10,6 +10,7 @@ from domain_generator.hydrology import (
     flow_accumulation_km2,
     generate_hydrology,
     priority_flood_routing_surface,
+    priority_flood_surfaces,
     validate_hydrology,
 )
 from domain_generator.terrain.state import TerrainState
@@ -55,12 +56,15 @@ def test_priority_flood_conditions_depression_without_mutating_terrain() -> None
     )
     original = elevation.copy()
 
+    surfaces = priority_flood_surfaces(elevation)
     routing = priority_flood_routing_surface(elevation)
 
     assert np.array_equal(elevation, original)
-    assert routing.dtype == np.float64
-    assert routing[1, 1] == np.nextafter(np.float64(100.0), np.float64(np.inf))
-    assert routing[1, 1] > 100.0
+    assert surfaces.fill_elevation_m.dtype == np.float64
+    assert surfaces.routing_elevation_m.dtype == np.float64
+    assert surfaces.fill_elevation_m[1, 1] == 100.0
+    assert surfaces.routing_elevation_m[1, 1] == np.nextafter(np.float64(100.0), np.float64(np.inf))
+    assert np.array_equal(routing, surfaces.routing_elevation_m)
 
 
 def test_d8_uses_distance_normalization_and_canonical_tie_break() -> None:
@@ -75,8 +79,6 @@ def test_d8_uses_distance_normalization_and_canonical_tie_break() -> None:
 
     direction = d8_flow_direction(routing, cell_size_km=1.0)
 
-    # N/E/S/W have the same height drop, but orthogonal slope beats diagonals;
-    # exact orthogonal tie resolves to earliest canonical direction: N (0).
     assert direction[1, 1] == np.int8(0)
     edge = np.ones((3, 3), dtype=np.bool_)
     edge[1, 1] = False
@@ -86,10 +88,11 @@ def test_d8_uses_distance_normalization_and_canonical_tie_break() -> None:
 def test_flat_surface_receives_minimal_gradient_and_routes_every_interior_cell() -> None:
     elevation = np.full((5, 5), 25.0, dtype=np.float32)
 
-    routing = priority_flood_routing_surface(elevation)
-    direction = d8_flow_direction(routing, cell_size_km=1.0)
+    surfaces = priority_flood_surfaces(elevation)
+    direction = d8_flow_direction(surfaces.routing_elevation_m, cell_size_km=1.0)
 
-    assert np.all(routing >= elevation.astype(np.float64))
+    assert np.array_equal(surfaces.fill_elevation_m, elevation.astype(np.float64))
+    assert np.all(surfaces.routing_elevation_m >= surfaces.fill_elevation_m)
     assert np.all(direction[1:-1, 1:-1] >= 0)
     assert np.all(direction[0, :] == -1)
     assert np.all(direction[-1, :] == -1)
@@ -110,7 +113,7 @@ def test_flow_accumulation_uses_physical_cell_area() -> None:
         cell_size_km=0.5,
     )
 
-    assert direction[2, 1] == np.int8(2)  # E
+    assert direction[2, 1] == np.int8(2)
     assert direction[2, 2] == np.int8(2)
     assert direction[2, 3] == np.int8(2)
     assert accumulation[2, 1] == pytest.approx(0.25)
