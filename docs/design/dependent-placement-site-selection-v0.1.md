@@ -48,6 +48,10 @@ phase
 
 Candidate points canonical-сортируются по `(x_km, y_km)` до последующей оценки, поэтому iteration order не является semantic.
 
+Точная numerical mapping `rotation + phase + candidate_spacing_km -> square lattice`, reservation covers semantics и hard filtering зафиксированы в:
+
+`docs/design/dependent-placement-candidate-filtering-v0.1.md`.
+
 ## RNG namespaces
 
 Для feature `<id>`:
@@ -223,6 +227,15 @@ Placement validation должна как минимум проверить:
 
 ## Implementation status
 
-Numerical upstream field semantics и Site Metrics v0.1 теперь зафиксированы и могут использоваться placement runtime без новых hidden assumptions.
+Реализованы upstream numerical fields, Site Metrics v0.1 и Candidate Filtering v0.1:
 
-Следующий implementation slice после Site Metrics — deterministic world-space candidate lattice + hard SiteProfile requirement filtering. Preference scoring и final weighted selection остаются отдельным последующим slice.
+```text
+reservation
+-> rotated/phase-shifted world-space lattice
+-> canonical ordering
+-> site metrics
+-> hard requirements
+-> valid sites
+```
+
+Полный placement runtime ещё не завершён. Остаются intrinsic preference scoring, near-best filtering, deterministic weighted final selection, `PlacementState.final_points` и placement-stage validation/rejection semantics.
