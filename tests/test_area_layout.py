@@ -22,6 +22,7 @@ from domain_generator.contracts.plan import (
     PlanGrid,
     PlanHydrology,
     PlanSource,
+    PlanSurface,
     ResolvedFeature,
 )
 from domain_generator.layout.area import area_self_intersects, area_signed_area
@@ -43,18 +44,9 @@ def area_feature(
         layout=GeometryLayoutRecipe(
             shape=GeometryShape.AREA,
             parameters={
-                "vertex_count": FixedParameter(
-                    type=ParameterType.INTEGER,
-                    value=vertex_count,
-                ),
-                "radial_extent": FixedParameter(
-                    type=ParameterType.FLOAT,
-                    value=radial_extent,
-                ),
-                "radial_irregularity": FixedParameter(
-                    type=ParameterType.FLOAT,
-                    value=radial_irregularity,
-                ),
+                "vertex_count": FixedParameter(type=ParameterType.INTEGER, value=vertex_count),
+                "radial_extent": FixedParameter(type=ParameterType.FLOAT, value=radial_extent),
+                "radial_irregularity": FixedParameter(type=ParameterType.FLOAT, value=radial_irregularity),
             },
         ),
         effect=EffectRecipe(stage="terrain", operator="test-effect"),
@@ -95,6 +87,14 @@ def make_plan(
             river_depth_at_threshold_m=0.5,
             river_depth_exponent=0.3,
         ),
+        surface=PlanSurface(
+            moisture_base=0.35,
+            water_moisture_boost=0.55,
+            water_moisture_decay_km=8.0,
+            moisture_noise_amplitude=0.1,
+            moisture_noise_scale_km=12.0,
+            vegetation_slope_zero_deg=45.0,
+        ),
         features=features,
         constraints=constraints,
     )
@@ -128,31 +128,22 @@ def square_ccw() -> AreaGeometry:
 
 def test_area_replay_is_exact_for_same_attempt() -> None:
     plan = make_plan(features=(area_feature("area-01"),))
-
     first = generate_geometry_layout(plan, attempt_index=4, rng_factory=RngFactory(plan.seed))
     second = generate_geometry_layout(plan, attempt_index=4, rng_factory=RngFactory(plan.seed))
-
     assert first == second
 
 
 def test_different_attempt_changes_area_realization() -> None:
     plan = make_plan(features=(area_feature("area-01"),))
-
     first = generate_geometry_layout(plan, attempt_index=0, rng_factory=RngFactory(plan.seed))
     second = generate_geometry_layout(plan, attempt_index=1, rng_factory=RngFactory(plan.seed))
-
     assert first.geometry_realizations["area-01"] != second.geometry_realizations["area-01"]
 
 
 def test_generated_area_is_ccw_simple_and_inside_domain() -> None:
     plan = make_plan(features=(area_feature("area-01", vertex_count=11, radial_extent=0.9, radial_irregularity=0.8),))
-
     for attempt_index in range(20):
-        candidate = generate_geometry_layout(
-            plan,
-            attempt_index=attempt_index,
-            rng_factory=RngFactory(plan.seed),
-        )
+        candidate = generate_geometry_layout(plan, attempt_index=attempt_index, rng_factory=RngFactory(plan.seed))
         geometry = candidate.geometry_realizations["area-01"]
         assert isinstance(geometry, AreaGeometry)
         assert len(geometry.boundary) == 11
@@ -160,7 +151,6 @@ def test_generated_area_is_ccw_simple_and_inside_domain() -> None:
         assert area_self_intersects(geometry) is False
         assert all(0.0 <= point.x_km <= 120.0 for point in geometry.boundary)
         assert all(0.0 <= point.y_km <= 80.0 for point in geometry.boundary)
-
         validation = validate_geometry_layout(plan, candidate, attempt_index=attempt_index)
         assert validation.engine_invariants.passed is True
 
@@ -170,10 +160,8 @@ def test_feature_order_does_not_change_area_or_point_geometry() -> None:
     point = point_feature("point-01")
     plan_ap = make_plan(features=(area, point))
     plan_pa = make_plan(features=(point, area))
-
     result_ap = generate_geometry_layout(plan_ap, attempt_index=6, rng_factory=RngFactory(plan_ap.seed))
     result_pa = generate_geometry_layout(plan_pa, attempt_index=6, rng_factory=RngFactory(plan_pa.seed))
-
     assert result_ap.geometry_realizations == result_pa.geometry_realizations
 
 
@@ -191,9 +179,7 @@ def test_area_center_selector_uses_polygon_centroid() -> None:
     )
     plan = make_plan(features=(area_feature("area-01"),), constraints=(constraint,))
     candidate = manual_candidate(plan, geometries={"area-01": square_ccw()})
-
     validation = validate_geometry_layout(plan, candidate, attempt_index=0)
-
     assert validation.engine_invariants.passed is True
     assert validation.hard_constraints.passed is True
     assert validation.hard_constraints.results[0].measurement.value == 0.0
@@ -210,20 +196,9 @@ def test_point_inside_area_contained_fraction_is_one() -> None:
         ),
         predicate=CompiledPredicate(type="greater_or_equal", value=1.0),
     )
-    plan = make_plan(
-        features=(area_feature("area-01"), point_feature("point-01")),
-        constraints=(constraint,),
-    )
-    candidate = manual_candidate(
-        plan,
-        geometries={
-            "area-01": square_ccw(),
-            "point-01": PointGeometry(x_km=2.0, y_km=2.0),
-        },
-    )
-
+    plan = make_plan(features=(area_feature("area-01"), point_feature("point-01")), constraints=(constraint,))
+    candidate = manual_candidate(plan, geometries={"area-01": square_ccw(), "point-01": PointGeometry(x_km=2.0, y_km=2.0)})
     validation = validate_geometry_layout(plan, candidate, attempt_index=0)
-
     assert validation.hard_constraints.passed is True
     assert validation.hard_constraints.results[0].measurement.value == 1.0
 
@@ -251,20 +226,9 @@ def test_point_inside_area_has_zero_whole_distance_but_positive_boundary_distanc
         predicate=CompiledPredicate(type="greater_or_equal", value=1.0),
         unit="km",
     )
-    plan = make_plan(
-        features=(area_feature("area-01"), point_feature("point-01")),
-        constraints=(whole_constraint, boundary_constraint),
-    )
-    candidate = manual_candidate(
-        plan,
-        geometries={
-            "area-01": square_ccw(),
-            "point-01": PointGeometry(x_km=2.0, y_km=2.0),
-        },
-    )
-
+    plan = make_plan(features=(area_feature("area-01"), point_feature("point-01")), constraints=(whole_constraint, boundary_constraint))
+    candidate = manual_candidate(plan, geometries={"area-01": square_ccw(), "point-01": PointGeometry(x_km=2.0, y_km=2.0)})
     validation = validate_geometry_layout(plan, candidate, attempt_index=0)
-
     assert validation.hard_constraints.passed is True
     values = {result.constraint_id: result.measurement.value for result in validation.hard_constraints.results}
     assert values["whole-distance"] == 0.0
@@ -282,9 +246,7 @@ def test_self_intersecting_area_is_rejected_by_engine_invariant() -> None:
         )
     )
     candidate = manual_candidate(plan, geometries={"area-01": bow_tie})
-
     validation = validate_geometry_layout(plan, candidate, attempt_index=0)
-
     assert validation.engine_invariants.passed is False
     results = {item.id: item.passed for item in validation.engine_invariants.results}
     assert results["layout-area-simple"] is False
@@ -294,9 +256,7 @@ def test_clockwise_area_is_rejected_by_engine_invariant() -> None:
     plan = make_plan(features=(area_feature("area-01"),))
     clockwise = AreaGeometry(boundary=tuple(reversed(square_ccw().boundary)))
     candidate = manual_candidate(plan, geometries={"area-01": clockwise})
-
     validation = validate_geometry_layout(plan, candidate, attempt_index=0)
-
     assert validation.engine_invariants.passed is False
     results = {item.id: item.passed for item in validation.engine_invariants.results}
     assert results["layout-area-ccw-nondegenerate"] is False
