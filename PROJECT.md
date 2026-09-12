@@ -4,7 +4,7 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-surface-base-fields-v0.1
+checkpoint: M2-surface-base-fields-v0.1-complete
 next_topic: surface-feature-bias-v0.1
 completed:
   - M0-project-foundation
@@ -63,7 +63,7 @@ implemented_m2:
   - surface-validation-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
-infrastructure_queue:
+implemented_infrastructure:
   - github-actions-pytest-ci-on-push-and-pull-request
 canonical_documents:
   architecture: docs/architecture.md
@@ -97,7 +97,7 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology и canonical runtime water depth. Текущий slice добавляет базовые continuous surface fields moisture и terrestrial vegetation density.
+Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology и canonical runtime water depth. Surface Base Fields v0.1 завершён: canonical moisture и terrestrial vegetation density теперь являются runtime outputs surface stage.
 
 ## Карта прогресса простыми словами
 
@@ -107,12 +107,12 @@ Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReserva
 [готово] ограничения, где объекты можно размещать
 [готово] terrain: поднятия / впадины / хребты / shaping
 [готово] hydrology: routing / streams / lakes / RiverNetwork / water_depth
-[PR]     базовые moisture + vegetation fields
-[потом] explicit surface feature biases
+[готово] базовые moisture + vegetation fields
+[следом] explicit surface feature biases
 [потом] dependent POI placement
 [потом] сборка финального DomainData
 
-[в очереди] GitHub Actions: pytest на push/PR
+[готово] GitHub Actions: pytest на push/PR
 ```
 
 ## Surface Base Fields
@@ -135,7 +135,7 @@ world-space coherent moisture noise ──────────────�
                                                       SurfaceState
 ```
 
-Текущий slice реализует:
+Реализовано:
 
 - обязательный semantic `surface` recipe в `DomainSpec` и `GenerationPlan`;
 - surface recipe включён в semantic plan fingerprint;
@@ -169,18 +169,19 @@ surface:
 
 Значения выше — только пример. Hidden defaults отсутствуют.
 
-## Инфраструктурная очередь
+## Инфраструктура
 
-Добавить минимальный GitHub Actions CI, не связанный с semantic Core:
+GitHub Actions CI реализован и запускает полный pytest suite на `push` и `pull_request`:
 
 ```text
 push / pull_request
   -> GitHub-hosted Ubuntu runner
+  -> Python 3.11
   -> install package + test dependencies
   -> pytest
 ```
 
-Workflow не должен влиять на semantic result, RNG или generator architecture.
+Первый принятый checkpoint, проверенный этим CI, — Surface Base Fields v0.1: `194 passed`. Workflow не влияет на semantic result, RNG или generator architecture.
 
 ## Dependent placement site selection — accepted design, not implemented
 
@@ -190,12 +191,12 @@ World-space candidate lattice, footprint-aware metrics, hard requirements, weigh
 
 ## Следующий шаг
 
-После принятия этого checkpoint следующий bounded design-вопрос — **Surface Feature Bias v0.1**.
+Следующий bounded design-вопрос — **Surface Feature Bias v0.1**.
 
 Нужно отдельно зафиксировать:
 
 - какие generic surface operators входят в v0.1 (`moisture_bias`, `vegetation_bias`);
-- допустимую geometry (первый кандидат — Area);
+- допустимую geometry;
 - additive/order-independent contribution semantics;
 - sampling/RNG namespace для feature parameters;
 - момент final clamp относительно base fields и feature contributions;
@@ -204,7 +205,6 @@ World-space candidate lattice, footprint-aware metrics, hard requirements, weigh
 
 ## Ещё не сделано
 
-- GitHub Actions pytest CI (`push` + `pull_request`);
 - explicit surface feature biases;
 - lake polygon vectorization / canonical `HydroFeature` materialization;
 - physical river width/sub-cell rasterization;
