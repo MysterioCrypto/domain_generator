@@ -301,8 +301,6 @@ def select_final_site(
     rng_factory: RngFactory,
 ) -> ScoredSite | None:
     """Score, near-best filter and deterministically select one valid site."""
-    if not valid_sites:
-        return None
     if feature.effect.site_profile is None:
         raise PlacementSelectionCapabilityError(
             f"placement feature {feature.id!r} requires site_profile"
@@ -313,6 +311,9 @@ def select_final_site(
         attempt_index=attempt_index,
         rng_factory=rng_factory,
     )
+    if not valid_sites:
+        return None
+
     scored = score_valid_sites(valid_sites, feature.effect.site_profile.preferences)
     near_best = near_best_sites(scored, delta)
     if not near_best:
