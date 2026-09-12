@@ -12,6 +12,7 @@ from .rng import RngFactory, UINT64_MAX
 
 if TYPE_CHECKING:
     from ..hydrology.state import HydrologyState
+    from ..poi.state import PlacementState
     from ..surface.state import SurfaceState
     from ..terrain.state import TerrainState
 
@@ -47,6 +48,7 @@ class CandidateState:
     terrain: TerrainState | None = None
     hydrology: HydrologyState | None = None
     surface: SurfaceState | None = None
+    placement: PlacementState | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.attempt_index, bool) or not isinstance(self.attempt_index, int):
