@@ -311,6 +311,15 @@ class PlanHydrology(FrozenStrictModel):
     river_depth_exponent: Annotated[StrictFloat, Field(ge=0.0, allow_inf_nan=False)]
 
 
+class PlanSurface(FrozenStrictModel):
+    moisture_base: Annotated[StrictFloat, Field(ge=0.0, le=1.0, allow_inf_nan=False)]
+    water_moisture_boost: Annotated[StrictFloat, Field(ge=0.0, le=1.0, allow_inf_nan=False)]
+    water_moisture_decay_km: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
+    moisture_noise_amplitude: Annotated[StrictFloat, Field(ge=0.0, le=1.0, allow_inf_nan=False)]
+    moisture_noise_scale_km: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
+    vegetation_slope_zero_deg: Annotated[StrictFloat, Field(gt=0.0, le=90.0, allow_inf_nan=False)]
+
+
 class GenerationPlan(FrozenStrictModel):
     plan_version: Literal["0.1"]
     source: PlanSource
@@ -318,6 +327,7 @@ class GenerationPlan(FrozenStrictModel):
     domain: PlanDomain
     grid: PlanGrid
     hydrology: PlanHydrology
+    surface: PlanSurface
     features: tuple[ResolvedFeature, ...] = ()
     constraints: tuple[CompiledConstraint, ...] = ()
 
