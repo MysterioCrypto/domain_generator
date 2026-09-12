@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-corridor-layout-v0.1
-next_topic: band-layout-semantics
+checkpoint: M2-band-layout-v0.1
+next_topic: area-layout-semantics
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -27,6 +27,9 @@ implemented_m2:
   - triangular-sampler-rng-v1-mapping
   - corridor-layout-generation-v0.1
   - corridor-layout-validation-v0.1
+  - band-layout-generation-v0.1
+  - band-width-profile-v0.1
+  - band-layout-validation-v0.1
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
@@ -49,7 +52,7 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Уже реализованы serialized Pydantic contracts, JSON Schema snapshots, deterministic RNG v1, attempt orchestrator, deterministic candidate ranking, compiler/preset-registry boundary и первые реальные layout paths.
+Уже реализованы serialized Pydantic contracts, JSON Schema snapshots, deterministic RNG v1, attempt orchestrator, deterministic candidate ranking, compiler/preset-registry boundary и три реальных layout paths: point, corridor и band.
 
 ### Point layout
 
@@ -57,19 +60,33 @@ Generic point layout реализует `GenerationPlan -> LayoutCandidate` дл
 
 ### Corridor layout
 
-Принятый алгоритм зафиксирован в `docs/design/corridor-layout-v0.1.md` и реализует:
+Алгоритм зафиксирован в `docs/design/corridor-layout-v0.1.md`:
 
 - canonical corridor как ordered polyline;
-- обязательные layout parameters `control_point_count` и `curvature`;
-- независимые RNG streams для start, end и control points;
-- отдельные parameter sampling streams;
-- internal control points на равномерных `t` вдоль start→end;
-- signed perpendicular displacement через envelope `4*t*(1-t)`;
-- ограничение displacement доступным расстоянием до rectangular domain boundary без clamp/retry;
-- explicit degenerate-corridor rejection через layout engine invariant;
-- resolution `start`, `end`, `center` (50% arc length), `whole`;
-- point↔corridor minimum-distance hard evaluation;
-- mixed point+corridor deterministic geometry generation.
+- `control_point_count` и `curvature`;
+- независимые start/end/control-point RNG streams;
+- internal points через `t=i/(N+1)` и normal displacement `4*t*(1-t)`;
+- domain-safe centerline без clamp/retry;
+- explicit degenerate rejection;
+- `start`, `end`, `center`, `whole` resolution;
+- point↔corridor minimum-distance hard evaluation.
+
+### Band layout
+
+Алгоритм зафиксирован в `docs/design/band-layout-v0.1.md` и реализует:
+
+- canonical `BandGeometry = centerline + width_profile`;
+- отдельный `geometry/band` RNG namespace, не меняющий corridor replay;
+- centerline по той же geometric construction, что corridor;
+- обязательные parameters `control_point_count`, `curvature`, `width_km`, `width_sample_count`;
+- `width_km` как full-width float recipe;
+- deterministic width positions `t=i/(K-1)` с обязательными `t=0` и `t=1`;
+- отдельные `width-start`, `width-end`, `width-internal` streams;
+- изменение `width_sample_count` не меняет endpoint widths;
+- centerline должна оставаться внутри domain, но footprint может выходить наружу;
+- `start`, `end`, `center` selectors работают по centerline;
+- `whole` и `boundary` не подменяются centerline и остаются capability errors до footprint materialization;
+- engine invariants проверяют nondegenerate centerline и canonical positive width profile.
 
 ### Parameter sampling
 
@@ -79,11 +96,14 @@ Runtime sampler поддерживает `fixed`, float `uniform`, inclusive `in
 
 ## Следующий шаг
 
-Следующий bounded geometry path — `band`. До реализации нужно отдельно зафиксировать: как band переиспользует corridor centerline semantics, как sample-ится full-width profile и какие profile parameters входят в Core 0.1.
+Следующий bounded geometry path — `area`. Перед реализацией нужно отдельно определить deterministic area-generation semantics: базовое представление простой CCW polygon, parameter set, механизм irregular boundary без self-intersections и RNG isolation.
+
+После area можно переходить к materialized band footprints/RegionSet operations и placement reservations, не смешивая эти задачи с генерацией canonical area geometry.
 
 ## Ещё не сделано
 
-- band/area layout generation;
+- area layout generation;
+- band polygon footprint materialization;
 - placement reservation materialization и RegionSet boolean operations;
 - YAML/file preset loader и production preset catalog;
 - soft constraint scoring compilation;
