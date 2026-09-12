@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from domain_generator.contracts.data import RiverNetwork
 from domain_generator.contracts.plan import GenerationPlan, PlanDomain, PlanGrid, PlanHydrology, PlanSource
 from domain_generator.hydrology import (
     HydrologyState,
@@ -39,6 +40,8 @@ def make_plan(*, rows: int, columns: int, cell_size_km: float = 1.0) -> Generati
             stream_threshold_km2=1.0,
             lake_min_area_km2=1.0,
             lake_min_depth_m=1.0,
+            river_depth_at_threshold_m=0.5,
+            river_depth_exponent=0.3,
         ),
         features=(),
         constraints=(),
@@ -147,6 +150,8 @@ def test_generate_hydrology_replays_and_preserves_canonical_terrain() -> None:
     assert np.array_equal(first.flow_accumulation_km2, second.flow_accumulation_km2)
     assert np.array_equal(first.stream_mask, second.stream_mask)
     assert first.lake_candidates == second.lake_candidates
+    assert first.river_network == second.river_network
+    assert np.array_equal(first.water_depth_m, second.water_depth_m)
 
 
 def test_hydrology_validation_accepts_generated_state() -> None:
@@ -178,6 +183,7 @@ def test_hydrology_validation_accepts_generated_state() -> None:
     assert hydrology.flow_direction.dtype == np.int8
     assert hydrology.flow_accumulation_km2.dtype == np.float64
     assert hydrology.stream_mask.dtype == np.bool_
+    assert hydrology.water_depth_m.dtype == np.float32
 
 
 def test_hydrology_validation_rejects_missing_upstream_terrain() -> None:
@@ -213,6 +219,8 @@ def test_validation_rejects_non_lower_receiver() -> None:
         flow_accumulation_km2=np.ones((3, 3), dtype=np.float64),
         stream_mask=np.ones((3, 3), dtype=np.bool_),
         lake_candidates=(),
+        river_network=RiverNetwork(),
+        water_depth_m=np.zeros((3, 3), dtype=np.float32),
     )
 
     validation = validate_hydrology(plan, terrain, hydrology, attempt_index=0)
