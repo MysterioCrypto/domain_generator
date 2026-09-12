@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from domain_generator.compiler.compile import semantic_plan_fingerprint
+from domain_generator.compiler import semantic_plan_fingerprint
 from domain_generator.contracts.common import ConstraintStrength, FeaturePart
 from domain_generator.contracts.plan import (
     CompiledConstraint,
@@ -17,6 +17,7 @@ from domain_generator.contracts.plan import (
     GeometryShape,
     PlanDomain,
     PlanGrid,
+    PlanHydrology,
     PlanSource,
     ResolvedFeature,
 )
@@ -52,6 +53,11 @@ def plan(*features: ResolvedFeature, constraints=()) -> GenerationPlan:
         seed=123456,
         domain=PlanDomain(width_km=120.0, height_km=100.0),
         grid=PlanGrid(cell_size_km=0.25, rows=400, columns=480),
+        hydrology=PlanHydrology(
+            stream_threshold_km2=25.0,
+            lake_min_area_km2=1.0,
+            lake_min_depth_m=2.0,
+        ),
         features=features,
         constraints=constraints,
     )
