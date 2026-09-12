@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-placement-reservation-materialization-v0.1
-next_topic: dependent-placement-site-selection
+checkpoint: M2-dependent-placement-site-selection-design-v0.1
+next_topic: terrain-state-canonical-elevation
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -36,6 +36,8 @@ implemented_m2:
   - shapely-geos-boolean-backend-v0.1
   - canonical-region-set-conversion-v0.1
   - placement-reservation-materialization-v0.1
+accepted_designs:
+  - dependent-placement-site-selection-v0.1
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
@@ -44,6 +46,7 @@ canonical_documents:
   contracts: docs/contracts/
   design_baseline: docs/design/core-0.1-generation-baseline.md
   placement_reservations: docs/design/placement-reservation-materialization-v0.1.md
+  dependent_placement: docs/design/dependent-placement-site-selection-v0.1.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
 ---
 
@@ -59,83 +62,63 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Базовая canonical layout geometry Core 0.1 покрывает все четыре primitive: point, corridor, band и area. Поверх concrete geometry теперь добавлен первый deferred-layout слой — `PlacementReservation` для point POI.
+Базовая canonical layout geometry Core 0.1 покрывает point, corridor, band и area. Поверх concrete geometry реализован `PlacementReservation` для deferred point POI. Семантика финального dependent placement принята и документирована, но runtime implementation отложена до появления upstream terrain/hydrology/surface states.
 
-### Point / corridor / band / area
+### Layout + PlacementReservation
 
 - point — deterministic point inside domain;
 - corridor — ordered polyline с isolated start/end/control-point RNG streams;
 - band — corridor-like centerline + deterministic full-width profile;
-- area — simple CCW polygon без holes, generated через radial construction, но serialized только как boundary.
+- area — simple CCW polygon без holes, generated через radial construction, но serialized только как boundary;
+- reservation — canonical `RegionSet` для deferred point POI через hard `inside/outside/near/far_from` semantics.
 
-Подробные normative semantics лежат в `docs/design/*-layout-v0.1.md`.
+Boolean geometry backend — exact pinned `shapely==2.1.2` / GEOS 3.13.1. Shapely objects не входят в contracts или serialized artifacts.
 
-### Parameter sampling
+### Dependent placement site selection — accepted design, not implemented
 
-Runtime sampler поддерживает `fixed`, float `uniform`, inclusive `integer_uniform`, `categorical` и float `triangular`. Triangular inverse-CDF mapping является частью RNG v1 semantics.
+Normative semantics: `docs/design/dependent-placement-site-selection-v0.1.md`.
 
-### PlacementReservation
+Принято:
 
-Normative semantics зафиксированы в `docs/design/placement-reservation-materialization-v0.1.md`.
+- candidate sites строятся в world coordinates через rotated lattice, а не как raster-cell centers;
+- `candidate_spacing_km` и `near_best_delta` — semantic resolved operator parameters;
+- отдельные placement RNG streams для lattice rotation, phase и final weighted choice;
+- candidates canonical-сортируются по `(x_km, y_km)`;
+- `SiteProfile.footprint_radius_km` задаёт circular site footprint;
+- hard requirements фильтруют invalid sites;
+- intrinsic preferences дают score `[0,1]` через `maximize/minimize/preferred_range`;
+- composite suitability — weighted mean preference scores;
+- near-best set: `suitability >= best - near_best_delta`;
+- final point выбирается deterministic weighted choice из near-best;
+- отсутствие valid sites отклоняет весь attempt без hidden retry;
+- final geometry хранится в runtime `PlacementState`, а не мутирует `LayoutCandidate`.
 
-Реализовано:
-
-- reservation только для deferred POI с final point shape;
-- initial allowed region = весь rectangular domain;
-- hard `inside` -> intersection;
-- hard `outside` -> difference;
-- hard `near` -> intersection с fixed-semantics buffer;
-- hard `far_from` -> difference fixed-semantics buffer;
-- targets: literal point/rectangle, point feature, corridor whole/start/end/center, area whole/boundary/center, band start/end/center;
-- `band.whole`/`band.boundary` остаются capability errors до footprint materialization;
-- deferred feature как constraint target не поддержан в Core 0.1;
-- constraints применяются deterministic order по id;
-- `source_constraints` хранит реально применённые hard constraint ids;
-- empty RegionSet структурно валиден, но layout validation отклоняет attempt;
-- soft constraints не изменяют reservation;
-- reservation materialization не использует RNG.
-
-### Boolean geometry backend
-
-Внутренний backend — exact pinned `shapely==2.1.2` / GEOS. Shapely objects не входят в contracts или serialized artifacts.
-
-Buffer semantics явно фиксированы (`quad_segs=8`, round caps/joins), а результат преобразуется в собственный canonical `RegionSet`:
-
-- outer CCW;
-- holes CW;
-- deterministic ring start;
-- deterministic hole/polygon ordering;
-- empty geometry -> empty RegionSet;
-- lower-dimensional overlay remnants отбрасываются.
-
-Никакого precision snapping/rounding в v0.1 нет.
-
-### Layout stage
-
-Новый `layout_stage` объединяет:
-
-```text
-concrete geometry generation
--> placement reservation materialization
--> unified layout validation
-```
-
-Старый `geometry_layout_stage` сохраняется как узкий concrete-geometry handler/regression boundary.
+Implementation placement намеренно блокируется до фиксации numerical semantics upstream fields и site metrics.
 
 ## Следующий шаг
 
-После materialized reservation следующий bounded слой — **dependent placement site selection**: как из `allowed_region` и `SiteProfile` строятся valid sites, как оцениваются requirements/preferences и каким deterministic RNG stream выбирается одна финальная point position.
+Следующий реализуемый bounded vertical slice — **TerrainState + canonical elevation baseline**.
 
-Перед реализацией нужно отдельно зафиксировать site candidate representation/resolution, metric evaluators и near-best weighted selection semantics. Нельзя молча привязывать placement к raster cell centers или конкретной sampling density.
+До кода нужно отдельно принять:
+
+- runtime representation `TerrainState`;
+- baseline elevation field semantics и units;
+- cell-center world coordinate mapping;
+- минимальный первый terrain operator;
+- additive contribution ordering/combination;
+- terrain validation invariants;
+- какие RNG streams нужны terrain operator'у, а какие операции deterministic.
+
+Цель первого terrain slice — получить реальный canonical `elevation` field из `GenerationPlan + LayoutCandidate`, не переходя пока к hydrology, surface или dependent placement.
 
 ## Ещё не сделано
 
-- dependent placement final point selection;
+- dependent placement final point selection runtime;
+- terrain/hydrology/surface generators;
 - band polygon footprint materialization;
 - general area↔area polygon boolean evaluators;
 - YAML/file preset loader и production preset catalog;
 - soft constraint scoring compilation;
-- terrain/hydrology/surface generators;
 - DomainData assembler/export bundle;
 - renderer и GitHub Actions.
 
@@ -151,7 +134,7 @@ concrete geometry generation
 - **INV-008:** logging, debug export, instrumentation и preview generation не влияют на semantic result.
 - **INV-009:** exact procedural replay определяется exact generator version; стабильность generated world между generator versions не гарантируется.
 - **INV-010:** каждая stage читает только declared upstream outputs и не мутирует результаты предыдущих stages.
-- **INV-011:** воздействие feature на более ранний слой мира выражается отдельным feature/constraint соответствующей stage, а не hidden side effect позднего объекта.
+- **INV-011:** воздействие feature на более ранний слой мира выражается отдельным feature/constraint соответствующей стадии, а не hidden side effect позднего объекта.
 
 ## Правило совместной работы
 
