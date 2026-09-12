@@ -141,7 +141,7 @@ Contracts не зависят от Shapely/GEOS. Внутренний backend в
 - positive buffer;
 - conversion between Core geometry and backend geometry.
 
-Первый backend — Shapely 2.1.x / GEOS.
+Первый backend — **Shapely 2.1.2**. Package dependency фиксируется exact pin `shapely==2.1.2`; обновление backend версии является осознанным generator change. Официальные Shapely 2.1.2 wheels включают GEOS 3.13.1.
 
 Dependency boundary:
 
@@ -206,7 +206,7 @@ Empty `RegionSet` структурно валиден:
 allowed_region.polygons = ()
 ```
 
-Но layout validation добавляет engine/hard placement invariant и отклоняет attempt, если reservation для required deferred feature пуст.
+Но layout validation добавляет engine invariant и отклоняет attempt, если reservation для required deferred feature пуст.
 
 Никаких hidden retries или automatic constraint relaxation нет.
 
@@ -216,7 +216,7 @@ Materialization не использует RNG. Determinism обеспечива�
 
 - exact input geometry;
 - fixed buffer semantics;
-- fixed backend version range в package dependency;
+- exact pinned Shapely backend version;
 - own canonical RegionSet serialization;
 - deterministic constraint order by constraint id.
 
