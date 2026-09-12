@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-dependent-placement-candidate-filtering-v0.1
-next_topic: dependent-placement-preference-selection-v0.1
+checkpoint: M2-dependent-placement-final-selection-v0.1
+next_topic: domain-data-assembler-v0.1
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -64,6 +64,10 @@ implemented_m2:
   - surface-feature-bias-v0.1
   - dependent-placement-site-metrics-v0.1
   - dependent-placement-candidate-filtering-v0.1
+  - dependent-placement-preference-scoring-v0.1
+  - dependent-placement-near-best-selection-v0.1
+  - placement-state-v0.1
+  - placement-validation-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
 implemented_infrastructure:
@@ -127,7 +131,7 @@ world / setting / application
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology и canonical runtime water depth. Surface покрывает base moisture/vegetation и explicit area feature biases. Dependent placement теперь покрывает site metrics и deterministic candidate filtering до множества valid sites.
+Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology и canonical runtime water depth. Surface покрывает base moisture/vegetation и explicit area feature biases. Dependent point placement реализован полностью до runtime `PlacementState` и placement-stage validation.
 
 ## Карта прогресса простыми словами
 
@@ -140,9 +144,9 @@ Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReserva
 [готово] базовые moisture + vegetation fields
 [готово] explicit surface feature biases
 [готово] dependent-placement site metrics
-[текущий PR] rotated candidate lattice + reservation filtering + hard requirements
-[следом] preference scoring + near-best + weighted final selection + PlacementState
-[потом] сборка финального DomainData
+[готово] rotated candidate lattice + reservation filtering + hard requirements
+[текущий PR] preference scoring + near-best + weighted final selection + PlacementState
+[следом] DomainData assembly boundary
 
 [готово] GitHub Actions: pytest на push/PR
 ```
@@ -168,93 +172,66 @@ Canonical runtime fields:
 - generic area operators `moisture_bias` / `vegetation_bias`;
 - canonical water precedence after surface contributions.
 
-## Dependent Placement Site Metrics v0.1 — complete
+## Dependent Placement — current checkpoint
 
-Normative semantics: `docs/design/dependent-placement-site-metrics-v0.1.md`.
+Normative semantics:
 
-Реализовано:
+- `docs/design/dependent-placement-site-selection-v0.1.md`;
+- `docs/design/dependent-placement-site-metrics-v0.1.md`;
+- `docs/design/dependent-placement-candidate-filtering-v0.1.md`.
 
-- canonical world-point -> containing raster cell mapping;
-- internal vertical boundary tie -> east;
-- internal horizontal boundary tie -> north;
-- north/east external boundary clamp to final in-domain cell;
-- circular footprint support через cell-center inclusion;
-- fallback to containing cell, если footprint не содержит raster centers;
-- attempt-global `SiteMetricContext` с precomputed slope и exact distance-to-water;
-- 8 generic metrics;
-- float64 aggregation;
-- no-water sentinel `distance_to_water = +inf`;
-- explicit capability errors;
-- no RNG and no upstream mutation.
-
-## Dependent Placement Candidate Filtering v0.1 — current checkpoint
-
-Normative semantics: `docs/design/dependent-placement-candidate-filtering-v0.1.md`.
-
-Реализовано:
-
-- semantic `candidate_spacing_km` через standard placement parameter sampling namespace;
-- deterministic square lattice с независимыми `rotation` и `phase` streams;
-- `rotation ∈ [0, pi/2)`;
-- два phase draws в rotated coordinates;
-- finite lattice enumeration через inverse-rotated domain bounds;
-- filtering по domain и `PlacementReservation.allowed_region`;
-- RegionSet `covers` semantics для inside/on placement;
-- exact duplicate removal и canonical sort `(x_km, y_km)`;
-- reuse `SiteMetricContext` для всех candidates;
-- hard evaluators `less_or_equal` / `greater_or_equal`;
-- empty reservation/valid set без fallback и hidden retry;
-- no preference scoring и no final selection.
-
-## Dependent placement site selection — accepted design, partially implemented
-
-Normative semantics: `docs/design/dependent-placement-site-selection-v0.1.md`.
-
-Уже реализовано:
+Полный runtime pipeline:
 
 ```text
 PlacementReservation
--> candidate lattice
+-> rotated/phase-shifted world-space lattice
 -> reservation containment
 -> canonical candidate order
 -> site metrics
 -> hard requirements
 -> valid sites
-```
-
-Остаётся:
-
-```text
-valid sites
--> intrinsic preferences
--> suitability
--> near-best
--> deterministic weighted selection
+-> maximize / minimize / preferred_range scores
+-> weighted composite suitability
+-> near-best set
+-> deterministic weighted choice
 -> PlacementState.final_points
--> placement validation / attempt rejection
+-> placement validation
 ```
+
+Реализовано:
+
+- semantic `candidate_spacing_km` и `near_best_delta` через independent placement parameter RNG namespaces;
+- exact operator parameter set для `suitability_placement`;
+- intrinsic preferences `maximize`, `minimize`, `preferred_range`;
+- equal observed metric range даёт всем sites score `1.0`, включая all-`+inf` no-water case;
+- weighted mean suitability `[0,1]`;
+- inclusive near-best threshold `best - near_best_delta`;
+- final RNG namespace `("feature", id, "site-selection") / "weighted-choice"`;
+- cumulative weighted interval selection;
+- zero-total-weight fallback через RNG-protocol-v1 `choice()`;
+- runtime `PlacementState.final_points` отдельно от `LayoutCandidate`;
+- `CandidateState.placement` как downstream attempt output;
+- validation completeness, reservation containment, domain bounds, hard requirements и deterministic recomputation;
+- empty valid-site set отклоняет весь attempt без hidden retry/fallback;
+- invalid placement recipe остаётся capability error.
 
 ## Следующий шаг
 
-Следующий bounded implementation slice — **Dependent Placement Preference Selection v0.1**.
+После принятия этого checkpoint следующий bounded design-вопрос — **DomainData Assembler v0.1**.
 
-Он должен реализовать принятую семантику:
+До реализации нужно отдельно зафиксировать:
 
-- `maximize`, `minimize`, `preferred_range`;
-- normalized preference scores `[0,1]`;
-- weighted composite suitability;
-- semantic `near_best_delta`;
-- canonical near-best set;
-- deterministic weighted choice через `("feature", id, "site-selection") / "weighted-choice"`;
-- runtime `PlacementState.final_points`;
-- rejection attempt при empty valid-site set;
-- placement validation.
+- какие runtime states становятся canonical `DomainData.fields/features/networks`;
+- как external field descriptors ссылаются на canonical raster artifacts;
+- как layout geometries и `PlacementState.final_points` объединяются в final feature list;
+- как hydrology `RiverNetwork` и lake representation переносятся в DomainData;
+- какие provenance/fingerprints/accepted attempt metadata записывает assembler;
+- canonical ordering final features/networks/field descriptors;
+- где заканчивается assembler и начинается IO/export bundle.
 
 ## Ещё не сделано
 
-- preference scoring / near-best / weighted final selection;
-- `PlacementState.final_points`;
-- placement-stage validation/rejection semantics;
+- DomainData assembler/export bundle;
 - lake polygon vectorization / canonical `HydroFeature` materialization;
 - physical river width/sub-cell rasterization;
 - runoff/discharge/climate model;
@@ -264,7 +241,6 @@ valid sites
 - general area↔area polygon boolean evaluators;
 - YAML/file preset loader и production generic preset catalog;
 - soft constraint scoring compilation;
-- DomainData assembler/export bundle;
 - renderer.
 
 ## Инварианты
