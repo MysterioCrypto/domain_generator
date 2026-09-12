@@ -7,11 +7,11 @@ target: core-0.1
 
 # Point layout v0.1
 
-This document fixes the first executable `GenerationPlan -> LayoutCandidate` path. It is deliberately limited to generic `layout.mode=geometry`, `shape=point` features. Illustrative content names are non-normative.
+Этот документ фиксирует первый исполняемый путь `GenerationPlan -> LayoutCandidate`. Он намеренно ограничен универсальными features с `layout.mode=geometry`, `shape=point`. Названия объектов в иллюстративных примерах ненормативны.
 
-## Generation
+## Генерация
 
-For each resolved point geometry feature, derive one independent RNG stream:
+Для каждого resolved feature с point geometry выводится один независимый RNG stream:
 
 ```text
 attempt_index = current attempt
@@ -20,7 +20,7 @@ scope = ["feature", feature_id, "geometry", "point"]
 purpose = "position"
 ```
 
-Consume exactly two `uniform01()` values from that stream:
+Из этого stream потребляются ровно два значения `uniform01()`:
 
 ```text
 u_x = stream.uniform01()
@@ -29,46 +29,46 @@ x_km = domain.width_km * u_x
 y_km = domain.height_km * u_y
 ```
 
-The resulting `PointGeometry` is therefore inside the half-open physical domain `[0,width) x [0,height)`. Feature iteration order does not affect a feature's stream.
+Получившийся `PointGeometry` находится внутри полуоткрытого физического domain `[0,width) x [0,height)`. Порядок обхода features не влияет на stream конкретного feature.
 
-Point layout v0.1 has no layout parameters and performs no hidden retries or constraint-aware steering.
+Point layout v0.1 не имеет параметров layout и не выполняет скрытых retries или steering на основе constraints.
 
 ## LayoutCandidate
 
-The stage emits one concrete point in `geometry_realizations` for every supported geometry point feature and uses the semantic `plan_fingerprint` as `source_plan.fingerprint`.
+Стадия записывает одну конкретную точку в `geometry_realizations` для каждого поддерживаемого point feature и использует семантический `plan_fingerprint` как `source_plan.fingerprint`.
 
-This slice does not materialize reservation features. A plan containing `layout.mode=reservation` is unsupported by this stage until reservation construction is implemented.
+Этот slice не materializes reservation features. Plan с `layout.mode=reservation` не поддерживается этой стадией до реализации построения reservation.
 
-Likewise, geometry shapes other than `point` are unsupported rather than silently approximated.
+Аналогично geometry shapes, отличные от `point`, считаются неподдерживаемыми, а не молча аппроксимируются.
 
-## Layout validation
+## Валидация layout
 
-Generation and validation are separate operations. Validation observes the candidate and never mutates or repairs it.
+Генерация и validation являются отдельными операциями. Validation наблюдает candidate и никогда не мутирует и не исправляет его.
 
-Engine invariants for this slice:
+Engine invariants этого slice:
 
-- candidate `source_plan.fingerprint` equals the semantic fingerprint of the supplied plan;
-- candidate `attempt_index` equals the active attempt;
-- every point geometry feature appears exactly once;
-- no unknown geometry realization IDs exist;
-- every realized point is inside or on the domain boundary.
+- `source_plan.fingerprint` candidate совпадает с семантическим fingerprint переданного plan;
+- `attempt_index` candidate совпадает с активным attempt;
+- каждый point geometry feature присутствует ровно один раз;
+- неизвестные id в `geometry_realizations` отсутствуют;
+- каждая реализованная point находится внутри domain или на его границе.
 
-Supported hard constraint measurements in this slice are intentionally narrow:
+Поддерживаемые измерения hard constraints в этом slice намеренно ограничены:
 
-- `distance`: point-to-point Euclidean distance;
-- `distance`: point-to-axis-aligned-rectangle minimum Euclidean distance (zero inside/on boundary);
-- `contained_fraction`: point in rectangle -> `1.0`, otherwise `0.0`;
-- `overlap_fraction`: point in rectangle -> `1.0`, otherwise `0.0`.
+- `distance`: евклидово расстояние point-to-point;
+- `distance`: минимальное евклидово расстояние point-to-axis-aligned-rectangle, равное нулю внутри или на boundary;
+- `contained_fraction`: point в rectangle -> `1.0`, иначе `0.0`;
+- `overlap_fraction`: point в rectangle -> `1.0`, иначе `0.0`.
 
-A feature selector resolves only when that feature has point geometry. For a point, `whole` and `center` both resolve to the point itself.
+Feature selector разрешается только тогда, когда feature имеет point geometry. Для point части `whole` и `center` обе обозначают саму точку.
 
-Unsupported evaluator/geometry combinations are engine/pipeline capability errors, not failed user constraints.
+Неподдерживаемые сочетания evaluator/geometry являются ошибками возможностей engine/pipeline, а не нарушенными пользовательскими constraints.
 
-## Attempt semantics
+## Семантика attempt
 
-A generated point is not regenerated because a hard constraint fails. The validator reports the failed hard constraint and the existing attempt orchestrator rejects the whole attempt immediately.
+Сгенерированная point не генерируется заново из-за нарушения hard constraint. Validator сообщает о нарушенном hard constraint, а существующий orchestrator attempt немедленно отклоняет attempt целиком.
 
-Therefore this first implementation establishes the complete deterministic path without introducing hidden local search:
+Таким образом первая реализация создаёт полный детерминированный путь без скрытого локального поиска:
 
 ```text
 GenerationPlan
@@ -76,14 +76,14 @@ GenerationPlan
 -> point geometry realization
 -> LayoutCandidate
 -> layout ValidationResult
--> attempt early-pass/reject
+-> ранний pass/reject attempt
 ```
 
-## Explicitly out of scope
+## Что явно не входит в этот slice
 
-- corridor, band and area generation;
-- RegionSet boolean operations;
-- placement reservation materialization;
-- constraint-aware proposal generation;
-- soft-constraint scoring;
-- terrain, hydrology, surface and dependent placement.
+- генерация corridor, band и area;
+- boolean operations `RegionSet`;
+- materialization placement reservation;
+- proposal generation с учётом constraints;
+- scoring soft constraints;
+- terrain, hydrology, surface и dependent placement.
