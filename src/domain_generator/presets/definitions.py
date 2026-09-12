@@ -7,6 +7,7 @@ from pydantic import Field, StrictStr, model_validator
 from ..contracts.common import FrozenStrictModel
 from ..contracts.plan import (
     EffectRecipe,
+    EffectStage,
     FeatureFamily,
     GeometryLayoutRecipe,
     ReservationLayoutRecipe,
@@ -26,7 +27,7 @@ class PresetDefinition(FrozenStrictModel):
     effect: EffectRecipe
 
     @model_validator(mode="after")
-    def validate_parameter_ownership(self) -> "PresetDefinition":
+    def validate_definition(self) -> "PresetDefinition":
         layout_parameters = (
             set(self.layout.parameters)
             if isinstance(self.layout, GeometryLayoutRecipe)
@@ -39,4 +40,17 @@ class PresetDefinition(FrozenStrictModel):
                 "preset parameter names must have exactly one owner; duplicated in "
                 f"layout/effect: {sorted(overlap)}"
             )
+
+        expected_stage = {
+            FeatureFamily.TERRAIN: EffectStage.TERRAIN,
+            FeatureFamily.SURFACE: EffectStage.SURFACE,
+            FeatureFamily.POI: EffectStage.DEPENDENT_PLACEMENT,
+        }[self.family]
+        if self.effect.stage is not expected_stage:
+            raise ValueError(
+                f"preset family {self.family.value!r} requires effect stage "
+                f"{expected_stage.value!r} in Core 0.1"
+            )
+        if isinstance(self.layout, ReservationLayoutRecipe) and self.family is not FeatureFamily.POI:
+            raise ValueError("reservation layout is only supported for poi presets in Core 0.1")
         return self
