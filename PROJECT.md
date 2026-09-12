@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-surface-feature-bias-v0.1-complete
-next_topic: dependent-placement-site-metrics-v0.1
+checkpoint: M2-dependent-placement-site-metrics-v0.1
+next_topic: dependent-placement-candidate-lattice-and-requirements-v0.1
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -62,6 +62,7 @@ implemented_m2:
   - surface-vegetation-base-v0.1
   - surface-validation-v0.1
   - surface-feature-bias-v0.1
+  - dependent-placement-site-metrics-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
 implemented_infrastructure:
@@ -75,6 +76,7 @@ canonical_documents:
   design_baseline: docs/design/core-0.1-generation-baseline.md
   placement_reservations: docs/design/placement-reservation-materialization-v0.1.md
   dependent_placement: docs/design/dependent-placement-site-selection-v0.1.md
+  dependent_placement_site_metrics: docs/design/dependent-placement-site-metrics-v0.1.md
   terrain_area_raise: docs/design/terrain-area-raise-v0.1.md
   terrain_band_ridge: docs/design/terrain-band-ridge-v0.1.md
   terrain_structural_flatten: docs/design/terrain-structural-flatten-v0.1.md
@@ -123,7 +125,7 @@ world / setting / application
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology и canonical runtime water depth. Surface покрывает base moisture/vegetation и explicit area feature biases.
+Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology и canonical runtime water depth. Surface покрывает base moisture/vegetation и explicit area feature biases. Dependent placement теперь имеет зафиксированную и реализованную numerical site-metric основу.
 
 ## Карта прогресса простыми словами
 
@@ -135,8 +137,9 @@ Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReserva
 [готово] hydrology: routing / streams / lakes / RiverNetwork / water_depth
 [готово] базовые moisture + vegetation fields
 [готово] explicit surface feature biases
-[следом] численная семантика dependent-placement site metrics
-[потом] dependent POI candidate generation / selection runtime
+[текущий PR] dependent-placement site metrics
+[следом] rotated candidate lattice + hard requirements
+[потом] preference scoring + near-best + final weighted selection
 [потом] сборка финального DomainData
 
 [готово] GitHub Actions: pytest на push/PR
@@ -144,76 +147,95 @@ Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReserva
 
 ## Setting Decoupling Cleanup — complete
 
-Фиксируется:
-
 - `Domain` = generic bounded spatial region;
 - Core не знает конкретный setting/campaign/game system;
 - setting-specific presets, adapters и world data находятся вне базового Core;
-- Core не получает специальное поле `setting` только ради внешней identity;
 - generic examples не создают setting dependency.
 
-## Surface Base Fields
+## Surface — complete baseline
 
-Normative semantics: `docs/design/surface-base-fields-v0.1.md`.
+Normative semantics:
+
+- `docs/design/surface-base-fields-v0.1.md`;
+- `docs/design/surface-feature-bias-v0.1.md`.
 
 Canonical runtime fields:
 
 - `SurfaceState.moisture` float32 `[0,1]`;
 - `SurfaceState.vegetation_density` float32 `[0,1]`;
-- canonical water cells определяются как `water_depth_m > 0`;
-- moisture использует physical water proximity + world-space coherent noise;
-- vegetation использует moisture × slope factor;
-- water получает moisture `1` и terrestrial vegetation `0`;
-- absolute elevation не вводит hidden climate penalty.
+- generic area operators `moisture_bias` / `vegetation_bias`;
+- canonical water precedence after surface contributions.
 
-## Surface Feature Bias v0.1 — complete
+## Dependent Placement Site Metrics v0.1
 
-Normative semantics: `docs/design/surface-feature-bias-v0.1.md`.
+Normative semantics: `docs/design/dependent-placement-site-metrics-v0.1.md`.
+
+Этот checkpoint реализует только numerical evaluation candidate sites и не выполняет placement selection.
 
 Реализовано:
 
-- generic operators `moisture_bias` и `vegetation_bias`;
-- v0.1 geometry `AreaGeometry`;
-- signed normalized parameters `[-1,1]`;
-- float64 additive contributions в canonical `feature.id` order;
-- один final clamp;
-- moisture bias применяется до vegetation potential;
-- vegetation bias применяется после vegetation potential;
-- canonical water precedence сохраняется после contributions;
-- surface effect sampling использует isolated placement-independent RNG namespace stage `surface`;
-- surface stage явно читает `LayoutCandidate`, `TerrainState`, `HydrologyState`;
-- unsupported constructs дают explicit capability error;
-- validation проверяет exact application всех required surface features.
+- canonical world-point -> containing raster cell mapping;
+- internal vertical boundary tie -> east;
+- internal horizontal boundary tie -> north;
+- north/east external boundary clamp to final in-domain cell;
+- circular footprint support через cell-center inclusion;
+- fallback to containing cell, если footprint не содержит raster centers;
+- attempt-global `SiteMetricContext`, который один раз precompute-ит slope и exact distance-to-water;
+- generic metric registry:
+  - `slope_mean`;
+  - `water_fraction`;
+  - `elevation_mean`;
+  - `local_relief`;
+  - `relative_elevation`;
+  - `moisture_mean`;
+  - `vegetation_density_mean`;
+  - `distance_to_water`;
+- float64 aggregation;
+- no-water sentinel `distance_to_water = +inf`;
+- explicit capability errors для invalid upstream arrays/candidate/radius;
+- no RNG and no upstream mutation.
 
-Checkpoint принят после GitHub Actions: `205 passed`.
-
-## Dependent placement site selection — accepted design, not implemented
+## Dependent placement site selection — accepted design, partially implemented
 
 Normative semantics: `docs/design/dependent-placement-site-selection-v0.1.md`.
 
-Приняты world-space rotated candidate lattice, semantic `candidate_spacing_km`, circular footprint, hard requirements, intrinsic preferences, near-best filtering и isolated deterministic weighted choice.
+Уже приняты:
 
-Implementation gate теперь сводится к последнему незакрытому design-вопросу: точной numerical semantics site metrics. После её фиксации runtime placement можно реализовывать без скрытых предположений.
+- world-space rotated candidate lattice;
+- semantic `candidate_spacing_km`;
+- circular footprint;
+- hard requirements;
+- intrinsic preferences;
+- near-best filtering;
+- isolated deterministic weighted choice;
+- runtime `PlacementState.final_points`.
+
+Site-metric implementation gate закрыт этим checkpoint.
 
 ## Следующий шаг
 
-**Dependent Placement Site Metrics v0.1** — отдельно зафиксировать numerical definition для:
+Следующий bounded implementation slice — **Dependent Placement Candidate Lattice + Hard Requirements v0.1**.
 
-- `slope_mean`;
-- `water_fraction`;
-- `elevation_mean`;
-- `local_relief`;
-- `relative_elevation`;
-- `moisture_mean`;
-- `vegetation_density_mean`;
-- `distance_to_water`.
+Он должен реализовать только:
 
-После принятия metric semantics следующий implementation slice — candidate lattice + metric evaluation + requirement filtering.
+```text
+PlacementReservation
+-> rotated/phase-shifted world-space lattice
+-> reservation containment
+-> canonical site ordering
+-> SiteMetricContext evaluation
+-> hard SiteProfile requirements
+-> valid sites
+```
+
+Preference scoring, near-best filtering, weighted final selection и `PlacementState` остаются следующим отдельным slice.
 
 ## Ещё не сделано
 
-- dependent-placement site metric semantics;
-- dependent placement final point selection runtime;
+- dependent-placement candidate lattice runtime;
+- hard SiteProfile requirement filtering runtime;
+- preference scoring / near-best / weighted final selection;
+- `PlacementState.final_points`;
 - lake polygon vectorization / canonical `HydroFeature` materialization;
 - physical river width/sub-cell rasterization;
 - runoff/discharge/climate model;
