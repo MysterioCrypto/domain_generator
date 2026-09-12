@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-hydrology-classification-v0.1
-next_topic: hydrology-river-network-and-water-depth
+checkpoint: M2-hydrology-network-waterdepth-v0.1
+next_topic: surface-moisture-vegetation-semantics
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -52,6 +52,8 @@ implemented_m2:
   - physical-fill-surface-v0.1
   - stream-mask-classification-v0.1
   - lake-candidate-classification-v0.1
+  - river-network-extraction-v0.1
+  - canonical-water-depth-v0.1
   - hydrology-validation-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
@@ -70,6 +72,7 @@ canonical_documents:
   world_space_noise: docs/design/world-space-value-noise-v1.md
   hydrology_routing: docs/design/hydrology-routing-core-v0.1.md
   hydrology_classification: docs/design/hydrology-classification-v0.1.md
+  hydrology_network_waterdepth: docs/design/hydrology-network-waterdepth-v0.1.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
 ---
 
@@ -85,7 +88,7 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет завершённую базовую цепочку structural + shaping. Hydrology теперь покрывает deterministic drainage routing, physical depression fill и первую классификацию streams/lake candidates.
+Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет завершённую базовую цепочку structural + shaping. Hydrology покрывает routing, physical depression fill, stream/lake classification и текущий slice materialize-ит directed river topology и canonical runtime water depth.
 
 ## Карта прогресса простыми словами
 
@@ -98,13 +101,13 @@ Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReserva
 [готово] flatten / shaping уже созданного рельефа
 [готово] куда течёт вода: Priority-Flood + D8 + catchment
 [готово] raster stream mask + физические lake candidates
-[потом] vector RiverNetwork + canonical water_depth/lakes
+[PR]     directed RiverNetwork + canonical water_depth
 [потом] влажность/растительность
 [потом] размещение POI
 [потом] сборка финального мира
 ```
 
-Текущий checkpoint отвечает на два дополнительных вопроса: **какие raster cells считаются stream cells** и **какие заполненные депрессии достаточно велики/глубоки, чтобы сохраниться как lake candidates**. Он ещё не материализует vector river network, final lake feature geometry или canonical `water_depth`.
+Текущий checkpoint отвечает на следующие вопросы: **как raster stream paths сжимаются в directed river graph** и **какая canonical глубина воды находится в каждой raster cell**. Lake polygon/HydroFeature materialization и physical river width остаются отдельными будущими задачами.
 
 ### Terrain pipeline
 
@@ -127,6 +130,8 @@ Normative routing semantics: `docs/design/hydrology-routing-core-v0.1.md`.
 
 Normative classification semantics: `docs/design/hydrology-classification-v0.1.md`.
 
+Normative network/water semantics: `docs/design/hydrology-network-waterdepth-v0.1.md`.
+
 Runtime pipeline:
 
 ```text
@@ -142,26 +147,31 @@ TerrainState.elevation_m
        -> 8-connected components
        -> area/depth thresholds
        -> lake_candidates
+  -> visible stream topology
+       -> source / confluence / domain_outlet / lake_inflow / lake_outlet
+       -> directed RiverNetwork
+  -> accepted lake depth + explicit catchment river-depth proxy
+       -> canonical runtime water_depth_m float32
   -> HydrologyState
 ```
 
-Реализовано:
+Реализовано в текущем slice:
 
-- runtime `HydrologyState`;
-- edge cells — open-boundary outlets, не море;
-- Priority-Flood не изменяет canonical terrain;
-- physical fill surface отделена от routing-only ULP gradient;
-- depression/flat routing получает минимальный representable 1-ULP gradient через `nextafter`;
-- D8 использует distance-normalized slope;
-- canonical tie-break order: `N, NE, E, SE, S, SW, W, NW`;
-- accumulation сначала считается exact integer cell counts, затем один раз переводится в km²;
-- обязательный semantic hydrology recipe живёт в `DomainSpec`/`GenerationPlan` и входит в semantic plan fingerprint;
-- `stream_mask = flow_accumulation_km2 >= stream_threshold_km2`;
-- lake candidate mask строится только из physical fill depth, не из routing ULP artifacts;
-- lake components используют 8-connectivity, canonical row-major cell order и deterministic candidate order;
-- lake candidates фильтруются по physical `area_km2` и `max_depth_m`;
-- routing/classification не используют RNG;
-- hydrology validation проверяет routing, fill, stream classification и lake candidate consistency.
+- stable accepted-lake ids `lake-0001...` для river-node references;
+- accepted lakes suppress internal visible river segments;
+- visible indegree учитывает ordinary upstream river edges и lake-outlet transitions;
+- raster chains deterministically compress into existing `RiverNetwork` nodes/segments;
+- domain outlets лежат на фактической границе domain;
+- corner outlet precedence: north, east, south, west;
+- segment centerlines используют world-space cell centers без renderer smoothing;
+- segment catchment property берётся из downstream raster accumulation по фиксированной semantics;
+- два обязательных semantic river-depth proxy parameters добавлены в DomainSpec/GenerationPlan;
+- accepted lake cells получают depth `fill - terrain`;
+- stream cells вне accepted lakes получают explicit catchment-based depth proxy;
+- остальные cells получают zero water depth;
+- canonical runtime `water_depth_m` имеет dtype float32 после одного final cast;
+- river topology/water generation не используют RNG;
+- validation deterministic recomputation проверяет network и water-depth consistency.
 
 ### Hydrology recipe
 
@@ -170,9 +180,21 @@ hydrology:
   stream_threshold_km2: 25.0
   lake_min_area_km2: 1.0
   lake_min_depth_m: 2.0
+  river_depth_at_threshold_m: 0.5
+  river_depth_exponent: 0.30
 ```
 
-Это semantic world input, а не execution setting. Hidden defaults и ad-hoc runtime arguments для этих thresholds запрещены. Изменение recipe меняет semantic plan fingerprint.
+Все значения — semantic world inputs, а не execution settings. Hidden defaults и ad-hoc runtime arguments запрещены. Изменение recipe меняет semantic plan fingerprint.
+
+River depth proxy:
+
+```text
+D = river_depth_at_threshold_m
+    * (flow_accumulation_km2 / stream_threshold_km2)
+      ** river_depth_exponent
+```
+
+Это deterministic proxy, не rainfall/runoff/discharge simulation.
 
 ### Dependent placement site selection — accepted design, not implemented
 
@@ -182,23 +204,24 @@ Normative semantics: `docs/design/dependent-placement-site-selection-v0.1.md`.
 
 ## Следующий шаг
 
-Следующий bounded design-вопрос — **vector RiverNetwork + canonical water representation v0.1**.
+После принятия network/water checkpoint следующий bounded design-вопрос — **surface moisture + vegetation numerical semantics v0.1**.
 
-Нужно отдельно решить до реализации:
+Нужно зафиксировать до реализации:
 
-- как stream raster cells группируются/трассируются в directed river reaches;
-- как junctions/outlets становятся canonical network nodes;
-- как river geometry переводится из raster flow path в world-space polyline без renderer-specific smoothing;
-- как lake candidates превращаются в canonical lake geometry/features;
-- как river/lake representation формирует canonical `water_depth` field;
-- как streams входят в lakes и выходят из них, не ломая directed topology;
-- какие hydrology outputs остаются runtime intermediates, а какие попадают в `DomainData`.
+- canonical runtime `SurfaceState`;
+- exact moisture baseline и диапазон `[0,1]`;
+- deterministic water-proximity contribution из canonical hydrology;
+- elevation/slope penalties;
+- generic world-space environmental noise semantics;
+- vegetation potential и vegetation-density semantics;
+- explicit surface feature biases;
+- validation и causal boundary: surface читает terrain + hydrology, не мутирует их.
 
 ## Ещё не сделано
 
-- vector RiverNetwork;
-- canonical lakes и lake feature geometry;
-- canonical `water_depth`;
+- lake polygon vectorization / canonical `HydroFeature` materialization;
+- physical river width/sub-cell rasterization;
+- runoff/discharge/climate model;
 - surface generator;
 - dependent placement final point selection runtime;
 - standalone terrain `blend` operator;
