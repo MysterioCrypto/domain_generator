@@ -122,6 +122,8 @@ def base_spec() -> dict:
             "stream_threshold_km2": 25.0,
             "lake_min_area_km2": 1.0,
             "lake_min_depth_m": 2.0,
+            "river_depth_at_threshold_m": 0.5,
+            "river_depth_exponent": 0.3,
         },
         "features": [
             {
@@ -174,6 +176,8 @@ def test_compile_resolves_grid_feature_recipes_and_hard_constraints() -> None:
     assert plan.hydrology.stream_threshold_km2 == 25.0
     assert plan.hydrology.lake_min_area_km2 == 1.0
     assert plan.hydrology.lake_min_depth_m == 2.0
+    assert plan.hydrology.river_depth_at_threshold_m == 0.5
+    assert plan.hydrology.river_depth_exponent == 0.3
 
     mountain = plan.features[0]
     assert mountain.id == "mountain-01"
@@ -363,7 +367,7 @@ def test_semantic_plan_fingerprint_ignores_presentation_metadata_and_source_prov
 def test_semantic_plan_fingerprint_includes_hydrology_recipe() -> None:
     spec_a = DomainSpec.model_validate(base_spec())
     changed = base_spec()
-    changed["hydrology"]["stream_threshold_km2"] = 30.0
+    changed["hydrology"]["river_depth_exponent"] = 0.45
     spec_b = DomainSpec.model_validate(changed)
 
     plan_a = compile_domain_spec(spec_a, registry=registry(), generator_version="0.1.0.dev0")
