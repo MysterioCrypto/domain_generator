@@ -6,13 +6,13 @@ normative: true
 target: core-0.1
 ---
 
-# Hydrology Network + WaterDepth v0.1
+# RiverNetwork и WaterDepth Hydrology v0.1
 
-Этот checkpoint превращает runtime stream/lake classification в directed `RiverNetwork` и canonical raster `water_depth_m`, не вводя physical river width и не vectorize-ит lake polygons.
+Этот checkpoint превращает runtime classification streams/lakes в направленный `RiverNetwork` и canonical raster `water_depth_m`, не вводя физическую ширину river и не выполняя vectorization polygons lakes.
 
-## Scope
+## Область действия
 
-Input:
+Вход:
 
 ```text
 TerrainState.elevation_m
@@ -25,33 +25,33 @@ HydrologyState.lake_candidates
 GenerationPlan.hydrology
 ```
 
-Output additions to runtime `HydrologyState`:
+Дополнения к runtime `HydrologyState` на выходе:
 
 ```text
 river_network: RiverNetwork
 water_depth_m: float32[rows, columns]
 ```
 
-No RNG is used.
+RNG не используется.
 
-## Semantic hydrology recipe extension
+## Расширение semantic recipe hydrology
 
-`DomainSpec.hydrology` and `GenerationPlan.hydrology` additionally require:
+`DomainSpec.hydrology` и `GenerationPlan.hydrology` дополнительно требуют:
 
 ```yaml
 river_depth_at_threshold_m: <float > 0>
 river_depth_exponent: <float >= 0>
 ```
 
-These are semantic inputs and participate in spec/plan fingerprints.
+Это семантические inputs, участвующие в fingerprints spec/plan.
 
-No hidden defaults.
+Скрытых defaults нет.
 
-## Stable lake ids
+## Стабильные id lakes
 
-Accepted lake candidates are already canonically ordered.
+Принятые candidates lakes уже находятся в каноническом порядке.
 
-Assign ids by canonical candidate order:
+Id назначаются по каноническому порядку candidates:
 
 ```text
 lake-0001
@@ -60,95 +60,95 @@ lake-0003
 ...
 ```
 
-These ids are runtime references for `RiverNode.feature_id` and later DomainData hydro-feature assembly.
+Эти id являются runtime references для `RiverNode.feature_id` и будущей сборки hydro features в `DomainData`.
 
-The current checkpoint does not materialize lake `AreaGeometry`.
+Текущий checkpoint не materialize-ит `AreaGeometry` lakes.
 
-## River raster graph
+## Raster-граф rivers
 
-A stream cell is a cell where `stream_mask == true`.
+Stream cell — это cell, для которой `stream_mask == true`.
 
-A stream-to-stream directed edge exists from stream cell `A` to its D8 receiver `B` iff:
+Направленное ребро stream-to-stream существует от stream cell `A` к её D8 receiver `B` тогда и только тогда, когда:
 
-- `A` is not an accepted lake cell;
-- `B` is inside the domain;
-- `B` is a stream cell;
-- `B` is not an accepted lake cell.
+- `A` не является cell принятого lake;
+- `B` находится внутри domain;
+- `B` является stream cell;
+- `B` не является cell принятого lake.
 
-Accepted lake cells suppress internal visible river edges even though D8 still exists for routing.
+Cells принятых lakes подавляют внутренние видимые river edges, хотя D8 routing внутри них сохраняется.
 
-For every stream cell outside accepted lakes define **effective visible indegree** as:
+Для каждой stream cell вне принятых lakes определяется **effective visible indegree**:
 
 ```text
 ordinary upstream stream-to-stream edges
 + incoming lake_outlet transitions
 ```
 
-This prevents a lake outlet and an ordinary tributary from joining the same downstream stream cell without a confluence node.
+Это предотвращает ситуацию, когда outlet lake и обычный tributary соединяются в одной downstream stream cell без node confluence.
 
-## Network nodes
+## Nodes network
 
-A river node is created at each topological break in the visible stream graph.
+River node создаётся в каждой топологической точке разрыва видимого stream graph.
 
 ### source
 
-A stream cell outside lakes with effective visible indegree `0`.
+Stream cell вне lakes с effective visible indegree `0`.
 
-Position: canonical world-space cell center.
+Position: canonical world-space center cell.
 
 ### confluence
 
-A stream cell outside lakes with effective visible indegree `>= 2`.
+Stream cell вне lakes с effective visible indegree `>= 2`.
 
-Position: canonical world-space cell center.
+Position: canonical world-space center cell.
 
 ### domain_outlet
 
-A stream path that reaches an edge-cell outlet creates a `domain_outlet` node on the actual domain boundary.
+Stream path, достигающий outlet edge-cell, создаёт node `domain_outlet` на фактической boundary domain.
 
-The segment includes the edge cell center and then the boundary point.
+Segment включает center edge cell, затем boundary point.
 
-Boundary point is the orthogonal projection of the edge-cell center onto its selected domain side.
+Boundary point — ортогональная проекция center edge-cell на выбранную сторону domain.
 
-For a corner edge cell, canonical side precedence is:
+Для corner edge cell канонический приоритет sides:
 
 ```text
 north, east, south, west
 ```
 
-`boundary_side` follows the selected side.
+`boundary_side` соответствует выбранной стороне.
 
 ### lake_inflow
 
-When a stream cell outside a lake has its D8 receiver inside accepted lake `L`, create a `lake_inflow` node with `feature_id = lake-id(L)`.
+Когда receiver D8 stream cell вне lake находится внутри принятого lake `L`, создаётся node `lake_inflow` с `feature_id = lake-id(L)`.
 
-Position is the midpoint between the outside stream-cell center and the inside lake-cell center.
+Position — midpoint между center внешней stream cell и center внутренней lake cell.
 
-Multiple inflows per lake are allowed.
+Допускается несколько inflows на один lake.
 
 ### lake_outlet
 
-When a lake cell has a D8 receiver outside the same accepted lake and the receiver is a stream cell, create a `lake_outlet` node with that lake id.
+Когда lake cell имеет D8 receiver вне того же принятого lake и receiver является stream cell, создаётся node `lake_outlet` с id этого lake.
 
-Position is the midpoint between the inside lake-cell center and the outside stream-cell center.
+Position — midpoint между center внутренней lake cell и center внешней stream cell.
 
-Multiple outlets per lake are allowed if routing produces them.
+Если routing создаёт несколько outlets у lake, допускаются все.
 
-Internal D8 edges inside accepted lakes never become river segments.
+Внутренние D8 edges внутри принятых lakes никогда не становятся river segments.
 
-## Segment extraction
+## Извлечение segments
 
-Segments connect river nodes along the downstream raster graph.
+Segments соединяют river nodes вдоль downstream raster graph.
 
-Starting from each node's downstream continuation, follow unique stream successors until another node condition is reached.
+Начиная от downstream continuation каждого node, алгоритм следует по единственным stream successors до следующего условия node.
 
-Each segment centerline is an ordered tuple of world-space points from upstream node position to downstream node position.
+Centerline каждого segment — упорядоченный tuple world-space points от upstream node position до downstream node position.
 
-Intermediate raster stream points are canonical cell centers.
+Промежуточные raster stream points — canonical centers cells.
 
-No smoothing/spline simplification is applied in v0.1.
+Smoothing/spline simplification в v0.1 не применяется.
 
-Segment ids are assigned after canonical sorting:
+Id segments назначаются после канонической сортировки:
 
 ```text
 river-segment-0001
@@ -156,19 +156,19 @@ river-segment-0002
 ...
 ```
 
-Canonical segment sort key:
+Канонический ключ сортировки segment:
 
 ```text
 (from_node_id, to_node_id, centerline coordinates)
 ```
 
-Node ids are assigned after sorting node descriptors by:
+Id nodes назначаются после сортировки descriptors nodes по:
 
 ```text
 (kind, position.x_km, position.y_km, boundary_side-or-empty, feature_id-or-empty)
 ```
 
-with ids:
+с id:
 
 ```text
 river-node-0001
@@ -176,21 +176,21 @@ river-node-0002
 ...
 ```
 
-## Segment catchment property
+## Свойство catchment segment
 
-`RiverSegment.properties.catchment_area_km2` equals `flow_accumulation_km2` at the last raster stream cell in the segment before its downstream node transition.
+`RiverSegment.properties.catchment_area_km2` равно `flow_accumulation_km2` в последней raster stream cell segment перед переходом в downstream node.
 
-For a segment ending at a domain outlet, use the terminal edge stream cell.
+Для segment, заканчивающегося domain outlet, используется terminal edge stream cell.
 
-For a segment ending at lake inflow, use the outside stream cell immediately before entering the lake.
+Для segment, заканчивающегося lake inflow, используется внешняя stream cell непосредственно перед входом в lake.
 
-For a segment ending at a confluence, use the last upstream raster stream cell before the confluence. If a `lake_outlet` segment enters a confluence immediately, use the last lake cell before the outlet transition; the confluence receiver accumulation is not used because it already includes the other incoming branches.
+Для segment, заканчивающегося confluence, используется последняя upstream raster stream cell перед confluence. Если segment `lake_outlet` сразу входит в confluence, используется последняя lake cell перед outlet transition; accumulation receiver confluence не используется, потому что оно уже включает другие входящие branches.
 
-For a segment beginning at lake outlet and continuing through ordinary outside stream cells, downstream accumulation follows that outside stream path until the next node transition.
+Для segment, начинающегося lake outlet и продолжающегося через обычные внешние stream cells, downstream accumulation следует по этому внешнему stream path до следующего node transition.
 
-## River depth proxy
+## Proxy глубины river
 
-For stream cells outside accepted lakes:
+Для stream cells вне принятых lakes:
 
 ```text
 A  = flow_accumulation_km2
@@ -201,23 +201,23 @@ p  = river_depth_exponent
 river_depth_m = D0 * (A / A0) ** p
 ```
 
-Because stream cells satisfy `A >= A0`, the ratio is at least 1.
+Поскольку stream cells удовлетворяют `A >= A0`, отношение не меньше 1.
 
-This is an explicit deterministic proxy, not discharge/hydraulic simulation.
+Это явный детерминированный proxy, а не симуляция discharge/hydraulics.
 
-## Lake depth
+## Глубина lake
 
-For accepted lake cells:
+Для cells принятых lakes:
 
 ```text
 lake_depth_m = fill_elevation_m - terrain_elevation_m
 ```
 
-Only accepted lake candidate cells become canonical lake water in this checkpoint. Sub-threshold depressions remain dry in canonical `water_depth_m`.
+Только cells принятых candidates lakes становятся canonical lake water в этом checkpoint. Depressions ниже thresholds остаются сухими в canonical `water_depth_m`.
 
 ## Canonical water depth
 
-For every grid cell:
+Для каждой grid cell:
 
 ```text
 if cell belongs to accepted lake candidate:
@@ -228,15 +228,15 @@ else:
     water_depth = 0
 ```
 
-Lake classification has precedence over stream classification, suppressing technical D8 river lines inside lakes.
+Классификация lake имеет приоритет над stream classification, подавляя технические D8 river lines внутри lakes.
 
-Computation is float64. Exactly one final cast produces canonical runtime:
+Вычисления выполняются в float64. Один финальный cast создаёт canonical runtime:
 
 ```text
 water_depth_m.dtype == float32
 ```
 
-All values must be finite and >= 0.
+Все значения должны быть конечными и `>= 0`.
 
 ## Runtime state
 
@@ -252,38 +252,36 @@ HydrologyState
 └── water_depth_m
 ```
 
-`river_network` uses the existing serialized-compatible `contracts.data.RiverNetwork` type, but remains runtime output until DomainData assembly.
+`river_network` использует существующий сериализационно совместимый type `contracts.data.RiverNetwork`, но остаётся runtime output до сборки `DomainData`.
 
 ## Validation
 
-Hydrology validation additionally checks:
+Validation hydrology дополнительно проверяет:
 
-- `water_depth_m` shape matches grid;
-- dtype exactly float32;
-- all finite and non-negative;
-- accepted lake cells equal physical fill depth;
-- stream cells outside accepted lakes equal the exact river-depth proxy after float32 cast;
-- non-lake/non-stream cells equal zero;
-- river-network node ids/segment ids canonical and references valid;
-- source nodes correspond to effective visible indegree 0;
-- confluence nodes correspond to effective visible indegree >= 2;
-- domain outlets lie on the declared boundary side;
-- lake nodes reference canonical accepted lake ids;
-- segment centerlines follow downstream D8 stream topology and never traverse accepted-lake interior;
-- segment catchment property matches terminal raster accumulation semantics.
+- shape `water_depth_m` совпадает с grid;
+- dtype ровно float32;
+- все значения конечны и неотрицательны;
+- cells принятых lakes равны физической fill depth;
+- stream cells вне принятых lakes равны точному proxy river depth после cast в float32;
+- non-lake/non-stream cells равны нулю;
+- id nodes/segments river network канонические и references валидны;
+- source nodes соответствуют effective visible indegree 0;
+- confluence nodes соответствуют effective visible indegree >= 2;
+- domain outlets лежат на объявленной boundary side;
+- lake nodes ссылаются на canonical ids принятых lakes;
+- centerlines segments следуют downstream topology stream D8 и никогда не проходят через interior принятого lake;
+- свойство catchment segment соответствует semantics terminal raster accumulation.
 
-Any topology inconsistency is an engine invariant/capability failure. No hidden repair/retry.
+Любая несогласованность topology является нарушением engine invariant/capability. Скрытых repair/retry нет.
 
-## Non-goals
+## Что не входит
 
-Not included:
-
-- physical river width;
-- sub-cell river rasterization;
-- discharge/runoff model;
-- precipitation/climate model;
-- channel erosion;
+- физическая ширина river;
+- sub-cell rasterization river;
+- модель discharge/runoff;
+- модель precipitation/climate;
+- erosion channel;
 - meandering/smoothing;
-- lake polygon vectorization;
-- HydroFeature materialization;
-- DomainData assembler/export.
+- vectorization polygon lakes;
+- materialization `HydroFeature`;
+- assembler/export `DomainData`.

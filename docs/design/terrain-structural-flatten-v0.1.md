@@ -6,11 +6,11 @@ normative: true
 target: core-0.1
 ---
 
-# Terrain Structural Completion + Flatten v0.1
+# Завершение structural terrain + Flatten v0.1
 
-Этот документ фиксирует завершение первой structural terrain phase и первый shaping operator Core 0.1.
+Этот документ фиксирует завершение первой structural phase terrain и первый shaping operator Core 0.1.
 
-## Pipeline semantics
+## Семантика pipeline
 
 Terrain теперь имеет две явные фазы:
 
@@ -34,19 +34,19 @@ Shaping phase поддерживает:
 
 - `AreaGeometry + flatten(target_elevation_m, blend_width_km)`.
 
-Отдельный generic `blend` operator в v0.1 не вводится.
+Отдельный универсальный operator `blend` в v0.1 не вводится.
 
 ## Structural `depress`
 
 `depress` является additive structural operator и симметричен `raise`.
 
-Required effect parameters ровно:
+Точный обязательный набор effect parameters:
 
 ```text
 depth_m
 ```
 
-`depth_m` должен быть float resolved parameter и после sampling обязан быть finite `> 0`.
+`depth_m` должен быть float resolved parameter и после sampling обязан быть конечным `> 0`.
 
 Contribution:
 
@@ -55,13 +55,13 @@ inside/on AreaGeometry -> -depth_m
 outside                -> 0.0
 ```
 
-Rasterization использует ту же canonical cell-center inclusion semantics, что `raise`.
+Rasterization использует ту же canonical semantics включения center cell, что `raise`.
 
 `depress` не означает water/lake. Он изменяет только terrain elevation; hydrology позднее сама интерпретирует depressions.
 
 ## Structural accumulation
 
-Все structural features применяются в deterministic sorted `feature.id` order:
+Все structural features применяются в детерминированном порядке отсортированных `feature.id`:
 
 ```text
 StructuralElevation = BaseField
@@ -70,15 +70,15 @@ StructuralElevation = BaseField
                     + ridge contributions
 ```
 
-Каждый contribution вычисляется в float64. Feature input order не semantic.
+Каждый contribution вычисляется в float64. Порядок features во входе не является семантическим.
 
 После structural accumulation создаётся frozen float64 snapshot. Shaping operators не читают результаты друг друга.
 
-## `flatten` scope
+## Область действия `flatten`
 
 `flatten` в Core 0.1 поддерживается только с concrete `AreaGeometry`.
 
-Required effect parameters ровно:
+Точный обязательный набор effect parameters:
 
 ```text
 target_elevation_m
@@ -87,16 +87,16 @@ blend_width_km
 
 После sampling:
 
-- `target_elevation_m` — любой finite float, unit meters; отрицательная абсолютная elevation допустима;
-- `blend_width_km` — finite float `>= 0`.
+- `target_elevation_m` — любой конечный float, unit meters; отрицательная absolute elevation допустима;
+- `blend_width_km` — конечный float `>= 0`.
 
 `target_elevation_m` — абсолютная финальная высота, а не contribution.
 
-## Flatten influence and blend
+## Influence flatten и blend
 
-Flatten не влияет на cells, center которых находится вне AreaGeometry.
+Flatten не влияет на cells, center которых находится вне `AreaGeometry`.
 
-Для center внутри/on polygon определяется Euclidean distance `d` до outer polygon boundary.
+Для center внутри или на polygon определяется Euclidean distance `d` до outer polygon boundary.
 
 Если:
 
@@ -104,13 +104,13 @@ Flatten не влияет на cells, center которых находится �
 blend_width_km = 0
 ```
 
-то для любого interior cell используется:
+то для любой interior cell используется:
 
 ```text
 w = 1
 ```
 
-Boundary имеет measure zero; если center numerically лежит ровно на boundary, `w=0`, чтобы внешний рельеф непрерывно оставался нетронутым на границе shaping region.
+Boundary имеет measure zero; если center численно лежит ровно на boundary, `w=0`, чтобы внешний рельеф непрерывно оставался нетронутым на границе shaping region.
 
 Если:
 
@@ -129,9 +129,9 @@ w = clamp(d / blend_width_km, 0, 1)
 - на boundary `w=0`;
 - на расстоянии `blend_width_km` и глубже внутрь Area `w=1`;
 - transition происходит только **внутрь** Area;
-- outside Area всегда `w=0`.
+- вне Area всегда `w=0`.
 
-Final shaped elevation для cell:
+Финальная shaped elevation для cell:
 
 ```text
 result = StructuralElevation * (1-w) + target_elevation_m * w
@@ -141,21 +141,21 @@ Shaping computation выполняется в float64.
 
 ## Frozen structural snapshot
 
-Каждый `flatten` читает один и тот же immutable StructuralElevation snapshot.
+Каждый `flatten` читает один и тот же неизменяемый snapshot `StructuralElevation`.
 
-Запрещён sequential semantics вида:
+Запрещена последовательная семантика вида:
 
 ```text
 flatten A -> flatten B reads A -> flatten C reads B
 ```
 
-Для совместимых shaping regions результат не зависит от feature input order.
+Для совместимых shaping regions результат не зависит от порядка features во входе.
 
-## Shaping overlap conflict
+## Conflict overlap shaping
 
-В Core 0.1 два `flatten` features не могут иметь пересечение interior областей положительной площади.
+В Core 0.1 два features `flatten` не могут иметь пересечение interior областей положительной площади.
 
-Conceptually:
+Концептуально:
 
 ```text
 interior(flatten A) ∩ interior(flatten B) has positive area
@@ -164,17 +164,17 @@ interior(flatten A) ∩ interior(flatten B) has positive area
 -> whole attempt rejected
 ```
 
-Точное касание polygon boundaries разрешено, поскольку на boundary `w=0` и ни один operator фактически не изменяет elevation там.
+Точное касание boundaries polygons разрешено, поскольку на boundary `w=0` и ни один operator фактически не изменяет elevation там.
 
-Conflict detection выполняется в world-vector geometry, а не по raster cells, чтобы результат не зависел от `cell_size_km`.
+Detection conflict выполняется в world-vector geometry, а не по raster cells, чтобы результат не зависел от `cell_size_km`.
 
-Shaping overlap — attempt-level geometric incompatibility, а не `TerrainCapabilityError`. Никакого hidden reroll или automatic priority нет.
+Overlap shaping — геометрическая несовместимость уровня attempt, а не `TerrainCapabilityError`. Скрытого reroll или automatic priority нет.
 
-При обнаруженном conflict implementation может оставить runtime terrain state как deterministic structural snapshot для диагностики, но terrain ValidationResult обязан отвергнуть attempt, и downstream semantic stages не должны использовать этот invalid state.
+При обнаруженном conflict implementation может оставить runtime terrain state как детерминированный structural snapshot для диагностики, но `ValidationResult` terrain обязан отклонить attempt, и downstream semantic stages не должны использовать этот invalid state.
 
-## Feature processing order
+## Порядок обработки features
 
-Terrain features сначала partition-ятся по operator semantics:
+Terrain features сначала разделяются по semantics operator-а:
 
 Structural:
 
@@ -190,13 +190,13 @@ Shaping:
 flatten
 ```
 
-Внутри structural group processing deterministic by sorted feature id.
+Внутри structural group обработка выполняется детерминированно по отсортированному feature id.
 
-Shaping geometries/parameters также resolve-ятся deterministic by sorted feature id, conflict-check выполняется до final shaping composition.
+Shaping geometries/parameters также resolve-ятся детерминированно по sorted feature id; conflict-check выполняется до финальной shaping composition.
 
-## Parameter RNG
+## RNG parameters
 
-Все effect parameters используют существующий terrain parameter namespace:
+Все effect parameters используют существующий namespace parameters terrain:
 
 ```text
 stage = terrain
@@ -206,40 +206,38 @@ purpose = "sample"
 
 `flatten` не использует дополнительный geometry/noise RNG.
 
-## Capability behavior
+## Поведение при неподдерживаемых конструкциях
 
-Explicit `TerrainCapabilityError`, если:
+Явный `TerrainCapabilityError`, если:
 
 - `depress`/`flatten` используется не с `AreaGeometry`;
-- effect parameter set не совпадает с required set;
-- parameter recipe не float или sampler unsupported;
+- набор effect parameters не совпадает с required set;
+- recipe parameter не float или sampler unsupported;
 - sampled parameter non-finite;
 - `depth_m <= 0`;
 - `blend_width_km < 0`.
 
-Overlap двух valid flatten regions — validation failure, не capability error.
+Overlap двух валидных regions flatten — validation failure, а не capability error.
 
-## Validation additions
+## Дополнения validation
 
-Terrain validation дополнительно содержит engine invariant:
+Validation terrain дополнительно содержит engine invariant:
 
 ```text
 terrain-shaping-regions-compatible
 ```
 
-Он passed только если shaping conflict list пуст.
+Он имеет `passed=true` только если список shaping conflicts пуст.
 
-Остальные существующие invariants (layout causality, shape, dtype, finite, complete feature processing) сохраняются.
+Остальные существующие invariants — причинность layout, shape, dtype, finite, полная обработка features — сохраняются.
 
-## Non-goals
+## Что не входит
 
-Не входят:
-
-- standalone `blend` operator;
-- overlapping shaping priority/order;
+- самостоятельный operator `blend`;
+- priority/order пересекающихся shaping;
 - flatten для band/corridor/point;
-- target elevation inferred from neighborhood;
-- slope-aware or erosion-aware smoothing;
+- target elevation, выводимая из neighborhood;
+- slope-aware или erosion-aware smoothing;
 - hydrology;
-- automatic lake creation;
-- shaping region expansion outside AreaGeometry.
+- автоматическое создание lake;
+- расширение shaping region за пределы `AreaGeometry`.

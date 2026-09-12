@@ -6,9 +6,9 @@ normative: false
 target: core-0.1
 ---
 
-# GenerationPlan v0.1 — draft
+# GenerationPlan v0.1 — черновик
 
-`GenerationPlan` — immutable internal serialized resolved recipe между `DomainSpec` и attempt-specific realization. После compilation pipeline не должен обращаться к preset registry или исходному DomainSpec для определения поведения.
+`GenerationPlan` — неизменяемый внутренний сериализуемый разрешённый recipe между `DomainSpec` и realization конкретного attempt. После компиляции pipeline не должен обращаться к preset registry или исходному `DomainSpec` для определения поведения.
 
 ## Верхний уровень
 
@@ -55,9 +55,9 @@ constraints: []
 
 `spec_id` — provenance и не влияет на RNG. Child RNG seeds не хранятся в Plan.
 
-`hydrology` — fully resolved semantic recipe для downstream hydrology classification/network/water-depth generation. `surface` — fully resolved semantic recipe для base moisture/vegetation generation. Они не являются execution policy и включаются в semantic plan fingerprint.
+`hydrology` — полностью разрешённый semantic recipe для downstream hydrology classification/network/water-depth generation. `surface` — полностью разрешённый semantic recipe для базовой генерации moisture/vegetation. Они не являются execution policy и включаются в semantic plan fingerprint.
 
-## Hydrology recipe
+## Рецепт Hydrology
 
 ```yaml
 hydrology:
@@ -68,11 +68,11 @@ hydrology:
   river_depth_exponent: 0.30
 ```
 
-Все значения finite. `stream_threshold_km2`, `lake_min_area_km2`, `lake_min_depth_m` и `river_depth_at_threshold_m` строго положительны; `river_depth_exponent >= 0`.
+Все значения конечны. `stream_threshold_km2`, `lake_min_area_km2`, `lake_min_depth_m` и `river_depth_at_threshold_m` строго положительны; `river_depth_exponent >= 0`.
 
 - `stream_threshold_km2` применяется к canonical `flow_accumulation_km2` как `>= threshold`;
 - `lake_min_area_km2` фильтрует 8-connected components физической depression mask по площади;
-- `lake_min_depth_m` фильтрует те же components по maximum physical fill depth;
+- `lake_min_depth_m` фильтрует те же components по максимальной физической fill depth;
 - `river_depth_at_threshold_m` задаёт proxy river depth при catchment area, равной stream threshold;
 - `river_depth_exponent` задаёт степень роста proxy river depth с catchment area.
 
@@ -84,11 +84,11 @@ river_depth_m = river_depth_at_threshold_m
                   ** river_depth_exponent
 ```
 
-Это deterministic proxy для canonical `water_depth`, не discharge/hydraulic simulation.
+Это детерминированный proxy для canonical `water_depth`, а не симуляция discharge/hydraulics.
 
-Hydrology routing/network algorithms остаются частью generator version semantics: Plan хранит world intent/configuration, но не сериализует внутренний Priority-Flood heap, tie-break state, routing arrays, `RiverNetwork` realization или `water_depth` array.
+Алгоритмы hydrology routing/network остаются частью семантики версии generator: Plan хранит намерение и конфигурацию мира, но не сериализует внутренний Priority-Flood heap, состояние tie-break, routing arrays, realization `RiverNetwork` или array `water_depth`.
 
-## Surface recipe
+## Рецепт Surface
 
 ```yaml
 surface:
@@ -100,9 +100,9 @@ surface:
   vegetation_slope_zero_deg: 45.0
 ```
 
-Все значения finite. `moisture_base`, `water_moisture_boost`, `moisture_noise_amplitude` лежат в `[0,1]`; два scale-параметра строго положительны; `vegetation_slope_zero_deg` лежит в `(0,90]`.
+Все значения конечны. `moisture_base`, `water_moisture_boost`, `moisture_noise_amplitude` лежат в `[0,1]`; два scale-параметра строго положительны; `vegetation_slope_zero_deg` лежит в `(0,90]`.
 
-Surface base generation использует canonical upstream `water_depth` и terrain elevation:
+Базовая генерация Surface использует canonical upstream `water_depth` и terrain elevation:
 
 ```text
 water cells = water_depth > 0
@@ -118,7 +118,7 @@ dry moisture = clamp(
 water moisture = 1
 ```
 
-World-space moisture noise использует fixed semantic RNG namespace:
+World-space moisture noise использует фиксированный semantic RNG namespace:
 
 ```text
 stage   = surface
@@ -126,7 +126,7 @@ scope   = ("field", "moisture", "environmental-noise")
 purpose = "value"
 ```
 
-Base terrestrial vegetation:
+Базовая terrestrial vegetation:
 
 ```text
 slope_factor = clamp(1 - slope_deg / vegetation_slope_zero_deg, 0, 1)
@@ -135,13 +135,13 @@ vegetation_density = moisture * slope_factor
 
 Water cells получают `vegetation_density = 0`.
 
-Plan не вводит absolute-elevation climate penalty: absolute elevation zero — datum. Climate/biome/temperature/precipitation/seasons не входят в Core 0.1 surface recipe.
+Plan не вводит climate penalty по абсолютной elevation: абсолютный ноль elevation — это datum. Climate/biome/temperature/precipitation/seasons не входят в surface recipe Core 0.1.
 
-Distance-to-water, slope, noise samples, `SurfaceState` arrays и surface-feature contributions не сериализуются в Plan.
+Distance-to-water, slope, samples noise, arrays `SurfaceState` и contributions surface features не сериализуются в Plan.
 
 ## ResolvedFeature
 
-После compilation preset как runtime behavior исчезает. Layout recipe и effect recipe разделены явно.
+После компиляции preset как runtime behavior исчезает. Layout recipe и effect recipe разделены явно.
 
 ```yaml
 - id: mountain-01
@@ -197,18 +197,18 @@ Distance-to-water, slope, noise samples, `SurfaceState` arrays и surface-featur
 
 - `layout` отвечает только за macro geometry либо reservation;
 - `effect` отвечает за stage-specific realization после layout;
-- pipeline не угадывает владельца параметра по имени.
+- pipeline не угадывает владельца parameter по имени.
 
-`metadata` сохраняется для provenance/output, но не влияет скрытым образом на generation semantics.
+`metadata` сохраняется для provenance/output, но не влияет скрытым образом на семантику generation.
 
 ## Layout recipe
 
 `layout.mode` v0.1:
 
-- `geometry` — layout создаёт concrete macro geometry;
-- `reservation` — layout создаёт `PlacementReservation`, а final geometry выбирается позднее.
+- `geometry` — layout создаёт конкретную macro geometry;
+- `reservation` — layout создаёт `PlacementReservation`, а финальная geometry выбирается позднее.
 
-Structural example:
+Пример structural feature:
 
 ```yaml
 layout:
@@ -217,7 +217,7 @@ layout:
   parameters: {...}
 ```
 
-Dependent point example:
+Пример dependent point:
 
 ```yaml
 layout:
@@ -229,7 +229,7 @@ Core 0.1 реализует dependent placement только для final shape 
 
 ## Effect recipe
 
-`effect.stage` v0.1 отражает downstream stage, где feature оказывает основной эффект/получает final realization:
+`effect.stage` v0.1 отражает downstream stage, где feature оказывает основной эффект или получает финальную realization:
 
 ```text
 terrain
@@ -259,9 +259,9 @@ effect:
   site_profile: {...}
 ```
 
-Operator id — stable semantic id, не Python import path и не callable.
+Id operator-а — стабильный семантический id, а не Python import path или callable.
 
-## Resolved parameters
+## Разрешённые parameters
 
 Resolved parameter использует один из видов:
 
@@ -291,11 +291,11 @@ profile:
     type: categorical
 ```
 
-Plan хранит sampler recipe, но не attempt-specific sampled value. Sampling выполняется владельцем recipe через независимый RNG namespace.
+Plan хранит sampler recipe, но не sampled value конкретного attempt. Sampling выполняется владельцем recipe через независимый RNG namespace.
 
-## POI SiteProfile
+## SiteProfile для POI
 
-Dependent POI хранит fully resolved site profile внутри `effect`:
+Dependent POI хранит полностью разрешённый site profile внутри `effect`:
 
 ```yaml
 - id: fort-01
@@ -329,13 +329,13 @@ Dependent POI хранит fully resolved site profile внутри `effect`:
           weight: 0.4
 ```
 
-Hard site requirements фильтруют sites. Intrinsic site preferences выбирают физически подходящее место внутри одного candidate и не участвуют автоматически в global candidate ranking.
+Hard site requirements фильтруют sites. Внутренние site preferences выбирают физически подходящее место внутри одного candidate и не участвуют автоматически в глобальном ranking candidates.
 
 ## CompiledConstraint
 
-Semantic relations DomainSpec компилируются в generic evaluator + hard predicate либо soft scoring recipe.
+Семантические relations `DomainSpec` компилируются в универсальный evaluator + hard predicate либо soft scoring recipe.
 
-Hard example:
+Пример hard constraint:
 
 ```yaml
 - id: fort-near-gorge
@@ -349,7 +349,7 @@ Hard example:
   unit: km
 ```
 
-Soft example:
+Пример soft constraint:
 
 ```yaml
 - id: mountains-near-center
@@ -367,25 +367,25 @@ Soft example:
   unit: km
 ```
 
-`source_relation` optional provenance only. Runtime behavior определяется compiled evaluator/predicate/scoring.
+`source_relation` — только необязательный provenance. Runtime behavior определяется compiled evaluator/predicate/scoring.
 
-Compiler приводит built-in anchors/regions и normalized literals к physical primitives. Geometry-part semantics определены контрактом `DomainSpec` и не переинтерпретируются downstream modules.
+Compiler приводит встроенные anchors/regions и normalized literals к физическим primitives geometry. Семантика geometry-part определена контрактом `DomainSpec` и не переинтерпретируется downstream modules.
 
-## Dependent constraint boundary
+## Граница dependent constraints
 
-Core 0.1 materializes layout reservations только из hard spatial constraints, цели которых уже имеют geometry на layout stage. Поэтому deferred feature не может иметь layout-hard dependency на другой deferred feature или ещё не существующую generated hydrology network. Такие specs compiler отклоняет как unsupported для Core 0.1; post-hydrology физические требования выражаются `SiteProfile`.
+Core 0.1 материализует layout reservations только из hard spatial constraints, цели которых уже имеют geometry на стадии layout. Поэтому deferred feature не может иметь layout-hard dependency на другой deferred feature или ещё не существующую generated hydrology network. Такие specs compiler отклоняет как неподдерживаемые для Core 0.1; post-hydrology физические требования выражаются `SiteProfile`.
 
-## Compiler guarantees
+## Гарантии compiler
 
 Если `GenerationPlan` создан успешно, уже проверено:
 
-- все preset/operator ids известны;
+- все id preset/operator известны;
 - family/shape/operator совместимы;
-- layout/effect parameter overrides и resolved domains валидны;
-- feature/constraint ids и references валидны;
+- переопределения parameters layout/effect и resolved domains валидны;
+- id features/constraints и references валидны;
 - selector parts совместимы с geometry shapes;
-- deferred dependency boundary соблюдена;
-- grid dimensions согласованы с physical dimensions;
+- граница deferred dependencies соблюдена;
+- размеры grid согласованы с физическими размерами;
 - hydrology recipe присутствует и имеет валидные physical thresholds/proxy parameters;
 - surface recipe присутствует и имеет валидные normalized/physical parameters;
 - compiled constraint recipes исполнимы поддерживаемым registry.
@@ -396,10 +396,10 @@ Pipeline не повторяет эту semantic validation на каждом at
 
 Различаются два fingerprint:
 
-- `spec_fingerprint` — fingerprint normalized source `DomainSpec`, включая metadata документа;
+- `spec_fingerprint` — fingerprint нормализованного исходного `DomainSpec`, включая metadata документа;
 - `plan_fingerprint` — SHA-256 canonical **executable projection** Plan.
 
-В semantic `plan_fingerprint` входят seed, grid/domain semantics, hydrology recipe, surface recipe, feature identities, layout/effect recipes, site profiles и compiled constraints. Не входят presentation/provenance-only данные вроде `label`, `tags`, `source_preset`, `spec_id` и generator debug metadata.
+В semantic `plan_fingerprint` входят seed, семантика grid/domain, hydrology recipe, surface recipe, идентичности features, layout/effect recipes, site profiles и compiled constraints. Не входят данные только для presentation/provenance: `label`, `tags`, `source_preset`, `spec_id` и debug metadata generator.
 
 Это гарантирует, что косметическое переименование не меняет procedural identity Plan. Сам fingerprint не включается в fingerprinted payload. `LayoutCandidate` ссылается на `plan_fingerprint`.
 
@@ -407,19 +407,19 @@ Pipeline не повторяет эту semantic validation на каждом at
 
 `GenerationPlan` не содержит:
 
-- concrete centerline/boundary текущего attempt;
-- attempt-specific sampled values;
+- конкретную centerline/boundary текущего attempt;
+- sampled values конкретного attempt;
 - raster arrays;
 - routing/fill elevation arrays;
-- stream mask или lake candidate cells;
-- `RiverNetwork` realization;
-- canonical `water_depth`, `moisture` или `vegetation_density` arrays;
-- derived distance-to-water/slope arrays;
-- final coordinates dependent POI;
+- stream mask или cells lake candidate;
+- realization `RiverNetwork`;
+- arrays canonical `water_depth`, `moisture` или `vegetation_density`;
+- derived arrays distance-to-water/slope;
+- финальные координаты dependent POI;
 - Python callable;
 - child RNG seeds;
-- current attempt index;
-- `max_attempts`, `target_valid_candidates` и другие execution-policy settings;
+- текущий attempt index;
+- `max_attempts`, `target_valid_candidates` и другие settings execution policy;
 - debug/output settings.
 
-`GenerationConfig` относится к execution policy, а не к описанию мира.
+`GenerationConfig` относится к политике исполнения, а не к описанию мира.

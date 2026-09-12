@@ -7,17 +7,17 @@ target: core-0.1
 implemented: false
 ---
 
-# Generation baseline Core 0.1
+# Базовая модель генерации Core 0.1
 
-Этот документ фиксирует принятые алгоритмические решения. Они ещё не реализованы.
+Этот документ фиксирует принятые алгоритмические решения. Они ещё не реализованы полностью.
 
 ## Layout
 
-Structural features получают concrete macro geometry (`point`, `area`, `corridor`, `band`). Shape означает топологическую организацию, а не идеальную геометрическую фигуру.
+Structural features получают конкретную macro geometry (`point`, `area`, `corridor`, `band`). Shape означает топологическую организацию, а не идеальную геометрическую фигуру.
 
-Dependent features получают materialized vector `PlacementReservation` (`RegionSet`), если их final placement зависит от terrain/hydrology/surface. Reservation строится только из hard spatial constraints относительно geometry, уже существующей на layout stage.
+Dependent features получают materialized vector `PlacementReservation` (`RegionSet`), если их финальное placement зависит от terrain/hydrology/surface. Reservation строится только из hard spatial constraints относительно geometry, уже существующей на стадии layout.
 
-Band full width хранится как width profile по normalized centerline parameter `t in [0,1]`. Band influence может выходить за domain и клиппится при rasterization; centerline остаётся inside/on boundary.
+Полная ширина band хранится как width profile по normalized parameter centerline `t in [0,1]`. Influence band может выходить за domain и обрезается при rasterization; centerline остаётся внутри или на boundary.
 
 ## Terrain
 
@@ -32,32 +32,32 @@ BaseField
 - additive features создают отдельные contributions;
 - contributions суммируются независимо от порядка features;
 - shaping operators работают отдельной фазой;
-- geometry строится в world coordinates;
+- geometry строится в мировых координатах;
 - masks выводятся из distance fields, falloff и coherent boundary noise;
 - coherent/ridged noise добавляет естественную нерегулярность, но не определяет макрокомпозицию.
 
-Generic operator examples: `ridge`, `raise`, `depress`, `flatten`.
+Примеры универсальных operator-ов: `ridge`, `raise`, `depress`, `flatten`.
 
 ## Hydrology
 
 ```text
 canonical elevation
--> depression analysis
--> conditioned routing surface
--> flow direction
--> flow accumulation
--> stream extraction
+-> анализ впадин
+-> подготовленная поверхность routing
+-> направление стока
+-> накопление стока
+-> извлечение streams
 -> river network + lakes
 -> canonical water_depth
 ```
 
 - canonical elevation Core 0.1 гидрологией не изменяется;
-- мелкие depression artifacts могут исправляться только в routing surface;
-- крупные depressions анализируются как potential lakes;
+- мелкие artifacts впадин могут исправляться только в routing surface;
+- крупные depressions анализируются как потенциальные lakes;
 - flow accumulation представляет upstream catchment;
-- river thresholds выражаются по возможности в physical units (например km² catchment), а не cell counts;
-- domain edge — open boundary, не автоматически море;
-- flow direction/accumulation — derived;
+- thresholds rivers по возможности выражаются в физических единицах, например km² catchment, а не в количестве cells;
+- boundary domain открыта и не считается автоматически морем;
+- flow direction/accumulation — derived data;
 - river network/lakes/`water_depth` — canonical result;
 - binary water mask — derived view `water_depth > 0`.
 
@@ -71,55 +71,55 @@ elevation + slope + hydrology
 -> vegetation_density
 ```
 
-- `moisture` и `vegetation_density` — continuous canonical fields;
-- explicit forest-like features модифицируют field, а не бинарно закрашивают cells;
+- `moisture` и `vegetation_density` — непрерывные canonical fields;
+- явные forest-like features модифицируют field, а не бинарно закрашивают cells;
 - terrain и surface presets разделяются;
 - гибриды вроде `forested_hills` выражаются как terrain feature + surface feature + constraint;
 - полноценная climate/biome model не входит в Core 0.1.
 
-## Dependent feature placement / POI suitability
+## Размещение dependent features / пригодность места для POI
 
 ```text
 PlacementReservation
--> hard SiteProfile requirements
+-> hard requirements SiteProfile
 -> valid sites
--> intrinsic SiteProfile preferences
+-> intrinsic preferences SiteProfile
 -> near-best set
 -> deterministic weighted selection
 -> final geometry
 ```
 
-- global hard spatial constraints формируют reservation;
-- intrinsic preset requirements фильтруют physically invalid sites;
+- глобальные hard spatial constraints формируют reservation;
+- внутренние requirements preset фильтруют физически недопустимые sites;
 - site metrics оценивают footprint вокруг точки, а не только одну cell;
-- intrinsic preferences определяют site suitability внутри одного candidate;
+- внутренние preferences определяют suitability места внутри одного candidate;
 - Core 0.1 не обязан выбирать абсолютный argmax: deterministic weighted choice выполняется среди near-best sites;
-- user soft constraints не смешиваются с intrinsic site score: они оценивают уже получившийся candidate для global ranking;
-- если valid sites нет, attempt отклоняется;
+- пользовательские soft constraints не смешиваются с внутренним site score: они оценивают уже получившийся candidate для глобального ranking;
+- если допустимых sites нет, attempt отклоняется;
 - Core 0.1 реализует dependent placement прежде всего для point features.
 
-## Attempt model
+## Модель attempt
 
-Один `attempt_index` означает одну независимую realization immutable `GenerationPlan`.
+Один `attempt_index` означает одну независимую realization неизменяемого `GenerationPlan`.
 
-- hidden stage-local retries запрещены;
-- stochastic stages используют attempt-specific independent RNG streams;
+- скрытые локальные retries внутри стадий запрещены;
+- stochastic stages используют независимые RNG streams конкретного attempt;
 - deterministic stages не обязаны получать RNG;
-- early validation может остановить attempt;
-- late hard failure отклоняет весь attempt;
+- ранняя validation может остановить attempt;
+- поздний hard failure отклоняет весь attempt;
 - attempts не обучаются на предыдущих failures;
-- execution budget задаётся semantic `GenerationConfig`;
-- `target_valid_candidates=1` означает first-valid behavior; большее значение собирает несколько valid candidates для ranking.
+- бюджет исполнения задаётся semantic `GenerationConfig`;
+- `target_valid_candidates=1` означает поведение «первый валидный»; большее значение собирает несколько валидных candidates для ranking.
 
-## RNG baseline
+## Базовая модель RNG
 
-Child RNG stream адресуется versioned semantic key:
+Дочерний RNG stream адресуется versioned semantic key:
 
 ```text
 root seed + attempt + stage + scope + purpose
 ```
 
-и выводится stable cryptographic derivation. Никакого global mutable RNG и Python `hash()` как persistence contract. Feature identity и parameter/purpose scopes стабильны; module/function names в namespace не входят.
+и выводится через стабильный cryptographic derivation. Глобального mutable RNG и Python `hash()` как persistence contract нет. Identity feature и scopes parameter/purpose стабильны; имена module/function в namespace не входят.
 
 ## Validation и ranking
 
@@ -129,8 +129,8 @@ Validation выполняется по стадиям. Engine invariants и hard
 effective_violation = (1 - score) * weight
 ```
 
-Valid candidates ранжируются: минимальный worst effective violation, затем максимальный weighted mean score, затем меньший `attempt_index`. При отсутствии soft constraints используются neutral values `0.0` и `1.0`. Validator не модифицирует candidate.
+Валидные candidates ранжируются: минимальный `worst_effective_violation`, затем максимальный `weighted_mean_score`, затем меньший `attempt_index`. При отсутствии soft constraints используются neutral values `0.0` и `1.0`. Validator не модифицирует candidate.
 
-## Stage causality
+## Причинность между стадиями
 
-Stages образуют upstream-only DAG и не мутируют предыдущие outputs. Если поздний object должен формировать ранний слой мира, это выражается отдельным feature/constraint соответствующей стадии, а не hidden side effect.
+Стадии образуют upstream-only DAG и не мутируют предыдущие outputs. Если поздний object должен формировать ранний слой мира, это выражается отдельным feature/constraint соответствующей стадии, а не скрытым side effect.

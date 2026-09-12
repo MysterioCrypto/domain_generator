@@ -6,9 +6,9 @@ normative: false
 target: core-0.1
 ---
 
-# DomainSpec v0.1 — draft
+# DomainSpec v0.1 — черновик
 
-Этот документ фиксирует согласованный дизайн пользовательского контракта Core 0.1. Canonical machine-readable contract публикуется как generated JSON Schema; этот Markdown описывает принятую семантику человеческим языком.
+Этот документ фиксирует согласованный дизайн пользовательского контракта Core 0.1. Канонический машиночитаемый контракт публикуется как сгенерированная JSON Schema; этот Markdown описывает принятую семантику человеческим языком.
 
 ## Корень
 
@@ -47,20 +47,20 @@ constraints: []
 
 Все числовые значения в примерах ненормативны.
 
-Поля: `schema_version`, `id`, optional `label`, `seed`, `domain`, `simulation`, `hydrology`, `surface`, `features`, `constraints`.
+Поля: `schema_version`, `id`, необязательный `label`, `seed`, `domain`, `simulation`, `hydrology`, `surface`, `features`, `constraints`.
 
 Правила:
 
-- `seed` обязателен в canonical DomainSpec;
-- top-level `id` — identity документа/домена и не участвует в RNG;
+- `seed` обязателен в canonical `DomainSpec`;
+- верхнеуровневый `id` — идентичность документа/domain и не участвует в RNG;
 - `label` — только отображаемое имя;
-- размеры мира и cell size задаются в физических единицах;
-- `width_km / cell_size_km` и `height_km / cell_size_km` должны давать целое число клеток; silent rounding запрещён;
+- размеры мира и размер cell задаются в физических единицах;
+- `width_km / cell_size_km` и `height_km / cell_size_km` должны давать целое число клеток; скрытое округление запрещено;
 - пользователь не задаёт raster row/column или CRS;
-- world coordinates: origin southwest, `+x` east, `+y` north;
-- `hydrology` и `surface` — обязательные semantic части мира, а не execution/debug settings.
+- мировая система координат: начало на юго-западе, `+x` на восток, `+y` на север;
+- `hydrology` и `surface` — обязательные семантические части мира, а не настройки исполнения/debug.
 
-## Hydrology recipe
+## Рецепт Hydrology
 
 ```yaml
 hydrology:
@@ -71,12 +71,12 @@ hydrology:
   river_depth_exponent: 0.30
 ```
 
-Все пять значений обязательны и finite. Первые четыре строго положительны; `river_depth_exponent >= 0`.
+Все пять значений обязательны и конечны. Первые четыре строго положительны; `river_depth_exponent >= 0`.
 
-- `stream_threshold_km2` — minimum upstream catchment area, при которой raster cell классифицируется как stream cell;
-- `lake_min_area_km2` — minimum physical area connected depression component для сохранения как lake candidate;
-- `lake_min_depth_m` — minimum maximum physical fill depth connected depression component для сохранения как lake candidate;
-- `river_depth_at_threshold_m` — deterministic proxy depth stream cell ровно на пороге `stream_threshold_km2`;
+- `stream_threshold_km2` — минимальная upstream catchment area, при которой raster cell классифицируется как stream cell;
+- `lake_min_area_km2` — минимальная физическая площадь связного компонента впадины для сохранения как lake candidate;
+- `lake_min_depth_m` — минимальная максимальная физическая fill depth связного компонента впадины для сохранения как lake candidate;
+- `river_depth_at_threshold_m` — детерминированная proxy depth stream cell ровно на пороге `stream_threshold_km2`;
 - `river_depth_exponent` — exponent роста proxy river depth с увеличением catchment area.
 
 Для stream cell вне accepted lake:
@@ -90,13 +90,13 @@ p  = river_depth_exponent
 river_depth_m = D0 * (A / A0)^p
 ```
 
-Это явная deterministic proxy-модель для canonical `water_depth`, а не physical discharge/hydraulic simulation.
+Это явная детерминированная proxy-модель для canonical `water_depth`, а не физическая симуляция discharge/hydraulics.
 
-Эти значения не являются hidden defaults Core. Они входят в semantic `GenerationPlan` и его fingerprint. Изменение любого из них может менять hydrology result при неизменном terrain.
+Эти значения не являются скрытыми defaults Core. Они входят в semantic `GenerationPlan` и его fingerprint. Изменение любого из них может менять результат hydrology при неизменном terrain.
 
 В v0.1 recipe не задаёт rainfall, runoff, erosion, sea level, physical river width, lake evaporation или климатическую модель.
 
-## Surface recipe
+## Рецепт Surface
 
 ```yaml
 surface:
@@ -108,16 +108,16 @@ surface:
   vegetation_slope_zero_deg: 45.0
 ```
 
-Все шесть значений обязательны и finite. Примерные числа выше ненормативны.
+Все шесть значений обязательны и конечны. Примерные числа выше ненормативны.
 
 - `moisture_base` — базовый уровень локальной влажности, `[0,1]`;
 - `water_moisture_boost` — максимальная добавка влажности от близости canonical water, `[0,1]`;
-- `water_moisture_decay_km > 0` — physical decay scale влияния воды;
+- `water_moisture_decay_km > 0` — физический масштаб затухания влияния воды;
 - `moisture_noise_amplitude` — amplitude coherent environmental noise, `[0,1]`;
 - `moisture_noise_scale_km > 0` — world-space scale этого noise;
 - `0 < vegetation_slope_zero_deg <= 90` — slope, при котором базовый terrestrial vegetation factor становится нулём.
 
-Для dry cell базовая moisture semantics:
+Для сухой cell базовая семантика `moisture`:
 
 ```text
 water_term = water_moisture_boost
@@ -134,7 +134,7 @@ moisture = clamp(
 
 Canonical water cells получают `moisture = 1`. При полном отсутствии canonical water `water_term = 0`.
 
-Base terrestrial vegetation:
+Базовая terrestrial vegetation:
 
 ```text
 slope_factor = clamp(1 - slope_deg / vegetation_slope_zero_deg, 0, 1)
@@ -143,9 +143,9 @@ vegetation_density = moisture * slope_factor
 
 Canonical water cells получают `vegetation_density = 0`.
 
-Absolute elevation не вводит implicit dryness penalty: `0 m` в Core 0.1 — datum, а не sea/climate level. Climate, biome, precipitation, temperature и seasons в этот recipe не входят.
+Absolute elevation не вводит неявный dryness penalty: `0 m` в Core 0.1 — datum, а не sea/climate level. Climate, biome, precipitation, temperature и seasons в этот recipe не входят.
 
-Surface recipe входит в semantic `GenerationPlan` и его fingerprint. Hidden defaults запрещены.
+Surface recipe входит в semantic `GenerationPlan` и его fingerprint. Скрытые defaults запрещены.
 
 ## FeatureSpec
 
@@ -161,13 +161,13 @@ Surface recipe входит в semantic `GenerationPlan` и его fingerprint. 
     - major_landform
 ```
 
-`id` и `preset` обязательны; `label`, `parameters`, `tags` optional.
+`id` и `preset` обязательны; `label`, `parameters`, `tags` необязательны.
 
-Feature `id` — стабильная machine identity. Она используется в constraints, references и RNG namespace. Косметическое переименование делается через `label`; сознательная смена `id` означает новую procedural identity и может изменить realization.
+Feature `id` — стабильная машинная идентичность. Она используется в constraints, references и RNG namespace. Косметическое переименование делается через `label`; сознательная смена `id` означает новую procedural identity и может изменить realization.
 
-В `FeatureSpec v0.1` нет `family`, `shape`, `operator`, `placement`, sampler или `presence`: они следуют из preset либо выражаются constraints. Все явно перечисленные features обязательны. Tags — metadata only и не влияют на Core скрытым образом.
+В `FeatureSpec v0.1` нет `family`, `shape`, `operator`, `placement`, sampler или `presence`: они следуют из preset либо выражаются constraints. Все явно перечисленные features обязательны. Tags — только metadata и не влияют на Core скрытым образом.
 
-## Parameter overrides
+## Переопределения parameters
 
 Разрешены три формы:
 
@@ -185,9 +185,9 @@ profile:
   one_of: [smooth, rugged]
 ```
 
-Один override использует ровно одну форму. `min/max` задаёт allowed domain, а не автоматически uniform sampling. Sampling policy приходит из preset definition и после compilation переносится в `GenerationPlan`.
+Один override использует ровно одну форму. `min/max` задаёт допустимый domain, а не автоматически uniform sampling. Политика sampling приходит из definition preset и после компиляции переносится в `GenerationPlan`.
 
-Базовые parameter types Core 0.1: float, integer, boolean, enum.
+Базовые типы parameters Core 0.1: float, integer, boolean, enum.
 
 ## ConstraintSpec
 
@@ -210,9 +210,9 @@ profile:
 relation + SpatialSelector(subject) + SpatialSelector(target)
 ```
 
-`id`, `relation`, `subject`, `target`, `strength` обязательны. `parameters` optional. `weight` разрешён только для `soft`; default `1.0`, допустимый диапазон `0 < weight <= 1`.
+`id`, `relation`, `subject`, `target`, `strength` обязательны. `parameters` необязателен. `weight` разрешён только для `soft`; по умолчанию `1.0`, допустимый диапазон `0 < weight <= 1`.
 
-`hard` constraint нельзя компенсировать score. `soft` constraint участвует в ranking valid candidates.
+`hard` constraint нельзя компенсировать score. `soft` constraint участвует в ranking валидных candidates.
 
 ### Relations v0.1
 
@@ -226,7 +226,7 @@ relation + SpatialSelector(subject) + SpatialSelector(target)
 - `overlaps`;
 - `adjacent`.
 
-`connects`, `transitions_to`, специальные `near_endpoint` и другие составные relations не входят в primitive registry v0.1. `connects` отложен до появления явной network/route semantics.
+`connects`, `transitions_to`, специальные `near_endpoint` и другие составные relations не входят в primitive registry v0.1. `connects` отложен до появления явной семантики network/route.
 
 Relation определяет допустимые parameters. Базовая семантика:
 
@@ -250,21 +250,21 @@ subject:
   part: start
 ```
 
-Built-in point anchor:
+Встроенный point anchor:
 
 ```yaml
 target:
   domain_anchor: center
 ```
 
-Built-in region:
+Встроенный region:
 
 ```yaml
 target:
   domain_region: southwest
 ```
 
-Literal point in km:
+Literal point в километрах:
 
 ```yaml
 target:
@@ -293,7 +293,7 @@ target:
       y: {min: 0.55, max: 0.80}
 ```
 
-Literal region in km:
+Literal region в километрах:
 
 ```yaml
 target:
@@ -302,11 +302,11 @@ target:
     y_km: {min: 55.0, max: 80.0}
 ```
 
-Custom polygons в DomainSpec v0.1 не поддерживаются.
+Custom polygons в `DomainSpec v0.1` не поддерживаются.
 
-### Feature parts
+### Части feature
 
-Начальный набор: `whole` (default), `center`, `start`, `end`, `endpoints`, `boundary`.
+Начальный набор: `whole` (по умолчанию), `center`, `start`, `end`, `endpoints`, `boundary`.
 
 Точная семантика:
 
@@ -317,7 +317,7 @@ Custom polygons в DomainSpec v0.1 не поддерживаются.
 
 Compiler проверяет совместимость part с resolved geometry shape.
 
-## Built-in anchors and regions
+## Встроенные anchors и regions
 
 Имена: `southwest`, `south`, `southeast`, `west`, `center`, `east`, `northwest`, `north`, `northeast`.
 
@@ -410,4 +410,4 @@ constraints:
     parameters: {minimum_fraction: 0.7}
 ```
 
-Пример ненормативный и не создаёт implicit rules Core.
+Пример ненормативный и не создаёт неявных правил Core.

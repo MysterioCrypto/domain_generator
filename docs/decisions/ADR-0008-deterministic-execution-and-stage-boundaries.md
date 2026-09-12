@@ -7,34 +7,34 @@ target: core-0.1
 implemented: false
 ---
 
-# ADR-0008 — Deterministic execution and stage boundaries
+# ADR-0008 — Детерминированное исполнение и границы стадий
 
-## Context
+## Контекст
 
-Core должен воспроизводить procedural result, позволять ранний reject кандидатов, поддерживать независимые stochastic subsystems и оставаться отлаживаемым при росте pipeline. Global mutable RNG, hidden retries и backward mutation делают результат зависимым от порядка вызовов и трудно воспроизводимым.
+Core должен воспроизводить процедурный результат, позволять раннее отклонение кандидатов, поддерживать независимые стохастические подсистемы и оставаться отлаживаемым по мере роста pipeline. Глобальный mutable RNG, скрытые retries и обратная мутация делают результат зависимым от порядка вызовов и трудно воспроизводимым.
 
-## Decision
+## Решение
 
-### Stable identities
+### Стабильные идентификаторы
 
-- top-level `DomainSpec.id` не участвует в RNG;
-- feature `id` — stable machine identity для references и RNG namespace;
-- cosmetic naming используется через optional `label`;
+- верхнеуровневый `DomainSpec.id` не участвует в RNG;
+- feature `id` — стабильный машинный идентификатор для references и RNG namespace;
+- косметическое имя задаётся необязательным `label`;
 - смена `label` не должна менять RNG realization, смена feature `id` может.
 
-### Attempt semantics
+### Семантика attempt
 
-Один `attempt_index` — одна независимая realization immutable `GenerationPlan`.
+Один `attempt_index` — одна независимая realization неизменяемого `GenerationPlan`.
 
-- hidden stage-local retries запрещены в Core 0.1;
-- early hard failure прекращает текущий attempt;
-- late hard failure отклоняет весь attempt;
+- скрытые локальные retries внутри стадий запрещены в Core 0.1;
+- ранний hard failure прекращает текущий attempt;
+- поздний hard failure отклоняет весь attempt;
 - attempts не адаптируются на основании предыдущих failures;
-- execution budget (`max_attempts`, `target_valid_candidates`) находится в semantic `GenerationConfig`.
+- бюджет исполнения (`max_attempts`, `target_valid_candidates`) находится в semantic `GenerationConfig`.
 
-### RNG derivation
+### Вывод RNG
 
-Child RNG streams выводятся независимо из versioned semantic namespace:
+Дочерние RNG streams выводятся независимо из versioned semantic namespace:
 
 ```text
 root_seed
@@ -46,31 +46,31 @@ root_seed
 -> local child seed / RNG
 ```
 
-Requirements:
+Требования:
 
-- никакого global mutable RNG;
+- никакого глобального mutable RNG;
 - никакого Python `hash()` как persistence contract;
-- module/function names не входят в namespace;
-- unrelated random draws и порядок features не сдвигают соседние streams;
-- parameter values не включаются в namespace; sampler отображает тот же deterministic variate в текущий allowed domain;
-- debug/logging/preview не потребляют semantic RNG и не меняют result.
+- имена module/function не входят в namespace;
+- несвязанные random draws и порядок features не сдвигают соседние streams;
+- значения parameters не включаются в namespace; sampler отображает тот же deterministic variate в текущий допустимый domain;
+- debug/logging/preview не потребляют semantic RNG и не меняют результат.
 
-### Replay/versioning
+### Replay и versioning
 
-Exact procedural replay требует одинаковых:
+Точный procedural replay требует одинаковых:
 
 ```text
-DomainSpec semantics
+семантика DomainSpec
 + root seed
 + semantic GenerationConfig
 + exact generator version
 ```
 
-Стабильность generated world между разными generator versions не гарантируется. Старый результат сохраняется как `DomainData`; историческая regeneration выполняется старым tagged release. `rng_version` версионируется отдельно от generator/schema contracts.
+Стабильность generated world между разными версиями generator не гарантируется. Старый результат сохраняется как `DomainData`; историческая regeneration выполняется старым tagged release. `rng_version` версионируется отдельно от generator/schema contracts.
 
-### Stage causality
+### Причинность между стадиями
 
-Core stages образуют upstream-only DAG. Stage читает только объявленные upstream outputs и не мутирует outputs предыдущих stages.
+Стадии Core образуют upstream-only DAG. Каждая stage читает только объявленные upstream outputs и не мутирует outputs предыдущих стадий.
 
 Запрещены скрытые зависимости вида:
 
@@ -83,26 +83,26 @@ Core stages образуют upstream-only DAG. Stage читает только 
 
 Если поздний semantic object должен влиять на ранний слой мира, эффект выражается отдельным feature/constraint соответствующей стадии.
 
-## Consequences
+## Следствия
 
 Плюсы:
 
-- воспроизводимые independent streams;
-- добавление нового unrelated random draw не reroll'ит весь мир;
+- воспроизводимые независимые streams;
+- добавление нового несвязанного random draw не приводит к reroll всего мира;
 - attempts легко replay/debug;
-- stage tests можно запускать на фиксированных upstream inputs;
-- будущая incremental execution может использовать тот же DAG без изменения semantics.
+- тесты стадий можно запускать на фиксированных upstream inputs;
+- будущая incremental execution может использовать тот же DAG без изменения семантики.
 
 Цена:
 
 - Core 0.1 иногда пересоздаёт полный downstream candidate после позднего failure вместо локального retry;
-- feature IDs становятся частью stable procedural identity;
-- exact replay требует фиксации generator/runtime versioning.
+- feature IDs становятся частью стабильной procedural identity;
+- точный replay требует фиксации версий generator/runtime.
 
-## Added invariants
+## Добавленные инварианты
 
 - **INV-007:** RNG streams адресуются стабильными семантическими namespace и не зависят от порядка выполнения или random draws соседних подсистем.
-- **INV-008:** observability, logging, debug export и preview generation не влияют на semantic generation result.
-- **INV-009:** exact procedural replay определяется точной версией generator; стабильность generated world между generator versions не гарантируется.
-- **INV-010:** stage читает только явно объявленные upstream outputs и не мутирует результаты предыдущих stages.
-- **INV-011:** воздействие feature на более ранний слой мира выражается отдельным feature/constraint соответствующей стадии, а не hidden side effect позднего объекта.
+- **INV-008:** observability, logging, debug export и preview generation не влияют на семантический результат генерации.
+- **INV-009:** точный procedural replay определяется точной версией generator; стабильность generated world между версиями generator не гарантируется.
+- **INV-010:** stage читает только явно объявленные upstream outputs и не мутирует результаты предыдущих стадий.
+- **INV-011:** воздействие feature на более ранний слой мира выражается отдельным feature/constraint соответствующей стадии, а не скрытым side effect позднего объекта.

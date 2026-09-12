@@ -8,26 +8,26 @@ target: core-0.1
 
 # Corridor layout v0.1
 
-Этот документ фиксирует первый deterministic corridor layout algorithm Core 0.1.
+Этот документ фиксирует первый детерминированный алгоритм corridor layout Core 0.1.
 
-## Scope
+## Область действия
 
 Поддерживается `layout.mode = geometry`, `shape = corridor`.
 
-Canonical result — `CorridorGeometry` с ordered polyline `centerline`. Serialized geometry не хранит spline/Bezier representation.
+Канонический результат — `CorridorGeometry` с упорядоченной polyline `centerline`. Сериализованная geometry не хранит spline/Bezier representation.
 
-## Required layout parameters
+## Обязательные параметры layout
 
-Corridor recipe v0.1 использует ровно два layout parameters:
+Recipe corridor v0.1 использует ровно два параметра layout:
 
 - `control_point_count`: integer, `>= 0`;
 - `curvature`: float в `[0, 1]`.
 
-Они остаются обычными `ResolvedParameter` recipes и sample-ятся attempt-local runtime sampler'ом.
+Они остаются обычными recipes `ResolvedParameter` и sample-ятся runtime sampler-ом конкретного attempt.
 
 ## RNG namespaces
 
-Endpoint streams изолированы от control-point stream:
+Streams endpoints изолированы от stream control points:
 
 ```text
 stage = layout
@@ -47,7 +47,7 @@ scope = ("feature", feature_id, "geometry", "corridor")
 purpose = "control-points"
 ```
 
-Layout parameter sampling использует отдельный namespace на parameter:
+Sampling параметров layout использует отдельный namespace на parameter:
 
 ```text
 stage = layout
@@ -57,26 +57,26 @@ purpose = "sample"
 
 Изменение `control_point_count` не должно менять sampled start/end.
 
-## Endpoints
+## Конечные точки
 
-Start и end выбираются независимо внутри rectangular domain:
+Start и end выбираются независимо внутри прямоугольного domain:
 
 ```text
 x = width_km  * uniform01()
 y = height_km * uniform01()
 ```
 
-Никаких hidden retries или constraint-aware steering нет.
+Скрытых retries или steering с учётом constraints нет.
 
-## Internal control points
+## Внутренние контрольные точки
 
-Для `N = control_point_count` internal points базовый position parameter:
+Для `N = control_point_count` базовый параметр положения внутренних points:
 
 ```text
 t_i = i / (N + 1), i = 1..N
 ```
 
-Base point — linear interpolation между start/end.
+Базовая point — линейная интерполяция между start/end.
 
 Для ненулевой длины corridor вычисляется unit normal к start→end. Control point смещается вдоль normal.
 
@@ -88,13 +88,13 @@ envelope(t) = 4 * t * (1 - t)
 
 Он равен 0 на endpoints и достигает 1 в середине.
 
-Для каждого internal point один draw:
+Для каждой внутренней point выполняется один draw:
 
 ```text
 r = uniform(-1, +1)
 ```
 
-Доступное расстояние до domain boundary вычисляется вдоль positive/negative normal отдельно. Signed offset:
+Доступное расстояние до boundary domain вычисляется отдельно вдоль positive/negative normal. Signed offset:
 
 ```text
 strength = curvature * envelope(t)
@@ -108,23 +108,23 @@ else:
 
 Итоговая point = base + normal * offset.
 
-Domain прямоугольный и выпуклый; если каждая vertex centerline находится внутри/on boundary, все polyline segments также находятся внутри/on boundary.
+Domain прямоугольный и выпуклый; если каждая vertex centerline находится внутри или на boundary, все segments polyline также находятся внутри или на boundary.
 
-## Degenerate corridor
+## Вырожденный corridor
 
-Если Euclidean distance между start и end `<= 1e-12 km`, geometry создаётся без hidden reroll, но layout validation отклоняет attempt engine invariant `layout-corridor-nondegenerate`.
+Если Euclidean distance между start и end `<= 1e-12 km`, geometry создаётся без скрытого reroll, но validation layout отклоняет attempt по engine invariant `layout-corridor-nondegenerate`.
 
-При degenerate endpoints internal control points не вычисляются через normal; centerline может содержать совпадающие vertices только как rejected candidate representation.
+При degenerate endpoints внутренние control points не вычисляются через normal; centerline может содержать совпадающие vertices только как representation отклонённого candidate.
 
-## Generic parameter sampling
+## Универсальный sampling parameters
 
-Core runtime sampler v0.1 поддерживает:
+Runtime sampler Core v0.1 поддерживает:
 
 - fixed → value без RNG draw;
 - float range + uniform → `uniform(min,max)`;
-- integer range + integer_uniform → inclusive `integer_uniform(min,max)`;
+- integer range + integer_uniform → включительный `integer_uniform(min,max)`;
 - choice + categorical → `choice(values)`;
-- float range + triangular → inverse-CDF formula ниже.
+- float range + triangular → формулу inverse-CDF ниже.
 
 Triangular sampler:
 
@@ -141,11 +141,11 @@ else:
 
 Если `min == max`, возвращается это значение без RNG draw.
 
-Изменение triangular mapping требует нового `rng_version`, потому что sampler mapping является частью semantic RNG protocol.
+Изменение triangular mapping требует нового `rng_version`, потому что mapping sampler-а является частью семантического RNG protocol.
 
 ## Constraints
 
-Corridor generator не steering-ится hard constraints. Pipeline:
+Генератор corridor не выполняет steering по hard constraints. Pipeline:
 
 ```text
 generate geometry
@@ -153,25 +153,23 @@ generate geometry
 -> PASS or reject whole attempt
 ```
 
-Layout evaluator v0.1 для corridor slice должен уметь как минимум:
+Evaluator layout v0.1 для corridor slice должен уметь как минимум:
 
-- resolve corridor `start`, `end`, `center`, `whole`;
-- point↔point distance;
-- point↔corridor minimum distance;
-- corridor↔point minimum distance;
-- corridor vertices/domain engine invariants.
+- разрешать corridor `start`, `end`, `center`, `whole`;
+- distance point↔point;
+- minimum distance point↔corridor;
+- minimum distance corridor↔point;
+- engine invariants vertices corridor/domain.
 
-`center` corridor определяется как point на 50% total polyline arc length, не как middle vertex.
+`center` corridor определяется как point на 50% общей длины дуги polyline, а не как middle vertex.
 
-Unsupported evaluator/geometry combination — capability error, не failed hard constraint.
+Неподдерживаемое сочетание evaluator/geometry — capability error, а не failed hard constraint.
 
-## Non-goals
-
-Не входят в этот slice:
+## Что не входит в этот slice
 
 - band;
 - area;
-- placement reservation boolean geometry;
-- constraint-aware proposal generation;
-- spline serialization;
-- terrain/hydrology/surface algorithms.
+- boolean geometry placement reservation;
+- proposal generation с учётом constraints;
+- сериализация spline;
+- алгоритмы terrain/hydrology/surface.

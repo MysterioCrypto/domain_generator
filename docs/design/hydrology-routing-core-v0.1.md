@@ -6,11 +6,11 @@ normative: true
 target: core-0.1
 ---
 
-# Hydrology Routing Core v0.1
+# Ядро routing Hydrology v0.1
 
-Этот документ фиксирует первый hydrology vertical slice: deterministic drainage routing поверх canonical terrain без изменения canonical elevation.
+Этот документ фиксирует первый вертикальный slice hydrology: детерминированный drainage routing поверх canonical terrain без изменения canonical elevation.
 
-## Scope
+## Область действия
 
 Pipeline:
 
@@ -28,15 +28,15 @@ flow accumulation (km²)
 HydrologyState
 ```
 
-В этот slice не входят stream extraction, `water_depth`, lakes, vector rivers, river width/discharge, runoff/climate model, erosion или surface moisture.
+В этот slice не входят extraction streams, `water_depth`, lakes, vector rivers, river width/discharge, модель runoff/climate, erosion или surface moisture.
 
-`stream_threshold_km2` намеренно отложен: это semantic hydrology parameter, но GenerationPlan v0.1 пока не имеет принятого hydrology-recipe contract. Hidden constant запрещена.
+`stream_threshold_km2` намеренно отложен: это semantic parameter hydrology, но `GenerationPlan v0.1` пока не имеет принятого contract recipe hydrology. Скрытая константа запрещена.
 
-## Upstream immutability
+## Неизменяемость upstream
 
 Hydrology читает canonical `TerrainState.elevation_m` и никогда его не мутирует.
 
-Все depression corrections происходят только в runtime `routing_elevation_m`.
+Все corrections depressions происходят только в runtime `routing_elevation_m`.
 
 ## Runtime HydrologyState
 
@@ -47,7 +47,7 @@ HydrologyState
 └── flow_accumulation_km2     float64 [rows, columns]
 ```
 
-`flow_direction` codes:
+Коды `flow_direction`:
 
 ```text
 -1 = outlet / leaves domain
@@ -61,29 +61,29 @@ HydrologyState
  7 = NW
 ```
 
-Grid convention remains canonical: row 0 is north, +column is east.
+Соглашение grid остаётся каноническим: row 0 находится на севере, +column направлен на восток.
 
-## Open boundary
+## Открытая граница
 
-Every edge cell is an outlet and has `flow_direction = -1`.
+Каждая edge cell является outlet и имеет `flow_direction = -1`.
 
-The domain edge is not water/ocean. It means flow may leave the modeled domain.
+Граница domain не является водой или океаном. Она означает, что поток может покинуть моделируемый domain.
 
-Priority-Flood seeds every edge cell using canonical terrain elevation.
+Priority-Flood использует каждую edge cell как seed с canonical terrain elevation.
 
-## Priority-Flood conditioning
+## Conditioning Priority-Flood
 
-Input terrain is converted to float64 without changing numeric values.
+Входной terrain преобразуется в float64 без изменения числовых значений.
 
-Use a min-heap ordered by:
+Используется min-heap с порядком:
 
 ```text
 (routing_elevation_m, row, column)
 ```
 
-All edge cells are inserted once. Neighbors are the 8-connected grid neighbors in canonical D8 order.
+Все edge cells вставляются ровно один раз. Neighbors — 8-connected grid neighbors в каноническом порядке D8.
 
-When an unvisited neighbor is reached from processed cell `current`:
+Когда непосещённый neighbor достигается из processed cell `current`:
 
 ```text
 if terrain[neighbor] > routing[current]:
@@ -92,22 +92,22 @@ else:
     routing[neighbor] = nextafter(routing[current], +infinity)
 ```
 
-This is a minimal representable positive gradient, not an arbitrary epsilon constant.
+Это минимальный представимый положительный gradient, а не произвольная epsilon-константа.
 
-Consequences:
+Следствия:
 
-- depressions are raised only in routing surface;
-- filled flats receive a deterministic infinitesimal drainage gradient toward an outlet;
-- canonical terrain remains unchanged;
-- `routing_elevation_m - terrain_elevation_m` preserves candidate depression/fill information for future lake extraction.
+- depressions повышаются только в routing surface;
+- заполненные flats получают детерминированный бесконечно малый drainage gradient к outlet;
+- canonical terrain остаётся неизменным;
+- `routing_elevation_m - terrain_elevation_m` сохраняет информацию о potential depression/fill для будущего extraction lakes.
 
-No RNG is used.
+RNG не используется.
 
-## D8 routing
+## Routing D8
 
-Every non-edge cell selects one of its 8 neighbors using routing elevation.
+Каждая non-edge cell выбирает одного из 8 neighbors по routing elevation.
 
-Canonical neighbor order and code:
+Канонический порядок neighbors и кодов:
 
 ```text
 0 N  = (-1,  0)
@@ -120,45 +120,45 @@ Canonical neighbor order and code:
 7 NW = (-1, -1)
 ```
 
-For each neighbor with strictly lower routing elevation:
+Для каждого neighbor со строго меньшей routing elevation:
 
 ```text
 slope = (routing[current] - routing[neighbor]) / distance_km
 ```
 
-where orthogonal distance is `cell_size_km` and diagonal distance is `cell_size_km * sqrt(2)`.
+где orthogonal distance равен `cell_size_km`, а diagonal distance — `cell_size_km * sqrt(2)`.
 
-Select maximum positive slope. Exact ties use the earliest direction in canonical order above.
+Выбирается максимальный положительный slope. Точное равенство разрешается в пользу более раннего направления из канонического списка выше.
 
-A valid conditioned interior cell must have at least one strictly lower neighbor. Failure is a hydrology invariant/capability failure, never an RNG retry.
+Корректная conditioned interior cell обязана иметь хотя бы одного neighbor со строго меньшим значением. Нарушение является invariant/capability failure hydrology и никогда не вызывает RNG retry.
 
 ## Flow accumulation
 
-Core v0.1 assumes spatially uniform unit runoff only for catchment-area accounting. Accumulation therefore represents contributing area, not discharge.
+Core v0.1 предполагает пространственно равномерный unit runoff только для учёта catchment area. Поэтому accumulation представляет площадь contributing area, а не discharge.
 
-Each cell initially contributes exactly:
+Каждая cell изначально вносит ровно:
 
 ```text
 cell_area_km2 = cell_size_km²
 ```
 
-Implementation accumulates **integer upstream cell counts** through the D8 receiver graph, then converts once:
+Implementation аккумулирует **integer upstream cell counts** по графу receivers D8, затем один раз преобразует:
 
 ```text
 flow_accumulation_km2 = upstream_cell_count * cell_area_km2
 ```
 
-This avoids floating-order drift while retaining physical units.
+Это избегает floating-order drift и сохраняет физические единицы.
 
-Cells are processed in deterministic descending routing-elevation order, tie-broken by `(row, column)`. Because every non-outlet receiver is strictly lower, the graph is acyclic.
+Cells обрабатываются в детерминированном порядке убывания routing elevation с tie-break по `(row, column)`. Поскольку каждый non-outlet receiver строго ниже, граф ацикличен.
 
-## Runtime / canonical boundary
+## Граница runtime / canonical
 
-`routing_elevation_m`, `flow_direction`, and `flow_accumulation_km2` are runtime/derived hydrology data in this slice.
+`routing_elevation_m`, `flow_direction` и `flow_accumulation_km2` являются runtime/derived data hydrology в этом slice.
 
-They are not yet declared final `DomainData` canonical river/lake outputs.
+Они ещё не объявлены финальными canonical outputs rivers/lakes в `DomainData`.
 
-Future hydrology slices will use them to derive:
+Следующие slices hydrology используют их для получения:
 
 ```text
 candidate depressions -> lakes / water_depth
@@ -167,33 +167,31 @@ catchment threshold -> stream graph -> vector RiverNetwork
 
 ## Validation
 
-Hydrology validation v0.1 checks:
+Validation hydrology v0.1 проверяет:
 
-- upstream TerrainState exists;
-- terrain shape matches grid and values are finite;
-- HydrologyState exists;
-- all arrays match grid shape;
-- routing dtype float64 and finite;
-- routing elevation is never below canonical terrain;
-- flow_direction dtype int8 and codes are in `[-1,7]`;
-- all edge cells are outlets;
-- every interior cell has a valid receiver direction;
-- every directed receiver is strictly lower in routing elevation;
-- accumulation dtype float64, finite, and at least one cell area everywhere.
+- существует upstream `TerrainState`;
+- shape terrain совпадает с grid и значения конечны;
+- существует `HydrologyState`;
+- все arrays совпадают с shape grid;
+- routing имеет dtype float64 и конечные значения;
+- routing elevation никогда не ниже canonical terrain;
+- `flow_direction` имеет dtype int8 и коды в `[-1,7]`;
+- все edge cells являются outlets;
+- каждая interior cell имеет допустимое direction receiver;
+- каждый направленный receiver строго ниже по routing elevation;
+- accumulation имеет dtype float64, конечна и не меньше площади одной cell везде.
 
-Hydrology uses no RNG in this slice.
+Hydrology не использует RNG в этом slice.
 
-## Non-goals
+## Что не входит
 
-Not included:
-
-- stream threshold storage/selection;
+- хранение/выбор threshold streams;
 - stream mask;
 - water depth;
 - lakes;
-- river vectorization/network topology;
-- precipitation/runoff coefficients;
+- vectorization rivers/topology network;
+- coefficients precipitation/runoff;
 - flow discharge;
 - erosion;
-- terrain mutation;
-- D-infinity or multiple-flow-direction routing.
+- мутация terrain;
+- routing D-infinity или multiple-flow-direction.

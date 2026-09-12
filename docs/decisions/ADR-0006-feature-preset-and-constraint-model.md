@@ -6,24 +6,24 @@ normative: true
 target: core-0.1
 ---
 
-# ADR-0006: Feature, preset and constraint model
+# ADR-0006 — Модель feature, preset и constraint
 
-## Context
+## Контекст
 
-Core должен поддерживать разные типы географии без special-case веток под конкретные кампании или названия объектов.
+Core должен поддерживать разные типы географии без специальных веток под конкретные кампании или названия объектов.
 
-## Decision
+## Решение
 
 `FeatureSpec v0.1` содержит только:
 
 - `id`;
 - `preset`;
-- optional `parameters`;
-- optional `tags`.
+- необязательный `parameters`;
+- необязательный `tags`.
 
 `family`, `shape` и `operator` следуют из preset после resolution. Shape задаёт топологический тип (`point`, `area`, `corridor`, `band`), а не идеальную фигуру.
 
-Preset — декларативные данные: defaults, parameter schema, sampling policy и ссылка на generic operator. Preset не содержит исполняемого кода. В Core 0.1 один preset использует один operator.
+Preset — декларативные данные: defaults, schema параметров, политика sampling и ссылка на универсальный operator. Preset не содержит исполняемого кода. В Core 0.1 один preset использует один operator.
 
 Constraints отделены от feature и имеют модель:
 
@@ -31,12 +31,12 @@ Constraints отделены от feature и имеют модель:
 relation + SpatialSelector(subject) + SpatialSelector(target)
 ```
 
-Selectors могут выбирать whole/center/start/end/endpoints/boundary или domain anchors/regions/literal geometry. Semantic relations компилируются в generic evaluators/predicates.
+Selectors могут выбирать `whole` / `center` / `start` / `end` / `endpoints` / `boundary` либо domain anchors/regions/literal geometry. Семантические relations компилируются в универсальные evaluators/predicates.
 
 `hard` и `soft` используют одни и те же измерители; различается реакция на результат. Hard failure всегда отклоняет candidate.
 
-Parameter `min/max` описывает allowed domain, а не автоматически uniform random. Sampling policy определяется preset/operator definition.
+Параметр `min/max` описывает допустимый domain, а не автоматически равномерное случайное распределение. Политика sampling определяется definition preset/operator.
 
-## Consequences
+## Следствия
 
-Новые content presets обычно можно добавлять без изменения Python. Новое поведение требует осознанного добавления generic operator/evaluator, а не скрытого special case.
+Новые content presets обычно можно добавлять без изменения Python. Новое поведение требует осознанного добавления универсального operator/evaluator, а не скрытого специального случая.

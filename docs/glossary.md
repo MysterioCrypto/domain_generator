@@ -5,63 +5,63 @@ status: active
 normative: true
 ---
 
-# Glossary
+# Словарь терминов
 
 ## Domain
 
-Ограниченная пространственная область мира/карты, которая генерируется как единое целое. Термин setting-agnostic: Domain может быть частью планеты, островом, сектором, локальной игровой зоной, абстрактным регионом или иным bounded spatial region. Он не обозначает специальную лоровую сущность и не предполагает конкретный жанр, кампанию или игровую систему.
+Ограниченная пространственная область мира или карты, которая генерируется как единое целое. Термин не зависит от конкретного сеттинга: `Domain` может быть частью планеты, островом, сектором, локальной игровой зоной, абстрактным регионом или иной ограниченной пространственной областью. Он не обозначает специальную лоровую сущность и не предполагает конкретный жанр, кампанию или игровую систему.
 
 ## DomainSpec
 
-Публичный входной контракт. Описывает намерение пользователя: physical size, seed, features, parameter overrides и constraints. Не содержит raster indices, setting identity и внутренних алгоритмических деталей.
+Публичный входной контракт. Описывает намерение пользователя: физический размер, seed, features, переопределения параметров и constraints. Не содержит raster indices, идентичность сеттинга и внутренних алгоритмических деталей.
 
 ## GenerationPlan
 
-Внутренний immutable serializable resolved recipe. Presets раскрыты в metadata + layout recipe + effect recipe; semantic constraints — в evaluators/predicates/scoring recipes. Concrete attempt-specific values ещё не выбраны.
+Внутренний неизменяемый сериализуемый разрешённый рецепт. Presets раскрыты в metadata + layout recipe + effect recipe; семантические constraints — в evaluators/predicates/scoring recipes. Конкретные значения, зависящие от attempt, ещё не выбраны.
 
 ## LayoutCandidate
 
-Concrete macro-layout одного attempt. Structural features уже имеют macro geometry; dependent features имеют materialized `PlacementReservation`.
+Конкретный macro-layout одного attempt. Structural features уже имеют macro geometry; dependent features имеют materialized `PlacementReservation`.
 
 ## PlacementReservation
 
-Vector allowed region (`RegionSet`), полученный из hard layout constraints. Определяет, где dependent feature может искать final placement после появления physical geography.
+Векторная допустимая область (`RegionSet`), полученная из hard layout constraints. Определяет, где dependent feature может искать финальное размещение после появления физической географии.
 
 ## RegionSet
 
-Внутреннее vector-представление допустимой области: zero or more polygons, каждый с outer ring и optional holes. Может быть disconnected; empty RegionSet означает spatially invalid candidate, но не malformed contract.
+Внутреннее векторное представление допустимой области: ноль или больше polygons, каждый с outer ring и необязательными holes. Может состоять из несвязанных частей; пустой `RegionSet` означает пространственно недопустимый candidate, но не malformed contract.
 
 ## DomainCandidate
 
-Runtime realization одного attempt, которая последовательно получает terrain, hydrology, surface и dependent placements. Не является canonical output, пока не прошла validation/ranking и не выбрана победителем.
+Runtime-realization одного attempt, которая последовательно получает terrain, hydrology, surface и dependent placements. Не является canonical output, пока не прошла validation/ranking и не выбрана победителем.
 
 ## ValidationResult
 
-Immutable diagnostic result одной validation stage: engine invariants, hard/soft constraint measurements и optional ranking metrics. Validator не мутирует candidate.
+Неизменяемый диагностический результат одной стадии validation: engine invariants, измерения hard/soft constraints и необязательные ranking metrics. Validator не мутирует candidate.
 
 ## DomainData
 
-Self-contained canonical structured result принятой генерации: identity/provenance, field descriptors, networks, final features и validation summary. Крупные raster fields хранятся отдельно.
+Самодостаточный canonical structured result принятой генерации: identity/provenance, descriptors полей, networks, финальные features и validation summary. Крупные raster fields хранятся отдельно.
 
 ## DomainBundle
 
-Физический набор файлов результата: manifest, domain metadata, canonical/derived arrays, optional debug artifacts и previews.
+Физический набор файлов результата: manifest, metadata domain, canonical/derived arrays, необязательные debug artifacts и previews.
 
 ## Feature ID
 
-Stable machine identity feature внутри DomainSpec. Используется references и RNG namespace. Косметическое переименование не должно менять `id`.
+Стабильный машинный идентификатор feature внутри `DomainSpec`. Используется для ссылок и RNG namespace. Косметическое переименование не должно менять `id`.
 
 ## Label
 
-Optional human-readable имя domain/feature. Не участвует в procedural RNG identity или semantic plan fingerprint.
+Необязательное человекочитаемое имя domain/feature. Не участвует в procedural RNG identity или semantic plan fingerprint.
 
 ## Layout recipe
 
-Часть resolved feature в `GenerationPlan`, отвечающая за macro geometry либо placement reservation и только за layout-owned parameters.
+Часть resolved feature в `GenerationPlan`, отвечающая за macro geometry либо placement reservation и только за параметры, принадлежащие layout.
 
 ## Effect recipe
 
-Часть resolved feature, отвечающая за downstream stage/operator (`terrain`, `surface`, `dependent_placement`) и effect-owned parameters/site profile.
+Часть resolved feature, отвечающая за downstream stage/operator (`terrain`, `surface`, `dependent_placement`) и параметры/site profile, принадлежащие effect.
 
 ## Field
 
@@ -69,11 +69,11 @@ Optional human-readable имя domain/feature. Не участвует в proced
 
 ## Network
 
-Связная graph/linear structure, прежде всего directed river network; позже дороги и другие сети.
+Связная graph/linear structure, прежде всего направленная river network; позже — дороги и другие сети.
 
 ## Feature
 
-Generic semantic spatial object, заданный через preset и constraints. Resolved feature имеет family, metadata, layout recipe и effect recipe. Setting-specific смысл может назначаться внешним consumer-ом, но не является частью primitive Core semantics.
+Универсальный семантический пространственный объект, заданный через preset и constraints. Resolved feature имеет family, metadata, layout recipe и effect recipe. Смысл конкретного сеттинга может назначаться внешним consumer-ом, но не является частью примитивной семантики Core.
 
 ## Spatial primitive
 
@@ -81,19 +81,19 @@ Generic semantic spatial object, заданный через preset и constrain
 
 ## Preset
 
-Декларативная человекоосмысленная конфигурация generic operator: family, shape, defaults, parameter schemas, sampling policies и optional site profile. Preset не содержит embedded scripting. Core contract для preset generic; setting-specific preset catalogs относятся к внешнему extension/content layer.
+Декларативная человекоосмысленная конфигурация универсального operator-а: family, shape, defaults, схемы параметров, политики sampling и необязательный site profile. Preset не содержит встроенных скриптов. Contract preset-а в Core универсален; каталоги пресетов конкретных сеттингов относятся к внешнему extension/content layer.
 
 ## Operator
 
-Generic Python-механизм, применяемый к geometry/fields: например ridge, depress, flatten или suitability placement.
+Универсальный Python-механизм, применяемый к geometry/fields: например ridge, depress, flatten или suitability placement.
 
 ## SiteProfile
 
-Resolved physical suitability rules dependent feature: footprint, hard site requirements и intrinsic weighted preferences. Используется placement operator после physical generation.
+Разрешённые правила физической пригодности места для dependent feature: footprint, hard site requirements и внутренние weighted preferences. Используется placement operator после физической генерации.
 
 ## Constraint
 
-Отношение между spatial selectors. `hard` обязательно; нарушение отклоняет candidate. `soft` оценивает final candidate и влияет на global ranking.
+Отношение между spatial selectors. `hard` обязательно; нарушение отклоняет candidate. `soft` оценивает финальный candidate и влияет на глобальный ranking.
 
 ## SpatialSelector
 
@@ -101,27 +101,27 @@ Resolved physical suitability rules dependent feature: footprint, hard site requ
 
 ## Attempt
 
-Одна независимая deterministic realization одного immutable `GenerationPlan`, идентифицируемая `attempt_index`. Hidden stage-local retries Core 0.1 запрещены.
+Одна независимая детерминированная realization неизменяемого `GenerationPlan`, идентифицируемая `attempt_index`. Скрытые локальные retries внутри стадий в Core 0.1 запрещены.
 
 ## RNG namespace
 
-Stable semantic address child RNG stream, выводимый из root seed, attempt index, stage, scope и purpose. Не зависит от Python call order или neighboring random draws.
+Стабильный семантический адрес дочернего RNG stream, выводимый из root seed, attempt index, stage, scope и purpose. Не зависит от порядка Python-вызовов или соседних random draws.
 
 ## GenerationConfig
 
-Execution policy. Semantic section Core 0.1 содержит `max_attempts` и `target_valid_candidates`; observability section управляет debug/logging и не меняет result.
+Политика исполнения. Semantic section Core 0.1 содержит `max_attempts` и `target_valid_candidates`; observability section управляет debug/logging и не меняет результат.
 
 ## Spec fingerprint
 
-SHA-256 canonical normalized source DomainSpec. Может отражать metadata документа.
+SHA-256 canonical normalized source `DomainSpec`. Может отражать metadata документа.
 
 ## Plan fingerprint
 
-SHA-256 canonical executable projection GenerationPlan. Presentation/provenance-only metadata (`label`, `tags`, `source_preset`, `spec_id`) исключается.
+SHA-256 canonical executable projection `GenerationPlan`. Metadata только для presentation/provenance (`label`, `tags`, `source_preset`, `spec_id`) исключается.
 
 ## Generation config fingerprint
 
-SHA-256 canonical semantic projection GenerationConfig. Observability settings исключаются.
+SHA-256 canonical semantic projection `GenerationConfig`. Настройки observability исключаются.
 
 ## Canonical data
 
@@ -133,7 +133,7 @@ SHA-256 canonical semantic projection GenerationConfig. Observability settings �
 
 ## Debug/Internal data
 
-Временные masks, distance fields, noise layers, routing surfaces и другие детали алгоритма. Не входят в world contract.
+Временные masks, distance fields, noise layers, routing surfaces и другие детали алгоритма. Не входят в контракт мира.
 
 ## Coherent noise
 
@@ -145,12 +145,12 @@ SHA-256 canonical semantic projection GenerationConfig. Observability settings �
 
 ## Setting-specific extension
 
-Внешний слой, который переводит понятия конкретного мира, кампании, жанра или игровой системы в generic contracts/presets `domain_generator`. Такой слой не является частью Core и не должен изменять primitive semantics скрытым образом.
+Внешний слой, который переводит понятия конкретного мира, кампании, жанра или игровой системы в универсальные contracts/presets `domain_generator`. Такой слой не является частью Core и не должен скрыто изменять примитивную семантику.
 
 ## Normative document
 
-Документ, содержащий обязательные правила проекта.
+Нормативный документ, содержащий обязательные правила проекта.
 
 ## Illustrative example
 
-Пример для объяснения или проверки идеи. Сам по себе не создаёт требований и не должен обобщаться в правила Core.
+Иллюстративный пример для объяснения или проверки идеи. Сам по себе не создаёт требований и не должен обобщаться в правила Core.
