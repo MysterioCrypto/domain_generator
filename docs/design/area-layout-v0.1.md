@@ -8,13 +8,13 @@ target: core-0.1
 
 # Area layout v0.1
 
-Этот документ фиксирует deterministic area layout algorithm Core 0.1.
+Этот документ фиксирует детерминированный алгоритм area layout Core 0.1.
 
-## Scope
+## Область действия
 
 Поддерживается `layout.mode = geometry`, `shape = area`.
 
-Canonical result — обычный `AreaGeometry`: один простой outer polygon без holes. Генератор может использовать внутреннюю опорную точку и radial construction, но эти runtime values не сериализуются в `LayoutCandidate`.
+Канонический результат — обычный `AreaGeometry`: один простой outer polygon без holes. Генератор может использовать внутреннюю опорную точку и radial construction, но эти runtime values не сериализуются в `LayoutCandidate`.
 
 Итоговый контракт остаётся:
 
@@ -26,23 +26,23 @@ boundary:
   - {x_km: ... , y_km: ...}
 ```
 
-Boundary содержит минимум три vertices, первая vertex не повторяется в конце, canonical orientation — counter-clockwise.
+Boundary содержит минимум три vertices, первая vertex не повторяется в конце, canonical orientation — против часовой стрелки.
 
-## Required layout parameters
+## Обязательные параметры layout
 
-Area recipe v0.1 использует ровно три parameters:
+Recipe area v0.1 использует ровно три parameters:
 
 - `vertex_count`: integer, `>= 3`;
 - `radial_extent`: float, `0 < value <= 1`;
 - `radial_irregularity`: float, `0 <= value <= 1`.
 
-`radial_extent` — normalized generation control, а не сохранённый радиус области. Он определяет долю доступного расстояния от runtime generation center до domain boundary вдоль каждого vertex ray.
+`radial_extent` — normalized control генерации, а не сохраняемый радиус области. Он определяет долю доступного расстояния от runtime generation center до boundary domain вдоль каждого ray vertex.
 
-`radial_irregularity` управляет variation отдельных radial distances. Итоговая область всегда хранится только как polygon vertices.
+`radial_irregularity` управляет variation отдельных radial distances. Итоговая область всегда хранится только как vertices polygon.
 
 ## RNG namespaces
 
-Geometry streams:
+Streams geometry:
 
 ```text
 stage = layout
@@ -62,7 +62,7 @@ scope = ("feature", feature_id, "geometry", "area")
 purpose = "radial-variation"
 ```
 
-Layout parameter sampling сохраняет общий namespace:
+Sampling parameters layout сохраняет общий namespace:
 
 ```text
 stage = layout
@@ -70,11 +70,11 @@ scope = ("feature", feature_id, "parameter", parameter_name)
 purpose = "sample"
 ```
 
-Изменение `vertex_count` не меняет RNG streams center/rotation. Random draws соседних features также не влияют на area realization.
+Изменение `vertex_count` не меняет RNG streams center/rotation. Random draws соседних features также не влияют на realization area.
 
-## Runtime generation center
+## Внутренний центр генерации
 
-Внутренняя generation point выбирается внутри rectangular domain:
+Внутренняя generation point выбирается внутри прямоугольного domain:
 
 ```text
 center.x = width_km  * uniform01()
@@ -85,9 +85,9 @@ center.y = height_km * uniform01()
 
 Она также не определяет `FeaturePart.CENTER`: semantic center area вычисляется позже как centroid итогового polygon.
 
-## Rotation and ordered rays
+## Rotation и упорядоченные rays
 
-Один rotation draw:
+Один draw rotation:
 
 ```text
 rotation = 2*pi*uniform01()
@@ -101,11 +101,11 @@ angle_i = rotation + 2*pi*i/N
 
 Vertices создаются в этом порядке. Angular order является canonical CCW construction order.
 
-## Radial construction
+## Радиальная конструкция
 
-Для каждого ray вычисляется `available_i`: расстояние от generation center до rectangular domain boundary вдоль direction `angle_i`.
+Для каждого ray вычисляется `available_i`: расстояние от generation center до boundary прямоугольного domain вдоль direction `angle_i`.
 
-Затем один draw из `radial-variation` stream:
+Затем выполняется один draw из stream `radial-variation`:
 
 ```text
 u_i = uniform01()
@@ -121,61 +121,59 @@ vertex_i = center + direction(angle_i) * radius_i
 
 При `radial_irregularity = 0` все rays используют одинаковую normalized extent fraction. При увеличении irregularity отдельные vertices могут располагаться ближе к generation center.
 
-Никаких hidden retries, polygon repair или post-hoc vertex sorting нет.
+Скрытых retries, polygon repair или post-hoc сортировки vertices нет.
 
-## Why this construction
+## Почему используется такая конструкция
 
-Произвольные independently sampled map points могут образовывать self-intersecting polygon. Equal angular ordering вокруг общей внутренней point даёт star-shaped construction и существенно сужает пространство malformed результатов.
+Произвольные независимо sampled map points могут образовывать self-intersecting polygon. Равномерный angular order вокруг общей внутренней point даёт star-shaped construction и существенно сужает пространство некорректных результатов.
 
-Однако implementation не полагается только на конструктивное предположение: итоговая geometry всё равно проходит explicit engine validation.
+Однако implementation не полагается только на конструктивное предположение: итоговая geometry всё равно проходит явную engine validation.
 
-## Area engine invariants
+## Engine invariants area
 
-Layout validation проверяет:
+Validation layout проверяет:
 
 - boundary содержит минимум 3 vertices;
-- все vertices внутри/on domain;
+- все vertices внутри или на domain;
 - нет zero-length edges;
 - signed shoelace area положительна и ненулевая;
-- boundary counter-clockwise;
+- boundary ориентирована против часовой стрелки;
 - non-adjacent edges не self-intersect.
 
-Нарушение invariant отклоняет attempt. Geometry не repair-ится и не reroll-ится.
+Нарушение invariant отклоняет attempt. Geometry не исправляется и не reroll-ится.
 
-## Spatial parts
+## Пространственные части
 
 Для area:
 
-- `whole` — polygon footprint;
+- `whole` — footprint polygon;
 - `boundary` — outer polygon ring;
 - `center` — geometric polygon centroid.
 
-Runtime generation center не используется как semantic `center` selector.
+Runtime generation center не используется как semantic selector `center`.
 
-## Evaluators in this slice
+## Evaluators этого slice
 
-Area v0.1 layout evaluator добавляет только однозначные операции:
+Evaluator area v0.1 добавляет только однозначные операции:
 
-- point inside/outside area through `contained_fraction` / `overlap_fraction`;
-- point <-> area whole minimum distance, где point внутри/on polygon имеет distance `0`;
-- point <-> area boundary minimum Euclidean distance до polygon edges;
+- point inside/outside area через `contained_fraction` / `overlap_fraction`;
+- minimum distance point <-> area whole, где point внутри или на polygon имеет distance `0`;
+- minimum Euclidean distance point <-> area boundary до edges polygon;
 - area `center` как point selector для уже поддерживаемых point measurements.
 
-Area<->area boolean overlap, polygon containment fractions, crossing и polygon boolean operations в этот slice не входят.
+Area<->area boolean overlap, fractions polygon containment, crossing и boolean operations polygon в этот slice не входят.
 
-## Domain boundary
+## Граница domain
 
-Каждая generated vertex лежит на ray segment между runtime generation center и rectangular domain boundary. Итоговый polygon обязан находиться внутри/on domain.
+Каждая generated vertex лежит на ray segment между runtime generation center и boundary прямоугольного domain. Итоговый polygon обязан находиться внутри или на domain.
 
-В отличие от band influence footprint, `AreaGeometry` является самой footprint area и не предполагает скрытого продолжения за domain.
+В отличие от influence footprint band, `AreaGeometry` является самой footprint area и не предполагает скрытого продолжения за domain.
 
-## Non-goals
-
-Не входят:
+## Что не входит в этот slice
 
 - holes;
 - multipolygons;
-- area<->area boolean operations;
-- placement `RegionSet` materialization;
-- constraint-aware proposal generation;
-- terrain/hydrology/surface algorithms.
+- boolean operations area<->area;
+- materialization placement `RegionSet`;
+- proposal generation с учётом constraints;
+- алгоритмы terrain/hydrology/surface.
