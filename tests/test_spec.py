@@ -18,6 +18,14 @@ def minimal_spec() -> dict:
             "river_depth_at_threshold_m": 0.5,
             "river_depth_exponent": 0.3,
         },
+        "surface": {
+            "moisture_base": 0.35,
+            "water_moisture_boost": 0.55,
+            "water_moisture_decay_km": 8.0,
+            "moisture_noise_amplitude": 0.1,
+            "moisture_noise_scale_km": 12.0,
+            "vegetation_slope_zero_deg": 45.0,
+        },
         "features": [],
         "constraints": [],
     }
@@ -30,11 +38,20 @@ def test_minimal_domain_spec_parses() -> None:
     assert spec.hydrology.stream_threshold_km2 == 25.0
     assert spec.hydrology.river_depth_at_threshold_m == 0.5
     assert spec.hydrology.river_depth_exponent == 0.3
+    assert spec.surface.moisture_base == 0.35
+    assert spec.surface.vegetation_slope_zero_deg == 45.0
 
 
 def test_hydrology_recipe_is_required() -> None:
     data = minimal_spec()
     del data["hydrology"]
+    with pytest.raises(ValidationError):
+        DomainSpec.model_validate(data)
+
+
+def test_surface_recipe_is_required() -> None:
+    data = minimal_spec()
+    del data["surface"]
     with pytest.raises(ValidationError):
         DomainSpec.model_validate(data)
 
@@ -61,6 +78,30 @@ def test_river_depth_exponent_allows_zero_but_not_negative() -> None:
     data["hydrology"]["river_depth_exponent"] = -0.1
     with pytest.raises(ValidationError):
         DomainSpec.model_validate(data)
+
+
+def test_surface_recipe_bounds() -> None:
+    for field in ("moisture_base", "water_moisture_boost", "moisture_noise_amplitude"):
+        data = minimal_spec()
+        data["surface"][field] = 1.1
+        with pytest.raises(ValidationError):
+            DomainSpec.model_validate(data)
+
+    for field in ("water_moisture_decay_km", "moisture_noise_scale_km"):
+        data = minimal_spec()
+        data["surface"][field] = 0.0
+        with pytest.raises(ValidationError):
+            DomainSpec.model_validate(data)
+
+    data = minimal_spec()
+    data["surface"]["vegetation_slope_zero_deg"] = 90.0
+    assert DomainSpec.model_validate(data).surface.vegetation_slope_zero_deg == 90.0
+
+    for value in (0.0, 90.1):
+        data = minimal_spec()
+        data["surface"]["vegetation_slope_zero_deg"] = value
+        with pytest.raises(ValidationError):
+            DomainSpec.model_validate(data)
 
 
 def test_unknown_fields_are_rejected() -> None:

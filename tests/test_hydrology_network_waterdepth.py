@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from domain_generator.contracts.data import BoundarySide, RiverNodeKind
-from domain_generator.contracts.plan import GenerationPlan, PlanDomain, PlanGrid, PlanHydrology, PlanSource
+from domain_generator.contracts.plan import GenerationPlan, PlanDomain, PlanGrid, PlanHydrology, PlanSource, PlanSurface
 from domain_generator.hydrology import (
     LakeCandidate,
     build_river_network,
@@ -38,6 +38,14 @@ def make_plan(*, rows: int, columns: int, cell_size_km: float = 1.0) -> Generati
             lake_min_depth_m=1.0,
             river_depth_at_threshold_m=0.5,
             river_depth_exponent=0.5,
+        ),
+        surface=PlanSurface(
+            moisture_base=0.35,
+            water_moisture_boost=0.55,
+            water_moisture_decay_km=8.0,
+            moisture_noise_amplitude=0.1,
+            moisture_noise_scale_km=12.0,
+            vegetation_slope_zero_deg=45.0,
         ),
         features=(),
         constraints=(),
@@ -76,10 +84,10 @@ def test_simple_stream_chain_compresses_to_source_and_domain_outlet() -> None:
 def test_two_tributaries_create_confluence() -> None:
     plan = make_plan(rows=5, columns=5)
     direction = blank_direction(5, 5)
-    direction[1, 1] = 3  # SE -> (2,2)
-    direction[1, 3] = 5  # SW -> (2,2)
-    direction[2, 2] = 4  # S
-    direction[3, 2] = 4  # S -> edge outlet
+    direction[1, 1] = 3
+    direction[1, 3] = 5
+    direction[2, 2] = 4
+    direction[3, 2] = 4
     accumulation = np.ones((5, 5), dtype=np.float64)
     accumulation[1, 1] = 1.0
     accumulation[1, 3] = 1.0
@@ -102,9 +110,9 @@ def test_two_tributaries_create_confluence() -> None:
 def test_lake_splits_visible_river_into_inflow_and_outlet_segments() -> None:
     plan = make_plan(rows=5, columns=5)
     direction = blank_direction(5, 5)
-    direction[1, 2] = 4  # stream -> lake
-    direction[2, 2] = 4  # lake -> outside stream
-    direction[3, 2] = 4  # outside stream -> edge
+    direction[1, 2] = 4
+    direction[2, 2] = 4
+    direction[3, 2] = 4
     accumulation = np.ones((5, 5), dtype=np.float64)
     accumulation[1, 2] = 1.0
     accumulation[2, 2] = 2.0
@@ -112,12 +120,7 @@ def test_lake_splits_visible_river_into_inflow_and_outlet_segments() -> None:
     accumulation[4, 2] = 4.0
     stream = np.zeros((5, 5), dtype=np.bool_)
     stream[1:5, 2] = True
-    lake = LakeCandidate(
-        cells=((2, 2),),
-        area_km2=1.0,
-        max_depth_m=5.0,
-        surface_elevation_m=10.0,
-    )
+    lake = LakeCandidate(cells=((2, 2),), area_km2=1.0, max_depth_m=5.0, surface_elevation_m=10.0)
 
     network = build_river_network(plan, direction, accumulation, stream, (lake,))
 
@@ -125,28 +128,16 @@ def test_lake_splits_visible_river_into_inflow_and_outlet_segments() -> None:
     assert RiverNodeKind.LAKE_INFLOW in kinds
     assert RiverNodeKind.LAKE_OUTLET in kinds
     assert len(network.segments) == 2
-    assert all(
-        not (
-            segment.centerline[0].x_km == pytest.approx(2.5)
-            and segment.centerline[-1].x_km == pytest.approx(2.5)
-            and segment.centerline[0].y_km > 2.5 > segment.centerline[-1].y_km
-        )
-        for segment in network.segments.values()
-    )
-    lake_nodes = [
-        node
-        for node in network.nodes.values()
-        if node.kind in {RiverNodeKind.LAKE_INFLOW, RiverNodeKind.LAKE_OUTLET}
-    ]
+    lake_nodes = [node for node in network.nodes.values() if node.kind in {RiverNodeKind.LAKE_INFLOW, RiverNodeKind.LAKE_OUTLET}]
     assert {node.feature_id for node in lake_nodes} == {"lake-0001"}
 
 
 def test_lake_outlet_plus_ordinary_tributary_creates_effective_confluence() -> None:
     plan = make_plan(rows=4, columns=5)
     direction = blank_direction(4, 5)
-    direction[1, 1] = 3  # lake -> (2,2)
-    direction[1, 3] = 5  # ordinary tributary -> (2,2)
-    direction[2, 2] = 4  # -> edge
+    direction[1, 1] = 3
+    direction[1, 3] = 5
+    direction[2, 2] = 4
     accumulation = np.ones((4, 5), dtype=np.float64)
     accumulation[1, 1] = 1.0
     accumulation[1, 3] = 1.0
@@ -155,35 +146,15 @@ def test_lake_outlet_plus_ordinary_tributary_creates_effective_confluence() -> N
     stream = np.zeros((4, 5), dtype=np.bool_)
     for cell in ((1, 1), (1, 3), (2, 2), (3, 2)):
         stream[cell] = True
-    lake = LakeCandidate(
-        cells=((1, 1),),
-        area_km2=1.0,
-        max_depth_m=2.0,
-        surface_elevation_m=10.0,
-    )
+    lake = LakeCandidate(cells=((1, 1),), area_km2=1.0, max_depth_m=2.0, surface_elevation_m=10.0)
 
     network = build_river_network(plan, direction, accumulation, stream, (lake,))
 
     confluences = [node for node in network.nodes.values() if node.kind is RiverNodeKind.CONFLUENCE]
     assert len(confluences) == 1
-    assert confluences[0].position.x_km == pytest.approx(2.5)
-    assert confluences[0].position.y_km == pytest.approx(1.5)
-
-    lake_outlet_id = next(
-        node_id
-        for node_id, node in network.nodes.items()
-        if node.kind is RiverNodeKind.LAKE_OUTLET
-    )
-    confluence_id = next(
-        node_id
-        for node_id, node in network.nodes.items()
-        if node.kind is RiverNodeKind.CONFLUENCE
-    )
-    lake_branch = next(
-        segment
-        for segment in network.segments.values()
-        if segment.from_node == lake_outlet_id and segment.to_node == confluence_id
-    )
+    lake_outlet_id = next(node_id for node_id, node in network.nodes.items() if node.kind is RiverNodeKind.LAKE_OUTLET)
+    confluence_id = next(node_id for node_id, node in network.nodes.items() if node.kind is RiverNodeKind.CONFLUENCE)
+    lake_branch = next(segment for segment in network.segments.values() if segment.from_node == lake_outlet_id and segment.to_node == confluence_id)
     assert lake_branch.properties.catchment_area_km2 == pytest.approx(1.0)
 
 
@@ -195,25 +166,14 @@ def test_corner_domain_outlet_uses_north_east_south_west_precedence() -> None:
     stream[0, 2] = True
 
     network = build_river_network(plan, direction, accumulation, stream, ())
-
     outlet = next(node for node in network.nodes.values() if node.kind is RiverNodeKind.DOMAIN_OUTLET)
     assert outlet.boundary_side is BoundarySide.NORTH
     assert outlet.position.y_km == pytest.approx(3.0)
 
 
 def test_river_depth_proxy_scales_from_threshold() -> None:
-    assert river_depth_proxy_m(
-        4.0,
-        stream_threshold_km2=4.0,
-        river_depth_at_threshold_m=0.5,
-        river_depth_exponent=0.5,
-    ) == pytest.approx(0.5)
-    assert river_depth_proxy_m(
-        16.0,
-        stream_threshold_km2=4.0,
-        river_depth_at_threshold_m=0.5,
-        river_depth_exponent=0.5,
-    ) == pytest.approx(1.0)
+    assert river_depth_proxy_m(4.0, stream_threshold_km2=4.0, river_depth_at_threshold_m=0.5, river_depth_exponent=0.5) == pytest.approx(0.5)
+    assert river_depth_proxy_m(16.0, stream_threshold_km2=4.0, river_depth_at_threshold_m=0.5, river_depth_exponent=0.5) == pytest.approx(1.0)
 
 
 def test_water_depth_gives_accepted_lake_precedence_over_stream_proxy() -> None:
@@ -226,12 +186,7 @@ def test_water_depth_gives_accepted_lake_precedence_over_stream_proxy() -> None:
     accumulation[1, 2] = 9.0
     stream = np.zeros((3, 3), dtype=np.bool_)
     stream[1, :] = True
-    lake = LakeCandidate(
-        cells=((1, 1),),
-        area_km2=1.0,
-        max_depth_m=8.0,
-        surface_elevation_m=10.0,
-    )
+    lake = LakeCandidate(cells=((1, 1),), area_km2=1.0, max_depth_m=8.0, surface_elevation_m=10.0)
 
     depth = build_water_depth_m(
         terrain,

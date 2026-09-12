@@ -39,13 +39,23 @@ hydrology:
   river_depth_at_threshold_m: 0.5
   river_depth_exponent: 0.30
 
+surface:
+  moisture_base: 0.35
+  water_moisture_boost: 0.55
+  water_moisture_decay_km: 8.0
+  moisture_noise_amplitude: 0.10
+  moisture_noise_scale_km: 12.0
+  vegetation_slope_zero_deg: 45.0
+
 features: []
 constraints: []
 ```
 
+Числа в примерах ненормативны.
+
 `spec_id` — provenance и не влияет на RNG. Child RNG seeds не хранятся в Plan.
 
-`hydrology` — fully resolved semantic recipe для downstream hydrology classification/network/water-depth generation. Он не является execution policy и включается в semantic plan fingerprint.
+`hydrology` — fully resolved semantic recipe для downstream hydrology classification/network/water-depth generation. `surface` — fully resolved semantic recipe для base moisture/vegetation generation. Они не являются execution policy и включаются в semantic plan fingerprint.
 
 ## Hydrology recipe
 
@@ -77,6 +87,57 @@ river_depth_m = river_depth_at_threshold_m
 Это deterministic proxy для canonical `water_depth`, не discharge/hydraulic simulation.
 
 Hydrology routing/network algorithms остаются частью generator version semantics: Plan хранит world intent/configuration, но не сериализует внутренний Priority-Flood heap, tie-break state, routing arrays, `RiverNetwork` realization или `water_depth` array.
+
+## Surface recipe
+
+```yaml
+surface:
+  moisture_base: 0.35
+  water_moisture_boost: 0.55
+  water_moisture_decay_km: 8.0
+  moisture_noise_amplitude: 0.10
+  moisture_noise_scale_km: 12.0
+  vegetation_slope_zero_deg: 45.0
+```
+
+Все значения finite. `moisture_base`, `water_moisture_boost`, `moisture_noise_amplitude` лежат в `[0,1]`; два scale-параметра строго положительны; `vegetation_slope_zero_deg` лежит в `(0,90]`.
+
+Surface base generation использует canonical upstream `water_depth` и terrain elevation:
+
+```text
+water cells = water_depth > 0
+
+dry moisture = clamp(
+    moisture_base
+  + water_moisture_boost * exp(-distance_to_water_km / water_moisture_decay_km)
+  + moisture_noise_amplitude * coherent_noise,
+  0,
+  1
+)
+
+water moisture = 1
+```
+
+World-space moisture noise использует fixed semantic RNG namespace:
+
+```text
+stage   = surface
+scope   = ("field", "moisture", "environmental-noise")
+purpose = "value"
+```
+
+Base terrestrial vegetation:
+
+```text
+slope_factor = clamp(1 - slope_deg / vegetation_slope_zero_deg, 0, 1)
+vegetation_density = moisture * slope_factor
+```
+
+Water cells получают `vegetation_density = 0`.
+
+Plan не вводит absolute-elevation climate penalty: absolute elevation zero — datum. Climate/biome/temperature/precipitation/seasons не входят в Core 0.1 surface recipe.
+
+Distance-to-water, slope, noise samples, `SurfaceState` arrays и surface-feature contributions не сериализуются в Plan.
 
 ## ResolvedFeature
 
@@ -238,38 +299,29 @@ Dependent POI хранит fully resolved site profile внутри `effect`:
 
 ```yaml
 - id: fort-01
-
   metadata:
     label: Пограничный форт
     source_preset: fort
-
   family: poi
-
   layout:
     mode: reservation
     final_shape: point
-
   effect:
     stage: dependent_placement
     operator: suitability_placement
-
     site_profile:
       footprint_radius_km: 0.6
-
       requirements:
         - metric: water_fraction
           evaluator: less_or_equal
           value: 0.05
-
         - metric: buildable_fraction
           evaluator: greater_or_equal
           value: 0.65
-
       preferences:
         - metric: mean_slope
           evaluator: lower_is_better
           weight: 0.6
-
         - metric: relative_elevation_m
           evaluator: preferred_range
           min: 10.0
@@ -289,21 +341,11 @@ Hard example:
 - id: fort-near-gorge
   source_relation: near
   strength: hard
-
   evaluator:
     type: distance
-    subject:
-      type: feature
-      feature_id: fort-01
-      part: whole
-    target:
-      type: feature
-      feature_id: gorge-01
-      part: endpoints
-
-  predicate:
-    type: less_or_equal
-    value: 3.0
+    subject: {type: feature, feature_id: fort-01, part: whole}
+    target: {type: feature, feature_id: gorge-01, part: endpoints}
+  predicate: {type: less_or_equal, value: 3.0}
   unit: km
 ```
 
@@ -314,18 +356,10 @@ Soft example:
   source_relation: near
   strength: soft
   weight: 0.5
-
   evaluator:
     type: distance
-    subject:
-      type: feature
-      feature_id: mountain-01
-      part: center
-    target:
-      type: point
-      x_km: 60.0
-      y_km: 50.0
-
+    subject: {type: feature, feature_id: mountain-01, part: center}
+    target: {type: point, x_km: 60.0, y_km: 50.0}
   scoring:
     type: linear_preference
     ideal: 0.0
@@ -353,6 +387,7 @@ Core 0.1 materializes layout reservations только из hard spatial constra
 - deferred dependency boundary соблюдена;
 - grid dimensions согласованы с physical dimensions;
 - hydrology recipe присутствует и имеет валидные physical thresholds/proxy parameters;
+- surface recipe присутствует и имеет валидные normalized/physical parameters;
 - compiled constraint recipes исполнимы поддерживаемым registry.
 
 Pipeline не повторяет эту semantic validation на каждом attempt.
@@ -364,7 +399,7 @@ Pipeline не повторяет эту semantic validation на каждом at
 - `spec_fingerprint` — fingerprint normalized source `DomainSpec`, включая metadata документа;
 - `plan_fingerprint` — SHA-256 canonical **executable projection** Plan.
 
-В semantic `plan_fingerprint` входят seed, grid/domain semantics, hydrology recipe, feature identities, layout/effect recipes, site profiles и compiled constraints. Не входят presentation/provenance-only данные вроде `label`, `tags`, `source_preset`, `spec_id` и generator debug metadata.
+В semantic `plan_fingerprint` входят seed, grid/domain semantics, hydrology recipe, surface recipe, feature identities, layout/effect recipes, site profiles и compiled constraints. Не входят presentation/provenance-only данные вроде `label`, `tags`, `source_preset`, `spec_id` и generator debug metadata.
 
 Это гарантирует, что косметическое переименование не меняет procedural identity Plan. Сам fingerprint не включается в fingerprinted payload. `LayoutCandidate` ссылается на `plan_fingerprint`.
 
@@ -378,7 +413,8 @@ Pipeline не повторяет эту semantic validation на каждом at
 - routing/fill elevation arrays;
 - stream mask или lake candidate cells;
 - `RiverNetwork` realization;
-- canonical `water_depth` array;
+- canonical `water_depth`, `moisture` или `vegetation_density` arrays;
+- derived distance-to-water/slope arrays;
 - final coordinates dependent POI;
 - Python callable;
 - child RNG seeds;

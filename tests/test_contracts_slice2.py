@@ -29,6 +29,14 @@ def minimal_plan() -> dict:
             "river_depth_at_threshold_m": 0.5,
             "river_depth_exponent": 0.3,
         },
+        "surface": {
+            "moisture_base": 0.35,
+            "water_moisture_boost": 0.55,
+            "water_moisture_decay_km": 8.0,
+            "moisture_noise_amplitude": 0.1,
+            "moisture_noise_scale_km": 12.0,
+            "vegetation_slope_zero_deg": 45.0,
+        },
         "features": [
             {
                 "id": "mountain-01",
@@ -70,6 +78,8 @@ def test_generation_plan_parses_and_is_frozen() -> None:
     assert plan.hydrology.stream_threshold_km2 == 25.0
     assert plan.hydrology.river_depth_at_threshold_m == 0.5
     assert plan.hydrology.river_depth_exponent == 0.3
+    assert plan.surface.moisture_base == 0.35
+    assert plan.surface.vegetation_slope_zero_deg == 45.0
     with pytest.raises(ValidationError):
         plan.grid = plan.grid
 
@@ -77,6 +87,13 @@ def test_generation_plan_parses_and_is_frozen() -> None:
 def test_generation_plan_requires_hydrology_recipe() -> None:
     data = minimal_plan()
     del data["hydrology"]
+    with pytest.raises(ValidationError):
+        GenerationPlan.model_validate(data)
+
+
+def test_generation_plan_requires_surface_recipe() -> None:
+    data = minimal_plan()
+    del data["surface"]
     with pytest.raises(ValidationError):
         GenerationPlan.model_validate(data)
 
