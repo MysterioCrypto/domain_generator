@@ -75,6 +75,33 @@ def _hard_constraint(*, constraint_id: str = "poi-near-anchor", evaluator_type: 
     )
 
 
+def _soft_constraint(
+    *,
+    constraint_id: str = "soft-near",
+    ideal: float = 0.0,
+    worst: float = 4.0,
+    weight: float = 1.0,
+    scoring_type: str = "linear_decreasing",
+    evaluator_type: str = "distance",
+) -> CompiledConstraint:
+    return CompiledConstraint(
+        id=constraint_id,
+        strength=ConstraintStrength.SOFT,
+        evaluator=CompiledEvaluator(
+            type=evaluator_type,
+            subject=CompiledFeatureRef(feature_id="poi"),
+            target=CompiledFeatureRef(feature_id="anchor"),
+        ),
+        scoring=CompiledScoring(
+            type=scoring_type,
+            ideal=None if scoring_type == "positive" else ideal,
+            worst=None if scoring_type == "positive" else worst,
+        ),
+        weight=weight,
+        unit="km",
+    )
+
+
 def _plan(*, constraints: tuple[CompiledConstraint, ...] | None = None) -> GenerationPlan:
     return GenerationPlan(
         plan_version="0.1",
@@ -151,6 +178,7 @@ def test_final_hard_violation_rejects_without_ranking() -> None:
     assert not result.hard_constraints.passed
     assert result.hard_constraints.results[0].satisfied is False
     assert result.ranking is None
+    assert result.soft_constraints.results == ()
 
 
 def test_final_missing_upstream_state_is_normal_rejection_without_constraint_evaluation() -> None:
@@ -163,6 +191,7 @@ def test_final_missing_upstream_state_is_normal_rejection_without_constraint_eva
     assert not result.engine_invariants.passed
     assert result.hard_constraints.results == ()
     assert result.hard_constraints.passed
+    assert result.soft_constraints.results == ()
     assert result.ranking is None
 
 
@@ -178,22 +207,62 @@ def test_final_constraint_results_are_canonically_sorted_by_id() -> None:
     assert [item.constraint_id for item in result.hard_constraints.results] == ["a-first", "z-last"]
 
 
-def test_final_rejects_manually_constructed_soft_constraint_as_unsupported() -> None:
-    soft = CompiledConstraint(
-        id="soft-near",
-        strength=ConstraintStrength.SOFT,
-        evaluator=CompiledEvaluator(
-            type="distance",
-            subject=CompiledFeatureRef(feature_id="poi"),
-            target=CompiledFeatureRef(feature_id="anchor"),
-        ),
-        scoring=CompiledScoring(type="linear", ideal=0.0, worst=10.0),
-        weight=1.0,
-        unit="km",
+def test_final_evaluates_soft_constraints_and_builds_weighted_ranking() -> None:
+    plan = _plan(
+        constraints=(
+            _hard_constraint(),
+            _soft_constraint(
+                constraint_id="z-medium",
+                worst=4.0,
+                weight=0.5,
+            ),
+            _soft_constraint(
+                constraint_id="a-strict",
+                worst=2.0,
+                weight=1.0,
+            ),
+        )
     )
-    plan = _plan(constraints=(soft,))
+    result = validate_final(plan, _complete_state(plan, poi_x=2.0), attempt_index=0)
 
-    with pytest.raises(FinalValidationCapabilityError, match="does not support soft constraints"):
+    assert result.hard_constraints.passed
+    assert [item.constraint_id for item in result.soft_constraints.results] == [
+        "a-strict",
+        "z-medium",
+    ]
+    first, second = result.soft_constraints.results
+    assert first.measurement.value == pytest.approx(1.0)
+    assert first.score == pytest.approx(0.5)
+    assert first.effective_violation == pytest.approx(0.5)
+    assert second.score == pytest.approx(0.75)
+    assert second.effective_violation == pytest.approx(0.125)
+    assert result.ranking is not None
+    assert result.ranking.worst_effective_violation == pytest.approx(0.5)
+    assert result.ranking.weighted_mean_score == pytest.approx((0.5 + 0.75 * 0.5) / 1.5)
+
+
+def test_final_wraps_unsupported_soft_spatial_evaluator_as_capability_error() -> None:
+    plan = _plan(
+        constraints=(
+            _soft_constraint(
+                evaluator_type="crossing_length",
+                scoring_type="positive",
+            ),
+        )
+    )
+
+    with pytest.raises(FinalValidationCapabilityError, match="crossing_length"):
+        validate_final(plan, _complete_state(plan, poi_x=2.0), attempt_index=0)
+
+
+def test_final_wraps_unknown_scoring_recipe_as_capability_error() -> None:
+    plan = _plan(
+        constraints=(
+            _soft_constraint(scoring_type="unknown", ideal=0.0, worst=4.0),
+        )
+    )
+
+    with pytest.raises(FinalValidationCapabilityError, match="scoring 'unknown'"):
         validate_final(plan, _complete_state(plan, poi_x=2.0), attempt_index=0)
 
 
