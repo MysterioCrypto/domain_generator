@@ -5,6 +5,7 @@ from math import hypot, inf
 from ..compiler.compile import semantic_plan_fingerprint
 from ..contracts.common import FeaturePart
 from ..contracts.geometry import (
+    AreaGeometry,
     BandGeometry,
     CorridorGeometry,
     PointGeometry,
@@ -37,6 +38,19 @@ from ..contracts.validation import (
 from ..pipeline.attempts import AttemptContext, CandidateState
 from ..pipeline.rng import RngFactory, RngKey, RngStage
 from ..pipeline.sampling import sample_resolved_parameter
+from .area import (
+    AreaBoundaryView,
+    AreaLayoutCapabilityError,
+    area_centroid,
+    area_has_zero_length_edge,
+    area_inside_domain,
+    area_is_ccw_nondegenerate,
+    area_self_intersects,
+    distance_point_area_boundary,
+    distance_point_area_whole,
+    generate_area_geometry,
+    point_in_area,
+)
 
 GEOMETRY_EPSILON_KM = 1e-12
 
@@ -409,7 +423,7 @@ def generate_geometry_layout(
     rng_factory: RngFactory,
 ) -> LayoutCandidate:
     """Realize supported geometry-mode features with isolated semantic RNG streams."""
-    geometries: dict[str, PointGeometry | CorridorGeometry | BandGeometry] = {}
+    geometries: dict[str, PointGeometry | CorridorGeometry | BandGeometry | AreaGeometry] = {}
 
     for feature in sorted(plan.features, key=lambda item: item.id):
         layout = feature.layout
@@ -445,6 +459,17 @@ def generate_geometry_layout(
                 attempt_index=attempt_index,
                 rng_factory=rng_factory,
             )
+        elif layout.shape is GeometryShape.AREA:
+            try:
+                geometries[feature.id] = generate_area_geometry(
+                    plan,
+                    layout,
+                    feature_id=feature.id,
+                    attempt_index=attempt_index,
+                    rng_factory=rng_factory,
+                )
+            except AreaLayoutCapabilityError as exc:
+                raise LayoutCapabilityError(str(exc)) from exc
         else:
             raise LayoutCapabilityError(
                 f"geometry shape {layout.shape.value!r} is not implemented yet: {feature.id!r}"
@@ -539,6 +564,20 @@ def _resolve_ref(ref: CompiledSpatialRef, candidate: LayoutCandidate):
             f"band part {ref.part.value!r} is not implemented in band slice"
         )
 
+    if isinstance(geometry, AreaGeometry):
+        if ref.part is FeaturePart.WHOLE:
+            return geometry
+        if ref.part is FeaturePart.BOUNDARY:
+            return AreaBoundaryView(geometry)
+        if ref.part is FeaturePart.CENTER:
+            try:
+                return area_centroid(geometry)
+            except AreaLayoutCapabilityError as exc:
+                raise LayoutCapabilityError(str(exc)) from exc
+        raise LayoutCapabilityError(
+            f"area part {ref.part.value!r} is not supported by area layout v0.1"
+        )
+
     raise LayoutCapabilityError(
         f"feature reference {ref.feature_id!r} does not resolve to supported geometry"
     )
@@ -594,16 +633,32 @@ def _measure(constraint: CompiledConstraint, candidate: LayoutCandidate) -> tupl
             return _distance_point_corridor(subject, target), "km"
         if isinstance(subject, CorridorGeometry) and isinstance(target, PointGeometry):
             return _distance_point_corridor(target, subject), "km"
+        if isinstance(subject, PointGeometry) and isinstance(target, AreaGeometry):
+            return distance_point_area_whole(subject, target), "km"
+        if isinstance(subject, AreaGeometry) and isinstance(target, PointGeometry):
+            return distance_point_area_whole(target, subject), "km"
+        if isinstance(subject, PointGeometry) and isinstance(target, AreaBoundaryView):
+            return distance_point_area_boundary(subject, target.geometry), "km"
+        if isinstance(subject, AreaBoundaryView) and isinstance(target, PointGeometry):
+            return distance_point_area_boundary(target, subject.geometry), "km"
         raise LayoutCapabilityError(
             f"distance evaluator does not support {type(subject).__name__} -> {type(target).__name__}"
         )
 
     if evaluator.type in ("contained_fraction", "overlap_fraction"):
-        if not isinstance(subject, PointGeometry) or not isinstance(target, CompiledRectangle):
+        if not isinstance(subject, PointGeometry):
             raise LayoutCapabilityError(
-                f"{evaluator.type} geometry slice currently supports point -> rectangle only"
+                f"{evaluator.type} area slice currently requires a point subject"
             )
-        return (1.0 if _point_in_rectangle(subject, target) else 0.0), None
+        if isinstance(target, CompiledRectangle):
+            contained = _point_in_rectangle(subject, target)
+        elif isinstance(target, AreaGeometry):
+            contained = point_in_area(subject, target)
+        else:
+            raise LayoutCapabilityError(
+                f"{evaluator.type} does not support target {type(target).__name__}"
+            )
+        return (1.0 if contained else 0.0), None
 
     raise LayoutCapabilityError(
         f"layout evaluator {evaluator.type!r} is not implemented in geometry slice"
@@ -625,6 +680,12 @@ def _geometry_inside_domain(geometry, plan: GenerationPlan) -> bool:
         points = (geometry,)
     elif isinstance(geometry, (CorridorGeometry, BandGeometry)):
         points = geometry.centerline
+    elif isinstance(geometry, AreaGeometry):
+        return area_inside_domain(
+            geometry,
+            width_km=plan.domain.width_km,
+            height_km=plan.domain.height_km,
+        )
     else:
         return False
     return all(
@@ -663,13 +724,29 @@ def _band_width_profile_valid(geometry) -> bool:
     )
 
 
+def _area_boundary_size_valid(geometry) -> bool:
+    return not isinstance(geometry, AreaGeometry) or len(geometry.boundary) >= 3
+
+
+def _area_zero_length_edge_free(geometry) -> bool:
+    return not isinstance(geometry, AreaGeometry) or not area_has_zero_length_edge(geometry)
+
+
+def _area_simple(geometry) -> bool:
+    return not isinstance(geometry, AreaGeometry) or not area_self_intersects(geometry)
+
+
+def _area_ccw_nondegenerate(geometry) -> bool:
+    return not isinstance(geometry, AreaGeometry) or area_is_ccw_nondegenerate(geometry)
+
+
 def validate_geometry_layout(
     plan: GenerationPlan,
     candidate: LayoutCandidate,
     *,
     attempt_index: int,
 ) -> ValidationResult:
-    """Observe supported point/corridor/band layout without mutation or repair."""
+    """Observe supported point/corridor/band/area layout without mutation or repair."""
     expected_ids = {
         feature.id
         for feature in plan.features
@@ -678,6 +755,7 @@ def validate_geometry_layout(
             GeometryShape.POINT,
             GeometryShape.CORRIDOR,
             GeometryShape.BAND,
+            GeometryShape.AREA,
         )
     }
     actual_ids = set(candidate.geometry_realizations)
@@ -725,6 +803,34 @@ def validate_geometry_layout(
                 for geometry in candidate.geometry_realizations.values()
             ),
         ),
+        EngineInvariantResult(
+            id="layout-area-boundary-size-valid",
+            passed=all(
+                _area_boundary_size_valid(geometry)
+                for geometry in candidate.geometry_realizations.values()
+            ),
+        ),
+        EngineInvariantResult(
+            id="layout-area-zero-length-edge-free",
+            passed=all(
+                _area_zero_length_edge_free(geometry)
+                for geometry in candidate.geometry_realizations.values()
+            ),
+        ),
+        EngineInvariantResult(
+            id="layout-area-simple",
+            passed=all(
+                _area_simple(geometry)
+                for geometry in candidate.geometry_realizations.values()
+            ),
+        ),
+        EngineInvariantResult(
+            id="layout-area-ccw-nondegenerate",
+            passed=all(
+                _area_ccw_nondegenerate(geometry)
+                for geometry in candidate.geometry_realizations.values()
+            ),
+        ),
     )
     engine_passed = all(item.passed for item in invariant_results)
 
@@ -767,7 +873,7 @@ def validate_geometry_layout(
 
 
 def geometry_layout_stage(context: AttemptContext, state: CandidateState) -> ValidationResult:
-    """Point/corridor/band layout StageHandler for the attempt orchestrator."""
+    """Point/corridor/band/area layout StageHandler for the attempt orchestrator."""
     candidate = generate_geometry_layout(
         context.plan,
         attempt_index=context.attempt_index,
