@@ -7,9 +7,9 @@ target: core-0.1
 implemented: false
 ---
 
-# End-to-End Runtime & Bundle Architecture v0.1
+# Сквозная архитектура runtime и bundle v0.1
 
-Этот документ фиксирует внешний execution boundary `domain_generator`: один и тот же deterministic Core должен запускаться локально и в удалённом runner-е без двух разных generation implementations.
+Этот документ фиксирует внешнюю границу исполнения `domain_generator`: один и тот же детерминированный Core должен запускаться локально и в удалённом runner-е без двух разных реализаций generation.
 
 ## 1. Один Core, один процесс
 
@@ -30,29 +30,29 @@ DomainSpec
 
 Core не строится как цепочка subprocess scripts и не использует filesystem как внутреннюю шину между stages.
 
-## 2. Canonical executable boundary
+## 2. Каноническая граница запуска
 
-Local и remote execution должны вызывать один и тот же public entrypoint / CLI semantics:
+Локальное и удалённое исполнение должны вызывать один и тот же public entrypoint с одинаковой семантикой CLI:
 
 ```text
 domain-generator generate <request> --output <directory>
 ```
 
-Конкретное имя CLI может быть реализовано позже; архитектурное требование — один generation entrypoint поверх того же package API.
+Конкретное имя CLI может быть реализовано позже; архитектурное требование — один entrypoint generation поверх того же API package.
 
-Внутри application/API допустим equivalent вызов Python-функции:
+Внутри application/API допустим эквивалентный вызов Python-функции:
 
 ```text
 generate_domain(spec, config) -> DomainAssembly / DomainBundle-ready result
 ```
 
-CLI, local skill, GitHub workflow и другие adapters не имеют права повторно реализовывать algorithms Core.
+CLI, локальный skill, GitHub workflow и другие adapters не имеют права повторно реализовывать алгоритмы Core.
 
 ## 3. Input adapters
 
-Canonical semantic input после parsing — `DomainSpec` + semantic `GenerationConfig`.
+Канонический семантический input после parsing — `DomainSpec` + semantic `GenerationConfig`.
 
-Core contracts не зависят от формата файла. JSON является естественным baseline serialized input. YAML может быть внешним adapter-ом, преобразующим данные в те же Pydantic contracts.
+Contracts Core не зависят от формата файла. JSON является естественным базовым сериализованным input. YAML может быть внешним adapter-ом, преобразующим данные в те же Pydantic contracts.
 
 ```text
 JSON ----\
@@ -60,9 +60,9 @@ JSON ----\
 YAML ----/
 ```
 
-File loading/parsing не является generation stage.
+Загрузка и parsing файлов не являются стадией generation.
 
-## 4. Local execution mode
+## 4. Локальный режим исполнения
 
 Основной быстрый режим:
 
@@ -75,7 +75,7 @@ human / model
     -> local output bundle
 ```
 
-Target runtime:
+Целевая среда runtime:
 
 - Python 3.11+;
 - NumPy;
@@ -83,13 +83,13 @@ Target runtime:
 - Shapely;
 - CPU + RAM; GPU не является обязательной dependency Core 0.1.
 
-Local skill/prompt может объяснять модели schema, команду запуска и правила чтения output, но остаётся внешним adapter-ом и не входит в Core.
+Локальный skill/prompt может объяснять модели schema, команду запуска и правила чтения output, но остаётся внешним adapter-ом и не входит в Core.
 
-## 5. Remote execution mode
+## 5. Удалённый режим исполнения
 
-Machine-independent execution использует тот же generation entrypoint в ephemeral runner-е.
+Машинонезависимое исполнение использует тот же entrypoint generation в ephemeral runner-е.
 
-Reference GitHub flow:
+Эталонный поток GitHub:
 
 ```text
 model / client
@@ -103,21 +103,21 @@ model / client
 
 Generated binaries/rasters не обязаны коммититься обратно в Git repository. Repository хранит request/provenance; generated output предпочтительно передаётся как workflow artifact.
 
-GitHub Actions является execution adapter и CI infrastructure, а не dependency Core.
+GitHub Actions является adapter-ом исполнения и CI infrastructure, а не dependency Core.
 
-## 6. Reproducibility across execution surfaces
+## 6. Воспроизводимость между средами исполнения
 
-При одинаковых supported semantic inputs, exact generator version и RNG version local и remote execution должны давать один semantic result.
+При одинаковых поддерживаемых semantic inputs, точной версии generator и версии RNG локальное и удалённое исполнение должны давать один семантический результат.
 
-Execution location, logging, debug flags и artifact transport не должны влиять на generated world.
+Место исполнения, logging, debug flags и transport artifacts не должны влиять на generated world.
 
-Remote execution может использоваться как independent reproducibility check локального result.
+Удалённое исполнение может использоваться как независимая проверка воспроизводимости локального результата.
 
-## 7. DomainAssembly boundary
+## 7. Граница DomainAssembly
 
-После выбора accepted `DomainCandidate` generation заканчивается. Assembly не генерирует новый world state.
+После выбора принятого `DomainCandidate` generation заканчивается. Assembly не генерирует новое состояние мира.
 
-Предлагаемый in-memory boundary:
+Предлагаемая граница в памяти:
 
 ```text
 DomainAssembly
@@ -135,13 +135,13 @@ Assembler:
 
 - не использует RNG;
 - не выполняет IO;
-- не меняет accepted candidate;
+- не меняет принятый candidate;
 - не пересчитывает terrain/hydrology/surface;
-- не делает rendering.
+- не выполняет rendering.
 
-## 8. DomainBundle physical layout
+## 8. Физическая структура DomainBundle
 
-Reference bundle layout:
+Эталонная структура bundle:
 
 ```text
 output/
@@ -157,17 +157,17 @@ output/
   debug/                     # optional observability artifacts
 ```
 
-Canonical source-of-truth разделён:
+Канонический источник истины разделён:
 
-- `domain.json` — structured semantic metadata, features, networks, field descriptors and provenance;
-- `fields/*.npy` — canonical raster numeric payloads;
+- `domain.json` — structured semantic metadata, features, networks, descriptors fields и provenance;
+- `fields/*.npy` — canonical числовые payloads raster;
 - preview/debug files — non-canonical derived/presentation artifacts.
 
-Exporter отвечает за физическую запись bundle и atomic/path/error semantics. Exporter не меняет semantic result.
+Exporter отвечает за физическую запись bundle и semantics atomic/path/error. Exporter не меняет семантический результат.
 
-## 9. Raster ownership
+## 9. Владение raster-данными
 
-Core 0.1 canonical persisted rasters:
+Канонические сохраняемые rasters Core 0.1:
 
 ```text
 elevation.npy             float32 meters
@@ -176,11 +176,11 @@ moisture.npy              float32 normalized [0,1]
 vegetation_density.npy    float32 normalized [0,1]
 ```
 
-`domain.json` не встраивает эти массивы как огромные JSON lists; он хранит relative descriptors (`path`, `dtype`, `shape`, `unit`).
+`domain.json` не встраивает эти массивы как огромные JSON lists; он хранит относительные descriptors (`path`, `dtype`, `shape`, `unit`).
 
 Renderer и downstream tools читают rasters через эти descriptors.
 
-## 10. Renderer boundary
+## 10. Граница renderer
 
 Technical renderer — отдельный downstream component:
 
@@ -190,13 +190,13 @@ DomainData + raster payloads
     -> technical-map.png
 ```
 
-Technical preview должен отражать canonical geography, но PNG не является world state.
+Technical preview должен отражать canonical geography, но PNG не является состоянием мира.
 
-Renderer не изменяет DomainData/rasters и может быть заменён без reroll generation.
+Renderer не изменяет `DomainData`/rasters и может быть заменён без reroll generation.
 
-## 11. Presentation / image-generation boundary
+## 11. Граница представления и image generation
 
-Artistic map generation находится ещё дальше от Core:
+Художественная генерация карты находится ещё дальше от Core:
 
 ```text
 technical-map.png
@@ -205,13 +205,13 @@ technical-map.png
     -> campaign-map.png
 ```
 
-`campaign-map.png` является presentation artifact, а не canonical map data. Image generation не имеет права незаметно менять underlying generated world.
+`campaign-map.png` является artifact представления, а не canonical map data. Image generation не имеет права незаметно менять underlying generated world.
 
-Допустимы разные presentations одного DomainBundle (GM/player/parchment/etc.) без повторной procedural generation.
+Допустимы разные варианты представления одного `DomainBundle` — GM/player/parchment и т. п. — без повторной procedural generation.
 
-## 12. Model integration
+## 12. Интеграция с моделью
 
-LLM/agent работает над уровнем intent и orchestration:
+LLM/agent работает на уровне intent и orchestration:
 
 ```text
 natural-language request
@@ -222,23 +222,23 @@ natural-language request
     -> model/user
 ```
 
-Модель не управляет внутренними stages напрямую и не генерирует вручную raster cell values.
+Модель не управляет внутренними stages напрямую и не генерирует вручную values raster cells.
 
-Local skill и remote GitHub adapter могут иметь разные UX, но оба работают через одинаковый Core contract.
+Локальный skill и удалённый GitHub adapter могут иметь разный UX, но оба работают через один contract Core.
 
-## 13. GitHub Actions role
+## 13. Роль GitHub Actions
 
 GitHub Actions допустим для:
 
 - pytest/CI;
-- deterministic reference-generation checks;
-- remote generation requests;
-- bundle artifact upload;
-- release/package checks.
+- детерминированных проверок reference generation;
+- удалённых requests generation;
+- загрузки bundle artifact;
+- проверок release/package.
 
-Он не является canonical runtime requirement. Core должен выполняться без GitHub.
+Он не является каноническим runtime requirement. Core должен выполняться без GitHub.
 
-## 14. Separation of responsibilities
+## 14. Разделение ответственности
 
 ```text
 Core generation
@@ -263,14 +263,14 @@ Local skill / GitHub workflow
   -> execution/orchestration surfaces
 ```
 
-Ни один downstream layer не должен скрыто изменять world semantics.
+Ни один downstream layer не должен скрыто изменять семантику мира.
 
-## 15. Implementation sequence
+## 15. Последовательность реализации
 
-После принятия этого architecture baseline implementation идёт отдельными bounded checkpoints:
+После принятия этой архитектурной базы реализация идёт отдельными ограниченными checkpoints:
 
 1. Final Validation v0.1;
-2. HydroFeature / lake materialization v0.1;
+2. HydroFeature / materialization lake v0.1;
 3. DomainData Assembler v0.1;
 4. DomainBundle Export v0.1;
 5. Technical Renderer v0.1;
@@ -278,17 +278,15 @@ Local skill / GitHub workflow
 7. local model skill/adapter;
 8. remote GitHub Actions generation adapter.
 
-Порядок может уточняться только явным design decision; Core и execution adapters остаются разделены.
+Порядок может уточняться только явным design decision; Core и adapters исполнения остаются разделены.
 
-## Non-goals
+## Что не определяет этот документ
 
-Этот документ не определяет:
-
-- конкретную campaign-map art style;
-- конкретный LLM provider;
-- setting-specific presets;
+- конкретный художественный стиль campaign map;
+- конкретного LLM provider;
+- presets конкретного сеттинга;
 - production web service;
 - cloud database;
-- renderer visual language;
+- визуальный язык renderer;
 - GitHub как обязательный backend;
 - скрытую генерацию через image model.
