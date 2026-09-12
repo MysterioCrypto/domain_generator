@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from domain_generator.contracts.plan import GenerationPlan, PlanDomain, PlanGrid, PlanSource
+from domain_generator.contracts.plan import GenerationPlan, PlanDomain, PlanGrid, PlanHydrology, PlanSource
 from domain_generator.hydrology import (
     HydrologyState,
     d8_flow_direction,
@@ -33,6 +33,11 @@ def make_plan(*, rows: int, columns: int, cell_size_km: float = 1.0) -> Generati
             cell_size_km=cell_size_km,
             rows=rows,
             columns=columns,
+        ),
+        hydrology=PlanHydrology(
+            stream_threshold_km2=1.0,
+            lake_min_area_km2=1.0,
+            lake_min_depth_m=1.0,
         ),
         features=(),
         constraints=(),
@@ -133,9 +138,12 @@ def test_generate_hydrology_replays_and_preserves_canonical_terrain() -> None:
     second = generate_hydrology(plan, terrain)
 
     assert np.array_equal(terrain.elevation_m, before)
+    assert np.array_equal(first.fill_elevation_m, second.fill_elevation_m)
     assert np.array_equal(first.routing_elevation_m, second.routing_elevation_m)
     assert np.array_equal(first.flow_direction, second.flow_direction)
     assert np.array_equal(first.flow_accumulation_km2, second.flow_accumulation_km2)
+    assert np.array_equal(first.stream_mask, second.stream_mask)
+    assert first.lake_candidates == second.lake_candidates
 
 
 def test_hydrology_validation_accepts_generated_state() -> None:
@@ -162,9 +170,11 @@ def test_hydrology_validation_accepts_generated_state() -> None:
 
     assert validation.engine_invariants.passed is True
     assert validation.stage.value == "hydrology"
+    assert hydrology.fill_elevation_m.dtype == np.float64
     assert hydrology.routing_elevation_m.dtype == np.float64
     assert hydrology.flow_direction.dtype == np.int8
     assert hydrology.flow_accumulation_km2.dtype == np.float64
+    assert hydrology.stream_mask.dtype == np.bool_
 
 
 def test_hydrology_validation_rejects_missing_upstream_terrain() -> None:
@@ -188,6 +198,7 @@ def test_validation_rejects_non_lower_receiver() -> None:
     terrain = TerrainState(elevation_m=np.zeros((3, 3), dtype=np.float32))
     hydrology = HydrologyState(
         routing_elevation_m=np.zeros((3, 3), dtype=np.float64),
+        fill_elevation_m=np.zeros((3, 3), dtype=np.float64),
         flow_direction=np.array(
             [
                 [-1, -1, -1],
@@ -197,6 +208,8 @@ def test_validation_rejects_non_lower_receiver() -> None:
             dtype=np.int8,
         ),
         flow_accumulation_km2=np.ones((3, 3), dtype=np.float64),
+        stream_mask=np.ones((3, 3), dtype=np.bool_),
+        lake_candidates=(),
     )
 
     validation = validate_hydrology(plan, terrain, hydrology, attempt_index=0)
