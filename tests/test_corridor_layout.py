@@ -240,7 +240,7 @@ def test_corridor_start_part_can_be_used_as_point_distance_subject() -> None:
     assert validation.hard_constraints.passed is True
 
 
-def test_unsupported_area_shape_fails_as_capability_error() -> None:
+def test_area_without_required_parameters_fails_as_capability_error() -> None:
     feature = ResolvedFeature(
         id="area-01",
         metadata=FeatureMetadata(source_preset="test-area"),
@@ -250,5 +250,5 @@ def test_unsupported_area_shape_fails_as_capability_error() -> None:
     )
     plan = make_plan(features=(feature,))
 
-    with pytest.raises(LayoutCapabilityError, match="not implemented"):
+    with pytest.raises(LayoutCapabilityError, match="requires exactly layout parameters"):
         generate_geometry_layout(plan, attempt_index=0, rng_factory=RngFactory(plan.seed))
