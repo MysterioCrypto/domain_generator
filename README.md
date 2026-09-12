@@ -1,8 +1,8 @@
 # domain_generator
 
-Детерминированное процедурное ядро для генерации ограниченных пространственных регионов мира/карты с управляемой случайностью.
+Детерминированное процедурное ядро для генерации ограниченных пространственных регионов мира или карты с управляемой случайностью.
 
-`Domain` здесь означает generic bounded spatial region. Это технический термин проекта, а не сущность какого-либо конкретного сеттинга.
+`Domain` здесь означает универсальную ограниченную пространственную область. Это технический термин проекта, а не сущность какого-либо конкретного сеттинга.
 
 ## С чего начать
 
@@ -14,32 +14,36 @@
 
 ## Граница проекта
 
-Core intentionally setting-agnostic. Он знает о generic concepts вроде geometry, terrain, hydrology, fields, networks, constraints, procedural features и placement rules, но не знает о конкретном мире, кампании, игровой системе, UI или renderer-е.
+Core намеренно не зависит от конкретного сеттинга. Он знает об универсальных понятиях: геометрии, рельефе, гидрологии, полях, сетях, ограничениях, процедурных объектах и правилах размещения, но не знает о конкретном мире, кампании, игровой системе, интерфейсе или renderer-е.
 
-Внешние проекты могут использовать `domain_generator` как библиотеку/движок и преобразовывать собственные setting-specific понятия в публичные generic contracts Core. Setting-specific preset catalogs, adapters и world data должны жить вне базового Core.
+Внешние проекты могут использовать `domain_generator` как библиотеку или движок и преобразовывать собственные понятия в публичные универсальные контракты Core. Каталоги пресетов конкретного сеттинга, adapters и данные мира должны жить вне базового Core.
 
 ## Основной поток
 
 ```text
-external client / world project
+внешний клиент / проект мира
         ↓
     DomainSpec
         ↓
- deterministic Core
+ детерминированный Core
         ↓
     DomainData
         ↓
- renderer / exporter / game integration
+ renderer / exporter / интеграция с игрой
 ```
 
-LLM, agent orchestration, GitHub Actions и presentation tooling не являются частью procedural semantics.
+LLM, orchestration агентов, GitHub Actions и инструменты представления не являются частью процедурной семантики.
 
 ## Состояние разработки
 
-M0 и M1 завершены. M2 — deterministic pipeline — находится в реализации. Уже реализованы contracts/schema layer, deterministic RNG, layout primitives, placement reservations, terrain, hydrology, canonical water depth, base moisture/vegetation fields и GitHub Actions pytest CI.
+M0 и M1 завершены. M2 — детерминированный pipeline — находится в реализации. Уже реализованы слой контрактов и схем, детерминированный RNG, базовые типы layout, `PlacementReservation`, terrain, hydrology, canonical `water_depth`, базовые поля `moisture` / `vegetation_density` и pytest CI в GitHub Actions.
 
-Актуальный checkpoint и следующий bounded design всегда фиксируются в [`PROJECT.md`](PROJECT.md).
+Актуальный checkpoint и следующий ограниченный design-шаг всегда фиксируются в [`PROJECT.md`](PROJECT.md).
+
+## Язык документации
+
+Объяснительный текст, заголовки, ADR, design-документы, README и проектные заметки пишутся по-русски. Английскими остаются имена типов, функций, полей, enum, файлов, CLI-команд, serialized values и другие буквальные технические идентификаторы, которые должны совпадать с кодом или контрактом.
 
 ## Правило документации
 
-Нормативные документы проекта используют машиночитаемый YAML front matter и человекочитаемый Markdown. Иллюстративные примеры не создают implicit rules Core и не должны молча превращаться в требования.
+Нормативные документы проекта используют машиночитаемый YAML front matter и человекочитаемый Markdown. Иллюстративные примеры не создают неявных правил Core и не должны молча превращаться в требования.
