@@ -33,11 +33,21 @@ hydrology:
   river_depth_at_threshold_m: 0.5
   river_depth_exponent: 0.30
 
+surface:
+  moisture_base: 0.35
+  water_moisture_boost: 0.55
+  water_moisture_decay_km: 8.0
+  moisture_noise_amplitude: 0.10
+  moisture_noise_scale_km: 12.0
+  vegetation_slope_zero_deg: 45.0
+
 features: []
 constraints: []
 ```
 
-Поля: `schema_version`, `id`, optional `label`, `seed`, `domain`, `simulation`, `hydrology`, `features`, `constraints`.
+Все числовые значения в примерах ненормативны.
+
+Поля: `schema_version`, `id`, optional `label`, `seed`, `domain`, `simulation`, `hydrology`, `surface`, `features`, `constraints`.
 
 Правила:
 
@@ -48,7 +58,7 @@ constraints: []
 - `width_km / cell_size_km` и `height_km / cell_size_km` должны давать целое число клеток; silent rounding запрещён;
 - пользователь не задаёт raster row/column или CRS;
 - world coordinates: origin southwest, `+x` east, `+y` north;
-- `hydrology` — обязательная semantic часть мира, а не execution/debug setting.
+- `hydrology` и `surface` — обязательные semantic части мира, а не execution/debug settings.
 
 ## Hydrology recipe
 
@@ -85,6 +95,57 @@ river_depth_m = D0 * (A / A0)^p
 Эти значения не являются hidden defaults Core. Они входят в semantic `GenerationPlan` и его fingerprint. Изменение любого из них может менять hydrology result при неизменном terrain.
 
 В v0.1 recipe не задаёт rainfall, runoff, erosion, sea level, physical river width, lake evaporation или климатическую модель.
+
+## Surface recipe
+
+```yaml
+surface:
+  moisture_base: 0.35
+  water_moisture_boost: 0.55
+  water_moisture_decay_km: 8.0
+  moisture_noise_amplitude: 0.10
+  moisture_noise_scale_km: 12.0
+  vegetation_slope_zero_deg: 45.0
+```
+
+Все шесть значений обязательны и finite. Примерные числа выше ненормативны.
+
+- `moisture_base` — базовый уровень локальной влажности, `[0,1]`;
+- `water_moisture_boost` — максимальная добавка влажности от близости canonical water, `[0,1]`;
+- `water_moisture_decay_km > 0` — physical decay scale влияния воды;
+- `moisture_noise_amplitude` — amplitude coherent environmental noise, `[0,1]`;
+- `moisture_noise_scale_km > 0` — world-space scale этого noise;
+- `0 < vegetation_slope_zero_deg <= 90` — slope, при котором базовый terrestrial vegetation factor становится нулём.
+
+Для dry cell базовая moisture semantics:
+
+```text
+water_term = water_moisture_boost
+             * exp(-distance_to_water_km / water_moisture_decay_km)
+
+moisture = clamp(
+    moisture_base
+  + water_term
+  + moisture_noise_amplitude * coherent_noise,
+  0,
+  1
+)
+```
+
+Canonical water cells получают `moisture = 1`. При полном отсутствии canonical water `water_term = 0`.
+
+Base terrestrial vegetation:
+
+```text
+slope_factor = clamp(1 - slope_deg / vegetation_slope_zero_deg, 0, 1)
+vegetation_density = moisture * slope_factor
+```
+
+Canonical water cells получают `vegetation_density = 0`.
+
+Absolute elevation не вводит implicit dryness penalty: `0 m` в Core 0.1 — datum, а не sea/climate level. Climate, biome, precipitation, temperature и seasons в этот recipe не входят.
+
+Surface recipe входит в semantic `GenerationPlan` и его fingerprint. Hidden defaults запрещены.
 
 ## FeatureSpec
 
@@ -288,6 +349,14 @@ hydrology:
   lake_min_depth_m: 2.0
   river_depth_at_threshold_m: 0.5
   river_depth_exponent: 0.30
+
+surface:
+  moisture_base: 0.35
+  water_moisture_boost: 0.55
+  water_moisture_decay_km: 8.0
+  moisture_noise_amplitude: 0.10
+  moisture_noise_scale_km: 12.0
+  vegetation_slope_zero_deg: 45.0
 
 features:
   - id: mountain-01
