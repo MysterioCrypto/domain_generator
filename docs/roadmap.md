@@ -8,11 +8,13 @@ target: core-0.1
 
 # Roadmap Core 0.1
 
+`domain_generator` развивается как setting-agnostic procedural core. Конкретные миры, кампании, игровые системы, setting-specific preset catalogs и content packages не являются частью roadmap Core и подключаются внешними consumer layers.
+
 ## M0 — Project foundation — DONE
 
 Зафиксировать память проекта, архитектурные границы, glossary, ADR и правила совместной работы.
 
-**Критерий:** новый чат может восстановить состояние проекта из репозитория без чтения старого диалога.
+**Критерий:** новый чат или агент может восстановить состояние проекта из репозитория без чтения старого диалога.
 
 ## M1 — Data contracts — DONE
 
@@ -39,8 +41,6 @@ target: core-0.1
 ## M2 — Deterministic pipeline — IN PROGRESS
 
 Сначала реализовать минимальный Python package и Pydantic v2 contracts/value models, соответствующие M1. Затем ввести independent RNG streams, semantic fingerprints, attempt lifecycle и минимальный pipeline skeleton.
-
-**Первый task:** Pydantic contracts + structural validation/schema tests, без terrain/hydrology algorithms.
 
 ## M3 — Spatial foundation
 
@@ -76,8 +76,8 @@ Stable `manifest.json`, `domain.json`, canonical/derived array storage и debug/
 
 ## M11 — Acceptance suite
 
-Набор fixed specs/seeds: minimal domain, random domain, isolated capability tests и несколько ненормативных complex examples.
+Набор fixed specs/seeds: minimal domain, random domain, isolated capability tests и несколько ненормативных complex examples. Examples могут иллюстрировать разные жанры, но не создают setting dependencies Core.
 
 # Вне Core 0.1
 
-Road networks, full human geography, artistic styling, ImageGen, battlemap, economy, NPC, full climate/biome model, deferred-to-deferred placement graph и campaign-specific extensions откладываются.
+Road networks, full human geography, artistic styling, ImageGen, battlemap, economy, NPC, full climate/biome model, deferred-to-deferred placement graph и setting/campaign/game-system-specific extensions откладываются или реализуются внешними слоями.

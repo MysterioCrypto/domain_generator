@@ -8,6 +8,30 @@ target: core-0.1
 
 # Архитектура Core 0.1
 
+## Назначение и граница
+
+`domain_generator` — setting-agnostic procedural core для генерации ограниченных пространственных регионов мира/карты.
+
+`Domain` означает generic bounded spatial region. Это может быть часть планеты, остров, сектор, локальная игровая зона, абстрактный регион или иной кусок пространства, который генерируется как единое целое. Термин не несёт специальной лоровой семантики.
+
+Конкретный world/setting/campaign/game system является внешним consumer-ом Core:
+
+```text
+setting / application / simulation
+            ↓
+      adapter / presets
+            ↓
+        DomainSpec
+            ↓
+      domain_generator
+            ↓
+        DomainData
+            ↓
+ renderer / exporter / integration
+```
+
+Core не хранит setting identity и не интерпретирует campaign-specific lore. Setting-specific preset catalogs, adapters и world data находятся вне базового Core.
+
 ## Главный поток
 
 ```text
@@ -30,7 +54,7 @@ Human / client
     -> Renderers / exporters
 ```
 
-`DomainSpec` — язык намерения пользователя. `GenerationPlan` — immutable resolved recipe. `LayoutCandidate` — concrete macro-layout одного attempt. `DomainCandidate` — runtime computational state. `DomainData` — принятый мир.
+`DomainSpec` — язык намерения пользователя/consumer-а. `GenerationPlan` — immutable resolved recipe. `LayoutCandidate` — concrete macro-layout одного attempt. `DomainCandidate` — runtime computational state. `DomainData` — принятый generated region.
 
 ## Координаты и grid
 
@@ -50,6 +74,8 @@ Top-level `DomainSpec.id` — identity domain/document и не входит в R
 Feature `id` — stable machine identity для references и RNG namespace. Optional `label` — human-readable metadata. Смена `label` не должна reroll'ить feature; смена feature `id` может изменить realization.
 
 `label`, `tags`, `source_preset` сохраняются как provenance/output metadata, но не входят в semantic `plan_fingerprint` и не меняют Core скрытым образом.
+
+Core не требует поля `setting`. Если внешнему приложению нужна identity конкретного мира/кампании, она хранится во внешнем contract/manifest layer.
 
 ## Feature / preset / operator
 
@@ -71,6 +97,8 @@ effect recipe
 ```
 
 Layout и downstream effect не делят один неструктурированный parameter bag.
+
+Core определяет generic preset contract и operator vocabulary. Конкретные setting-specific preset catalogs являются внешним content/extension layer и не входят в базовый пакет.
 
 ## Parameters
 
@@ -262,7 +290,7 @@ Valid candidates сравниваются:
 
 ## DomainData и bundle
 
-`DomainData` — self-contained accepted world. Он содержит identity/provenance, domain/grid metadata, canonical/derived field descriptors, semantic features, networks и compact validation summary.
+`DomainData` — self-contained accepted generated region. Он содержит identity/provenance, domain/grid metadata, canonical/derived field descriptors, semantic features, networks и compact validation summary.
 
 Canonical continuous fields Core 0.1 baseline:
 
@@ -288,4 +316,6 @@ Pydantic выполняет structural validation/serialization, но не gener
 
 ## Граница Core
 
-Core независим от ChatGPT/OpenAI, GitHub, конкретного campaign lore и artistic renderer. Illustrative examples ненормативны.
+Core независим от конкретных сеттингов, кампаний, игровых систем, LLM/agent tooling, GitHub/CI orchestration, UI и renderer-ов. Illustrative examples ненормативны.
+
+Любой setting-specific смысл должен поступать через внешний adapter/content layer и компилироваться в generic public contracts Core. Core не должен содержать special cases, названные в честь конкретного мира, фракции, локации, игровой системы или кампании.
