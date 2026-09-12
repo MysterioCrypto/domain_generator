@@ -31,6 +31,7 @@ from .boolean import (
     subtract_geometry,
     to_region_set,
 )
+from .queries import region_set_covers_point
 
 __all__ = [
     "EXPECTED_SHAPELY_VERSION",
@@ -48,6 +49,7 @@ __all__ = [
     "intersect_geometry",
     "intersection_area_km2",
     "is_canonical_region_set",
+    "region_set_covers_point",
     "subtract_geometry",
     "to_region_set",
 ]
