@@ -10,13 +10,13 @@ scope: core
 
 ## Контекст
 
-ADR-0003 зафиксировал независимые RNG-потоки по semantic namespace, но не определил byte encoding namespace, derivation hash, state initialization, PRNG algorithm и primitive sampling semantics. Без этого exact replay остаётся зависимым от деталей конкретной библиотеки.
+ADR-0003 зафиксировал независимые RNG-потоки по semantic namespace, но не определил byte encoding namespace, derivation hash, инициализацию состояния, алгоритм PRNG и семантику примитивных операций sampling. Без этого точный replay остаётся зависимым от деталей конкретной библиотеки.
 
 ## Решение
 
 Core 0.1 использует versioned RNG protocol `rng_version = 1`.
 
-### Root seed
+### Корневой seed
 
 `root_seed` интерпретируется как unsigned 64-bit integer:
 
@@ -24,7 +24,7 @@ Core 0.1 использует versioned RNG protocol `rng_version = 1`.
 0 <= root_seed < 2^64
 ```
 
-RNG implementation отвергает значения вне диапазона. До появления compiler это является runtime boundary `RngFactory`; compiler должен отклонять unsupported seed до generation.
+RNG implementation отвергает значения вне диапазона. До появления compiler это является runtime boundary `RngFactory`; compiler должен отклонять неподдерживаемый seed до generation.
 
 ### RngKey
 
@@ -37,7 +37,7 @@ scope         : tuple[str, ...]
 purpose       : str
 ```
 
-Semantic stage ids v1:
+Семантические id стадий v1:
 
 ```text
 global
@@ -48,11 +48,11 @@ surface
 placement
 ```
 
-`scope` содержит хотя бы один непустой UTF-8 component. `purpose` непустой. Feature ids, parameter names и другие machine identities могут входить в scope; labels/tags/presentation metadata не входят.
+`scope` содержит хотя бы один непустой UTF-8 component. `purpose` непустой. Feature ids, имена parameters и другие машинные идентификаторы могут входить в scope; labels/tags/presentation metadata не входят.
 
-### Canonical namespace encoding
+### Каноническое кодирование namespace
 
-Hash input кодируется без JSON и без separator-joined strings.
+Вход hash кодируется без JSON и без строк, соединённых separator-ом.
 
 Порядок bytes:
 
@@ -74,11 +74,11 @@ byte_length               = uint32 big-endian
 payload                   = exact UTF-8 bytes
 ```
 
-RNG v1 не выполняет Unicode normalization: exact code-point sequence является частью machine identity.
+RNG v1 не выполняет Unicode normalization: точная последовательность code points является частью машинной идентичности.
 
 ### Derivation
 
-Namespace bytes хэшируются:
+Bytes namespace хэшируются:
 
 ```text
 BLAKE2b
@@ -90,7 +90,7 @@ Digest является 256-bit initial state material.
 
 ### PRNG
 
-Concrete stream generator: `xoshiro256**`.
+Конкретный генератор stream: `xoshiro256**`.
 
 32-byte digest делится на четыре последовательных 8-byte слова, каждое читается как unsigned uint64 big-endian:
 
@@ -101,7 +101,7 @@ s2 = digest[16:24]
 s3 = digest[24:32]
 ```
 
-Если все четыре слова равны нулю, normative fallback:
+Если все четыре слова равны нулю, нормативный fallback:
 
 ```text
 s3 = 0x9E3779B97F4A7C15
@@ -109,9 +109,9 @@ s3 = 0x9E3779B97F4A7C15
 
 Все операции xoshiro выполняются modulo `2^64`.
 
-### Primitive sampling
+### Примитивные операции sampling
 
-Lowest-level primitive:
+Базовый низкоуровневый primitive:
 
 ```text
 next_u64() -> 0 .. 2^64-1
@@ -129,13 +129,13 @@ uniform01 = (next_u64() >> 11) / 2^53
 a + (b - a) * u
 ```
 
-Integer inclusive range `[a,b]` использует rejection sampling; modulo bias запрещён.
+Целочисленный включительный диапазон `[a,b]` использует rejection sampling; modulo bias запрещён.
 
 `choice(sequence)` использует `integer_uniform(0, len(sequence)-1)`.
 
-Sampling algorithms являются частью `rng_version`. Их изменение требует нового RNG protocol version даже при неизменном public API.
+Алгоритмы sampling являются частью `rng_version`. Их изменение требует новой версии RNG protocol даже при неизменном public API.
 
-### Stream granularity
+### Гранулярность streams
 
 Отдельный stream создаётся для логически независимой random task, а не для каждого draw.
 
@@ -155,15 +155,15 @@ all-layout / every feature
 
 Порядок draws внутри одного локального stream является частью реализации этой random task, но не влияет на соседние namespaces.
 
-### Parameter-value independence
+### Независимость от значения parameter
 
-Resolved parameter bounds/values не входят в namespace. Если диапазон параметра меняется, тот же stream variate отображается в новый domain; это сохраняет причинную стабильность.
+Resolved bounds/values parameter не входят в namespace. Если диапазон параметра меняется, тот же stream variate отображается в новый domain; это сохраняет причинную стабильность.
 
-### Observability boundary
+### Граница observability
 
-Logging/debug/export/preview code не должен потреблять semantic RNG streams. Observability не влияет на branch decisions или accepted result.
+Logging/debug/export/preview code не должен потреблять semantic RNG streams. Observability не влияет на branch decisions или принятый результат.
 
-## Golden-vector requirement
+## Требование golden vector
 
 Implementation должна иметь fixed test vector, фиксирующий минимум:
 
@@ -177,7 +177,7 @@ Implementation должна иметь fixed test vector, фиксирующий
 
 ## Следствия
 
-- RNG replay не зависит от `random.Random`, NumPy generator defaults или порядка выполнения независимых подсистем.
-- Feature/parameter isolation проверяется тестами.
+- RNG replay не зависит от `random.Random`, defaults NumPy generator или порядка выполнения независимых подсистем.
+- Изоляция feature/parameter проверяется тестами.
 - Новый PRNG/hash/encoding/sampling mapping требует `rng_version = 2`.
-- ADR-0003 остаётся общим architectural principle; этот ADR определяет его exact v1 protocol.
+- ADR-0003 остаётся общим архитектурным принципом; этот ADR определяет его точный protocol v1.
