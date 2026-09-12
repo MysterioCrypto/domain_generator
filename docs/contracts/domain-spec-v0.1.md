@@ -8,7 +8,7 @@ target: core-0.1
 
 # DomainSpec v0.1 — draft
 
-Этот документ фиксирует согласованный дизайн пользовательского контракта Core 0.1. Он ещё не является JSON Schema и остаётся draft до первой реализации M1 contracts.
+Этот документ фиксирует согласованный дизайн пользовательского контракта Core 0.1. Canonical machine-readable contract публикуется как generated JSON Schema; этот Markdown описывает принятую семантику человеческим языком.
 
 ## Корень
 
@@ -26,11 +26,16 @@ domain:
 simulation:
   cell_size_km: 0.25
 
+hydrology:
+  stream_threshold_km2: 25.0
+  lake_min_area_km2: 1.0
+  lake_min_depth_m: 2.0
+
 features: []
 constraints: []
 ```
 
-Поля: `schema_version`, `id`, optional `label`, `seed`, `domain`, `simulation`, `features`, `constraints`.
+Поля: `schema_version`, `id`, optional `label`, `seed`, `domain`, `simulation`, `hydrology`, `features`, `constraints`.
 
 Правила:
 
@@ -40,7 +45,27 @@ constraints: []
 - размеры мира и cell size задаются в физических единицах;
 - `width_km / cell_size_km` и `height_km / cell_size_km` должны давать целое число клеток; silent rounding запрещён;
 - пользователь не задаёт raster row/column или CRS;
-- world coordinates: origin southwest, `+x` east, `+y` north.
+- world coordinates: origin southwest, `+x` east, `+y` north;
+- `hydrology` — обязательная semantic часть мира, а не execution/debug setting.
+
+## Hydrology recipe
+
+```yaml
+hydrology:
+  stream_threshold_km2: 25.0
+  lake_min_area_km2: 1.0
+  lake_min_depth_m: 2.0
+```
+
+Все три значения обязательны, finite и строго положительны.
+
+- `stream_threshold_km2` — minimum upstream catchment area, при которой raster cell классифицируется как stream cell;
+- `lake_min_area_km2` — minimum physical area connected depression component для сохранения как lake candidate;
+- `lake_min_depth_m` — minimum maximum physical fill depth connected depression component для сохранения как lake candidate.
+
+Эти значения не являются hidden defaults Core. Они входят в semantic `GenerationPlan` и его fingerprint. Изменение любого из них может менять hydrology result при неизменном terrain.
+
+В v0.1 этот recipe управляет только stream/lake classification. Он не задаёт rainfall, runoff, erosion, sea level, river width, lake evaporation или климатическую модель.
 
 ## FeatureSpec
 
@@ -237,6 +262,11 @@ domain:
 
 simulation:
   cell_size_km: 0.25
+
+hydrology:
+  stream_threshold_km2: 25.0
+  lake_min_area_km2: 1.0
+  lake_min_depth_m: 2.0
 
 features:
   - id: mountain-01
