@@ -6,20 +6,20 @@ normative: true
 target: core-0.1
 ---
 
-# Surface Feature Bias v0.1
+# Biases surface features v0.1
 
-## Scope
+## Область действия
 
-Core 0.1 adds two generic surface operators over concrete `AreaGeometry`:
+Core 0.1 добавляет два универсальных operator-а surface поверх конкретной `AreaGeometry`:
 
 - `moisture_bias`;
 - `vegetation_bias`.
 
-These operators are setting-agnostic numeric field modifiers. They do not encode forest, wetland, biome, climate, soil or other domain-specific semantics.
+Эти operators являются числовыми modifiers fields и не зависят от конкретного сеттинга. Они не кодируют forest, wetland, biome, climate, soil или другую предметно-специфичную семантику.
 
 ## Upstream inputs
 
-Surface generation reads immutable upstream outputs:
+Генерация Surface читает неизменяемые upstream outputs:
 
 ```text
 LayoutCandidate
@@ -28,50 +28,50 @@ HydrologyState
 GenerationPlan
 ```
 
-Surface never mutates layout, terrain or hydrology.
+Surface никогда не мутирует layout, terrain или hydrology.
 
-Only features with `family=surface` are handled by this slice. Every such feature must use `effect.stage=surface`, have concrete geometry in `LayoutCandidate.geometry_realizations`, and use a supported operator/geometry combination. Unsupported constructs are explicit capability errors; they are never silently skipped.
+В этом slice обрабатываются только features с `family=surface`. Каждый такой feature обязан использовать `effect.stage=surface`, иметь конкретную geometry в `LayoutCandidate.geometry_realizations` и использовать поддерживаемую комбинацию operator/geometry. Неподдерживаемые конструкции являются явными capability errors и никогда не пропускаются молча.
 
-## Supported operators
+## Поддерживаемые operators
 
 ### moisture_bias
 
-Required exact effect parameter set:
+Точный обязательный набор effect parameters:
 
 ```text
 {"delta_moisture"}
 ```
 
-`delta_moisture` resolves to one finite float in `[-1, 1]`.
+`delta_moisture` разрешается в одно конечное float-значение из `[-1, 1]`.
 
-For each raster cell whose world-space center lies inside or on the feature `AreaGeometry`, the feature contributes that signed delta to the moisture contribution field. Other cells receive zero contribution.
+Для каждой raster cell, world-space center которой находится внутри или на `AreaGeometry` feature, feature вносит этот signed delta в contribution field moisture. Другие cells получают нулевой contribution.
 
 ### vegetation_bias
 
-Required exact effect parameter set:
+Точный обязательный набор effect parameters:
 
 ```text
 {"delta_vegetation"}
 ```
 
-`delta_vegetation` resolves to one finite float in `[-1, 1]`.
+`delta_vegetation` разрешается в одно конечное float-значение из `[-1, 1]`.
 
-For each raster cell whose world-space center lies inside or on the feature `AreaGeometry`, the feature contributes that signed delta to the vegetation contribution field. Other cells receive zero contribution.
+Для каждой raster cell, world-space center которой находится внутри или на `AreaGeometry` feature, feature вносит этот signed delta в contribution field vegetation. Другие cells получают нулевой contribution.
 
 ## Rasterization
 
-Area rasterization uses the existing canonical world-coordinate cell-center rule:
+Rasterization area использует существующее каноническое правило world-coordinate centers cells:
 
 ```text
 cell center inside/on AreaGeometry -> feature applies
 otherwise                         -> feature does not apply
 ```
 
-No edge smoothing, sub-cell coverage, renderer sampling or polygon mutation is introduced in v0.1.
+Edge smoothing, sub-cell coverage, sampling renderer или мутация polygon в v0.1 не вводятся.
 
-## Parameter sampling and RNG
+## Sampling parameters и RNG
 
-Surface feature effect parameters use the existing generic resolved-parameter sampling machinery.
+Effect parameters surface feature используют существующий универсальный механизм sampling resolved parameters.
 
 RNG key:
 
@@ -81,17 +81,17 @@ scope   = ("feature", feature_id, "parameter", parameter_name)
 purpose = "sample"
 ```
 
-Changing feature iteration order or unrelated features must not change the sampled value of another feature.
+Изменение порядка обхода features или несвязанных features не должно менять sampled value другого feature.
 
-Rasterization and contribution accumulation consume no RNG.
+Rasterization и accumulation contributions не потребляют RNG.
 
-## Additive and order-independent composition
+## Аддитивная и независимая от порядка композиция
 
-Each supported surface feature materializes its own float64 contribution field.
+Каждый поддерживаемый surface feature materialize-ит собственное float64 contribution field.
 
-Features are processed in canonical ascending `feature.id` order. Signed contributions are accumulated in float64. Overlap is allowed and is not a conflict.
+Features обрабатываются в каноническом возрастающем порядке `feature.id`. Signed contributions аккумулируются в float64. Overlap разрешён и не считается conflict.
 
-No per-feature clamp is allowed.
+Clamp после каждого feature запрещён.
 
 ### Moisture
 
@@ -104,7 +104,7 @@ BaseMoisture64
 = Moisture64
 ```
 
-A moisture bias therefore also affects downstream terrestrial vegetation because vegetation potential is derived from final moisture.
+Таким образом bias moisture также влияет на downstream terrestrial vegetation, потому что potential vegetation выводится из финального moisture.
 
 ### Vegetation
 
@@ -120,61 +120,59 @@ VegetationPotential64
 = Vegetation64
 ```
 
-Canonical water is defined only by `water_depth_m > 0`.
+Canonical water определяется только как `water_depth_m > 0`.
 
-Only after all composition and water overrides are complete are canonical fields cast once to float32.
+Только после завершения всей композиции и water overrides canonical fields один раз приводятся к float32.
 
-## Water precedence
+## Приоритет water
 
-Surface biases cannot override canonical water semantics:
+Biases surface не могут переопределить canonical semantics water:
 
 ```text
 water_depth_m > 0 -> moisture = 1
 water_depth_m > 0 -> vegetation_density = 0
 ```
 
-This prevents generic terrestrial surface effects from creating dry water cells or terrestrial vegetation on canonical water.
+Это не позволяет универсальным terrestrial surface effects создавать сухие water cells или terrestrial vegetation на canonical water.
 
 ## Validation
 
-Surface validation checks at least:
+Validation Surface проверяет как минимум:
 
-- upstream layout exists and attempt index matches;
-- terrain and hydrology exist and match grid shape;
-- surface state exists, uses float32, is finite and in `[0,1]`;
-- canonical water overrides are exact;
-- every expected surface feature is applied exactly once;
-- deterministic recomputation matches the stored `SurfaceState` exactly.
+- upstream layout существует и attempt index совпадает;
+- terrain и hydrology существуют и совпадают с shape grid;
+- surface state существует, использует float32, имеет конечные значения в `[0,1]`;
+- canonical water overrides выполняются точно;
+- каждый ожидаемый surface feature применён ровно один раз;
+- детерминированный recomputation точно совпадает с сохранённым `SurfaceState`.
 
-Expected surface feature ids are all `GenerationPlan.features` with `family=surface`.
+Ожидаемые id surface features — все `GenerationPlan.features` с `family=surface`.
 
 ## Capability errors
 
-The attempt fails explicitly for unsupported/malformed surface feature semantics, including:
+Attempt явно завершается ошибкой для неподдерживаемой или некорректной semantics surface feature, включая:
 
-- surface family with non-surface effect stage;
-- missing materialized geometry;
-- reservation layout instead of concrete geometry;
-- geometry other than `AreaGeometry`;
-- unsupported surface operator;
-- wrong exact effect parameter set;
-- non-float resolved parameter recipe;
-- unsupported parameter sampler;
-- non-numeric or non-finite sampled value;
-- delta outside `[-1,1]`.
+- family surface с effect stage, отличной от surface;
+- отсутствующую materialized geometry;
+- reservation layout вместо конкретной geometry;
+- geometry, отличную от `AreaGeometry`;
+- неподдерживаемый surface operator;
+- неправильный точный набор effect parameters;
+- resolved parameter recipe не типа float;
+- неподдерживаемый sampler parameter;
+- sampled value, которое не является числовым или конечным;
+- delta вне `[-1,1]`.
 
-## Non-goals v0.1
+## Что не входит в v0.1
 
-Not included:
-
-- binary forest/wetland/biome masks;
-- climate, temperature, precipitation or seasonality;
-- soil simulation;
-- multiplicative or priority-based biases;
-- surface shaping operators;
-- edge falloff/feathering;
-- Band/Corridor surface influence;
+- binary masks forest/wetland/biome;
+- climate, temperature, precipitation или seasonality;
+- simulation soil;
+- multiplicative или priority-based biases;
+- shaping operators surface;
+- falloff/feathering границ;
+- влияние Surface для Band/Corridor;
 - aquatic vegetation;
-- setting-specific surface types or preset vocabulary.
+- surface types или vocabulary preset конкретного сеттинга.
 
-Setting-specific presets may resolve to these generic operators externally, but such vocabulary is not part of Core semantics.
+Presets конкретного сеттинга могут внешним образом разрешаться в эти универсальные operators, но такой vocabulary не является частью semantics Core.
