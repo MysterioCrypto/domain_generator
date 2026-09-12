@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-end-to-end-runtime-bundle-architecture-v0.1
-next_topic: final-validation-v0.1
+checkpoint: M2-final-validation-hard-v0.1
+next_topic: soft-constraint-compilation-scoring-v0.1
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -68,9 +68,12 @@ implemented_m2:
   - dependent-placement-near-best-selection-v0.1
   - placement-state-v0.1
   - placement-validation-v0.1
+  - final-validation-hard-v0.1
+  - final-neutral-ranking-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
   - end-to-end-runtime-bundle-v0.1
+  - final-validation-hard-v0.1
 implemented_infrastructure:
   - github-actions-pytest-ci-on-push-and-pull-request
 canonical_documents:
@@ -81,6 +84,7 @@ canonical_documents:
   contracts: docs/contracts/
   design_baseline: docs/design/core-0.1-generation-baseline.md
   runtime_bundle: docs/design/end-to-end-runtime-bundle-v0.1.md
+  final_validation_hard: docs/design/final-validation-hard-v0.1.md
   placement_reservations: docs/design/placement-reservation-materialization-v0.1.md
   dependent_placement: docs/design/dependent-placement-site-selection-v0.1.md
   dependent_placement_site_metrics: docs/design/dependent-placement-site-metrics-v0.1.md
@@ -133,7 +137,7 @@ world / setting / application
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology и canonical runtime water depth. Surface покрывает base moisture/vegetation и explicit area feature biases. Dependent point placement полностью реализован до runtime `PlacementState` и placement-stage validation.
+Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology и canonical runtime water depth. Surface покрывает base moisture/vegetation и explicit area feature biases. Dependent point placement реализован полностью. Final Validation теперь имеет production hard-only gate и neutral ranking для реально поддерживаемых compiler plans.
 
 ## Карта прогресса простыми словами
 
@@ -148,8 +152,9 @@ Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReserva
 [готово] dependent-placement site metrics
 [готово] candidate lattice + reservation filtering + hard requirements
 [готово] preference scoring + near-best + weighted final selection + PlacementState
+[готово] Final Validation hard-complete + neutral ranking
 [принято] end-to-end runtime / bundle architecture
-[следом] Final Validation v0.1
+[следом] soft constraint compilation + scoring semantics
 [потом] HydroFeature/lake materialization
 [потом] DomainData assembler
 [потом] bundle exporter + technical renderer + CLI/adapters
@@ -217,51 +222,41 @@ PlacementReservation
 -> placement validation
 ```
 
+## Final Validation v0.1 — hard-complete
+
+Normative semantics: `docs/design/final-validation-hard-v0.1.md`.
+
 Реализовано:
 
-- semantic `candidate_spacing_km` и `near_best_delta` через independent placement parameter RNG namespaces;
-- exact operator parameter set для `suitability_placement`;
-- intrinsic preferences `maximize`, `minimize`, `preferred_range`;
-- equal observed metric range даёт всем sites score `1.0`, включая all-`+inf` no-water case;
-- weighted mean suitability `[0,1]`;
-- inclusive near-best threshold `best - near_best_delta`;
-- final RNG namespace `("feature", id, "site-selection") / "weighted-choice"`;
-- cumulative weighted interval selection;
-- zero-total-weight fallback через RNG-protocol-v1 `choice()`;
-- runtime `PlacementState.final_points` отдельно от `LayoutCandidate`;
-- `CandidateState.placement` как downstream attempt output;
-- validation completeness, reservation containment, domain bounds, hard requirements и deterministic recomputation;
-- empty valid-site set отклоняет весь attempt без hidden retry/fallback;
-- invalid placement recipe остаётся capability error.
+- temporary final geometry view объединяет structural `LayoutCandidate.geometry_realizations` и deferred `PlacementState.final_points` без mutation upstream state;
+- Final проверяет наличие layout/terrain/hydrology/surface/placement, attempt identity, plan fingerprint и complete/disjoint final feature geometry sets;
+- все hard compiled constraints повторно оцениваются против final geometry в canonical `constraint.id` order;
+- Final использует существующую spatial measurement/predicate semantics через общий evaluation boundary и не содержит второго набора численных правил;
+- hard predicate failure является normal rejected attempt;
+- missing/incomplete upstream state является normal rejected attempt без constraint evaluation;
+- unsupported evaluator/predicate или вручную вставленный soft constraint являются capability error;
+- hard-only valid plan получает neutral ranking `(worst_effective_violation=0.0, weighted_mean_score=1.0)`;
+- Final не использует RNG, не делает IO и ничего не исправляет.
 
-## Следующий design gate: Final Validation v0.1
+## Следующий design gate: Soft Constraint Compilation & Scoring v0.1
 
-Generation baseline уже фиксирует global ranking:
+Current `DomainSpec` уже различает hard/soft constraints и имеет `weight`, а `GenerationPlan` уже имеет `CompiledScoring`, но current compiler slice явно отклоняет soft constraints.
 
-```text
-effective_violation = (1 - score) * weight
+До implementation нужно зафиксировать scoring semantics для generic relations, включая:
 
-candidate ranking:
-1. min worst effective violation
-2. max weighted mean score
-3. min attempt_index
-```
+- как `near`/`far_from` превращают distance в normalized score `[0,1]`;
+- scoring для `inside`/`outside`/`overlaps`/`crosses`/`adjacent`;
+- exact meaning `ideal`/`worst` и поведение за пределами диапазона;
+- какие relation/evaluator combinations входят в Core 0.1 capability;
+- aggregation `effective_violation = (1-score)*weight`;
+- weighted mean score и worst effective violation;
+- canonical ordering soft results;
+- поведение degenerate/equal thresholds;
+- отсутствие скрытого влияния intrinsic SiteProfile suitability на global ranking.
 
-При отсутствии soft constraints neutral ranking = `(0.0, 1.0)`.
+После этого Final Validation сможет перейти от neutral hard-only ranking к полному user-soft global ranking без изменения attempt-selection protocol.
 
-Но текущий compiler slice явно не компилирует user soft constraints. Поэтому нельзя считать Final Validation полностью реализованной, просто всегда выдавая neutral ranking.
-
-Перед implementation нужно отдельно решить:
-
-- где и когда оцениваются final user hard constraints, которые зависят от deferred final geometry;
-- где оцениваются user soft constraints;
-- какие evaluator/scoring recipes входят в Core 0.1 final evaluator registry;
-- как aggregate `HardConstraintResult` / `SoftConstraintResult` формируют final `ValidationResult`;
-- какие upstream completeness invariants проверяет final stage;
-- как избежать повторного применения stage-local constraints и двойного учёта;
-- какие unsupported compiled constructs являются capability error, а какие normal candidate rejection.
-
-## После Final Validation
+## После soft-scoring
 
 Следующие bounded checkpoints принятой end-to-end последовательности:
 
@@ -275,7 +270,6 @@ candidate ranking:
 
 ## Ещё не сделано
 
-- Final Validation production stage;
 - soft constraint scoring compilation/evaluation;
 - DomainData assembler/export bundle;
 - lake polygon vectorization / canonical `HydroFeature` materialization;
