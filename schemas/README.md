@@ -1,6 +1,6 @@
-# JSON Schema snapshots — Core 0.1
+# Снимки JSON Schema — Core 0.1
 
-This directory contains generated JSON Schema snapshots for the six root serialized contracts:
+Этот каталог содержит сгенерированные снимки JSON Schema для шести корневых сериализуемых контрактов:
 
 - `DomainSpec`
 - `GenerationPlan`
@@ -9,12 +9,12 @@ This directory contains generated JSON Schema snapshots for the six root seriali
 - `GenerationConfig`
 - `DomainData`
 
-Regenerate them with:
+Перегенерировать их можно командой:
 
 ```bash
 python -m domain_generator.schema_export
 ```
 
-The files target JSON Schema Draft 2020-12 and are generated from the Pydantic v2 models with aliases enabled. Snapshots use compact deterministic JSON so diffs reflect schema changes rather than formatting.
+Файлы используют JSON Schema Draft 2020-12 и генерируются из моделей Pydantic v2 с включёнными aliases. Снимки записываются в компактном детерминированном JSON, чтобы diff отражал изменения схемы, а не форматирования.
 
-Important boundary: JSON Schema captures the structural constraints expressible by Pydantic's schema generator. Cross-field checks implemented by `model_validator` (for example exact grid divisibility, aggregate validation state, or canonical `DomainData` field requirements) still require validation by the Python contract model/Core. The committed snapshots are therefore interchange/documentation schemas, not a replacement for Core validation.
+Важная граница: JSON Schema описывает только структурные ограничения, которые умеет выразить генератор схем Pydantic. Межполевые проверки, реализованные через `model_validator` — например точная делимость grid, согласованное агрегированное состояние validation или требования к canonical fields в `DomainData` — по-прежнему требуют проверки Python-моделью контракта/Core. Поэтому committed snapshots являются схемами обмена и документации, а не заменой валидации Core.
