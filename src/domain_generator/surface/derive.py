@@ -86,7 +86,7 @@ def distance_to_water_km(water_mask: np.ndarray, *, cell_size_km: float) -> np.n
     for column in range(columns):
         squared_cells[:, column] = _distance_transform_1d(horizontal[:, column])
 
-    return np.sqrt(squared_cells, dtype=np.float64) * float(cell_size_km)
+    return np.sqrt(squared_cells) * float(cell_size_km)
 
 
 def slope_degrees(elevation_m: np.ndarray, *, cell_size_km: float) -> np.ndarray:
@@ -148,12 +148,12 @@ def moisture_field(
         raise SurfaceCapabilityError("water_depth_m must match grid shape")
     if not np.isfinite(water_depth_m).all() or bool(np.any(water_depth_m < 0.0)):
         raise SurfaceCapabilityError("water_depth_m must be finite and non-negative")
-    for name, value, lower, upper, strict_positive in (
-        ("moisture_base", moisture_base, 0.0, 1.0, False),
-        ("water_moisture_boost", water_moisture_boost, 0.0, 1.0, False),
-        ("moisture_noise_amplitude", moisture_noise_amplitude, 0.0, 1.0, False),
+    for name, value in (
+        ("moisture_base", moisture_base),
+        ("water_moisture_boost", water_moisture_boost),
+        ("moisture_noise_amplitude", moisture_noise_amplitude),
     ):
-        if not isfinite(value) or value < lower or value > upper:
+        if not isfinite(value) or value < 0.0 or value > 1.0:
             raise SurfaceCapabilityError(f"{name} must be finite and in [0, 1]")
     for name, value in (
         ("water_moisture_decay_km", water_moisture_decay_km),
