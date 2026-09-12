@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-attempt-pipeline-skeleton
-next_topic: compiler-and-preset-registry-minimal-slice
+checkpoint: M2-compiler-registry-minimal-slice
+next_topic: first-layout-geometry-vertical-slice
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -55,6 +55,10 @@ implemented_m2:
   - runtime-candidate-state-v0.1
   - attempt-pipeline-skeleton-v0.1
   - deterministic-candidate-ranking-v0.1
+  - typed-preset-definition-v0.1
+  - in-memory-preset-registry-boundary
+  - deterministic-domain-spec-compiler-slice
+  - semantic-plan-fingerprint
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
@@ -77,57 +81,41 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены.
 
-`M2 — Deterministic pipeline` уже содержит полный serialized contract layer Core 0.1, generated JSON Schema snapshots Draft 2020-12, deterministic RNG v1 и минимальный runtime attempt orchestrator.
+`M2 — Deterministic pipeline` уже содержит полный serialized contract layer Core 0.1, generated JSON Schema snapshots Draft 2020-12, deterministic RNG v1, attempt orchestrator и первый compiler/preset-registry vertical slice.
 
-В `src/domain_generator` реализованы Pydantic v2-модели основных contracts и geometry/value types:
+RNG v1 зафиксирован нормативно в ADR-0010 и реализован через semantic namespaces, BLAKE2b-256 и `xoshiro256**`. Attempt skeleton реализует fixed stage order, early reject, отсутствие hidden retries и deterministic candidate ranking.
 
-- `DomainSpec`;
-- `GenerationPlan`;
-- `LayoutCandidate` / `PlacementReservation`;
-- `ValidationResult`;
-- `GenerationConfig`;
-- `DomainData`;
-- point/corridor/band/area/RegionSet geometry.
+Compiler slice теперь добавляет:
 
-Для шести root serialized contracts генерируются и коммитятся JSON Schema snapshots. JSON Schema является interchange/documentation layer, а cross-field правила из `model_validator` остаются ответственностью Python Core models.
+- типизированный `PresetDefinition`;
+- immutable in-memory `PresetRegistry` boundary с duplicate-id и known-operator checks;
+- loader-independent registry API: YAML/file loading намеренно ещё не реализован;
+- deterministic `compile_domain_spec()` из `DomainSpec` в immutable `GenerationPlan`;
+- сохранение layout/effect ownership параметров;
+- fixed/range/one_of overrides с проверкой preset domain;
+- перенос sampler recipe в Plan без attempt-specific sampling;
+- physical compilation normalized points, anchors и 3x3 domain regions;
+- feature-reference и geometry-part compatibility checks;
+- rejection unsupported deferred-to-deferred hard dependencies;
+- uint64 seed check на compiler boundary для RNG v1;
+- canonical `spec_fingerprint` и semantic `plan_fingerprint`, исключающий labels/tags/source provenance;
+- hard relation compilation для `near`, `far_from`, `inside`, `outside`, `crosses`, `overlaps`, `adjacent`.
 
-RNG v1 зафиксирован нормативно в ADR-0010 и реализован без зависимости от `random.Random` или NumPy RNG:
+Test presets существуют только внутри tests и не становятся Core content. Production preset YAML ещё не добавлялся.
 
-- semantic `RngKey = attempt_index + stage + scope + purpose`;
-- canonical length-prefixed binary namespace encoding;
-- BLAKE2b-256 с personalization `dg-rng-v1`;
-- 256-bit state `xoshiro256**`;
-- `next_u64`, `uniform01`, `uniform`, unbiased inclusive `integer_uniform`, `choice`;
-- independent streams per logical random task;
-- golden vectors и isolation/order-independence tests.
-
-`root_seed` на RNG boundary должен быть unsigned uint64. До compiler implementation это проверяет `RngFactory`; compiler позже должен отклонять неподдерживаемый seed до generation.
-
-Минимальный attempt/pipeline skeleton реализует уже принятый M1 lifecycle без реальных terrain/hydrology algorithms:
-
-- фиксированный порядок `layout -> terrain -> hydrology -> surface -> placement -> final`;
-- mutable runtime `CandidateState`, отдельный от serialized contracts;
-- один `AttemptContext` с immutable Plan, `attempt_index` и `RngFactory`;
-- каждый stage handler вызывается не более одного раза в attempt;
-- первый failed engine invariant или hard constraint завершает attempt немедленно;
-- завершённый valid attempt становится runtime `DomainCandidate`;
-- outer loop идёт по `attempt_index` по возрастанию, собирает до `target_valid_candidates` либо исчерпания budget;
-- если есть хотя бы один valid candidate, выбирается лучший по `worst_effective_violation`, затем `weighted_mean_score`, затем меньшему `attempt_index`;
-- если valid candidates нет, выбрасывается runtime `GenerationFailure`;
-- observability settings orchestrator не читает и на semantic result они не влияют.
-
-Stage handlers пока synthetic/injected: реальных layout/terrain/hydrology/surface/placement implementations ещё нет.
+Soft constraint scoring compilation пока намеренно не реализован: DomainSpec с soft constraint compiler отклоняет явно, потому что точная relation->scoring mapping ещё не была зафиксирована и не должна быть выдумана реализацией.
 
 ## Следующий шаг
 
-Перейти к минимальному compiler/preset registry slice: определить исполнимый registry boundary, несколько generic preset definitions для contract tests и compilation `DomainSpec -> GenerationPlan` без procedural geometry generation.
+Подключить первый настоящий layout/geometry vertical slice к уже существующим Plan + RNG + attempt orchestrator. Начать с одной generic geometry family/shape path, достаточной для проверки полного пути `Plan -> LayoutCandidate`, не пытаясь сразу реализовать все terrain/hydrology algorithms.
 
-После compiler можно подключить первый настоящий layout/geometry vertical slice к уже существующему attempt orchestrator.
+Перед этим отдельно решить только те детали layout algorithm, которые действительно влияют на deterministic semantics; illustrative mountain/fort examples не превращать в Core rules.
 
 ## Ещё не сделано
 
-- compiler и preset registry implementation;
-- реальные stage handlers;
+- YAML/file preset loader и production preset catalog;
+- soft constraint scoring compilation;
+- реальные layout stage handlers и placement reservation materialization;
 - geometry/grid operators;
 - terrain/hydrology/surface/placement generators;
 - DomainData assembler/export bundle;
