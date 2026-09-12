@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from domain_generator.contracts.plan import GenerationPlan, PlanDomain, PlanGrid, PlanHydrology, PlanSource
+from domain_generator.contracts.plan import GenerationPlan, PlanDomain, PlanGrid, PlanHydrology, PlanSource, PlanSurface
 from domain_generator.hydrology import (
     LakeCandidate,
     classify_stream_mask,
@@ -49,6 +49,14 @@ def make_plan(
             lake_min_depth_m=lake_min_depth_m,
             river_depth_at_threshold_m=river_depth_at_threshold_m,
             river_depth_exponent=river_depth_exponent,
+        ),
+        surface=PlanSurface(
+            moisture_base=0.35,
+            water_moisture_boost=0.55,
+            water_moisture_decay_km=8.0,
+            moisture_noise_amplitude=0.1,
+            moisture_noise_scale_km=12.0,
+            vegetation_slope_zero_deg=45.0,
         ),
         features=(),
         constraints=(),
