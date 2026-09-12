@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from domain_generator.contracts.plan import GenerationPlan, PlanDomain, PlanGrid, PlanSource
+from domain_generator.contracts.plan import GenerationPlan, PlanDomain, PlanGrid, PlanHydrology, PlanSource
 from domain_generator.grid import GridAdapter
 
 
@@ -18,6 +18,11 @@ def make_plan() -> GenerationPlan:
         seed=1,
         domain=PlanDomain(width_km=2.0, height_km=2.0),
         grid=PlanGrid(cell_size_km=1.0, rows=2, columns=2),
+        hydrology=PlanHydrology(
+            stream_threshold_km2=1.0,
+            lake_min_area_km2=1.0,
+            lake_min_depth_m=1.0,
+        ),
         features=(),
         constraints=(),
     )
