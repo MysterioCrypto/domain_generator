@@ -169,6 +169,23 @@ def test_lake_outlet_plus_ordinary_tributary_creates_effective_confluence() -> N
     assert confluences[0].position.x_km == pytest.approx(2.5)
     assert confluences[0].position.y_km == pytest.approx(1.5)
 
+    lake_outlet_id = next(
+        node_id
+        for node_id, node in network.nodes.items()
+        if node.kind is RiverNodeKind.LAKE_OUTLET
+    )
+    confluence_id = next(
+        node_id
+        for node_id, node in network.nodes.items()
+        if node.kind is RiverNodeKind.CONFLUENCE
+    )
+    lake_branch = next(
+        segment
+        for segment in network.segments.values()
+        if segment.from_node == lake_outlet_id and segment.to_node == confluence_id
+    )
+    assert lake_branch.properties.catchment_area_km2 == pytest.approx(1.0)
+
 
 def test_corner_domain_outlet_uses_north_east_south_west_precedence() -> None:
     plan = make_plan(rows=3, columns=3)
