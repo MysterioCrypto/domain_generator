@@ -4,7 +4,13 @@ from math import hypot, inf
 
 from ..compiler.compile import semantic_plan_fingerprint
 from ..contracts.common import FeaturePart
-from ..contracts.geometry import CorridorGeometry, PointGeometry, WorldPoint
+from ..contracts.geometry import (
+    BandGeometry,
+    CorridorGeometry,
+    PointGeometry,
+    WidthSample,
+    WorldPoint,
+)
 from ..contracts.layout import LayoutCandidate, SourcePlanRef
 from ..contracts.plan import (
     CompiledConstraint,
@@ -15,6 +21,7 @@ from ..contracts.plan import (
     GenerationPlan,
     GeometryLayoutRecipe,
     GeometryShape,
+    ParameterType,
 )
 from ..contracts.validation import (
     EngineInvariantGroup,
@@ -53,6 +60,15 @@ def _corridor_stream_key(attempt_index: int, feature_id: str, purpose: str) -> R
         attempt_index=attempt_index,
         stage=RngStage.LAYOUT,
         scope=("feature", feature_id, "geometry", "corridor"),
+        purpose=purpose,
+    )
+
+
+def _band_stream_key(attempt_index: int, feature_id: str, purpose: str) -> RngKey:
+    return RngKey(
+        attempt_index=attempt_index,
+        stage=RngStage.LAYOUT,
+        scope=("feature", feature_id, "geometry", "band"),
         purpose=purpose,
     )
 
@@ -112,6 +128,61 @@ def _sample_corridor_parameters(
     if not 0.0 <= curvature_value <= 1.0:
         raise LayoutCapabilityError("corridor curvature must resolve inside [0, 1]")
     return control_point_count, curvature_value
+
+
+def _sample_band_parameters(
+    layout: GeometryLayoutRecipe,
+    *,
+    feature_id: str,
+    attempt_index: int,
+    rng_factory: RngFactory,
+) -> tuple[int, float, int]:
+    expected = {"control_point_count", "curvature", "width_km", "width_sample_count"}
+    actual = set(layout.parameters)
+    if actual != expected:
+        raise LayoutCapabilityError(
+            f"band feature {feature_id!r} requires exactly layout parameters "
+            f"{sorted(expected)}, got {sorted(actual)}"
+        )
+
+    width_recipe = layout.parameters["width_km"]
+    if width_recipe.type is not ParameterType.FLOAT:
+        raise LayoutCapabilityError("band width_km must be a float resolved parameter")
+
+    sampled: dict[str, object] = {}
+    for name in ("control_point_count", "curvature", "width_sample_count"):
+        stream = rng_factory.stream(_parameter_stream_key(attempt_index, feature_id, name))
+        sampled[name] = sample_resolved_parameter(layout.parameters[name], stream)
+
+    control_point_count = sampled["control_point_count"]
+    curvature = sampled["curvature"]
+    width_sample_count = sampled["width_sample_count"]
+
+    if isinstance(control_point_count, bool) or not isinstance(control_point_count, int):
+        raise LayoutCapabilityError("band control_point_count must resolve to integer")
+    if control_point_count < 0:
+        raise LayoutCapabilityError("band control_point_count must be >= 0")
+    if isinstance(curvature, bool) or not isinstance(curvature, (int, float)):
+        raise LayoutCapabilityError("band curvature must resolve to numeric value")
+    curvature_value = float(curvature)
+    if not 0.0 <= curvature_value <= 1.0:
+        raise LayoutCapabilityError("band curvature must resolve inside [0, 1]")
+    if isinstance(width_sample_count, bool) or not isinstance(width_sample_count, int):
+        raise LayoutCapabilityError("band width_sample_count must resolve to integer")
+    if width_sample_count < 2:
+        raise LayoutCapabilityError("band width_sample_count must be >= 2")
+
+    return control_point_count, curvature_value, width_sample_count
+
+
+def _sample_band_width(recipe, stream) -> float:
+    sampled = sample_resolved_parameter(recipe, stream)
+    if isinstance(sampled, bool) or not isinstance(sampled, (int, float)):
+        raise LayoutCapabilityError("band width_km must resolve to numeric value")
+    value = float(sampled)
+    if value <= 0.0:
+        raise LayoutCapabilityError("band width_km must resolve to > 0")
+    return value
 
 
 def _ray_distance_to_domain_boundary(
@@ -220,6 +291,117 @@ def _generate_corridor(
     return CorridorGeometry(centerline=tuple(points))
 
 
+def _generate_band(
+    plan: GenerationPlan,
+    layout: GeometryLayoutRecipe,
+    *,
+    feature_id: str,
+    attempt_index: int,
+    rng_factory: RngFactory,
+) -> BandGeometry:
+    control_point_count, curvature, width_sample_count = _sample_band_parameters(
+        layout,
+        feature_id=feature_id,
+        attempt_index=attempt_index,
+        rng_factory=rng_factory,
+    )
+
+    start_stream = rng_factory.stream(_band_stream_key(attempt_index, feature_id, "start"))
+    end_stream = rng_factory.stream(_band_stream_key(attempt_index, feature_id, "end"))
+    control_stream = rng_factory.stream(
+        _band_stream_key(attempt_index, feature_id, "control-points")
+    )
+
+    start = WorldPoint(
+        x_km=plan.domain.width_km * start_stream.uniform01(),
+        y_km=plan.domain.height_km * start_stream.uniform01(),
+    )
+    end = WorldPoint(
+        x_km=plan.domain.width_km * end_stream.uniform01(),
+        y_km=plan.domain.height_km * end_stream.uniform01(),
+    )
+
+    vx = end.x_km - start.x_km
+    vy = end.y_km - start.y_km
+    length = hypot(vx, vy)
+    points: list[WorldPoint] = [start]
+
+    if length <= GEOMETRY_EPSILON_KM:
+        points.extend(start for _ in range(control_point_count))
+        points.append(end)
+    else:
+        nx = -vy / length
+        ny = vx / length
+        for index in range(1, control_point_count + 1):
+            t = index / (control_point_count + 1)
+            base = WorldPoint(
+                x_km=start.x_km + vx * t,
+                y_km=start.y_km + vy * t,
+            )
+            envelope = 4.0 * t * (1.0 - t)
+            strength = curvature * envelope
+            random_signed = control_stream.uniform(-1.0, 1.0)
+
+            if random_signed >= 0.0:
+                available = _ray_distance_to_domain_boundary(
+                    base,
+                    dx=nx,
+                    dy=ny,
+                    width_km=plan.domain.width_km,
+                    height_km=plan.domain.height_km,
+                )
+                offset = random_signed * strength * available
+            else:
+                available = _ray_distance_to_domain_boundary(
+                    base,
+                    dx=-nx,
+                    dy=-ny,
+                    width_km=plan.domain.width_km,
+                    height_km=plan.domain.height_km,
+                )
+                offset = -((-random_signed) * strength * available)
+
+            points.append(
+                WorldPoint(
+                    x_km=base.x_km + nx * offset,
+                    y_km=base.y_km + ny * offset,
+                )
+            )
+        points.append(end)
+
+    width_recipe = layout.parameters["width_km"]
+    width_start_stream = rng_factory.stream(
+        _band_stream_key(attempt_index, feature_id, "width-start")
+    )
+    width_end_stream = rng_factory.stream(
+        _band_stream_key(attempt_index, feature_id, "width-end")
+    )
+    width_internal_stream = rng_factory.stream(
+        _band_stream_key(attempt_index, feature_id, "width-internal")
+    )
+
+    width_profile: list[WidthSample] = []
+    for index in range(width_sample_count):
+        t = index / (width_sample_count - 1)
+        if index == 0:
+            stream = width_start_stream
+        elif index == width_sample_count - 1:
+            stream = width_end_stream
+        else:
+            stream = width_internal_stream
+        width_profile.append(
+            WidthSample(
+                t=t,
+                width_km=_sample_band_width(width_recipe, stream),
+            )
+        )
+
+    return BandGeometry(
+        centerline=tuple(points),
+        width_profile=tuple(width_profile),
+    )
+
+
 def generate_geometry_layout(
     plan: GenerationPlan,
     *,
@@ -227,7 +409,7 @@ def generate_geometry_layout(
     rng_factory: RngFactory,
 ) -> LayoutCandidate:
     """Realize supported geometry-mode features with isolated semantic RNG streams."""
-    geometries: dict[str, PointGeometry | CorridorGeometry] = {}
+    geometries: dict[str, PointGeometry | CorridorGeometry | BandGeometry] = {}
 
     for feature in sorted(plan.features, key=lambda item: item.id):
         layout = feature.layout
@@ -255,6 +437,14 @@ def generate_geometry_layout(
                 attempt_index=attempt_index,
                 rng_factory=rng_factory,
             )
+        elif layout.shape is GeometryShape.BAND:
+            geometries[feature.id] = _generate_band(
+                plan,
+                layout,
+                feature_id=feature.id,
+                attempt_index=attempt_index,
+                rng_factory=rng_factory,
+            )
         else:
             raise LayoutCapabilityError(
                 f"geometry shape {layout.shape.value!r} is not implemented yet: {feature.id!r}"
@@ -269,16 +459,16 @@ def generate_geometry_layout(
     )
 
 
-def _corridor_arc_center(corridor: CorridorGeometry) -> PointGeometry:
+def _polyline_arc_center(centerline: tuple[WorldPoint, ...], *, geometry_name: str) -> PointGeometry:
     segments: list[tuple[WorldPoint, WorldPoint, float]] = []
     total = 0.0
-    for left, right in zip(corridor.centerline, corridor.centerline[1:]):
+    for left, right in zip(centerline, centerline[1:]):
         length = hypot(right.x_km - left.x_km, right.y_km - left.y_km)
         segments.append((left, right, length))
         total += length
 
     if total <= GEOMETRY_EPSILON_KM:
-        raise LayoutCapabilityError("cannot resolve center of degenerate corridor")
+        raise LayoutCapabilityError(f"cannot resolve center of degenerate {geometry_name}")
 
     target = total * 0.5
     traversed = 0.0
@@ -291,8 +481,16 @@ def _corridor_arc_center(corridor: CorridorGeometry) -> PointGeometry:
             )
         traversed += length
 
-    last = corridor.centerline[-1]
+    last = centerline[-1]
     return PointGeometry(x_km=last.x_km, y_km=last.y_km)
+
+
+def _corridor_arc_center(corridor: CorridorGeometry) -> PointGeometry:
+    return _polyline_arc_center(corridor.centerline, geometry_name="corridor")
+
+
+def _band_arc_center(band: BandGeometry) -> PointGeometry:
+    return _polyline_arc_center(band.centerline, geometry_name="band")
 
 
 def _resolve_ref(ref: CompiledSpatialRef, candidate: LayoutCandidate):
@@ -322,6 +520,23 @@ def _resolve_ref(ref: CompiledSpatialRef, candidate: LayoutCandidate):
             return _corridor_arc_center(geometry)
         raise LayoutCapabilityError(
             f"corridor part {ref.part.value!r} is not implemented in corridor slice"
+        )
+
+    if isinstance(geometry, BandGeometry):
+        if ref.part is FeaturePart.START:
+            point = geometry.centerline[0]
+            return PointGeometry(x_km=point.x_km, y_km=point.y_km)
+        if ref.part is FeaturePart.END:
+            point = geometry.centerline[-1]
+            return PointGeometry(x_km=point.x_km, y_km=point.y_km)
+        if ref.part is FeaturePart.CENTER:
+            return _band_arc_center(geometry)
+        if ref.part in (FeaturePart.WHOLE, FeaturePart.BOUNDARY):
+            raise LayoutCapabilityError(
+                f"band part {ref.part.value!r} requires footprint materialization, not implemented yet"
+            )
+        raise LayoutCapabilityError(
+            f"band part {ref.part.value!r} is not implemented in band slice"
         )
 
     raise LayoutCapabilityError(
@@ -386,12 +601,12 @@ def _measure(constraint: CompiledConstraint, candidate: LayoutCandidate) -> tupl
     if evaluator.type in ("contained_fraction", "overlap_fraction"):
         if not isinstance(subject, PointGeometry) or not isinstance(target, CompiledRectangle):
             raise LayoutCapabilityError(
-                f"{evaluator.type} corridor slice currently supports point -> rectangle only"
+                f"{evaluator.type} geometry slice currently supports point -> rectangle only"
             )
         return (1.0 if _point_in_rectangle(subject, target) else 0.0), None
 
     raise LayoutCapabilityError(
-        f"layout evaluator {evaluator.type!r} is not implemented in corridor slice"
+        f"layout evaluator {evaluator.type!r} is not implemented in geometry slice"
     )
 
 
@@ -408,7 +623,7 @@ def _predicate_satisfied(predicate_type: str, measured: float, threshold: float)
 def _geometry_inside_domain(geometry, plan: GenerationPlan) -> bool:
     if isinstance(geometry, PointGeometry):
         points = (geometry,)
-    elif isinstance(geometry, CorridorGeometry):
+    elif isinstance(geometry, (CorridorGeometry, BandGeometry)):
         points = geometry.centerline
     else:
         return False
@@ -427,18 +642,43 @@ def _corridor_nondegenerate(geometry) -> bool:
     return hypot(end.x_km - start.x_km, end.y_km - start.y_km) > GEOMETRY_EPSILON_KM
 
 
+def _band_nondegenerate(geometry) -> bool:
+    if not isinstance(geometry, BandGeometry):
+        return True
+    start = geometry.centerline[0]
+    end = geometry.centerline[-1]
+    return hypot(end.x_km - start.x_km, end.y_km - start.y_km) > GEOMETRY_EPSILON_KM
+
+
+def _band_width_profile_valid(geometry) -> bool:
+    if not isinstance(geometry, BandGeometry):
+        return True
+    samples = geometry.width_profile
+    return (
+        len(samples) >= 2
+        and samples[0].t == 0.0
+        and samples[-1].t == 1.0
+        and all(left.t < right.t for left, right in zip(samples, samples[1:]))
+        and all(sample.width_km > 0.0 for sample in samples)
+    )
+
+
 def validate_geometry_layout(
     plan: GenerationPlan,
     candidate: LayoutCandidate,
     *,
     attempt_index: int,
 ) -> ValidationResult:
-    """Observe supported point/corridor layout without mutation or repair."""
+    """Observe supported point/corridor/band layout without mutation or repair."""
     expected_ids = {
         feature.id
         for feature in plan.features
         if isinstance(feature.layout, GeometryLayoutRecipe)
-        and feature.layout.shape in (GeometryShape.POINT, GeometryShape.CORRIDOR)
+        and feature.layout.shape in (
+            GeometryShape.POINT,
+            GeometryShape.CORRIDOR,
+            GeometryShape.BAND,
+        )
     }
     actual_ids = set(candidate.geometry_realizations)
     expected_fingerprint = semantic_plan_fingerprint(plan)
@@ -468,6 +708,20 @@ def validate_geometry_layout(
             id="layout-corridor-nondegenerate",
             passed=all(
                 _corridor_nondegenerate(geometry)
+                for geometry in candidate.geometry_realizations.values()
+            ),
+        ),
+        EngineInvariantResult(
+            id="layout-band-nondegenerate",
+            passed=all(
+                _band_nondegenerate(geometry)
+                for geometry in candidate.geometry_realizations.values()
+            ),
+        ),
+        EngineInvariantResult(
+            id="layout-band-width-profile-valid",
+            passed=all(
+                _band_width_profile_valid(geometry)
                 for geometry in candidate.geometry_realizations.values()
             ),
         ),
@@ -513,7 +767,7 @@ def validate_geometry_layout(
 
 
 def geometry_layout_stage(context: AttemptContext, state: CandidateState) -> ValidationResult:
-    """Point/corridor layout StageHandler for the attempt orchestrator."""
+    """Point/corridor/band layout StageHandler for the attempt orchestrator."""
     candidate = generate_geometry_layout(
         context.plan,
         attempt_index=context.attempt_index,
