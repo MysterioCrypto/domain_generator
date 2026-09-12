@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import floor, isfinite
 
 from .contracts.geometry import PointGeometry
 from .contracts.plan import GenerationPlan
@@ -38,3 +39,22 @@ class GridAdapter:
             x_km=(column + 0.5) * self.cell_size_km,
             y_km=self.height_km - (row + 0.5) * self.cell_size_km,
         )
+
+    def containing_cell(self, x_km: float, y_km: float) -> tuple[int, int]:
+        """Return the cell containing a world-space point using canonical boundary ties.
+
+        Internal vertical boundaries belong to the eastern cell. Internal horizontal
+        boundaries belong to the northern cell. The outer north/east boundaries are
+        clamped to the final in-domain cell.
+        """
+        if not isfinite(x_km) or not isfinite(y_km):
+            raise ValueError("world point coordinates must be finite")
+        if not 0.0 <= x_km <= self.width_km:
+            raise ValueError("x_km is outside domain")
+        if not 0.0 <= y_km <= self.height_km:
+            raise ValueError("y_km is outside domain")
+
+        column = min(self.columns - 1, int(floor(x_km / self.cell_size_km)))
+        south_index = min(self.rows - 1, int(floor(y_km / self.cell_size_km)))
+        row = self.rows - 1 - south_index
+        return row, column
