@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-terrain-area-raise-v0.1
-next_topic: terrain-band-ridge-semantics
+checkpoint: M2-terrain-band-ridge-v0.1
+next_topic: terrain-shaping-semantics
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -39,6 +39,8 @@ implemented_m2:
   - canonical-grid-cell-center-adapter-v0.1
   - terrain-state-v0.1
   - terrain-area-raise-v0.1
+  - world-space-value-noise-v1
+  - terrain-band-ridge-v0.1
   - terrain-validation-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
@@ -52,6 +54,8 @@ canonical_documents:
   placement_reservations: docs/design/placement-reservation-materialization-v0.1.md
   dependent_placement: docs/design/dependent-placement-site-selection-v0.1.md
   terrain_area_raise: docs/design/terrain-area-raise-v0.1.md
+  terrain_band_ridge: docs/design/terrain-band-ridge-v0.1.md
+  world_space_noise: docs/design/world-space-value-noise-v1.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
 ---
 
@@ -69,40 +73,74 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Семантика final dependent placement принята и документирована, но runtime implementation отложена до появления всех необходимых upstream fields.
 
-Теперь добавлен первый реальный numerical world layer: **canonical terrain elevation**.
+Canonical terrain elevation теперь поддерживает два additive structural operator: `AreaGeometry + raise` и `BandGeometry + ridge`.
 
-### Layout + PlacementReservation
+## Карта прогресса простыми словами
 
-- point — deterministic point inside domain;
-- corridor — ordered polyline с isolated RNG streams;
-- band — centerline + deterministic full-width profile;
-- area — simple CCW polygon;
-- reservation — canonical `RegionSet` через hard `inside/outside/near/far_from` semantics.
+Это high-level представление проекта без внутренних архитектурных деталей:
 
-Boolean geometry backend — exact pinned `shapely==2.1.2` / GEOS 3.13.1. Backend objects не входят в serialized contracts.
+```text
+[готово] описание карты
+[готово] генерация геометрии объектов
+[готово] ограничения, где объекты можно размещать
+[готово] базовое поле высот
+[готово] Area -> поднятый регион
+[готово] Band -> плавный хребет
+[дальше] изменение уже созданного рельефа
+[потом] вода
+[потом] влажность/растительность
+[потом] размещение POI
+[потом] сборка финального мира
+```
 
-### Terrain baseline / Area Raise
+Текущий этап проекта — конец базовой **structural terrain** части и переход к **terrain shaping**: от простого суммирования вкладов высоты к операциям, которые изменяют уже накопленное поле рельефа.
 
-Normative semantics: `docs/design/terrain-area-raise-v0.1.md`.
+### Terrain baseline
 
 Реализовано:
 
-- runtime `TerrainState.elevation_m`;
-- canonical elevation shape `(rows, columns)`, dtype `float32`, unit meters;
-- BaseField = `0.0 m`, где zero datum не означает water/sea;
-- canonical grid adapter: world origin southwest, raster row 0 north;
-- cell-center mapping `x=(col+0.5)*cell_size`, `y=height-(row+0.5)*cell_size`;
-- `AreaGeometry` rasterization по cell-center inside/on polygon;
-- первый terrain operator `raise` с единственным effect parameter `height_m > 0`;
-- terrain parameter RNG namespace `terrain / feature-id / parameter / sample`;
-- отдельный float64 contribution на feature;
-- additive accumulation в sorted feature-id order;
-- один final cast `float64 -> float32` после structural accumulation;
-- `CandidateState.terrain` как downstream runtime state;
-- terrain validation: layout causality, attempt match, shape, dtype, finite values и complete feature application;
-- unsupported terrain operator/geometry не игнорируется и даёт capability error.
+- runtime `TerrainState.elevation_m`, canonical float32 meters;
+- BaseField = `0.0 m`;
+- canonical grid adapter и cell-center world mapping;
+- каждый terrain feature создаёт отдельный float64 contribution;
+- contributions применяются в sorted feature-id order;
+- один final cast `float64 -> float32` после additive structural phase;
+- terrain validation для causality/shape/dtype/finite/complete feature application.
 
-Не реализованы shaping operators и naturalistic falloff/noise: первый slice намеренно даёт резкую area mask.
+### Area Raise
+
+Normative semantics: `docs/design/terrain-area-raise-v0.1.md`.
+
+`AreaGeometry + raise(height_m)` даёт constant additive contribution внутри/on area по cell-center inclusion.
+
+### Band Ridge
+
+Normative semantics: `docs/design/terrain-band-ridge-v0.1.md`.
+
+Реализовано:
+
+- nearest point projection каждого cell center на ordered band polyline;
+- deterministic earliest-segment tie break;
+- normalized `t` по total centerline arc length;
+- linear interpolation canonical full-width profile;
+- normalized cross-band distance `u = distance / half_width`;
+- profile `(1-u)^profile_power` внутри effective band;
+- `height_m > 0`, `profile_power > 0`, `roughness in [0,1]`, `roughness_scale_km > 0`;
+- roughness деформирует transverse distance, не изменяя centerline peak;
+- ridge остаётся additive и суммируется с area/raise.
+
+### World-space coherent noise v1
+
+Normative semantics: `docs/design/world-space-value-noise-v1.md`.
+
+Reusable primitive:
+
+- world-space physical `scale_km`;
+- random-access lattice nodes через independent RNG-v1 keys;
+- node values не зависят от raster traversal/order;
+- cubic smoothstep + bilinear interpolation;
+- no hidden scale defaults, octaves или fractal composition;
+- golden regression vector зафиксирован в tests.
 
 ### Dependent placement site selection — accepted design, not implemented
 
@@ -112,23 +150,22 @@ Normative semantics: `docs/design/dependent-placement-site-selection-v0.1.md`.
 
 ## Следующий шаг
 
-Следующий bounded design-вопрос — **terrain band/ridge semantics v0.1**: как `BandGeometry.centerline + width_profile` превращается в smooth additive elevation contribution.
+Следующий bounded design-вопрос — **terrain shaping semantics v0.1**.
 
-Нужно отдельно определить:
+Нужно отдельно определить границу structural additive phase и shaping phase для generic operators вроде `flatten`/`blend`, включая:
 
-- distance-to-centerline и local width interpolation;
-- normalized cross-band profile/falloff;
-- `height_m`/ridge profile parameters;
-- поведение за пределами band width;
-- coherent perturbation/noise boundary и его RNG namespace;
-- clipping к raster domain;
-- как сохранить additive/order-independent terrain semantics.
+- что именно shaping operator читает: BaseField или уже accumulated StructuralElevation;
+- deterministic order для noncommutative shaping operators;
+- как задаётся target elevation / blend strength / falloff;
+- как обнаруживаются несовместимые overlapping shaping regions;
+- нужен ли сначала отдельный additive `depress` operator или его разумнее включить в тот же checkpoint;
+- validation semantics до hydrology.
 
-До принятия этих правил `ridge` operator не реализовывать.
+До принятия этих правил shaping operators не реализовывать.
 
 ## Ещё не сделано
 
-- terrain band/ridge/depress/flatten/blend/noise operators;
+- terrain `depress`/`flatten`/`blend` и shaping phase;
 - hydrology generator;
 - surface generator;
 - dependent placement final point selection runtime;
