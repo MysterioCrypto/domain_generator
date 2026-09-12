@@ -4,7 +4,7 @@ kind: design
 status: accepted
 normative: true
 target: core-0.1
-implemented: false
+implemented: true
 ---
 
 # Soft Constraint Compilation & Scoring v0.1
@@ -86,7 +86,7 @@ Soft relation компилируется в тот же `CompiledEvaluator`, ч�
 | `inside` | `contained_fraction` | больше лучше | `1.0` | `0.0` |
 | `outside` | `overlap_fraction` | меньше лучше | `0.0` | `1.0` |
 | `overlaps` | `overlap_fraction` | больше лучше | `minimum_fraction` | `0.0` |
-| `adjacent` | `distance` | меньше лучше | `0 km` | `max_gap_km` |
+| `adjacent` | `boundary_gap` | меньше лучше | `0 km` | `max_gap_km` |
 | `crosses` | `crossing_length` | больше лучше | `minimum_crossing_length_km` | `0 km` |
 
 Для `near` параметр `max_distance_km` в soft mode является scale ухудшения preference: `0 km -> 1`, `max_distance_km -> 0`, большее расстояние остаётся `0`.
