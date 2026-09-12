@@ -5,8 +5,8 @@ from .config import GenerationConfig, ObservabilityConfig, SemanticGenerationCon
 from .data import DomainData, FieldDescriptor, FieldRole, RiverNetwork
 from .geometry import AreaGeometry, BandGeometry, CorridorGeometry, Geometry, PointGeometry, RegionSet, WorldPoint
 from .layout import LayoutCandidate, PlacementReservation
-from .plan import GenerationPlan, PlanHydrology, ResolvedFeature
-from .spec import ConstraintSpec, DomainSpec, FeatureSpec, HydrologySpec
+from .plan import GenerationPlan, PlanHydrology, PlanSurface, ResolvedFeature
+from .spec import ConstraintSpec, DomainSpec, FeatureSpec, HydrologySpec, SurfaceSpec
 from .validation import RankingResult, ValidationResult, ValidationStage
 
 __all__ = [
@@ -30,6 +30,7 @@ __all__ = [
     "ObservabilityConfig",
     "PlacementReservation",
     "PlanHydrology",
+    "PlanSurface",
     "PointGeometry",
     "RankingResult",
     "RegionSet",
@@ -37,6 +38,7 @@ __all__ = [
     "ResolvedFeature",
     "RiverNetwork",
     "SemanticGenerationConfig",
+    "SurfaceSpec",
     "ValidationResult",
     "ValidationStage",
     "WorldPoint",
