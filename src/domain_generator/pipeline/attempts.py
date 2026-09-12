@@ -8,6 +8,7 @@ from ..contracts.config import GenerationConfig
 from ..contracts.layout import LayoutCandidate
 from ..contracts.plan import GenerationPlan
 from ..contracts.validation import RankingResult, ValidationResult, ValidationStage
+from ..terrain.state import TerrainState
 from .rng import RngFactory, UINT64_MAX
 
 
@@ -39,6 +40,7 @@ class CandidateState:
 
     attempt_index: int
     layout: LayoutCandidate | None = None
+    terrain: TerrainState | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.attempt_index, bool) or not isinstance(self.attempt_index, int):
@@ -180,8 +182,6 @@ def run_attempt(
         state=state,
         validations=tuple(validations),
     )
-    # Access once here so a malformed final stage fails as an engine/pipeline bug,
-    # not later during candidate selection.
     _ = candidate.ranking
     return candidate
 
