@@ -125,6 +125,14 @@ def base_spec() -> dict:
             "river_depth_at_threshold_m": 0.5,
             "river_depth_exponent": 0.3,
         },
+        "surface": {
+            "moisture_base": 0.35,
+            "water_moisture_boost": 0.55,
+            "water_moisture_decay_km": 8.0,
+            "moisture_noise_amplitude": 0.1,
+            "moisture_noise_scale_km": 12.0,
+            "vegetation_slope_zero_deg": 45.0,
+        },
         "features": [
             {
                 "id": "mountain-01",
@@ -178,6 +186,9 @@ def test_compile_resolves_grid_feature_recipes_and_hard_constraints() -> None:
     assert plan.hydrology.lake_min_depth_m == 2.0
     assert plan.hydrology.river_depth_at_threshold_m == 0.5
     assert plan.hydrology.river_depth_exponent == 0.3
+    assert plan.surface.moisture_base == 0.35
+    assert plan.surface.water_moisture_decay_km == 8.0
+    assert plan.surface.vegetation_slope_zero_deg == 45.0
 
     mountain = plan.features[0]
     assert mountain.id == "mountain-01"
@@ -368,6 +379,18 @@ def test_semantic_plan_fingerprint_includes_hydrology_recipe() -> None:
     spec_a = DomainSpec.model_validate(base_spec())
     changed = base_spec()
     changed["hydrology"]["river_depth_exponent"] = 0.45
+    spec_b = DomainSpec.model_validate(changed)
+
+    plan_a = compile_domain_spec(spec_a, registry=registry(), generator_version="0.1.0.dev0")
+    plan_b = compile_domain_spec(spec_b, registry=registry(), generator_version="0.1.0.dev0")
+
+    assert semantic_plan_fingerprint(plan_a) != semantic_plan_fingerprint(plan_b)
+
+
+def test_semantic_plan_fingerprint_includes_surface_recipe() -> None:
+    spec_a = DomainSpec.model_validate(base_spec())
+    changed = base_spec()
+    changed["surface"]["moisture_base"] = 0.4
     spec_b = DomainSpec.model_validate(changed)
 
     plan_a = compile_domain_spec(spec_a, registry=registry(), generator_version="0.1.0.dev0")
