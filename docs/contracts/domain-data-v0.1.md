@@ -6,9 +6,9 @@ normative: false
 target: core-0.1
 ---
 
-# DomainData v0.1 — draft
+# DomainData v0.1 — черновик
 
-`DomainData` описывает уже принятый мир. Он не хранит recipe generation, reservations, rejected attempts или обязательную debug history.
+`DomainData` описывает уже принятый мир. Он не хранит recipe генерации, reservations, rejected attempts или обязательную историю debug.
 
 ## Корень
 
@@ -46,11 +46,11 @@ networks: {}
 validation: {}
 ```
 
-`DomainData` самодостаточен для downstream consumers: renderer/exporter не обязан загружать GenerationPlan только ради размеров мира или final feature metadata.
+`DomainData` самодостаточен для downstream consumers: renderer/exporter не обязан загружать `GenerationPlan` только ради размеров мира или финальной metadata features.
 
 ## Provenance
 
-Provenance позволяет определить exact generation context принятого результата. `accepted_attempt_index` — выигравший valid attempt. Rejected attempts остаются optional debug artifacts.
+Provenance позволяет определить точный контекст генерации принятого результата. `accepted_attempt_index` — выигравший валидный attempt. Rejected attempts остаются необязательными debug artifacts.
 
 `generation_config_fingerprint` вычисляется только из semantic execution settings; observability/debug settings туда не входят.
 
@@ -75,9 +75,9 @@ output/
     └── validation.json        # optional
 ```
 
-Preview/debug files не являются source of truth.
+Preview/debug files не являются источником истины.
 
-## Fields
+## Поля
 
 Крупные raster arrays не встраиваются в JSON. `domain.json` содержит descriptors:
 
@@ -116,29 +116,29 @@ fields:
     unit: normalized
 ```
 
-Canonical baseline Core 0.1:
+Базовые canonical fields Core 0.1:
 
-- `elevation`: meters relative to internal domain datum;
-- `water_depth`: meters, `>= 0`; binary water mask is derived as `water_depth > 0`;
-- `moisture`: normalized `[0,1]`, abstract ecological moisture, не precipitation units;
-- `vegetation_density`: normalized `[0,1]`.
+- `elevation`: метры относительно внутреннего datum domain;
+- `water_depth`: метры, `>= 0`; binary water mask является derived и определяется как `water_depth > 0`;
+- `moisture`: нормализованное `[0,1]` абстрактное экологическое увлажнение, а не единицы precipitation;
+- `vegetation_density`: нормализованное `[0,1]`.
 
-Persisted canonical continuous fields используют `float32`. Runtime implementation может считать с большей precision.
+Сохраняемые canonical continuous fields используют `float32`. Runtime implementation может выполнять расчёты с большей точностью.
 
-Derived fields вроде `slope`, `flow_direction`, `flow_accumulation` optional и помечаются `role: derived`. Debug/internal masks/noise layers не входят в `DomainData`.
+Derived fields вроде `slope`, `flow_direction`, `flow_accumulation` необязательны и помечаются `role: derived`. Debug/internal masks/noise layers не входят в `DomainData`.
 
-Field paths:
+Пути к fields:
 
-- relative only;
-- POSIX separators `/`;
-- no absolute paths;
-- no `..` traversal.
+- только относительные;
+- разделители POSIX `/`;
+- абсолютные пути запрещены;
+- переходы `..` запрещены.
 
 Canonical numeric data и serialized coordinates/properties не допускают `NaN`, `+inf`, `-inf`.
 
 ## Features
 
-Final semantic feature хранит identity/metadata, family, final geometry, source и typed properties:
+Финальный semantic feature хранит identity/metadata, family, финальную geometry, source и типизированные properties:
 
 ```yaml
 features:
@@ -167,11 +167,11 @@ features:
       surface_elevation_m: 312.5
 ```
 
-`source.type` различает explicit/spec-driven (`specified`) и emergent (`generated`) objects. Output family registry может быть шире пользовательских preset families; Core 0.1 допускает как минимум `terrain`, `surface`, `poi`, `hydro`.
+`source.type` различает явно заданные/spec-driven (`specified`) и возникшие в результате генерации (`generated`) objects. Реестр output families может быть шире пользовательских preset families; Core 0.1 допускает как минимум `terrain`, `surface`, `poi`, `hydro`.
 
-`operator` не сохраняется как свойство мира: это generation provenance уровня Plan. `properties` не arbitrary metadata bag; их schema определяется конкретным output feature/network type и версией DomainData.
+`operator` не сохраняется как свойство мира: это generation provenance уровня Plan. `properties` не является произвольным metadata bag; его schema определяется конкретным типом output feature/network и версией `DomainData`.
 
-Structural macro geometry сохраняется рядом с точными fields, потому что они описывают разные уровни одного мира: feature geometry — semantic extent/organization, field — точное raster state.
+Structural macro geometry сохраняется рядом с точными fields, потому что они описывают разные уровни одного мира: geometry feature — semantic extent/organization, field — точное raster state.
 
 ## River network
 
@@ -201,11 +201,11 @@ networks:
           catchment_area_km2: 310.4
 ```
 
-`from -> to` всегда upstream -> downstream. Lakes остаются semantic area features; river nodes могут ссылаться на lake feature ids для inflow/outflow topology.
+`from -> to` всегда означает upstream -> downstream. Lakes остаются semantic area features; river nodes могут ссылаться на id lake features для topology inflow/outflow.
 
-## Validation summary
+## Краткий результат validation
 
-Полный `ValidationResult` является optional diagnostic artifact. `DomainData` хранит компактный summary:
+Полный `ValidationResult` является необязательным diagnostic artifact. `DomainData` хранит компактный summary:
 
 ```yaml
 validation:
@@ -216,22 +216,22 @@ validation:
     weighted_mean_score: 0.87
 ```
 
-## Canonical ordering
+## Канонический порядок
 
 Canonical serialization не зависит от Python dict insertion order:
 
-- feature/network/node/segment ids сериализуются в deterministic lexical order;
-- object key ordering задаётся canonical serializer;
-- порядок geometry vertices/centerline points сохраняется как semantic sequence.
+- id features/networks/nodes/segments сериализуются в детерминированном лексикографическом порядке;
+- порядок object keys задаётся canonical serializer;
+- порядок vertices geometry и points centerline сохраняется как семантическая последовательность.
 
 ## Что не входит в DomainData
 
 - `PlacementReservation`;
 - sampler recipes;
 - rejected attempts;
-- GenerationPlan как обязательная dependency;
-- intermediate masks/noise/routing surfaces;
-- full validation trace;
+- `GenerationPlan` как обязательная dependency;
+- промежуточные masks/noise/routing surfaces;
+- полный validation trace;
 - renderer/previews.
 
-После принятия candidate reservations и generation recipes свою роль выполнили и остаются только optional debug/provenance artifacts.
+После принятия candidate reservations и generation recipes свою роль выполнили и остаются только необязательными debug/provenance artifacts.
