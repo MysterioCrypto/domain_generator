@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-terrain-structural-flatten-v0.1
-next_topic: hydrology-baseline-semantics
+checkpoint: M2-hydrology-routing-core-v0.1
+next_topic: hydrology-recipe-and-water-extraction
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -39,11 +39,16 @@ implemented_m2:
   - canonical-grid-cell-center-adapter-v0.1
   - terrain-state-v0.1
   - terrain-area-raise-v0.1
+  - terrain-area-depress-v0.1
   - world-space-value-noise-v1
   - terrain-band-ridge-v0.1
-  - terrain-area-depress-v0.1
   - terrain-flatten-shaping-v0.1
   - terrain-validation-v0.1
+  - hydrology-state-v0.1
+  - priority-flood-routing-v0.1
+  - deterministic-d8-v0.1
+  - catchment-accumulation-km2-v0.1
+  - hydrology-validation-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
 canonical_documents:
@@ -59,6 +64,7 @@ canonical_documents:
   terrain_band_ridge: docs/design/terrain-band-ridge-v0.1.md
   terrain_structural_flatten: docs/design/terrain-structural-flatten-v0.1.md
   world_space_noise: docs/design/world-space-value-noise-v1.md
+  hydrology_routing: docs/design/hydrology-routing-core-v0.1.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
 ---
 
@@ -74,7 +80,7 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain теперь имеет явные structural и shaping phases.
+Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет завершённую базовую цепочку structural + shaping. Текущий slice добавляет первый hydrology runtime слой: deterministic drainage routing поверх canonical elevation.
 
 ## Карта прогресса простыми словами
 
@@ -83,16 +89,16 @@ Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReserva
 [готово] генерация геометрии объектов
 [готово] ограничения, где объекты можно размещать
 [готово] базовое поле высот
-[готово] Area -> поднятый регион
-[готово] Band -> плавный хребет
-[PR]     Area -> впадина + flatten/shaping уже созданного рельефа
-[потом] вода
+[готово] поднятия / впадины / хребты
+[готово] flatten / shaping уже созданного рельефа
+[PR]     куда течёт вода: Priority-Flood + D8 + catchment
+[потом] порог ручьёв, реки и озёра
 [потом] влажность/растительность
 [потом] размещение POI
 [потом] сборка финального мира
 ```
 
-Текущий checkpoint завершает базовую terrain-модель: сначала structural contributions строят поле высот, затем shaping может локально изменить уже накопленный рельеф. После принятия этого PR следующий крупный слой — hydrology.
+Текущий checkpoint отвечает на вопрос: **куда из каждой клетки уйдёт вода и какую площадь бассейна она собирает**, но пока ещё не объявляет raster streams, реки или озёра canonical world objects.
 
 ### Terrain pipeline
 
@@ -101,51 +107,47 @@ BaseField = 0 m
   + Area/raise
   + Area/depress
   + Band/ridge
-  = StructuralElevation (float64)
-  -> frozen structural snapshot
-  -> Area/flatten
+  = StructuralElevation
+  -> Area/flatten shaping
   = CanonicalElevation
-  -> float32
-  = TerrainState.elevation_m
+  -> TerrainState.elevation_m
 ```
 
-Structural contributions применяются deterministic order по `feature.id`; shaping operators читают один и тот же frozen StructuralElevation snapshot.
+Hydrology читает этот canonical terrain только как upstream input и не мутирует его.
 
-### Area Raise / Depress
+### Hydrology Routing Core
 
-- `raise(height_m > 0)` добавляет положительную высоту внутри Area;
-- `depress(depth_m > 0)` добавляет отрицательный contribution `-depth_m`;
-- оба используют canonical cell-center rasterization;
-- depress сам по себе не означает воду или озеро.
+Normative semantics: `docs/design/hydrology-routing-core-v0.1.md`.
 
-### Band Ridge
+Runtime pipeline:
 
-Normative semantics: `docs/design/terrain-band-ridge-v0.1.md`.
+```text
+TerrainState.elevation_m
+  -> float64 RoutingSurface
+  -> Priority-Flood depression conditioning
+  -> deterministic D8 receivers
+  -> integer upstream-cell accumulation
+  -> physical flow_accumulation_km2
+  -> HydrologyState
+```
 
-Band/ridge использует distance-to-centerline, arc-length width interpolation, power falloff и optional world-space coherent roughness. Он остаётся additive structural contribution.
+Реализовано:
 
-### Flatten shaping
+- runtime `HydrologyState`;
+- edge cells — open-boundary outlets, не море;
+- Priority-Flood не изменяет canonical terrain;
+- depression/flat routing получает минимальный representable 1-ULP gradient через `nextafter`;
+- D8 использует distance-normalized slope;
+- canonical tie-break order: `N, NE, E, SE, S, SW, W, NW`;
+- accumulation сначала считается exact integer cell counts, затем один раз переводится в km²;
+- routing не использует RNG;
+- hydrology validation проверяет формы, dtype, finite values, outlets, strictly-lower receivers и accumulation minimum.
 
-Normative semantics: `docs/design/terrain-structural-flatten-v0.1.md`.
+### Почему stream_mask пока отложен
 
-`Area + flatten(target_elevation_m, blend_width_km)`:
+`stream_threshold_km2` влияет на semantic result мира. В текущем `GenerationPlan` нет принятого root hydrology-recipe/settings contract. Поэтому threshold не вводится hidden constant и не передаётся ad-hoc аргументом.
 
-- читает frozen StructuralElevation;
-- задаёт absolute target elevation;
-- blend происходит только внутрь Area;
-- boundary имеет shaping weight 0;
-- `blend_width_km=0` даёт полный flatten внутри;
-- positive-width blend использует linear `w = clamp(distance_to_boundary / blend_width, 0, 1)`;
-- два flatten region с positive-area interior overlap делают attempt invalid;
-- boundary-only touching разрешён;
-- conflict определяется в world-vector geometry, не raster cells;
-- никакого implicit shaping priority/order нет.
-
-### World-space coherent noise v1
-
-Normative semantics: `docs/design/world-space-value-noise-v1.md`.
-
-Reusable random-access coherent value noise остаётся independent primitive и не зависит от raster traversal order.
+Следующий design checkpoint должен отдельно решить, где живут semantic hydrology parameters, после чего можно materialize stream graph/river extraction.
 
 ### Dependent placement site selection — accepted design, not implemented
 
@@ -155,24 +157,22 @@ Normative semantics: `docs/design/dependent-placement-site-selection-v0.1.md`.
 
 ## Следующий шаг
 
-После принятия текущего terrain checkpoint следующий bounded design-вопрос — **hydrology baseline v0.1**.
+После принятия routing core следующий bounded design-вопрос — **hydrology recipe + canonical water extraction**.
 
-Нужно формализовать первый реализуемый vertical slice уже принятой цепочки:
+Нужно отдельно зафиксировать:
 
-```text
-CanonicalElevation
--> routing surface
--> D8 flow direction
--> flow accumulation
--> streams / outlets
--> canonical water result
-```
-
-До реализации нужно отдельно зафиксировать depression conditioning, edge outlets, D8 tie-breaks, physical catchment units и минимальную границу между derived routing data и canonical hydrology output.
+- где в semantic plan хранится `stream_threshold_km2` и будущие hydrology parameters;
+- как из `routing_elevation - canonical_elevation` выделяются candidate depressions;
+- какие physical thresholds (`area_km2`, `depth_m`, возможно volume) отличают canonical lake от малой routing depression;
+- как raster stream cells превращаются в directed vector `RiverNetwork`;
+- как формируется canonical `water_depth` без изменения terrain elevation.
 
 ## Ещё не сделано
 
-- hydrology generator;
+- hydrology semantic recipe/settings contract;
+- stream mask / stream graph;
+- canonical lakes / water_depth;
+- vector RiverNetwork;
 - surface generator;
 - dependent placement final point selection runtime;
 - standalone terrain `blend` operator;
