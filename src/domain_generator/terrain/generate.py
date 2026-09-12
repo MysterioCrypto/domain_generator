@@ -22,6 +22,7 @@ from ..pipeline.attempts import AttemptContext, CandidateState
 from ..pipeline.rng import RngFactory, RngKey, RngStage
 from ..pipeline.sampling import SamplingCapabilityError, sample_resolved_parameter
 from .ridge import prepare_band, ridge_contribution_at
+from .shaping import FlattenSpec, compose_nonoverlapping_flatten, flatten_conflicts
 from .state import TerrainState
 
 
@@ -33,6 +34,7 @@ class TerrainCapabilityError(RuntimeError):
 class _TerrainBuildResult:
     state: TerrainState
     applied_feature_ids: tuple[str, ...]
+    shaping_conflicts: tuple[tuple[str, str], ...]
 
 
 def _parameter_stream_key(
@@ -131,6 +133,38 @@ def _raise_contribution(
     return contribution
 
 
+def _depress_contribution(
+    plan: GenerationPlan,
+    feature,
+    geometry,
+    *,
+    attempt_index: int,
+    rng_factory: RngFactory,
+) -> np.ndarray:
+    if not isinstance(geometry, AreaGeometry):
+        raise TerrainCapabilityError(
+            f"terrain depress feature {feature.id!r} requires AreaGeometry"
+        )
+    if set(feature.effect.parameters) != {"depth_m"}:
+        raise TerrainCapabilityError(
+            f"terrain depress feature {feature.id!r} requires exactly effect parameter "
+            "['depth_m']"
+        )
+
+    depth_m = _sample_float_parameter(
+        feature,
+        "depth_m",
+        attempt_index=attempt_index,
+        rng_factory=rng_factory,
+    )
+    if depth_m <= 0.0:
+        raise TerrainCapabilityError("terrain depress depth_m must resolve to finite value > 0")
+
+    contribution = np.zeros((plan.grid.rows, plan.grid.columns), dtype=np.float64)
+    contribution[rasterize_area_cell_centers(plan, geometry)] = -depth_m
+    return contribution
+
+
 def _ridge_contribution(
     plan: GenerationPlan,
     feature,
@@ -213,6 +247,47 @@ def _ridge_contribution(
     return contribution
 
 
+def _flatten_spec(
+    feature,
+    geometry,
+    *,
+    attempt_index: int,
+    rng_factory: RngFactory,
+) -> FlattenSpec:
+    if not isinstance(geometry, AreaGeometry):
+        raise TerrainCapabilityError(
+            f"terrain flatten feature {feature.id!r} requires AreaGeometry"
+        )
+    expected_parameters = {"target_elevation_m", "blend_width_km"}
+    if set(feature.effect.parameters) != expected_parameters:
+        raise TerrainCapabilityError(
+            f"terrain flatten feature {feature.id!r} requires exactly effect parameters "
+            f"{sorted(expected_parameters)!r}"
+        )
+
+    target_elevation_m = _sample_float_parameter(
+        feature,
+        "target_elevation_m",
+        attempt_index=attempt_index,
+        rng_factory=rng_factory,
+    )
+    blend_width_km = _sample_float_parameter(
+        feature,
+        "blend_width_km",
+        attempt_index=attempt_index,
+        rng_factory=rng_factory,
+    )
+    if blend_width_km < 0.0:
+        raise TerrainCapabilityError("terrain flatten blend_width_km must be >= 0")
+
+    return FlattenSpec(
+        feature_id=feature.id,
+        geometry=geometry,
+        target_elevation_m=target_elevation_m,
+        blend_width_km=blend_width_km,
+    )
+
+
 def _build_terrain(
     plan: GenerationPlan,
     layout: LayoutCandidate,
@@ -221,6 +296,7 @@ def _build_terrain(
     rng_factory: RngFactory,
 ) -> _TerrainBuildResult:
     structural = np.zeros((plan.grid.rows, plan.grid.columns), dtype=np.float64)
+    flatten_specs: list[FlattenSpec] = []
     applied: list[str] = []
 
     terrain_features = sorted(
@@ -241,34 +317,57 @@ def _build_terrain(
                 f"terrain feature {feature.id!r} has no materialized layout geometry"
             ) from exc
 
-        if feature.effect.operator == "raise":
-            contribution = _raise_contribution(
+        operator = feature.effect.operator
+        if operator == "raise":
+            structural += _raise_contribution(
                 plan,
                 feature,
                 geometry,
                 attempt_index=attempt_index,
                 rng_factory=rng_factory,
             )
-        elif feature.effect.operator == "ridge":
-            contribution = _ridge_contribution(
+        elif operator == "depress":
+            structural += _depress_contribution(
                 plan,
                 feature,
                 geometry,
                 attempt_index=attempt_index,
                 rng_factory=rng_factory,
+            )
+        elif operator == "ridge":
+            structural += _ridge_contribution(
+                plan,
+                feature,
+                geometry,
+                attempt_index=attempt_index,
+                rng_factory=rng_factory,
+            )
+        elif operator == "flatten":
+            flatten_specs.append(
+                _flatten_spec(
+                    feature,
+                    geometry,
+                    attempt_index=attempt_index,
+                    rng_factory=rng_factory,
+                )
             )
         else:
             raise TerrainCapabilityError(
-                f"terrain operator {feature.effect.operator!r} is unsupported"
+                f"terrain operator {operator!r} is unsupported"
             )
-
-        structural += contribution
         applied.append(feature.id)
 
-    elevation = structural.astype(np.float32, copy=True)
+    structural_snapshot = np.array(structural, dtype=np.float64, copy=True)
+    structural_snapshot.setflags(write=False)
+    specs = tuple(flatten_specs)
+    conflicts = flatten_conflicts(specs)
+    shaped = compose_nonoverlapping_flatten(plan, structural_snapshot, specs)
+
+    elevation = shaped.astype(np.float32, copy=True)
     return _TerrainBuildResult(
         state=TerrainState(elevation_m=elevation),
         applied_feature_ids=tuple(applied),
+        shaping_conflicts=conflicts,
     )
 
 
@@ -300,6 +399,7 @@ def validate_terrain(
     *,
     attempt_index: int,
     applied_feature_ids: tuple[str, ...],
+    shaping_conflicts: tuple[tuple[str, str], ...] = (),
 ) -> ValidationResult:
     expected_shape = (plan.grid.rows, plan.grid.columns)
     expected_features = _expected_terrain_feature_ids(plan)
@@ -322,6 +422,7 @@ def validate_terrain(
         tuple(sorted(applied)) == expected_features
         and len(applied) == len(set(applied))
     )
+    shaping_compatible = not shaping_conflicts
 
     results = (
         EngineInvariantResult(
@@ -360,6 +461,11 @@ def validate_terrain(
                 "applied_feature_count": len(applied),
             },
         ),
+        EngineInvariantResult(
+            id="terrain-shaping-regions-compatible",
+            passed=shaping_compatible,
+            measured={"conflict_count": len(shaping_conflicts)},
+        ),
     )
     passed = all(result.passed for result in results)
 
@@ -397,4 +503,5 @@ def terrain_stage(context: AttemptContext, state: CandidateState) -> ValidationR
         state.terrain,
         attempt_index=context.attempt_index,
         applied_feature_ids=build.applied_feature_ids,
+        shaping_conflicts=build.shaping_conflicts,
     )
