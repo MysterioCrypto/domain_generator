@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-dependent-placement-site-selection-design-v0.1
-next_topic: terrain-state-canonical-elevation
+checkpoint: M2-terrain-area-raise-v0.1
+next_topic: terrain-band-ridge-semantics
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -36,6 +36,10 @@ implemented_m2:
   - shapely-geos-boolean-backend-v0.1
   - canonical-region-set-conversion-v0.1
   - placement-reservation-materialization-v0.1
+  - canonical-grid-cell-center-adapter-v0.1
+  - terrain-state-v0.1
+  - terrain-area-raise-v0.1
+  - terrain-validation-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
 canonical_documents:
@@ -47,6 +51,7 @@ canonical_documents:
   design_baseline: docs/design/core-0.1-generation-baseline.md
   placement_reservations: docs/design/placement-reservation-materialization-v0.1.md
   dependent_placement: docs/design/dependent-placement-site-selection-v0.1.md
+  terrain_area_raise: docs/design/terrain-area-raise-v0.1.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
 ---
 
@@ -62,59 +67,71 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Базовая canonical layout geometry Core 0.1 покрывает point, corridor, band и area. Поверх concrete geometry реализован `PlacementReservation` для deferred point POI. Семантика финального dependent placement принята и документирована, но runtime implementation отложена до появления upstream terrain/hydrology/surface states.
+Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Семантика final dependent placement принята и документирована, но runtime implementation отложена до появления всех необходимых upstream fields.
+
+Теперь добавлен первый реальный numerical world layer: **canonical terrain elevation**.
 
 ### Layout + PlacementReservation
 
 - point — deterministic point inside domain;
-- corridor — ordered polyline с isolated start/end/control-point RNG streams;
-- band — corridor-like centerline + deterministic full-width profile;
-- area — simple CCW polygon без holes, generated через radial construction, но serialized только как boundary;
-- reservation — canonical `RegionSet` для deferred point POI через hard `inside/outside/near/far_from` semantics.
+- corridor — ordered polyline с isolated RNG streams;
+- band — centerline + deterministic full-width profile;
+- area — simple CCW polygon;
+- reservation — canonical `RegionSet` через hard `inside/outside/near/far_from` semantics.
 
-Boolean geometry backend — exact pinned `shapely==2.1.2` / GEOS 3.13.1. Shapely objects не входят в contracts или serialized artifacts.
+Boolean geometry backend — exact pinned `shapely==2.1.2` / GEOS 3.13.1. Backend objects не входят в serialized contracts.
+
+### Terrain baseline / Area Raise
+
+Normative semantics: `docs/design/terrain-area-raise-v0.1.md`.
+
+Реализовано:
+
+- runtime `TerrainState.elevation_m`;
+- canonical elevation shape `(rows, columns)`, dtype `float32`, unit meters;
+- BaseField = `0.0 m`, где zero datum не означает water/sea;
+- canonical grid adapter: world origin southwest, raster row 0 north;
+- cell-center mapping `x=(col+0.5)*cell_size`, `y=height-(row+0.5)*cell_size`;
+- `AreaGeometry` rasterization по cell-center inside/on polygon;
+- первый terrain operator `raise` с единственным effect parameter `height_m > 0`;
+- terrain parameter RNG namespace `terrain / feature-id / parameter / sample`;
+- отдельный float64 contribution на feature;
+- additive accumulation в sorted feature-id order;
+- один final cast `float64 -> float32` после structural accumulation;
+- `CandidateState.terrain` как downstream runtime state;
+- terrain validation: layout causality, attempt match, shape, dtype, finite values и complete feature application;
+- unsupported terrain operator/geometry не игнорируется и даёт capability error.
+
+Не реализованы shaping operators и naturalistic falloff/noise: первый slice намеренно даёт резкую area mask.
 
 ### Dependent placement site selection — accepted design, not implemented
 
 Normative semantics: `docs/design/dependent-placement-site-selection-v0.1.md`.
 
-Принято:
-
-- candidate sites строятся в world coordinates через rotated lattice, а не как raster-cell centers;
-- `candidate_spacing_km` и `near_best_delta` — semantic resolved operator parameters;
-- отдельные placement RNG streams для lattice rotation, phase и final weighted choice;
-- candidates canonical-сортируются по `(x_km, y_km)`;
-- `SiteProfile.footprint_radius_km` задаёт circular site footprint;
-- hard requirements фильтруют invalid sites;
-- intrinsic preferences дают score `[0,1]` через `maximize/minimize/preferred_range`;
-- composite suitability — weighted mean preference scores;
-- near-best set: `suitability >= best - near_best_delta`;
-- final point выбирается deterministic weighted choice из near-best;
-- отсутствие valid sites отклоняет весь attempt без hidden retry;
-- final geometry хранится в runtime `PlacementState`, а не мутирует `LayoutCandidate`.
-
-Implementation placement намеренно блокируется до фиксации numerical semantics upstream fields и site metrics.
+Приняты world-space candidate lattice, footprint-aware metrics, hard requirements, weighted intrinsic preferences, near-best filtering и isolated deterministic weighted-choice RNG. Implementation остаётся gated до terrain/hydrology/surface state.
 
 ## Следующий шаг
 
-Следующий реализуемый bounded vertical slice — **TerrainState + canonical elevation baseline**.
+Следующий bounded design-вопрос — **terrain band/ridge semantics v0.1**: как `BandGeometry.centerline + width_profile` превращается в smooth additive elevation contribution.
 
-До кода нужно отдельно принять:
+Нужно отдельно определить:
 
-- runtime representation `TerrainState`;
-- baseline elevation field semantics и units;
-- cell-center world coordinate mapping;
-- минимальный первый terrain operator;
-- additive contribution ordering/combination;
-- terrain validation invariants;
-- какие RNG streams нужны terrain operator'у, а какие операции deterministic.
+- distance-to-centerline и local width interpolation;
+- normalized cross-band profile/falloff;
+- `height_m`/ridge profile parameters;
+- поведение за пределами band width;
+- coherent perturbation/noise boundary и его RNG namespace;
+- clipping к raster domain;
+- как сохранить additive/order-independent terrain semantics.
 
-Цель первого terrain slice — получить реальный canonical `elevation` field из `GenerationPlan + LayoutCandidate`, не переходя пока к hydrology, surface или dependent placement.
+До принятия этих правил `ridge` operator не реализовывать.
 
 ## Ещё не сделано
 
+- terrain band/ridge/depress/flatten/blend/noise operators;
+- hydrology generator;
+- surface generator;
 - dependent placement final point selection runtime;
-- terrain/hydrology/surface generators;
 - band polygon footprint materialization;
 - general area↔area polygon boolean evaluators;
 - YAML/file preset loader и production preset catalog;

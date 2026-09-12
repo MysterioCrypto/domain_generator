@@ -2,13 +2,16 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import TypeAlias
+from typing import TYPE_CHECKING, TypeAlias
 
 from ..contracts.config import GenerationConfig
 from ..contracts.layout import LayoutCandidate
 from ..contracts.plan import GenerationPlan
 from ..contracts.validation import RankingResult, ValidationResult, ValidationStage
 from .rng import RngFactory, UINT64_MAX
+
+if TYPE_CHECKING:
+    from ..terrain.state import TerrainState
 
 
 STAGE_ORDER: tuple[ValidationStage, ...] = (
@@ -39,6 +42,7 @@ class CandidateState:
 
     attempt_index: int
     layout: LayoutCandidate | None = None
+    terrain: TerrainState | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.attempt_index, bool) or not isinstance(self.attempt_index, int):
@@ -180,8 +184,6 @@ def run_attempt(
         state=state,
         validations=tuple(validations),
     )
-    # Access once here so a malformed final stage fails as an engine/pipeline bug,
-    # not later during candidate selection.
     _ = candidate.ranking
     return candidate
 
