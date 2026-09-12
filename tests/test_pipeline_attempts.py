@@ -32,6 +32,11 @@ def minimal_plan() -> GenerationPlan:
             "seed": 123456,
             "domain": {"width_km": 10.0, "height_km": 10.0},
             "grid": {"cell_size_km": 1.0, "rows": 10, "columns": 10},
+            "hydrology": {
+                "stream_threshold_km2": 25.0,
+                "lake_min_area_km2": 1.0,
+                "lake_min_depth_m": 2.0,
+            },
             "features": [],
             "constraints": [],
         }
