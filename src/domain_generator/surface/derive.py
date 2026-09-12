@@ -131,7 +131,7 @@ def slope_degrees(elevation_m: np.ndarray, *, cell_size_km: float) -> np.ndarray
     return result
 
 
-def moisture_field(
+def moisture_potential_field(
     *,
     adapter: GridAdapter,
     water_depth_m: np.ndarray,
@@ -143,6 +143,7 @@ def moisture_field(
     rng_factory: RngFactory,
     attempt_index: int,
 ) -> np.ndarray:
+    """Return unclamped float64 moisture potential before feature biases."""
     expected_shape = (adapter.rows, adapter.columns)
     if not isinstance(water_depth_m, np.ndarray) or water_depth_m.shape != expected_shape:
         raise SurfaceCapabilityError("water_depth_m must match grid shape")
@@ -169,10 +170,6 @@ def moisture_field(
 
     for row in range(adapter.rows):
         for column in range(adapter.columns):
-            if bool(water_mask[row, column]):
-                result[row, column] = 1.0
-                continue
-
             point = adapter.cell_center(row, column)
             noise = value_noise_2d(
                 x_km=point.x_km,
@@ -189,24 +186,53 @@ def moisture_field(
                 water_term = water_moisture_boost * exp(
                     -float(distance[row, column]) / water_moisture_decay_km
                 )
-            raw = moisture_base + water_term + moisture_noise_amplitude * noise
-            result[row, column] = min(1.0, max(0.0, raw))
+            result[row, column] = moisture_base + water_term + moisture_noise_amplitude * noise
     return result
 
 
-def vegetation_density_field(
+def moisture_field(
+    *,
+    adapter: GridAdapter,
+    water_depth_m: np.ndarray,
+    moisture_base: float,
+    water_moisture_boost: float,
+    water_moisture_decay_km: float,
+    moisture_noise_amplitude: float,
+    moisture_noise_scale_km: float,
+    rng_factory: RngFactory,
+    attempt_index: int,
+) -> np.ndarray:
+    """Compatibility helper for base-only canonical moisture semantics."""
+    result = np.clip(
+        moisture_potential_field(
+            adapter=adapter,
+            water_depth_m=water_depth_m,
+            moisture_base=moisture_base,
+            water_moisture_boost=water_moisture_boost,
+            water_moisture_decay_km=water_moisture_decay_km,
+            moisture_noise_amplitude=moisture_noise_amplitude,
+            moisture_noise_scale_km=moisture_noise_scale_km,
+            rng_factory=rng_factory,
+            attempt_index=attempt_index,
+        ),
+        0.0,
+        1.0,
+    )
+    result[water_depth_m > 0.0] = 1.0
+    return result
+
+
+def vegetation_potential_field(
     *,
     moisture: np.ndarray,
     slope_deg: np.ndarray,
-    water_depth_m: np.ndarray,
     vegetation_slope_zero_deg: float,
 ) -> np.ndarray:
+    """Return unclamped terrestrial vegetation potential before feature biases."""
     if not isinstance(moisture, np.ndarray) or moisture.ndim != 2:
         raise SurfaceCapabilityError("moisture must be a 2D numpy array")
     if not isinstance(slope_deg, np.ndarray) or slope_deg.shape != moisture.shape:
         raise SurfaceCapabilityError("slope_deg must match moisture shape")
-    if not isinstance(water_depth_m, np.ndarray) or water_depth_m.shape != moisture.shape:
-        raise SurfaceCapabilityError("water_depth_m must match moisture shape")
     if not np.isfinite(moisture).all() or not np.isfinite(slope_deg).all():
         raise SurfaceCapabilityError("moisture and slope must be finite")
     if not isfinite(vegetation_slope_zero_deg) or not 0.0 < vegetation_slope_zero_deg <= 90.0:
@@ -217,6 +243,27 @@ def vegetation_density_field(
         0.0,
         1.0,
     )
-    vegetation = moisture.astype(np.float64, copy=False) * slope_factor
+    return moisture.astype(np.float64, copy=False) * slope_factor
+
+
+def vegetation_density_field(
+    *,
+    moisture: np.ndarray,
+    slope_deg: np.ndarray,
+    water_depth_m: np.ndarray,
+    vegetation_slope_zero_deg: float,
+) -> np.ndarray:
+    """Compatibility helper for base-only canonical vegetation semantics."""
+    if not isinstance(water_depth_m, np.ndarray) or water_depth_m.shape != moisture.shape:
+        raise SurfaceCapabilityError("water_depth_m must match moisture shape")
+    vegetation = np.clip(
+        vegetation_potential_field(
+            moisture=moisture,
+            slope_deg=slope_deg,
+            vegetation_slope_zero_deg=vegetation_slope_zero_deg,
+        ),
+        0.0,
+        1.0,
+    )
     vegetation[water_depth_m > 0.0] = 0.0
     return vegetation
