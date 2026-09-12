@@ -29,10 +29,7 @@ from ..contracts.validation import (
 )
 from ..pipeline.attempts import AttemptContext, CandidateState
 from ..pipeline.rng import RngKey, RngStage
-
-
-class LayoutCapabilityError(RuntimeError):
-    """The current layout implementation cannot execute a valid plan construct yet."""
+from .geometry import LayoutCapabilityError
 
 
 def _point_stream_key(attempt_index: int, feature_id: str) -> RngKey:
