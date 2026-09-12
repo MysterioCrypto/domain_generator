@@ -7,12 +7,7 @@ import numpy as np
 
 from ..contracts.geometry import AreaGeometry
 from ..contracts.layout import LayoutCandidate
-from ..contracts.plan import (
-    EffectStage,
-    FeatureFamily,
-    GenerationPlan,
-    ParameterType,
-)
+from ..contracts.plan import EffectStage, FeatureFamily, GenerationPlan, ParameterType
 from ..contracts.validation import (
     EngineInvariantGroup,
     EngineInvariantResult,
@@ -182,11 +177,11 @@ def validate_terrain(
     terrain: TerrainState | None,
     *,
     attempt_index: int,
-    applied_feature_ids: tuple[str, ...] | None = None,
+    applied_feature_ids: tuple[str, ...],
 ) -> ValidationResult:
     expected_shape = (plan.grid.rows, plan.grid.columns)
     expected_features = _expected_terrain_feature_ids(plan)
-    applied = expected_features if applied_feature_ids is None else applied_feature_ids
+    applied = applied_feature_ids
 
     layout_exists = layout is not None
     layout_attempt_matches = layout_exists and layout.attempt_index == attempt_index
