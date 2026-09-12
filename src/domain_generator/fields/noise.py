@@ -17,23 +17,18 @@ def _node_value(
     *,
     rng_factory: RngFactory,
     attempt_index: int,
-    feature_id: str,
+    stage: RngStage,
+    scope: tuple[str, ...],
+    purpose: str,
     i: int,
     j: int,
 ) -> float:
     stream = rng_factory.stream(
         RngKey(
             attempt_index=attempt_index,
-            stage=RngStage.TERRAIN,
-            scope=(
-                "feature",
-                feature_id,
-                "ridge-noise",
-                "node",
-                str(i),
-                str(j),
-            ),
-            purpose="value",
+            stage=stage,
+            scope=scope + ("node", str(i), str(j)),
+            purpose=purpose,
         )
     )
     return 2.0 * stream.uniform01() - 1.0
@@ -46,7 +41,9 @@ def value_noise_2d(
     scale_km: float,
     rng_factory: RngFactory,
     attempt_index: int,
-    feature_id: str,
+    stage: RngStage,
+    scope: tuple[str, ...],
+    purpose: str = "value",
 ) -> float:
     """Evaluate deterministic smooth value noise at one world-space point."""
     x = float(x_km)
@@ -56,8 +53,10 @@ def value_noise_2d(
         raise ValueError("world-space noise coordinates must be finite")
     if not isfinite(scale) or scale <= 0.0:
         raise ValueError("world-space noise scale_km must be finite and > 0")
-    if not feature_id:
-        raise ValueError("world-space noise feature_id must be non-empty")
+    if not scope:
+        raise ValueError("world-space noise scope must be non-empty")
+    if not purpose:
+        raise ValueError("world-space noise purpose must be non-empty")
 
     gx = x / scale
     gy = y / scale
@@ -70,34 +69,17 @@ def value_noise_2d(
     sx = _smoothstep(fx)
     sy = _smoothstep(fy)
 
-    v00 = _node_value(
+    common = dict(
         rng_factory=rng_factory,
         attempt_index=attempt_index,
-        feature_id=feature_id,
-        i=i0,
-        j=j0,
+        stage=stage,
+        scope=scope,
+        purpose=purpose,
     )
-    v10 = _node_value(
-        rng_factory=rng_factory,
-        attempt_index=attempt_index,
-        feature_id=feature_id,
-        i=i1,
-        j=j0,
-    )
-    v01 = _node_value(
-        rng_factory=rng_factory,
-        attempt_index=attempt_index,
-        feature_id=feature_id,
-        i=i0,
-        j=j1,
-    )
-    v11 = _node_value(
-        rng_factory=rng_factory,
-        attempt_index=attempt_index,
-        feature_id=feature_id,
-        i=i1,
-        j=j1,
-    )
+    v00 = _node_value(i=i0, j=j0, **common)
+    v10 = _node_value(i=i1, j=j0, **common)
+    v01 = _node_value(i=i0, j=j1, **common)
+    v11 = _node_value(i=i1, j=j1, **common)
 
     low = _lerp(v00, v10, sx)
     high = _lerp(v01, v11, sx)
