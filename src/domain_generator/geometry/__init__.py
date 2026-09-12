@@ -10,6 +10,7 @@ from .boolean import (
     backend_region_set,
     buffer_geometry,
     intersect_geometry,
+    is_canonical_region_set,
     subtract_geometry,
     to_region_set,
 )
@@ -26,6 +27,7 @@ __all__ = [
     "backend_region_set",
     "buffer_geometry",
     "intersect_geometry",
+    "is_canonical_region_set",
     "subtract_geometry",
     "to_region_set",
 ]
