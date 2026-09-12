@@ -11,6 +11,7 @@ from ..contracts.validation import RankingResult, ValidationResult, ValidationSt
 from .rng import RngFactory, UINT64_MAX
 
 if TYPE_CHECKING:
+    from ..hydrology.state import HydrologyState
     from ..terrain.state import TerrainState
 
 
@@ -43,6 +44,7 @@ class CandidateState:
     attempt_index: int
     layout: LayoutCandidate | None = None
     terrain: TerrainState | None = None
+    hydrology: HydrologyState | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.attempt_index, bool) or not isinstance(self.attempt_index, int):
@@ -225,9 +227,9 @@ def run_generation(
     if not valid_candidates:
         raise GenerationFailure(attempts_executed=attempts_executed)
 
-    selected = min(valid_candidates, key=candidate_rank_key)
+    ranked = tuple(sorted(valid_candidates, key=candidate_rank_key))
     return GenerationRunResult(
-        selected=selected,
-        valid_candidates=tuple(valid_candidates),
+        selected=ranked[0],
+        valid_candidates=ranked,
         attempts_executed=attempts_executed,
     )
