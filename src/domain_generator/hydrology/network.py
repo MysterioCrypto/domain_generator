@@ -134,7 +134,8 @@ def build_river_network(
             raise HydrologyCapabilityError("stream cell drains to non-stream cell outside accepted lake")
         ordinary_indegree[receiver] += 1
 
-    lake_outlets: list[tuple[_NodeDescriptor, Cell]] = []
+    # descriptor, last lake cell before exit, first outside receiver
+    lake_outlets: list[tuple[_NodeDescriptor, Cell, Cell]] = []
     lake_outlet_count_by_receiver = {cell: 0 for cell in outside_stream_cells}
     for index, candidate in enumerate(lake_candidates, start=1):
         lake_id = f"lake-{index:04d}"
@@ -151,7 +152,7 @@ def build_river_network(
                 position=_midpoint(adapter, cell, receiver),
                 feature_id=lake_id,
             )
-            lake_outlets.append((descriptor, receiver))
+            lake_outlets.append((descriptor, cell, receiver))
             lake_outlet_count_by_receiver[receiver] += 1
 
     effective_indegree = {
@@ -204,7 +205,7 @@ def build_river_network(
         descriptor.key: descriptor for descriptor in cell_nodes.values()
     }
     all_descriptors.update(terminal_nodes)
-    for descriptor, _ in lake_outlets:
+    for descriptor, _, _ in lake_outlets:
         all_descriptors[descriptor.key] = descriptor
 
     ordered_descriptors = sorted(all_descriptors.values(), key=_node_sort_key)
@@ -272,18 +273,20 @@ def build_river_network(
     for cell, descriptor in sorted(cell_nodes.items()):
         follow_from_cell(descriptor, cell)
 
-    for descriptor, receiver in sorted(
+    for descriptor, outlet_cell, receiver in sorted(
         lake_outlets,
         key=lambda item: _node_sort_key(item[0]),
     ):
         downstream_node = cell_nodes.get(receiver)
         if downstream_node is not None:
+            # The confluence-cell accumulation already includes all branches.
+            # Preserve the catchment carried specifically by this lake branch.
             segment_records.append(
                 (
                     node_id_by_key[descriptor.key],
                     node_id_by_key[downstream_node.key],
                     (descriptor.position, downstream_node.position),
-                    float(flow_accumulation_km2[receiver]),
+                    float(flow_accumulation_km2[outlet_cell]),
                 )
             )
         else:
