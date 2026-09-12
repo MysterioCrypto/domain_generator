@@ -76,6 +76,10 @@ Site metric измеряется по circular footprint вокруг candidate 
 
 Raster fields могут использоваться как numerical representation upstream state, но candidate coordinates остаются world-space.
 
+Точная numerical footprint semantics, containing-cell tie-breaks и metric formulas определены в:
+
+`docs/design/dependent-placement-site-metrics-v0.1.md`.
+
 ## Core 0.1 site metrics
 
 Минимальный generic metric registry:
@@ -89,9 +93,9 @@ Raster fields могут использоваться как numerical represent
 - `vegetation_density_mean`;
 - `distance_to_water`.
 
-Metric identifiers generic и не содержат campaign-specific semantics.
+Metric identifiers generic и не содержат setting/campaign-specific semantics.
 
-Точная numerical definition каждой metric должна быть отдельно зафиксирована рядом с соответствующим upstream field/state до реализации placement.
+Все numerical definitions этого registry являются нормативно зафиксированными `Dependent Placement Site Metrics v0.1` и не должны переопределяться placement evaluator-ами.
 
 ## Hard requirements
 
@@ -217,8 +221,8 @@ Placement validation должна как минимум проверить:
 - hidden retry при отсутствии valid site;
 - привязка candidate coordinates к raster cell centers.
 
-## Implementation gate
+## Implementation status
 
-Эта семантика намеренно документируется до runtime implementation.
+Numerical upstream field semantics и Site Metrics v0.1 теперь зафиксированы и могут использоваться placement runtime без новых hidden assumptions.
 
-Placement implementation блокируется до появления и фиксации upstream numerical semantics для terrain/hydrology/surface fields и site metrics. Следующий реализуемый vertical slice начинается с `TerrainState` и canonical elevation field.
+Следующий implementation slice после Site Metrics — deterministic world-space candidate lattice + hard SiteProfile requirement filtering. Preference scoring и final weighted selection остаются отдельным последующим slice.
