@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-terrain-band-ridge-v0.1
-next_topic: terrain-shaping-semantics
+checkpoint: M2-terrain-structural-flatten-v0.1
+next_topic: hydrology-baseline-semantics
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -41,6 +41,8 @@ implemented_m2:
   - terrain-area-raise-v0.1
   - world-space-value-noise-v1
   - terrain-band-ridge-v0.1
+  - terrain-area-depress-v0.1
+  - terrain-flatten-shaping-v0.1
   - terrain-validation-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
@@ -55,6 +57,7 @@ canonical_documents:
   dependent_placement: docs/design/dependent-placement-site-selection-v0.1.md
   terrain_area_raise: docs/design/terrain-area-raise-v0.1.md
   terrain_band_ridge: docs/design/terrain-band-ridge-v0.1.md
+  terrain_structural_flatten: docs/design/terrain-structural-flatten-v0.1.md
   world_space_noise: docs/design/world-space-value-noise-v1.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
 ---
@@ -71,13 +74,9 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Семантика final dependent placement принята и документирована, но runtime implementation отложена до появления всех необходимых upstream fields.
-
-Canonical terrain elevation теперь поддерживает два additive structural operator: `AreaGeometry + raise` и `BandGeometry + ridge`.
+Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain теперь имеет явные structural и shaping phases.
 
 ## Карта прогресса простыми словами
-
-Это high-level представление проекта без внутренних архитектурных деталей:
 
 ```text
 [готово] описание карты
@@ -86,89 +85,98 @@ Canonical terrain elevation теперь поддерживает два additiv
 [готово] базовое поле высот
 [готово] Area -> поднятый регион
 [готово] Band -> плавный хребет
-[дальше] изменение уже созданного рельефа
+[PR]     Area -> впадина + flatten/shaping уже созданного рельефа
 [потом] вода
 [потом] влажность/растительность
 [потом] размещение POI
 [потом] сборка финального мира
 ```
 
-Текущий этап проекта — конец базовой **structural terrain** части и переход к **terrain shaping**: от простого суммирования вкладов высоты к операциям, которые изменяют уже накопленное поле рельефа.
+Текущий checkpoint завершает базовую terrain-модель: сначала structural contributions строят поле высот, затем shaping может локально изменить уже накопленный рельеф. После принятия этого PR следующий крупный слой — hydrology.
 
-### Terrain baseline
+### Terrain pipeline
 
-Реализовано:
+```text
+BaseField = 0 m
+  + Area/raise
+  + Area/depress
+  + Band/ridge
+  = StructuralElevation (float64)
+  -> frozen structural snapshot
+  -> Area/flatten
+  = CanonicalElevation
+  -> float32
+  = TerrainState.elevation_m
+```
 
-- runtime `TerrainState.elevation_m`, canonical float32 meters;
-- BaseField = `0.0 m`;
-- canonical grid adapter и cell-center world mapping;
-- каждый terrain feature создаёт отдельный float64 contribution;
-- contributions применяются в sorted feature-id order;
-- один final cast `float64 -> float32` после additive structural phase;
-- terrain validation для causality/shape/dtype/finite/complete feature application.
+Structural contributions применяются deterministic order по `feature.id`; shaping operators читают один и тот же frozen StructuralElevation snapshot.
 
-### Area Raise
+### Area Raise / Depress
 
-Normative semantics: `docs/design/terrain-area-raise-v0.1.md`.
-
-`AreaGeometry + raise(height_m)` даёт constant additive contribution внутри/on area по cell-center inclusion.
+- `raise(height_m > 0)` добавляет положительную высоту внутри Area;
+- `depress(depth_m > 0)` добавляет отрицательный contribution `-depth_m`;
+- оба используют canonical cell-center rasterization;
+- depress сам по себе не означает воду или озеро.
 
 ### Band Ridge
 
 Normative semantics: `docs/design/terrain-band-ridge-v0.1.md`.
 
-Реализовано:
+Band/ridge использует distance-to-centerline, arc-length width interpolation, power falloff и optional world-space coherent roughness. Он остаётся additive structural contribution.
 
-- nearest point projection каждого cell center на ordered band polyline;
-- deterministic earliest-segment tie break;
-- normalized `t` по total centerline arc length;
-- linear interpolation canonical full-width profile;
-- normalized cross-band distance `u = distance / half_width`;
-- profile `(1-u)^profile_power` внутри effective band;
-- `height_m > 0`, `profile_power > 0`, `roughness in [0,1]`, `roughness_scale_km > 0`;
-- roughness деформирует transverse distance, не изменяя centerline peak;
-- ridge остаётся additive и суммируется с area/raise.
+### Flatten shaping
+
+Normative semantics: `docs/design/terrain-structural-flatten-v0.1.md`.
+
+`Area + flatten(target_elevation_m, blend_width_km)`:
+
+- читает frozen StructuralElevation;
+- задаёт absolute target elevation;
+- blend происходит только внутрь Area;
+- boundary имеет shaping weight 0;
+- `blend_width_km=0` даёт полный flatten внутри;
+- positive-width blend использует linear `w = clamp(distance_to_boundary / blend_width, 0, 1)`;
+- два flatten region с positive-area interior overlap делают attempt invalid;
+- boundary-only touching разрешён;
+- conflict определяется в world-vector geometry, не raster cells;
+- никакого implicit shaping priority/order нет.
 
 ### World-space coherent noise v1
 
 Normative semantics: `docs/design/world-space-value-noise-v1.md`.
 
-Reusable primitive:
-
-- world-space physical `scale_km`;
-- random-access lattice nodes через independent RNG-v1 keys;
-- node values не зависят от raster traversal/order;
-- cubic smoothstep + bilinear interpolation;
-- no hidden scale defaults, octaves или fractal composition;
-- golden regression vector зафиксирован в tests.
+Reusable random-access coherent value noise остаётся independent primitive и не зависит от raster traversal order.
 
 ### Dependent placement site selection — accepted design, not implemented
 
 Normative semantics: `docs/design/dependent-placement-site-selection-v0.1.md`.
 
-Приняты world-space candidate lattice, footprint-aware metrics, hard requirements, weighted intrinsic preferences, near-best filtering и isolated deterministic weighted-choice RNG. Implementation остаётся gated до terrain/hydrology/surface state.
+Приняты world-space candidate lattice, footprint-aware metrics, hard requirements, weighted intrinsic preferences, near-best filtering и isolated deterministic weighted-choice RNG. Runtime implementation остаётся gated до terrain/hydrology/surface states.
 
 ## Следующий шаг
 
-Следующий bounded design-вопрос — **terrain shaping semantics v0.1**.
+После принятия текущего terrain checkpoint следующий bounded design-вопрос — **hydrology baseline v0.1**.
 
-Нужно отдельно определить границу structural additive phase и shaping phase для generic operators вроде `flatten`/`blend`, включая:
+Нужно формализовать первый реализуемый vertical slice уже принятой цепочки:
 
-- что именно shaping operator читает: BaseField или уже accumulated StructuralElevation;
-- deterministic order для noncommutative shaping operators;
-- как задаётся target elevation / blend strength / falloff;
-- как обнаруживаются несовместимые overlapping shaping regions;
-- нужен ли сначала отдельный additive `depress` operator или его разумнее включить в тот же checkpoint;
-- validation semantics до hydrology.
+```text
+CanonicalElevation
+-> routing surface
+-> D8 flow direction
+-> flow accumulation
+-> streams / outlets
+-> canonical water result
+```
 
-До принятия этих правил shaping operators не реализовывать.
+До реализации нужно отдельно зафиксировать depression conditioning, edge outlets, D8 tie-breaks, physical catchment units и минимальную границу между derived routing data и canonical hydrology output.
 
 ## Ещё не сделано
 
-- terrain `depress`/`flatten`/`blend` и shaping phase;
 - hydrology generator;
 - surface generator;
 - dependent placement final point selection runtime;
+- standalone terrain `blend` operator;
+- advanced terrain shaping/erosion;
 - band polygon footprint materialization;
 - general area↔area polygon boolean evaluators;
 - YAML/file preset loader и production preset catalog;
