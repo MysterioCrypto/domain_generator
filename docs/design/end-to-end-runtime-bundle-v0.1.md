@@ -270,13 +270,14 @@ Local skill / GitHub workflow
 После принятия этой архитектурной базы реализация идёт отдельными ограниченными checkpoints:
 
 1. Final Validation v0.1;
-2. HydroFeature / materialization lake v0.1;
-3. DomainData Assembler v0.1;
-4. DomainBundle Export v0.1;
-5. Technical Renderer v0.1;
-6. canonical CLI / Python application entrypoint;
-7. local model skill/adapter;
-8. remote GitHub Actions generation adapter.
+2. Soft Constraint Compilation & Scoring v0.1;
+3. HydroFeature / materialization lake v0.1;
+4. DomainData Assembler v0.1;
+5. DomainBundle Export v0.1;
+6. Technical Renderer v0.1;
+7. canonical CLI / Python application entrypoint;
+8. local model skill/adapter;
+9. remote GitHub Actions generation adapter.
 
 Порядок может уточняться только явным design decision; Core и adapters исполнения остаются разделены.
 
