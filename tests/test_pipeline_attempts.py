@@ -181,6 +181,7 @@ def test_target_one_is_first_valid_behavior() -> None:
     assert result.selected.attempt_index == 1
     assert result.attempts_executed == 2
     assert [candidate.attempt_index for candidate in result.valid_candidates] == [1]
+    assert all(attempt_index < 2 for attempt_index, _ in calls)
 
 
 def test_multiple_valid_candidates_use_minimax_then_mean_then_attempt_index() -> None:
@@ -189,6 +190,7 @@ def test_multiple_valid_candidates_use_minimax_then_mean_then_attempt_index() ->
     result = run_generation(plan=minimal_plan(), config=config(max_attempts=10, target_valid_candidates=3), steps=steps)
     assert result.attempts_executed == 3
     assert result.selected.attempt_index == 2
+    assert [candidate.attempt_index for candidate in result.valid_candidates] == [0, 1, 2]
 
 
 def test_exact_ranking_tie_prefers_lower_attempt_index() -> None:
