@@ -14,7 +14,7 @@ scope: core
 
 ## Решение
 
-Использовать root seed и производные RNG-потоки по стабильным идентификаторам стадий и подзадач, например `derive_seed(root_seed, stage_id, feature_id, attempt_id)`.
+Использовать корневой seed и производные RNG-потоки по стабильным идентификаторам стадий и подзадач, например `derive_seed(root_seed, stage_id, feature_id, attempt_id)`.
 
 ## Гарантия
 

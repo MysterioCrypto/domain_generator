@@ -10,14 +10,14 @@ target: core-0.1
 
 ## Назначение и граница
 
-`domain_generator` — setting-agnostic procedural core для генерации ограниченных пространственных регионов мира/карты.
+`domain_generator` — процедурное ядро, не зависящее от конкретного сеттинга, для генерации ограниченных пространственных регионов мира или карты.
 
-`Domain` означает generic bounded spatial region. Это может быть часть планеты, остров, сектор, локальная игровая зона, абстрактный регион или иной кусок пространства, который генерируется как единое целое. Термин не несёт специальной лоровой семантики.
+`Domain` означает универсальную ограниченную пространственную область. Это может быть часть планеты, остров, сектор, локальная игровая зона, абстрактный регион или иной кусок пространства, который генерируется как единое целое. Термин не несёт специальной лоровой семантики.
 
-Конкретный world/setting/campaign/game system является внешним consumer-ом Core:
+Конкретный мир, сеттинг, кампания, игровая система или приложение являются внешними потребителями Core:
 
 ```text
-setting / application / simulation
+сеттинг / приложение / симуляция
             ↓
       adapter / presets
             ↓
@@ -27,92 +27,92 @@ setting / application / simulation
             ↓
         DomainData
             ↓
- renderer / exporter / integration
+ renderer / exporter / интеграция
 ```
 
-Core не хранит setting identity и не интерпретирует campaign-specific lore. Setting-specific preset catalogs, adapters и world data находятся вне базового Core.
+Core не хранит идентичность сеттинга и не интерпретирует лор конкретной кампании. Каталоги пресетов конкретных сеттингов, adapters и данные мира находятся вне базового Core.
 
 ## Главный поток
 
 ```text
-Human / client
+человек / клиент
     -> DomainSpec
-    -> structural validation + preset resolution
-    -> Constraint Compiler
+    -> структурная валидация + разрешение presets
+    -> компилятор ограничений
     -> GenerationPlan
-    -> repeated deterministic attempts
+    -> повторяющиеся детерминированные attempts
          -> LayoutGenerator
          -> LayoutCandidate
-         -> staged validation
+         -> поэтапная валидация
          -> Terrain
          -> Hydrology
          -> Surface
-         -> dependent feature placement
-         -> final validation / ranking
-    -> best valid DomainCandidate
-    -> DomainData assembly
-    -> Renderers / exporters
+         -> размещение зависимых features
+         -> финальная валидация / ranking
+    -> лучший валидный DomainCandidate
+    -> сборка DomainData
+    -> renderers / exporters
 ```
 
-`DomainSpec` — язык намерения пользователя/consumer-а. `GenerationPlan` — immutable resolved recipe. `LayoutCandidate` — concrete macro-layout одного attempt. `DomainCandidate` — runtime computational state. `DomainData` — принятый generated region.
+`DomainSpec` — язык намерения пользователя или внешнего потребителя. `GenerationPlan` — неизменяемый разрешённый рецепт. `LayoutCandidate` — конкретный macro-layout одного attempt. `DomainCandidate` — runtime-состояние вычислений. `DomainData` — принятый сгенерированный регион.
 
 ## Координаты и grid
 
-World coordinates:
+Мировая система координат:
 
-- origin southwest;
-- `+x` east;
-- `+y` north;
-- geometry units km.
+- начало координат — юго-запад;
+- `+x` направлен на восток;
+- `+y` направлен на север;
+- единица геометрии — километры.
 
-`DomainSpec` задаёт physical size и `cell_size_km`; grid dimensions выводятся без silent rounding. Raster `row/column` — внутренняя деталь `Grid`; `row 0` соответствует северной raster row.
+`DomainSpec` задаёт физический размер и `cell_size_km`; размеры grid выводятся без скрытого округления. Raster `row/column` — внутренняя деталь `Grid`; `row 0` соответствует северной строке растра.
 
-## Identity и metadata
+## Идентичность и metadata
 
-Top-level `DomainSpec.id` — identity domain/document и не входит в RNG namespace.
+Верхнеуровневый `DomainSpec.id` — идентичность domain/document и не входит в RNG namespace.
 
-Feature `id` — stable machine identity для references и RNG namespace. Optional `label` — human-readable metadata. Смена `label` не должна reroll'ить feature; смена feature `id` может изменить realization.
+Feature `id` — стабильный машинный идентификатор для ссылок и RNG namespace. Необязательный `label` — человекочитаемая metadata. Изменение `label` не должно приводить к reroll feature; изменение feature `id` может изменить realization.
 
-`label`, `tags`, `source_preset` сохраняются как provenance/output metadata, но не входят в semantic `plan_fingerprint` и не меняют Core скрытым образом.
+`label`, `tags`, `source_preset` сохраняются как provenance/output metadata, но не входят в семантический `plan_fingerprint` и не меняют Core скрытым образом.
 
-Core не требует поля `setting`. Если внешнему приложению нужна identity конкретного мира/кампании, она хранится во внешнем contract/manifest layer.
+Core не требует поля `setting`. Если внешнему приложению нужна идентичность конкретного мира или кампании, она хранится во внешнем contract/manifest layer.
 
 ## Feature / preset / operator
 
-User `FeatureSpec` содержит `id`, optional `label`, `preset`, optional parameter overrides и tags. Preset — validated declarative data: family, shape, defaults, parameter schemas, sampling policies, optional site profile и generic operator id. Preset не содержит embedded scripting.
+Пользовательский `FeatureSpec` содержит `id`, необязательный `label`, `preset`, необязательные переопределения параметров и tags. Preset — проверяемые декларативные данные: family, shape, defaults, схемы параметров, политики sampling, необязательный site profile и универсальный id operator-а. Preset не содержит встроенных скриптов.
 
-После compilation feature в `GenerationPlan` разделён на:
+После компиляции feature в `GenerationPlan` разделён на:
 
 ```text
 metadata
 layout recipe
   -> mode: geometry | reservation
   -> shape/final_shape
-  -> layout-owned parameters
+  -> параметры, принадлежащие layout
 
 effect recipe
   -> stage
-  -> generic operator
-  -> effect-owned parameters / site profile
+  -> универсальный operator
+  -> параметры effect / site profile
 ```
 
-Layout и downstream effect не делят один неструктурированный parameter bag.
+Layout и downstream effect не делят один неструктурированный набор параметров.
 
-Core определяет generic preset contract и operator vocabulary. Конкретные setting-specific preset catalogs являются внешним content/extension layer и не входят в базовый пакет.
+Core определяет универсальный contract preset-ов и словарь operator-ов. Конкретные каталоги пресетов сеттингов являются внешним слоем контента/расширений и не входят в базовый пакет.
 
-## Parameters
+## Параметры
 
-DomainSpec задаёт fixed value либо allowed numeric/enum domain. `min/max` не означает автоматически uniform sampling. Sampling policy принадлежит preset и переносится в соответствующий layout/effect recipe. Concrete sampled value выбирается только внутри attempt через независимый RNG namespace.
+`DomainSpec` задаёт фиксированное значение либо допустимый числовой/enum-диапазон. `min/max` не означает автоматически равномерный sampling. Политика sampling принадлежит preset-у и переносится в соответствующий layout/effect recipe. Конкретное sampled value выбирается только внутри attempt через независимый RNG namespace.
 
-## Constraints
+## Ограничения
 
-User constraint:
+Пользовательское ограничение:
 
 ```text
 relation + SpatialSelector(subject) + SpatialSelector(target)
 ```
 
-Primitive relations Core 0.1:
+Примитивные relations Core 0.1:
 
 ```text
 near
@@ -124,57 +124,57 @@ overlaps
 adjacent
 ```
 
-`connects` отложен до появления route/network semantics.
+`connects` отложен до появления семантики маршрутов и сетей.
 
-Spatial selectors могут ссылаться на feature/part, built-in domain anchor/region или literal point/region. Semantic relations компилируются в generic measurements/evaluators и hard predicate либо soft scoring recipe.
+Spatial selectors могут ссылаться на feature/part, встроенный domain anchor/region или literal point/region. Семантические relations компилируются в универсальные measurements/evaluators и hard predicate либо soft scoring recipe.
 
-Geometry-part semantics едины для всех modules:
+Семантика частей geometry едина для всех модулей:
 
 - point: `whole=center=point`;
-- corridor: `whole=polyline`, start/end first/last centerline point, center at 50% arc length, endpoints both ends;
-- band: start/end/center/endpoints по centerline, `whole` — band footprint, `boundary` — footprint boundary;
-- area: `whole` — polygon, `center` — geometric centroid, `boundary` — polygon boundary.
+- corridor: `whole=polyline`, start/end — первая/последняя точка centerline, center — 50% длины дуги, endpoints — оба конца;
+- band: start/end/center/endpoints определяются по centerline, `whole` — footprint band, `boundary` — граница footprint;
+- area: `whole` — polygon, `center` — геометрический centroid, `boundary` — граница polygon.
 
-Soft constraint weight: `0 < weight <= 1`, default `1.0`.
+Вес soft constraint: `0 < weight <= 1`, по умолчанию `1.0`.
 
 ## LayoutCandidate
 
-Structural features с `layout.mode=geometry` получают concrete macro geometry (`point`, `corridor`, `band`, `area`). Shape описывает spatial organization, а не идеальную геометрическую фигуру.
+Structural features с `layout.mode=geometry` получают конкретную macro geometry (`point`, `corridor`, `band`, `area`). Shape описывает пространственную организацию, а не идеальную геометрическую фигуру.
 
-Core 0.1 geometry baseline:
+Базовая geometry-модель Core 0.1:
 
-- corridor/band имеют ordered centerline;
-- band `width_km` означает full width, width profile параметризован `t in [0,1]`;
-- area — simple outer polygon без holes/self-intersection;
-- canonical outer rings counter-clockwise.
+- corridor/band имеют упорядоченную centerline;
+- band `width_km` означает полную ширину, width profile параметризован `t in [0,1]`;
+- area — простой внешний polygon без holes/self-intersection;
+- canonical outer rings ориентированы против часовой стрелки.
 
-Point final geometry и corridor/band centerline находятся inside/on domain boundary. Band influence footprint может выходить за domain и клиппится при rasterization; это не invariant failure.
+Финальная geometry point и centerline corridor/band находятся внутри или на границе domain. Footprint влияния band может выходить за domain и обрезается при rasterization; это не считается нарушением invariant.
 
 ## PlacementReservation
 
-Dependent feature с `layout.mode=reservation` получает vector `RegionSet` — materialized результат hard layout constraints. Он может содержать несколько disconnected polygons и holes. Пустой RegionSet структурно валиден и приводит к hard validation failure, а не schema error.
+Dependent feature с `layout.mode=reservation` получает векторный `RegionSet` — materialized результат hard layout constraints. Он может содержать несколько несвязанных polygons и holes. Пустой `RegionSet` структурно валиден и приводит к hard validation failure, а не к schema error.
 
-Reservation не хранится raster mask и не зависит от cell resolution.
+Reservation не хранится как raster mask и не зависит от разрешения ячеек.
 
-Core 0.1 materializes layout-hard constraints только относительно geometry, уже существующей к layout stage. Deferred -> deferred hard dependencies и hard dependency на будущую generated hydrology network не поддерживаются; compiler отклоняет их до attempts.
+Core 0.1 materializes hard layout constraints только относительно geometry, уже существующей к стадии layout. Deferred -> deferred hard dependencies и hard dependency на будущую сгенерированную hydrology network не поддерживаются; compiler отклоняет их до запуска attempts.
 
-## POI suitability
+## Пригодность места для POI
 
 ```text
 PlacementReservation
--> hard SiteProfile requirements
--> valid sites
--> intrinsic SiteProfile preferences
--> near-best site set
--> deterministic weighted choice
--> final point geometry
+-> hard requirements из SiteProfile
+-> допустимые sites
+-> внутренние preferences из SiteProfile
+-> множество near-best sites
+-> детерминированный weighted choice
+-> финальная point geometry
 ```
 
-SiteProfile оценивает footprint/окружение, а не одну cell. Если valid sites нет, attempt отклоняется. Placement не мутирует terrain/hydrology.
+`SiteProfile` оценивает footprint/окружение, а не одну cell. Если допустимых sites нет, attempt отклоняется. Placement не мутирует terrain/hydrology.
 
-Intrinsic SiteProfile preference score используется только для выбора site внутри candidate. User soft constraints оценивают final candidate и участвуют в global ranking; intrinsic suitability score сам по себе не переносится в global ranking.
+Внутренний score предпочтений `SiteProfile` используется только для выбора site внутри candidate. Пользовательские soft constraints оценивают финальный candidate и участвуют в глобальном ranking; внутренний suitability score сам по себе в глобальный ranking не переносится.
 
-## Terrain baseline
+## Базовая модель Terrain
 
 ```text
 BaseField
@@ -184,50 +184,50 @@ BaseField
 -> CanonicalElevation
 ```
 
-Additive contributions независимы от feature order. Shaping operators выполняются отдельной фазой; несовместимые shaping overlaps должны быть явно валидированы, а не разрешаться случайным порядком.
+Аддитивные contributions независимы от порядка features. Shaping operators выполняются отдельной фазой; несовместимые shaping overlaps должны явно валидироваться, а не разрешаться случайным порядком.
 
-## Hydrology baseline
+## Базовая модель Hydrology
 
-Canonical elevation Core 0.1 гидрологией не мутируется.
+Canonical elevation в Core 0.1 гидрологией не мутируется.
 
 ```text
 elevation
--> depression analysis / conditioned routing surface
--> flow direction
--> flow accumulation
--> stream extraction
+-> анализ впадин / подготовленная поверхность routing
+-> направление стока
+-> накопление стока
+-> извлечение streams
 -> river network + lakes/outlets
 -> canonical water_depth
 ```
 
-Routing surface, flow direction и flow accumulation — derived/internal. River network, lakes и `water_depth` — canonical result. Domain edge — open boundary, не автоматически море.
+Routing surface, flow direction и flow accumulation — derived/internal data. River network, lakes и `water_depth` — canonical result. Граница domain открыта и не считается автоматически морем.
 
-## Surface baseline
+## Базовая модель Surface
 
 ```text
 elevation + slope + hydrology
 -> moisture
--> vegetation potential
-+ explicit surface feature bias
+-> потенциал vegetation
++ явные surface feature biases
 -> vegetation_density
 ```
 
 `moisture` и `vegetation_density` — canonical continuous world fields. Surface не мутирует elevation/hydrology.
 
-## Attempt model
+## Модель attempts
 
-Один `attempt_index` — одна независимая realization immutable `GenerationPlan`.
+Один `attempt_index` — одна независимая realization неизменяемого `GenerationPlan`.
 
-- hidden stage-local retries запрещены;
-- early hard failure останавливает attempt;
-- late hard failure отклоняет весь attempt;
+- скрытые локальные retries внутри стадий запрещены;
+- ранний hard failure останавливает attempt;
+- поздний hard failure отклоняет весь attempt;
 - attempts не адаптируются на основе прошлых failures;
 - `max_attempts` и `target_valid_candidates` находятся в semantic `GenerationConfig`;
-- `target_valid_candidates=1` даёт first-valid semantics, отдельный selection mode v0.1 не нужен.
+- `target_valid_candidates=1` даёт семантику «первый валидный», отдельный selection mode в v0.1 не нужен.
 
-## RNG model
+## Модель RNG
 
-Никакого global mutable RNG. Child stream:
+Глобального mutable RNG нет. Дочерний stream:
 
 ```text
 root seed
@@ -239,21 +239,21 @@ root seed
 -> local RNG
 ```
 
-Python `hash()` и module/function names не являются persistence contract. Unrelated random draws, feature iteration order и observability instrumentation не сдвигают соседние streams.
+Python `hash()` и имена module/function не являются persistence contract. Несвязанные random draws, порядок обхода features и observability instrumentation не сдвигают соседние streams.
 
-## Fingerprints, versioning, replay
+## Fingerprints, versioning и replay
 
 Различаются:
 
-- `spec_fingerprint` — normalized source DomainSpec;
-- `plan_fingerprint` — canonical executable projection GenerationPlan, исключающая presentation/provenance-only metadata;
-- `generation_config_fingerprint` — canonical semantic projection GenerationConfig.
+- `spec_fingerprint` — нормализованный исходный `DomainSpec`;
+- `plan_fingerprint` — canonical executable projection `GenerationPlan`, исключающая metadata только для presentation/provenance;
+- `generation_config_fingerprint` — canonical semantic projection `GenerationConfig`.
 
-Exact procedural replay требует согласованных semantic inputs и exact generator/RNG version. Generated world stability между generator versions не гарантируется; historical regeneration использует tagged old release.
+Точный procedural replay требует согласованных semantic inputs и точных версий generator/RNG. Стабильность сгенерированного мира между версиями generator не гарантируется; для исторического воспроизведения используется tagged old release.
 
-Contract versions: DomainSpec schema, plan, layout, validation, generation config, DomainData, bundle и RNG versioning независимы.
+Версии контрактов `DomainSpec`, plan, layout, validation, generation config, `DomainData`, bundle и RNG независимы друг от друга.
 
-## Dependency DAG и mutation boundary
+## Dependency DAG и границы мутации
 
 ```text
 DomainSpec
@@ -268,54 +268,54 @@ DomainSpec
   -> DomainData Assembly
 ```
 
-Stage читает только declared upstream outputs и не мутирует outputs предыдущих stages. Validator — observer, не fixer. Renderer читает DomainData, но не изменяет world state.
+Каждая stage читает только объявленные upstream outputs и не мутирует outputs предыдущих стадий. Validator — наблюдатель, а не исправляющий механизм. Renderer читает `DomainData`, но не изменяет состояние мира.
 
 ## Validation и ranking
 
-Validation разделяет engine invariants, user hard constraints и user soft constraints.
+Validation разделяет engine invariants, пользовательские hard constraints и пользовательские soft constraints.
 
-Hard/invariant failure всегда reject. Soft score нормализован в `[0,1]`:
+Нарушение hard constraint или invariant всегда отклоняет candidate. Soft score нормализован в `[0,1]`:
 
 ```text
 effective_violation = (1 - score) * weight
 ```
 
-Valid candidates сравниваются:
+Валидные candidates сравниваются:
 
-1. меньше worst effective violation;
-2. затем больше weighted mean score;
-3. полный tie — меньше attempt index.
+1. меньшее `worst_effective_violation`;
+2. затем большее `weighted_mean_score`;
+3. при полном равенстве — меньший `attempt_index`.
 
-При отсутствии soft constraints neutral ranking: worst violation `0.0`, weighted mean `1.0`.
+При отсутствии soft constraints используется neutral ranking: worst violation `0.0`, weighted mean `1.0`.
 
 ## DomainData и bundle
 
-`DomainData` — self-contained accepted generated region. Он содержит identity/provenance, domain/grid metadata, canonical/derived field descriptors, semantic features, networks и compact validation summary.
+`DomainData` — самодостаточный canonical structured result принятой генерации. Он содержит identity/provenance, metadata domain/grid, descriptors canonical/derived fields, semantic features, networks и компактный validation summary.
 
-Canonical continuous fields Core 0.1 baseline:
+Базовые canonical continuous fields Core 0.1:
 
 - `elevation` (`float32`, m);
-- `water_depth` (`float32`, m, >=0); binary water mask derived;
+- `water_depth` (`float32`, m, >=0); binary water mask является derived;
 - `moisture` (`float32`, normalized 0..1);
 - `vegetation_density` (`float32`, normalized 0..1).
 
-Крупные arrays хранятся отдельными `.npy`; `domain.json` содержит descriptors/references. Semantic lakes остаются area features; river network хранит explicit directed topology upstream -> downstream.
+Крупные arrays хранятся отдельными `.npy`; `domain.json` содержит descriptors/references. Semantic lakes остаются area features; river network хранит явную направленную topology upstream -> downstream.
 
-`PlacementReservation`, sampler recipes, rejected attempts и debug traces не входят в DomainData.
+`PlacementReservation`, sampler recipes, rejected attempts и debug traces не входят в `DomainData`.
 
 ## Python data model
 
-Implementation boundary:
+Граница реализации:
 
 - Pydantic v2 — serialized/stable contracts и declarative schemas;
-- immutable/frozen Pydantic models — completed Plan/Layout/Validation/Data value contracts where applicable;
-- typed dataclasses — mutable runtime computational state;
-- NumPy arrays — numerical fields.
+- immutable/frozen Pydantic models — завершённые Plan/Layout/Validation/Data value contracts там, где это применимо;
+- typed dataclasses — изменяемое runtime-состояние вычислений;
+- NumPy arrays — числовые поля.
 
-Pydantic выполняет structural validation/serialization, но не generation, registry lookup или semantic compilation.
+Pydantic выполняет структурную валидацию и сериализацию, но не generation, registry lookup или semantic compilation.
 
 ## Граница Core
 
-Core независим от конкретных сеттингов, кампаний, игровых систем, LLM/agent tooling, GitHub/CI orchestration, UI и renderer-ов. Illustrative examples ненормативны.
+Core независим от конкретных сеттингов, кампаний, игровых систем, LLM/agent tooling, GitHub/CI orchestration, UI и renderer-ов. Иллюстративные примеры ненормативны.
 
-Любой setting-specific смысл должен поступать через внешний adapter/content layer и компилироваться в generic public contracts Core. Core не должен содержать special cases, названные в честь конкретного мира, фракции, локации, игровой системы или кампании.
+Любой смысл, специфичный для конкретного сеттинга, должен поступать через внешний adapter/content layer и компилироваться в универсальные публичные контракты Core. Core не должен содержать special cases, названные в честь конкретного мира, фракции, локации, игровой системы или кампании.

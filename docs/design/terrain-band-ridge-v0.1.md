@@ -8,9 +8,9 @@ target: core-0.1
 
 # Terrain Band / Ridge v0.1
 
-Этот документ фиксирует второй additive terrain operator Core 0.1: `BandGeometry + ridge`.
+Этот документ фиксирует второй additive operator terrain Core 0.1: `BandGeometry + ridge`.
 
-## Scope
+## Область действия
 
 Поддерживается terrain feature с:
 
@@ -23,11 +23,11 @@ target: core-0.1
   - `roughness`
   - `roughness_scale_km`
 
-Operator создаёт отдельный float64 structural contribution и суммируется с другими additive terrain contributions в sorted feature-id order.
+Operator создаёт отдельный float64 structural contribution и суммируется с другими additive terrain contributions в порядке отсортированных id features.
 
-## Parameter constraints
+## Ограничения parameters
 
-После attempt-local sampling:
+После sampling для конкретного attempt:
 
 ```text
 height_m > 0
@@ -36,9 +36,9 @@ profile_power > 0
 roughness_scale_km > 0
 ```
 
-Все значения обязаны быть finite float.
+Все значения обязаны быть конечными float.
 
-Parameter RNG использует существующий terrain parameter protocol:
+RNG parameters использует существующий protocol parameters terrain:
 
 ```text
 stage = terrain
@@ -46,49 +46,49 @@ scope = ("feature", feature_id, "parameter", parameter_name)
 purpose = "sample"
 ```
 
-При `roughness = 0` coherent noise не влияет на contribution; hidden replacement scale отсутствует.
+При `roughness = 0` coherent noise не влияет на contribution; скрытой подмены scale нет.
 
-## Nearest point on centerline
+## Ближайшая точка на centerline
 
-Для каждого domain cell берётся canonical world-space cell center `P`.
+Для каждой cell domain берётся canonical world-space center cell `P`.
 
-Band centerline интерпретируется как ordered polyline. Для каждого non-zero-length segment вычисляется closest point с clamped scalar projection `s in [0,1]`.
+Centerline band интерпретируется как упорядоченная polyline. Для каждого segment ненулевой длины вычисляется closest point с clamped scalar projection `s in [0,1]`.
 
-Выбирается segment/point с минимальной squared Euclidean distance. При exact tie выбирается **самый ранний segment по centerline order**.
+Выбирается segment/point с минимальным squared Euclidean distance. При exact tie выбирается **самый ранний segment по порядку centerline**.
 
-Zero-length internal segments пропускаются. Layout-level nondegenerate invariant гарантирует положительную total arc length у валидного band.
+Zero-length internal segments пропускаются. Layout-level invariant nondegenerate гарантирует положительную общую длину дуги у валидного band.
 
-Для выбранной точки `Q` определяется distance along total polyline arc length:
+Для выбранной point `Q` определяется расстояние вдоль полной длины дуги polyline:
 
 ```text
 arc_q = prefix_length_before_segment + s * segment_length
 t = arc_q / total_centerline_length
 ```
 
-Следовательно `t in [0,1]` — normalized total arc length, а не segment index fraction.
+Следовательно `t in [0,1]` — normalized total arc length, а не fraction индекса segment.
 
-## Width interpolation
+## Интерполяция width
 
-Canonical `BandGeometry.width_profile` уже хранит full width и samples по normalized `t`.
+Canonical `BandGeometry.width_profile` уже хранит полную width и samples по normalized `t`.
 
-Для найденного `t` local full width `W(t)` получается linear interpolation между соседними width samples.
+Для найденного `t` локальная полная width `W(t)` получается линейной интерполяцией между соседними width samples.
 
 ```text
 half_width = W(t) / 2
 ```
 
-Width profile не модифицируется terrain stage.
+Width profile не модифицируется стадией terrain.
 
-## Cross-band distance
+## Расстояние поперёк band
 
 ```text
 d = distance(P,Q)
 u = d / half_width
 ```
 
-`u=0` на centerline, `u=1` на nominal band edge.
+`u=0` на centerline, `u=1` на nominal edge band.
 
-## Base ridge profile
+## Базовый профиль ridge
 
 Без roughness:
 
@@ -103,13 +103,13 @@ Contribution:
 height_m * base(u)
 ```
 
-Centerline peak всегда равен `height_m` до additive combination с другими features.
+Peak centerline всегда равен `height_m` до additive combination с другими features.
 
 ## Coherent roughness
 
-Roughness использует generic `world-space coherent value noise v1`, документированный отдельно в `docs/design/world-space-value-noise-v1.md`.
+Roughness использует универсальный `world-space coherent value noise v1`, документированный отдельно в `docs/design/world-space-value-noise-v1.md`.
 
-Ridge задаёт caller namespace:
+Ridge задаёт namespace caller-а:
 
 ```text
 stage = terrain
@@ -117,9 +117,9 @@ scope = ("feature", feature_id, "ridge-noise")
 purpose = "value"
 ```
 
-Noise primitive добавляет к scope `("node", decimal(i), decimal(j))` для каждого lattice node.
+Noise primitive добавляет к scope `("node", decimal(i), decimal(j))` для каждого node lattice.
 
-Для cell center:
+Для center cell:
 
 ```text
 n(P) in [-1,1]
@@ -129,7 +129,7 @@ u_rough = u / denominator
 
 Так как `roughness <= 1`, denominator >= 0.65 и всегда положителен.
 
-Final contribution:
+Финальный contribution:
 
 ```text
 if u_rough > 1:
@@ -138,15 +138,15 @@ else:
     contribution = height_m * (1-u_rough)^profile_power
 ```
 
-Roughness деформирует поперечную footprint/slopes, но не добавляет независимую высоту далеко от band и не изменяет centerline peak (`u=0`).
+Roughness деформирует поперечный footprint/slopes, но не добавляет независимую высоту далеко от band и не меняет peak centerline (`u=0`).
 
-## Domain semantics
+## Семантика domain
 
-Band width может выходить за domain, как уже принято layout contract. Terrain вычисляет contribution только для existing domain cells; отдельный polygon footprint и clipping geometry не materialize-ятся.
+Width band может выходить за domain, как уже принято contract layout. Terrain вычисляет contribution только для существующих cells domain; отдельный polygon footprint и clipping geometry не materialize-ятся.
 
-## Additive integration
+## Аддитивная интеграция
 
-Terrain structural phase:
+Structural phase terrain:
 
 ```text
 BaseField(0m)
@@ -156,33 +156,31 @@ BaseField(0m)
 = float64 StructuralElevation
 ```
 
-Features применяются в deterministic `sorted(feature.id)` order.
+Features применяются в детерминированном порядке `sorted(feature.id)`.
 
 После additive phase текущего slice выполняется один cast в canonical `float32 TerrainState.elevation_m`.
 
-## Capability behavior
+## Поведение при неподдерживаемых конструкциях
 
-Explicit `TerrainCapabilityError`, если:
+Явный `TerrainCapabilityError`, если:
 
 - operator `ridge` используется не с `BandGeometry`;
-- required parameter set отличается;
-- parameter type/result не finite float;
+- набор required parameters отличается;
+- type/result parameter не является конечным float;
 - sampled values нарушают ranges;
-- band centerline не имеет положительной total length;
-- width interpolation обнаруживает invalid/non-positive width (defensive invariant failure).
+- centerline band не имеет положительной полной длины;
+- интерполяция width обнаруживает invalid/non-positive width как defensive invariant failure.
 
-Ни один terrain feature silently ignored не бывает.
+Ни один terrain feature не игнорируется молча.
 
-## Non-goals
-
-Не входят:
+## Что не входит
 
 - longitudinal height variation;
 - asymmetric left/right slopes;
 - multiple crests;
-- ridge erosion;
+- erosion ridge;
 - domain warping;
 - octave/fractal noise;
-- polygon footprint materialization;
+- materialization polygon footprint;
 - shaping operators (`flatten`, `blend`);
 - hydrology.

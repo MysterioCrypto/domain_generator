@@ -6,17 +6,17 @@ normative: true
 target: core-0.1
 ---
 
-# World-space coherent value noise v1
+# Coherent value noise в мировом пространстве v1
 
-Этот документ фиксирует минимальный reusable deterministic coherent-noise primitive для terrain/surface Core 0.1.
+Этот документ фиксирует минимальный reusable deterministic primitive coherent noise для terrain/surface Core 0.1.
 
-## Purpose
+## Назначение
 
-Noise существует в world coordinates и не зависит от raster traversal order, количества cells или наличия соседних consumers.
+Noise существует в мировых координатах и не зависит от порядка обхода raster, количества cells или наличия соседних consumers.
 
-Первый consumer — terrain `ridge` operator. Primitive сам не знает о terrain feature type, operator name или конкретном caller.
+Первый consumer — operator terrain `ridge`. Сам primitive не знает о типе terrain feature, имени operator-а или конкретном caller-е.
 
-## Inputs
+## Входные данные
 
 ```text
 attempt_index
@@ -28,7 +28,7 @@ world point (x_km, y_km)
 root RNG factory
 ```
 
-Caller отвечает за stable semantic namespace. Noise primitive лишь добавляет lattice-node coordinates.
+Caller отвечает за стабильный semantic namespace. Primitive noise лишь добавляет coordinates nodes lattice.
 
 Для terrain ridge caller использует:
 
@@ -55,17 +55,17 @@ f_x = g_x - i0
 f_y = g_y - j0
 ```
 
-Noise nodes находятся в `(integer_i * scale_km, integer_j * scale_km)`.
+Nodes noise находятся в `(integer_i * scale_km, integer_j * scale_km)`.
 
-## Random-access node addressing
+## Random-access addressing nodes
 
-Каждый lattice node получает собственный RNG-v1 stream. К caller scope дописывается:
+Каждый node lattice получает собственный RNG-v1 stream. К scope caller-а дописывается:
 
 ```text
 ("node", decimal(i), decimal(j))
 ```
 
-Итоговый ridge example:
+Итоговый пример ridge:
 
 ```text
 stage = terrain
@@ -77,9 +77,9 @@ scope = (
 purpose = "value"
 ```
 
-`decimal(i)`/`decimal(j)` — canonical base-10 integer representation без leading zeroes, обычная decimal integer string.
+`decimal(i)`/`decimal(j)` — каноническое представление integer в base-10 без leading zeroes, обычная decimal integer string.
 
-Node value:
+Значение node:
 
 ```text
 u = first uniform01() from that stream
@@ -88,9 +88,9 @@ node_value = 2*u - 1
 
 Следовательно `node_value in [-1, 1)`.
 
-Каждый node адресуется независимо. Вычисление одного node не потребляет RNG другого node. Изменение grid size/traversal не изменяет значения уже существующих world-space nodes.
+Каждый node адресуется независимо. Вычисление одного node не потребляет RNG другого node. Изменение размера grid или порядка traversal не меняет значения уже существующих world-space nodes.
 
-## Smooth interpolation
+## Плавная интерполяция
 
 По каждой оси применяется cubic smoothstep:
 
@@ -110,7 +110,7 @@ v01 = node(i0,j1)
 v11 = node(i1,j1)
 ```
 
-Сначала linear interpolation по x:
+Сначала линейная интерполяция по x:
 
 ```text
 a = lerp(v00, v10, sx)
@@ -123,25 +123,23 @@ b = lerp(v01, v11, sx)
 noise = lerp(a, b, sy)
 ```
 
-Итог остаётся в `[-1,1]` и непрерывен по value и first derivative на lattice boundaries.
+Результат остаётся в `[-1,1]` и непрерывен по value и first derivative на boundaries lattice.
 
-## Semantics
+## Семантика
 
 - coordinates измеряются в km;
-- `scale_km` — physical wavelength/control scale, а не cell count;
-- stage/scope/purpose являются частью semantic caller namespace;
-- noise не sample-ится из mutable raster-order stream;
+- `scale_km` — физический wavelength/control scale, а не cell count;
+- stage/scope/purpose являются частью semantic namespace caller-а;
+- noise не sample-ится из mutable stream, зависящего от порядка raster;
 - noise не округляет world coordinates;
 - implementation использует Python float / IEEE-754 double semantics;
-- changing node-addressing/interpolation protocol is a generator semantic change.
+- изменение protocol addressing/interpolation nodes является семантическим изменением generator.
 
-## Non-goals
-
-Не входят:
+## Что не входит
 
 - octave/fractal noise;
-- Perlin gradients;
+- gradients Perlin;
 - ridged multifractal transforms;
 - erosion;
 - domain warping;
-- hidden scale defaults.
+- скрытые defaults scale.

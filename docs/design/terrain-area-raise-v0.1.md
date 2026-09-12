@@ -6,26 +6,26 @@ normative: true
 target: core-0.1
 ---
 
-# Terrain Baseline / Area Raise v0.1
+# Базовый Terrain / Area Raise v0.1
 
-Этот документ фиксирует первый числовой terrain vertical slice Core 0.1.
+Этот документ фиксирует первый численный вертикальный slice terrain Core 0.1.
 
-## Scope
+## Область действия
 
-Slice материализует canonical elevation raster из уже существующего `LayoutCandidate`.
+Slice materialize-ит canonical raster elevation из уже существующего `LayoutCandidate`.
 
 Поддерживается только terrain feature с:
 
-- concrete `AreaGeometry`;
+- конкретной `AreaGeometry`;
 - effect stage `terrain`;
 - operator `raise`;
 - единственным effect parameter `height_m`.
 
-Не входят: ridge, depress, flatten, blend, noise, point/corridor/band terrain effects, slope, hydrology, surface и placement.
+Не входят: ridge, depress, flatten, blend, noise, terrain effects point/corridor/band, slope, hydrology, surface и placement.
 
 ## TerrainState
 
-Runtime state, не serialized contract:
+Runtime state, а не serialized contract:
 
 ```text
 TerrainState
@@ -37,72 +37,72 @@ TerrainState
 - shape `(plan.grid.rows, plan.grid.columns)`;
 - canonical dtype `float32`;
 - unit = meter;
-- finite values only.
+- только конечные values.
 
-Поздний DomainData assembler сохраняет это поле как canonical elevation field.
+Поздний assembler `DomainData` сохраняет это поле как canonical elevation field.
 
-## Grid/world mapping
+## Mapping grid/world
 
-World coordinate system остаётся:
+Мировая система координат остаётся:
 
-- origin southwest;
-- +x east;
-- +y north.
+- начало на юго-западе;
+- +x на восток;
+- +y на север.
 
 Raster:
 
 - row 0 = north;
 - column 0 = west.
 
-Cell center `(row, column)`:
+Center cell `(row, column)`:
 
 ```text
 x_km = (column + 0.5) * cell_size_km
 y_km = domain.height_km - (row + 0.5) * cell_size_km
 ```
 
-World/raster conversion должен находиться в единственном grid adapter. Terrain operators не изобретают собственную convention.
+Преобразование world/raster должно находиться в единственном grid adapter. Operators terrain не изобретают собственную convention.
 
-## Base field
+## Базовое поле
 
-Core 0.1 terrain baseline этого slice:
+Базовая модель terrain Core 0.1 этого slice:
 
 ```text
 BaseField = 0.0 m everywhere
 ```
 
-Нулевая elevation — datum, а не water/sea semantic. Water определяется только будущей hydrology stage.
+Нулевая elevation — datum, а не семантика water/sea. Water определяется только будущей стадией hydrology.
 
-## Area rasterization
+## Rasterization Area
 
-`AreaGeometry` rasterize-ится по **cell-center inclusion**.
+`AreaGeometry` rasterize-ится по **включению center cell**.
 
-Cell считается внутри feature, если center находится внутри polygon или на его boundary по принятой area point-containment semantics.
+Cell считается внутри feature, если center находится внутри polygon или на его boundary по принятой semantics point containment area.
 
-Area polygon не мутируется и не snap-ится к grid.
+Polygon area не мутируется и не snap-ится к grid.
 
-## raise operator
+## Operator raise
 
-Required effect parameter:
+Обязательный effect parameter:
 
 ```text
 height_m
 ```
 
-Parameter должен иметь numeric float recipe и при sampling разрешаться в finite `height_m > 0`.
+Parameter должен иметь numeric float recipe и при sampling разрешаться в конечное `height_m > 0`.
 
-Для каждого cell:
+Для каждой cell:
 
 ```text
 inside/on AreaGeometry -> contribution = height_m
 outside                 -> contribution = 0.0
 ```
 
-`raise` является additive structural operator. Отрицательные/нулевые значения не переинтерпретируются как `depress`/no-op.
+`raise` является additive structural operator. Отрицательные или нулевые значения не переинтерпретируются как `depress`/no-op.
 
-## Effect-parameter RNG
+## RNG effect parameter
 
-Resolved effect parameters sample-ятся attempt-locally через RNG v1:
+Resolved effect parameters sample-ятся для конкретного attempt через RNG v1:
 
 ```text
 stage = terrain
@@ -110,11 +110,11 @@ scope = ("feature", feature_id, "parameter", parameter_name)
 purpose = "sample"
 ```
 
-Layout RNG namespaces не меняются.
+RNG namespaces layout не меняются.
 
-## Additive accumulation
+## Аддитивное накопление
 
-Каждый supported terrain feature концептуально создаёт отдельный float64 contribution.
+Каждый поддерживаемый terrain feature концептуально создаёт отдельный float64 contribution.
 
 Structural elevation:
 
@@ -124,7 +124,7 @@ float64 BaseField
 = float64 StructuralElevation
 ```
 
-Feature input order не является semantic.
+Порядок features во входе не является семантическим.
 
 В этом slice shaping phase отсутствует, поэтому:
 
@@ -132,44 +132,42 @@ Feature input order не является semantic.
 CanonicalElevation = StructuralElevation.astype(float32)
 ```
 
-Final cast в float32 выполняется ровно один раз после всех additive contributions.
+Финальный cast в float32 выполняется ровно один раз после всех additive contributions.
 
-## Capability behavior
+## Поведение при неподдерживаемых конструкциях
 
-Terrain stage обрабатывает только features с `family=terrain`.
-
-Для terrain feature explicit capability error, если:
+Stage terrain выдаёт явный capability error, если для terrain feature:
 
 - layout geometry не materialized;
 - geometry не `AreaGeometry`;
 - effect stage не `terrain`;
 - operator не `raise`;
-- parameter set отличается от ровно `{height_m}`;
+- набор parameters отличается от ровно `{height_m}`;
 - `height_m` имеет неподдерживаемый type/sampler/result.
 
-Ни один terrain feature нельзя silently ignore.
+Ни один terrain feature нельзя молча игнорировать.
 
-Non-terrain features не являются terrain-stage work и пропускаются.
+Features не из family terrain не являются работой terrain stage и пропускаются.
 
-## Terrain validation
+## Validation Terrain
 
-Terrain `ValidationResult(stage=terrain)` содержит engine invariants:
+`ValidationResult(stage=terrain)` содержит engine invariants:
 
 - upstream layout существует;
-- layout `attempt_index` равен текущему attempt;
-- TerrainState существует;
-- elevation shape равна `(rows, columns)`;
-- elevation dtype ровно `float32`;
-- все elevation values finite;
-- supported terrain feature set применён полностью и каждый feature ровно один раз.
+- `attempt_index` layout равен текущему attempt;
+- `TerrainState` существует;
+- shape elevation равен `(rows, columns)`;
+- dtype elevation ровно `float32`;
+- все values elevation конечны;
+- множество поддерживаемых terrain features применено полностью и каждый feature ровно один раз.
 
-Terrain hard constraints в этом slice отсутствуют. Поэтому `HardConstraintGroup` всегда пуст и по контракту имеет `passed=true`; итоговая валидность terrain stage определяется engine invariants.
+Hard constraints terrain в этом slice отсутствуют. Поэтому `HardConstraintGroup` всегда пуст и по контракту имеет `passed=true`; итоговая валидность terrain stage определяется engine invariants.
 
-Проверка complete feature application использует runtime trace IDs, собранный тем же stage handler; standalone validator не должен молча подменять этот trace ожидаемым feature set.
+Проверка полного применения features использует runtime trace IDs, собранный тем же stage handler; standalone validator не должен молча подменять этот trace ожидаемым множеством features.
 
 Validation не модифицирует state.
 
-## Stage causality
+## Причинность стадий
 
 ```text
 GenerationPlan + LayoutCandidate
@@ -181,16 +179,16 @@ TerrainState
 
 Terrain stage читает layout и plan, записывает только `CandidateState.terrain` и не мутирует layout.
 
-## Determinism
+## Детерминированность
 
 Результат определяется:
 
 - plan/grid/domain;
-- concrete layout area geometry;
+- конкретной area geometry layout;
 - attempt index;
-- root seed + terrain parameter RNG namespace;
-- sorted terrain feature ids;
-- fixed raster center convention;
-- float64 accumulation followed by one float32 cast.
+- root seed + RNG namespace parameters terrain;
+- отсортированными id terrain features;
+- фиксированным соглашением о centers raster cells;
+- accumulation float64 с одним финальным cast в float32.
 
-Observability/debug paths не участвуют в numeric computation.
+Observability/debug paths не участвуют в численных вычислениях.

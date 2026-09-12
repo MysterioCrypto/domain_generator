@@ -18,7 +18,7 @@ scope: core
 
 - `DomainSpec` — намерение, seed и constraints;
 - `GenerationPlan` — конкретизированный пространственный план одного запуска;
-- `DomainData` — фактически полученный домен.
+- `DomainData` — фактически полученный domain.
 
 `DomainSpec` не модифицируется генератором. `GenerationPlan` можно пересоздать. `DomainData` является каноническим результатом.
 

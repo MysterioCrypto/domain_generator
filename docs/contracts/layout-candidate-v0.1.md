@@ -6,9 +6,9 @@ normative: false
 target: core-0.1
 ---
 
-# LayoutCandidate v0.1 — draft
+# LayoutCandidate v0.1 — черновик
 
-`LayoutCandidate` фиксирует конкретную macro-spatial realization одного attempt. Он содержит уже реализованные structural geometries и materialized placement reservations, но не physical fields, hydrology, surface data или final dependent placements.
+`LayoutCandidate` фиксирует конкретную macro-spatial realization одного attempt. Он содержит уже реализованные structural geometries и materialized placement reservations, но не physical fields, hydrology, surface data или финальные dependent placements.
 
 ## Корень
 
@@ -24,11 +24,11 @@ geometry_realizations: {}
 placement_reservations: {}
 ```
 
-`attempt_index >= 0`. `source_plan.fingerprint` должен совпадать с semantic `plan_fingerprint` используемого `GenerationPlan`.
+`attempt_index >= 0`. `source_plan.fingerprint` должен совпадать с семантическим `plan_fingerprint` используемого `GenerationPlan`.
 
-## Geometry realizations
+## Реализованные geometries
 
-Каждый feature с `layout.mode = geometry` получает concrete geometry:
+Каждый feature с `layout.mode = geometry` получает конкретную geometry:
 
 ```yaml
 geometry_realizations:
@@ -44,9 +44,9 @@ geometry_realizations:
       - {t: 1.0, width_km: 20.4}
 ```
 
-Attempt-local sampler inputs, noise seeds и effect parameters здесь не сохраняются; LayoutCandidate хранит outcome macro geometry.
+Attempt-local sampler inputs, noise seeds и параметры effect здесь не сохраняются; `LayoutCandidate` хранит результат macro geometry.
 
-## Geometry primitives
+## Примитивы geometry
 
 ### Point
 
@@ -91,15 +91,15 @@ boundary:
   - {x_km: 14.0, y_km: 16.0}
 ```
 
-Core 0.1 `AreaGeometry` — один простой outer polygon без holes и self-intersections, минимум три вершины. Последняя вершина не дублирует первую; closing edge подразумевается. Canonical outer ring ориентирован counter-clockwise.
+`AreaGeometry` Core 0.1 — один простой outer polygon без holes и self-intersections, минимум три вершины. Последняя вершина не дублирует первую; closing edge подразумевается. Canonical outer ring ориентирован против часовой стрелки.
 
-## Domain boundary semantics
+## Семантика границы domain
 
-Layout geometry не обязана целиком помещать свой influence footprint внутрь domain:
+Layout geometry не обязана целиком помещать свой footprint влияния внутрь domain:
 
-- final point geometry должна находиться внутри domain или на boundary;
-- corridor/band centerline должна находиться внутри domain или на boundary;
-- band footprint/influence может выходить за boundary и при rasterization клиппится domain;
+- финальная point geometry должна находиться внутри domain или на boundary;
+- centerline corridor/band должна находиться внутри domain или на boundary;
+- footprint/influence band может выходить за boundary и при rasterization обрезается domain;
 - raster effects вычисляются только внутри domain.
 
 Это позволяет структурным объектам естественно продолжаться за пределами рассматриваемого региона.
@@ -127,7 +127,7 @@ placement_reservations:
 
 Reservation хранит результат применения hard spatial constraints, а не повторяет symbolic relations из `GenerationPlan`.
 
-Conceptually:
+Концептуально:
 
 ```text
 R0 = whole domain
@@ -137,11 +137,11 @@ R2 = R1 - hard_exclusion_2
 PlacementReservation = Rn
 ```
 
-Soft constraints не сужают reservation и применяются позже как suitability/ranking signals.
+Soft constraints не сужают reservation и применяются позже как signals suitability/ranking.
 
 ## RegionSet
 
-`RegionSet` допускает несколько disconnected polygons и holes:
+`RegionSet` допускает несколько несвязанных polygons и holes:
 
 ```yaml
 type: region_set
@@ -153,18 +153,18 @@ polygons:
     holes: []
 ```
 
-Canonical convention:
+Каноническое соглашение:
 
-- outer rings counter-clockwise;
-- holes clockwise;
-- rings simple and non-self-intersecting;
-- paths use world coordinates in km.
+- outer rings ориентированы против часовой стрелки;
+- holes — по часовой стрелке;
+- rings простые и без self-intersection;
+- paths используют мировые координаты в километрах.
 
-`RegionSet` сильнее обычного feature `AreaGeometry`, потому что materialized boolean geometry может стать disconnected или получить holes.
+`RegionSet` выразительнее обычного feature `AreaGeometry`, потому что materialized boolean geometry может стать несвязной или получить holes.
 
-Reservation хранится как vector geometry, не raster mask, чтобы macro layout не зависел от simulation resolution. Placement stage может rasterize region для конкретного grid.
+Reservation хранится как vector geometry, а не raster mask, чтобы macro layout не зависел от simulation resolution. Стадия placement может rasterize region для конкретного grid.
 
-## Empty reservation
+## Пустой reservation
 
 Пустой region set структурно валиден:
 
@@ -174,11 +174,11 @@ allowed_region:
   polygons: []
 ```
 
-Это означает well-formed, но spatially invalid candidate. Layout validation возвращает hard failure вроде `EMPTY_PLACEMENT_RESERVATION`; схема сама по себе такой документ не отвергает.
+Это означает корректно сформированный, но пространственно недопустимый candidate. Layout validation возвращает hard failure вроде `EMPTY_PLACEMENT_RESERVATION`; сама schema такой документ не отвергает.
 
 ## Deferred dependencies v0.1
 
-Reservation может материализоваться только из hard spatial constraints, цели которых уже имеют geometry на layout stage. Core 0.1 не поддерживает layout-hard dependencies вида deferred feature -> deferred feature или deferred feature -> future generated river network. Такие зависимости отклоняются compiler до attempts.
+Reservation может материализоваться только из hard spatial constraints, цели которых уже имеют geometry на стадии layout. Core 0.1 не поддерживает layout-hard dependencies вида deferred feature -> deferred feature или deferred feature -> будущая generated river network. Такие зависимости compiler отклоняет до запуска attempts.
 
 Физические post-hydrology требования dependent POI выражаются через resolved `SiteProfile`.
 
@@ -186,12 +186,12 @@ Reservation может материализоваться только из hard
 
 `LayoutCandidate` не содержит:
 
-- elevation/water/moisture/vegetation arrays;
+- arrays elevation/water/moisture/vegetation;
 - sampled terrain effect values и noise traces;
 - river network;
-- final coordinates dependent POI;
+- финальные координаты dependent POI;
 - suitability scores;
 - `ValidationResult`;
-- accepted/rejected status.
+- статус accepted/rejected.
 
-Validation остаётся отдельным immutable diagnostic result.
+Validation остаётся отдельным неизменяемым diagnostic result.
