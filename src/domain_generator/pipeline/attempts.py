@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import TypeAlias
+from typing import TYPE_CHECKING, TypeAlias
 
 from ..contracts.config import GenerationConfig
 from ..contracts.layout import LayoutCandidate
 from ..contracts.plan import GenerationPlan
 from ..contracts.validation import RankingResult, ValidationResult, ValidationStage
-from ..terrain.state import TerrainState
 from .rng import RngFactory, UINT64_MAX
+
+if TYPE_CHECKING:
+    from ..terrain.state import TerrainState
 
 
 STAGE_ORDER: tuple[ValidationStage, ...] = (
