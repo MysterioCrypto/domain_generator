@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-hydrology-routing-core-v0.1
-next_topic: hydrology-recipe-and-water-extraction
+checkpoint: M2-hydrology-classification-v0.1
+next_topic: hydrology-river-network-and-water-depth
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -48,6 +48,10 @@ implemented_m2:
   - priority-flood-routing-v0.1
   - deterministic-d8-v0.1
   - catchment-accumulation-km2-v0.1
+  - hydrology-semantic-recipe-v0.1
+  - physical-fill-surface-v0.1
+  - stream-mask-classification-v0.1
+  - lake-candidate-classification-v0.1
   - hydrology-validation-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
@@ -65,6 +69,7 @@ canonical_documents:
   terrain_structural_flatten: docs/design/terrain-structural-flatten-v0.1.md
   world_space_noise: docs/design/world-space-value-noise-v1.md
   hydrology_routing: docs/design/hydrology-routing-core-v0.1.md
+  hydrology_classification: docs/design/hydrology-classification-v0.1.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
 ---
 
@@ -80,7 +85,7 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет завершённую базовую цепочку structural + shaping. Текущий slice добавляет первый hydrology runtime слой: deterministic drainage routing поверх canonical elevation.
+Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет завершённую базовую цепочку structural + shaping. Hydrology теперь покрывает deterministic drainage routing, physical depression fill и первую классификацию streams/lake candidates.
 
 ## Карта прогресса простыми словами
 
@@ -91,14 +96,15 @@ Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReserva
 [готово] базовое поле высот
 [готово] поднятия / впадины / хребты
 [готово] flatten / shaping уже созданного рельефа
-[PR]     куда течёт вода: Priority-Flood + D8 + catchment
-[потом] порог ручьёв, реки и озёра
+[готово] куда течёт вода: Priority-Flood + D8 + catchment
+[готово] raster stream mask + физические lake candidates
+[потом] vector RiverNetwork + canonical water_depth/lakes
 [потом] влажность/растительность
 [потом] размещение POI
 [потом] сборка финального мира
 ```
 
-Текущий checkpoint отвечает на вопрос: **куда из каждой клетки уйдёт вода и какую площадь бассейна она собирает**, но пока ещё не объявляет raster streams, реки или озёра canonical world objects.
+Текущий checkpoint отвечает на два дополнительных вопроса: **какие raster cells считаются stream cells** и **какие заполненные депрессии достаточно велики/глубоки, чтобы сохраниться как lake candidates**. Он ещё не материализует vector river network, final lake feature geometry или canonical `water_depth`.
 
 ### Terrain pipeline
 
@@ -115,19 +121,27 @@ BaseField = 0 m
 
 Hydrology читает этот canonical terrain только как upstream input и не мутирует его.
 
-### Hydrology Routing Core
+### Hydrology pipeline
 
-Normative semantics: `docs/design/hydrology-routing-core-v0.1.md`.
+Normative routing semantics: `docs/design/hydrology-routing-core-v0.1.md`.
+
+Normative classification semantics: `docs/design/hydrology-classification-v0.1.md`.
 
 Runtime pipeline:
 
 ```text
 TerrainState.elevation_m
-  -> float64 RoutingSurface
-  -> Priority-Flood depression conditioning
+  -> Priority-Flood
+       ├─ physical fill_elevation_m
+       └─ routing_elevation_m with minimal routing-only gradient
   -> deterministic D8 receivers
   -> integer upstream-cell accumulation
   -> physical flow_accumulation_km2
+       └─ threshold -> stream_mask
+  -> physical depression depth = fill_elevation_m - terrain.elevation_m
+       -> 8-connected components
+       -> area/depth thresholds
+       -> lake_candidates
   -> HydrologyState
 ```
 
@@ -136,18 +150,29 @@ TerrainState.elevation_m
 - runtime `HydrologyState`;
 - edge cells — open-boundary outlets, не море;
 - Priority-Flood не изменяет canonical terrain;
+- physical fill surface отделена от routing-only ULP gradient;
 - depression/flat routing получает минимальный representable 1-ULP gradient через `nextafter`;
 - D8 использует distance-normalized slope;
 - canonical tie-break order: `N, NE, E, SE, S, SW, W, NW`;
 - accumulation сначала считается exact integer cell counts, затем один раз переводится в km²;
-- routing не использует RNG;
-- hydrology validation проверяет формы, dtype, finite values, outlets, strictly-lower receivers и accumulation minimum.
+- обязательный semantic hydrology recipe живёт в `DomainSpec`/`GenerationPlan` и входит в semantic plan fingerprint;
+- `stream_mask = flow_accumulation_km2 >= stream_threshold_km2`;
+- lake candidate mask строится только из physical fill depth, не из routing ULP artifacts;
+- lake components используют 8-connectivity, canonical row-major cell order и deterministic candidate order;
+- lake candidates фильтруются по physical `area_km2` и `max_depth_m`;
+- routing/classification не используют RNG;
+- hydrology validation проверяет routing, fill, stream classification и lake candidate consistency.
 
-### Почему stream_mask пока отложен
+### Hydrology recipe
 
-`stream_threshold_km2` влияет на semantic result мира. В текущем `GenerationPlan` нет принятого root hydrology-recipe/settings contract. Поэтому threshold не вводится hidden constant и не передаётся ad-hoc аргументом.
+```yaml
+hydrology:
+  stream_threshold_km2: 25.0
+  lake_min_area_km2: 1.0
+  lake_min_depth_m: 2.0
+```
 
-Следующий design checkpoint должен отдельно решить, где живут semantic hydrology parameters, после чего можно materialize stream graph/river extraction.
+Это semantic world input, а не execution setting. Hidden defaults и ad-hoc runtime arguments для этих thresholds запрещены. Изменение recipe меняет semantic plan fingerprint.
 
 ### Dependent placement site selection — accepted design, not implemented
 
@@ -157,22 +182,23 @@ Normative semantics: `docs/design/dependent-placement-site-selection-v0.1.md`.
 
 ## Следующий шаг
 
-После принятия routing core следующий bounded design-вопрос — **hydrology recipe + canonical water extraction**.
+Следующий bounded design-вопрос — **vector RiverNetwork + canonical water representation v0.1**.
 
-Нужно отдельно зафиксировать:
+Нужно отдельно решить до реализации:
 
-- где в semantic plan хранится `stream_threshold_km2` и будущие hydrology parameters;
-- как из `routing_elevation - canonical_elevation` выделяются candidate depressions;
-- какие physical thresholds (`area_km2`, `depth_m`, возможно volume) отличают canonical lake от малой routing depression;
-- как raster stream cells превращаются в directed vector `RiverNetwork`;
-- как формируется canonical `water_depth` без изменения terrain elevation.
+- как stream raster cells группируются/трассируются в directed river reaches;
+- как junctions/outlets становятся canonical network nodes;
+- как river geometry переводится из raster flow path в world-space polyline без renderer-specific smoothing;
+- как lake candidates превращаются в canonical lake geometry/features;
+- как river/lake representation формирует canonical `water_depth` field;
+- как streams входят в lakes и выходят из них, не ломая directed topology;
+- какие hydrology outputs остаются runtime intermediates, а какие попадают в `DomainData`.
 
 ## Ещё не сделано
 
-- hydrology semantic recipe/settings contract;
-- stream mask / stream graph;
-- canonical lakes / water_depth;
 - vector RiverNetwork;
+- canonical lakes и lake feature geometry;
+- canonical `water_depth`;
 - surface generator;
 - dependent placement final point selection runtime;
 - standalone terrain `blend` operator;
