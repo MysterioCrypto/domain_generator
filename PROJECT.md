@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-band-layout-v0.1
-next_topic: area-layout-semantics
+checkpoint: M2-area-layout-v0.1
+next_topic: placement-reservation-materialization
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -30,6 +30,9 @@ implemented_m2:
   - band-layout-generation-v0.1
   - band-width-profile-v0.1
   - band-layout-validation-v0.1
+  - area-layout-generation-v0.1
+  - area-layout-validation-v0.1
+  - area-point-spatial-evaluators-v0.1
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
@@ -52,7 +55,7 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Уже реализованы serialized Pydantic contracts, JSON Schema snapshots, deterministic RNG v1, attempt orchestrator, deterministic candidate ranking, compiler/preset-registry boundary и три реальных layout paths: point, corridor и band.
+Уже реализованы serialized Pydantic contracts, JSON Schema snapshots, deterministic RNG v1, attempt orchestrator, deterministic candidate ranking, compiler/preset-registry boundary и все четыре базовых canonical layout primitive: point, corridor, band и area.
 
 ### Point layout
 
@@ -73,20 +76,33 @@ Generic point layout реализует `GenerationPlan -> LayoutCandidate` дл
 
 ### Band layout
 
-Алгоритм зафиксирован в `docs/design/band-layout-v0.1.md` и реализует:
+Алгоритм зафиксирован в `docs/design/band-layout-v0.1.md`:
 
 - canonical `BandGeometry = centerline + width_profile`;
 - отдельный `geometry/band` RNG namespace, не меняющий corridor replay;
 - centerline по той же geometric construction, что corridor;
-- обязательные parameters `control_point_count`, `curvature`, `width_km`, `width_sample_count`;
-- `width_km` как full-width float recipe;
-- deterministic width positions `t=i/(K-1)` с обязательными `t=0` и `t=1`;
+- parameters `control_point_count`, `curvature`, `width_km`, `width_sample_count`;
+- deterministic width positions `t=i/(K-1)`;
 - отдельные `width-start`, `width-end`, `width-internal` streams;
-- изменение `width_sample_count` не меняет endpoint widths;
-- centerline должна оставаться внутри domain, но footprint может выходить наружу;
-- `start`, `end`, `center` selectors работают по centerline;
-- `whole` и `boundary` не подменяются centerline и остаются capability errors до footprint materialization;
-- engine invariants проверяют nondegenerate centerline и canonical positive width profile.
+- centerline внутри domain, footprint может выходить наружу;
+- `start`, `end`, `center` selectors;
+- `whole` и `boundary` остаются capability errors до footprint materialization.
+
+### Area layout
+
+Алгоритм зафиксирован в `docs/design/area-layout-v0.1.md`:
+
+- canonical area — простой outer polygon без holes;
+- runtime radial construction не сохраняется: `LayoutCandidate` содержит только polygon boundary;
+- parameters `vertex_count`, `radial_extent`, `radial_irregularity`;
+- независимые RNG streams `center`, `rotation`, `radial-variation`;
+- vertices строятся по равномерно возрастающим polar angles вокруг runtime generation center;
+- radial extent ограничивается расстоянием до rectangular domain boundary;
+- никаких hidden retries, repair или post-hoc vertex sorting;
+- engine invariants проверяют domain bounds, zero-length edges, self-intersections, nonzero signed area и CCW orientation;
+- semantic `area.center` вычисляется как polygon centroid, а не runtime generation center;
+- `whole` означает polygon footprint, `boundary` — outer ring;
+- point inside/outside area и point↔area whole/boundary distance поддержаны без polygon boolean library.
 
 ### Parameter sampling
 
@@ -96,15 +112,17 @@ Runtime sampler поддерживает `fixed`, float `uniform`, inclusive `in
 
 ## Следующий шаг
 
-Следующий bounded geometry path — `area`. Перед реализацией нужно отдельно определить deterministic area-generation semantics: базовое представление простой CCW polygon, parameter set, механизм irregular boundary без self-intersections и RNG isolation.
+Базовая canonical layout geometry Core 0.1 теперь покрывает point/corridor/band/area. Следующий bounded слой — materialization `PlacementReservation` для `layout.mode=reservation` через vector `RegionSet` и уже скомпилированные hard spatial constraints.
 
-После area можно переходить к materialized band footprints/RegionSet operations и placement reservations, не смешивая эти задачи с генерацией canonical area geometry.
+Перед реализацией нужно отдельно определить минимальную boolean-geometry capability v0.1: какие hard relations реально материализуются в RegionSet, как представляются domain/intersection/exclusion operations и какие случаи честно остаются capability errors.
+
+Band polygon footprint materialization стоит рассматривать рядом с этой geometry capability, но не смешивать автоматически с reservation semantics.
 
 ## Ещё не сделано
 
-- area layout generation;
 - band polygon footprint materialization;
 - placement reservation materialization и RegionSet boolean operations;
+- area↔area polygon boolean evaluators;
 - YAML/file preset loader и production preset catalog;
 - soft constraint scoring compilation;
 - terrain/hydrology/surface/dependent-placement generators;
