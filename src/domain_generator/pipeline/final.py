@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from ..compiler.compile import semantic_plan_fingerprint
-from ..constraints import SpatialConstraintCapabilityError, evaluate_hard_constraint
+from ..constraints import (
+    SpatialConstraintCapabilityError,
+    evaluate_hard_constraint,
+    evaluate_soft_constraint,
+)
 from ..contracts.common import ConstraintStrength
 from ..contracts.layout import LayoutCandidate
 from ..contracts.plan import GenerationPlan, GeometryLayoutRecipe, ReservationLayoutRecipe
@@ -35,19 +39,6 @@ def _feature_partitions(plan: GenerationPlan) -> tuple[set[str], set[str]]:
     return structural, deferred
 
 
-def _reject_soft_constraints(plan: GenerationPlan) -> None:
-    soft_ids = sorted(
-        constraint.id
-        for constraint in plan.constraints
-        if constraint.strength is ConstraintStrength.SOFT
-    )
-    if soft_ids:
-        raise FinalValidationCapabilityError(
-            "Final Validation v0.1 hard-complete does not support soft constraints: "
-            + ", ".join(repr(item) for item in soft_ids)
-        )
-
-
 def _final_geometry_view(
     layout: LayoutCandidate,
     placement,
@@ -68,15 +59,32 @@ def _final_geometry_view(
     )
 
 
+def _ranking_from_soft_results(soft_results) -> RankingResult:
+    if not soft_results:
+        return RankingResult(
+            worst_effective_violation=0.0,
+            weighted_mean_score=1.0,
+        )
+
+    total_weight = sum(result.weight for result in soft_results)
+    weighted_mean_score = (
+        sum(result.score * result.weight for result in soft_results) / total_weight
+    )
+    return RankingResult(
+        worst_effective_violation=max(
+            result.effective_violation for result in soft_results
+        ),
+        weighted_mean_score=weighted_mean_score,
+    )
+
+
 def validate_final(
     plan: GenerationPlan,
     state: CandidateState,
     *,
     attempt_index: int,
 ) -> ValidationResult:
-    """Observe one complete hard-only attempt and produce canonical final ranking."""
-    _reject_soft_constraints(plan)
-
+    """Observe one complete attempt and produce canonical final ranking."""
     expected_structural, expected_deferred = _feature_partitions(plan)
     expected_all = expected_structural | expected_deferred
 
@@ -156,27 +164,42 @@ def validate_final(
     engine_passed = all(item.passed for item in invariant_results)
 
     hard_results = ()
+    soft_results = ()
     if engine_passed:
         assert state.layout is not None and state.placement is not None
         geometry_view = _final_geometry_view(state.layout, state.placement)
+        hard_constraints = sorted(
+            (
+                constraint
+                for constraint in plan.constraints
+                if constraint.strength is ConstraintStrength.HARD
+            ),
+            key=lambda item: item.id,
+        )
+        soft_constraints = sorted(
+            (
+                constraint
+                for constraint in plan.constraints
+                if constraint.strength is ConstraintStrength.SOFT
+            ),
+            key=lambda item: item.id,
+        )
         try:
             hard_results = tuple(
                 evaluate_hard_constraint(constraint, geometry_view)
-                for constraint in sorted(plan.constraints, key=lambda item: item.id)
+                for constraint in hard_constraints
             )
+            if all(item.satisfied for item in hard_results):
+                soft_results = tuple(
+                    evaluate_soft_constraint(constraint, geometry_view)
+                    for constraint in soft_constraints
+                )
         except SpatialConstraintCapabilityError as exc:
             raise FinalValidationCapabilityError(str(exc)) from exc
 
     hard_passed = all(item.satisfied for item in hard_results)
     valid = engine_passed and hard_passed
-    ranking = (
-        RankingResult(
-            worst_effective_violation=0.0,
-            weighted_mean_score=1.0,
-        )
-        if valid
-        else None
-    )
+    ranking = _ranking_from_soft_results(soft_results) if valid else None
 
     return ValidationResult(
         validation_version="0.1",
@@ -190,13 +213,13 @@ def validate_final(
             passed=hard_passed,
             results=hard_results,
         ),
-        soft_constraints=SoftConstraintGroup(results=()),
+        soft_constraints=SoftConstraintGroup(results=soft_results),
         ranking=ranking,
     )
 
 
 def final_stage(context: AttemptContext, state: CandidateState) -> ValidationResult:
-    """Final StageHandler for hard-only Core 0.1 plans."""
+    """Final StageHandler for Core 0.1 hard/soft plans."""
     return validate_final(
         context.plan,
         state,

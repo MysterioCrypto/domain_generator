@@ -339,7 +339,7 @@ def test_rng_v1_seed_boundary_is_enforced_by_compiler() -> None:
         compile_domain_spec(spec, registry=registry(), generator_version="0.1.0.dev0")
 
 
-def test_soft_constraints_are_explicitly_not_implemented_in_this_slice() -> None:
+def test_soft_constraints_compile_to_scoring_recipe() -> None:
     data = base_spec()
     data["constraints"] = [
         {
@@ -351,12 +351,18 @@ def test_soft_constraints_are_explicitly_not_implemented_in_this_slice() -> None
             "parameters": {"max_distance_km": 20.0},
         }
     ]
-    with pytest.raises(CompilerError, match="soft constraint compilation is not implemented"):
-        compile_domain_spec(
-            DomainSpec.model_validate(data),
-            registry=registry(),
-            generator_version="0.1.0.dev0",
-        )
+    plan = compile_domain_spec(
+        DomainSpec.model_validate(data),
+        registry=registry(),
+        generator_version="0.1.0.dev0",
+    )
+    compiled = plan.constraints[0]
+    assert compiled.predicate is None
+    assert compiled.scoring is not None
+    assert compiled.scoring.type == "linear_decreasing"
+    assert compiled.scoring.ideal == 0.0
+    assert compiled.scoring.worst == 20.0
+    assert compiled.weight == 1.0
 
 
 def test_semantic_plan_fingerprint_ignores_presentation_metadata_and_source_provenance() -> None:

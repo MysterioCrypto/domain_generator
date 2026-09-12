@@ -6,86 +6,70 @@
 
 1. Прочитать `PROJECT.md`.
 2. Прочитать `docs/design/end-to-end-runtime-bundle-v0.1.md`.
-3. Проверить состояние PR #31 и PR #30 перед любыми изменениями.
-4. Не придумывать новую архитектуру без обсуждения: действует INV-006.
+3. Прочитать `docs/design/soft-constraint-compilation-scoring-v0.1.md`.
+4. Проверить состояние PR #32 перед любыми новыми изменениями.
+5. Не придумывать новую архитектуру без обсуждения: действует INV-006.
 
-## Текущее состояние на 2026-09-12
+## Текущее состояние на 2026-09-13
 
 Репозиторий: `MysterioCrypto/domain_generator`.
 
-### PR #31 — Documentation Language Cleanup v0.1
+### Уже в main
 
-- URL: https://github.com/MysterioCrypto/domain_generator/pull/31
-- branch: `docs/russian-language-cleanup-v0.1`
-- head на момент handoff: `ad0a64d5c8590b09070ce75cf1e0d17c3c6ac0fd` до добавления этого файла;
-- docs-only;
-- CI до добавления handoff: 235/235 tests passed;
-- переводит объяснительную документацию на русский;
-- `PROJECT.md` намеренно не менялся в PR #31, потому что он уже меняется в PR #30.
+- PR #31 Documentation Language Cleanup v0.1 — merged;
+- PR #30 Final Validation hard-complete v0.1 — merged;
+- `main` перед PR #32: `c793878644f80091bb772f0f640d9dcc135dd903`.
 
-Принятое языковое правило:
+Final Validation уже имеет production hard gate, final geometry view и neutral ranking для hard-only plans.
 
-- объяснительный текст, заголовки, README, ADR, contracts и design docs — по-русски;
-- буквальные технические идентификаторы остаются английскими: типы, функции, поля, enum, имена файлов, CLI-команды, serialized keys/values и формулы;
-- Python code и JSON Schema этим правилом не переводятся.
+### PR #32 — Soft Constraint Compilation & Scoring v0.1
 
-### PR #30 — Final Validation v0.1 hard-complete
+- URL: https://github.com/MysterioCrypto/domain_generator/pull/32
+- branch: `impl/m2-soft-constraint-scoring-v0.1`;
+- design принят пользователем до implementation;
+- canonical design: `docs/design/soft-constraint-compilation-scoring-v0.1.md`;
+- compiler принимает soft variants существующих relations;
+- scoring recipes: `linear_increasing`, `linear_decreasing`, `positive`;
+- soft evaluation использует тот же canonical spatial measurement boundary, что и hard evaluation;
+- Final сначала применяет hard gate, затем оценивает soft constraints и строит ranking;
+- deferred-to-deferred soft constraints допустимы, если существующий evaluator поддерживает final geometry pair;
+- hard deferred-to-deferred dependency остаётся запрещённой;
+- `SiteProfile.preferences` не входят в global user-soft ranking;
+- новые spatial relations/evaluators этим checkpoint не добавляются.
 
-- URL: https://github.com/MysterioCrypto/domain_generator/pull/30
-- branch: `impl/m2-final-validation-hard-v0.1`
-- open, not merged;
-- реализует production `FINAL` stage для текущего hard-only compiler slice;
-- до документационного cleanup CI был 241/241;
-- branch нужно актуализировать относительно нового `main` после merge PR #31 и повторно проверить CI.
-
-Final Validation:
+Scoring:
 
 ```text
-LayoutCandidate
-+ TerrainState
-+ HydrologyState
-+ SurfaceState
-+ PlacementState
-+ GenerationPlan
-        ↓
-final geometry view
-        ↓
-all compiled hard constraints
-        ↓
-ValidationResult(stage=final)
+effective_violation = (1 - score) * weight
+
+worst_effective_violation = max(effective_violation_i)
+weighted_mean_score = sum(score_i * weight_i) / sum(weight_i)
 ```
 
-Для поддерживаемых hard-only plans ranking нейтральный:
+Global candidate ordering остаётся:
+
+```text
+1. min worst_effective_violation
+2. max weighted_mean_score
+3. min attempt_index
+```
+
+Если soft constraints отсутствуют:
 
 ```text
 worst_effective_violation = 0.0
 weighted_mean_score = 1.0
 ```
 
-Soft constraints пока не игнорируются: их наличие является explicit capability error до отдельного soft-scoring checkpoint.
-
-## Точный следующий порядок действий
-
-```text
-принять PR #31
-→ merge документационного cleanup
-→ актуализировать PR #30 относительно нового main
-→ проверить CI
-→ merge Final Validation после принятия
-→ перейти к Soft Constraint Compilation & Scoring v0.1
-```
-
-Не менять этот порядок молча.
-
 ## Рабочий процесс
 
 - Один bounded архитектурный вопрос за раз.
 - Сначала объяснить design и последствия.
 - Пользователь принимает/изменяет/отклоняет.
-- Только после принятия реализовать.
-- Новый implementation PR не merge-ить без явного принятия пользователем соответствующего checkpoint.
+- Только после принятия обновить документацию и затем реализацию.
+- Implementation PR не merge-ить без явного принятия пользователем соответствующего checkpoint.
 - GitHub Actions pytest — каноническая execution-проверка.
-- Illustrative examples ненормативны и не могут становиться Core rules без отдельного решения.
+- Иллюстративные примеры ненормативны и не могут становиться Core rules без отдельного решения.
 
 ## Главная граница Core
 
@@ -133,20 +117,21 @@ DomainBundle
 
 Удалённый режим: request JSON в repository → GitHub Actions → тот же canonical entrypoint → workflow artifact. GitHub Actions является adapter/infrastructure, не dependency Core.
 
-Technical PNG — точная downstream визуализация canonical data. Художественная image-generation стилизация campaign map находится ещё дальше downstream и не меняет world state.
+Technical PNG — точная downstream визуализация canonical data. Художественная image-generation стилизация находится ещё дальше downstream и не меняет world state.
 
-## После Final Validation
+## Следующий порядок после принятия PR #32
 
-Следующий design checkpoint: `Soft Constraint Compilation & Scoring v0.1`.
+```text
+merge Soft Constraint Compilation & Scoring v0.1
+→ HydroFeature / lake materialization v0.1
+→ DomainData Assembler v0.1
+→ DomainBundle Export v0.1
+→ Technical Renderer v0.1
+→ canonical CLI / Python application entrypoint
+→ local model skill/adapter
+→ remote GitHub Actions generation adapter
+```
 
-После soft scoring в принятой end-to-end последовательности остаются:
-
-1. HydroFeature / lake materialization v0.1;
-2. DomainData Assembler v0.1;
-3. DomainBundle Export v0.1;
-4. Technical Renderer v0.1;
-5. canonical CLI / Python application entrypoint;
-6. local model skill/adapter;
-7. remote GitHub Actions generation adapter.
+HydroFeature/lake materialization требует отдельного design checkpoint. Нельзя молча решать representation lake geometry или менять `HydroFeature.geometry` без обсуждения.
 
 Обновлять этот handoff при крупных checkpoint-ах, но не использовать его вместо нормативных design/ADR документов.

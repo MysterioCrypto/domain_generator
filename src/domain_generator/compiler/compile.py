@@ -21,6 +21,7 @@ from ..contracts.plan import (
     CompiledPoint,
     CompiledPredicate,
     CompiledRectangle,
+    CompiledScoring,
     EffectRecipe,
     FeatureMetadata,
     FixedParameter,
@@ -385,6 +386,29 @@ def _validate_deferred_dependency(
         )
 
 
+def _compile_refs(
+    constraint: ConstraintSpec,
+    *,
+    features_by_id: dict[str, ResolvedFeature],
+    width_km: float,
+    height_km: float,
+):
+    return (
+        _compile_selector(
+            constraint.subject,
+            features_by_id=features_by_id,
+            width_km=width_km,
+            height_km=height_km,
+        ),
+        _compile_selector(
+            constraint.target,
+            features_by_id=features_by_id,
+            width_km=width_km,
+            height_km=height_km,
+        ),
+    )
+
+
 def _compile_hard_constraint(
     constraint: ConstraintSpec,
     *,
@@ -392,20 +416,9 @@ def _compile_hard_constraint(
     width_km: float,
     height_km: float,
 ) -> CompiledConstraint:
-    if constraint.strength is not ConstraintStrength.HARD:
-        raise CompilerError(
-            f"soft constraint compilation is not implemented in this compiler slice: {constraint.id!r}"
-        )
-
     _validate_deferred_dependency(constraint, features_by_id=features_by_id)
-    subject = _compile_selector(
-        constraint.subject,
-        features_by_id=features_by_id,
-        width_km=width_km,
-        height_km=height_km,
-    )
-    target = _compile_selector(
-        constraint.target,
+    subject, target = _compile_refs(
+        constraint,
         features_by_id=features_by_id,
         width_km=width_km,
         height_km=height_km,
@@ -480,6 +493,129 @@ def _compile_hard_constraint(
     )
 
 
+def _compile_soft_constraint(
+    constraint: ConstraintSpec,
+    *,
+    features_by_id: dict[str, ResolvedFeature],
+    width_km: float,
+    height_km: float,
+) -> CompiledConstraint:
+    subject, target = _compile_refs(
+        constraint,
+        features_by_id=features_by_id,
+        width_km=width_km,
+        height_km=height_km,
+    )
+
+    params = constraint.parameters
+    relation = constraint.relation
+    if relation is Relation.NEAR:
+        evaluator_type, scoring, unit = (
+            "distance",
+            CompiledScoring(
+                type="linear_decreasing",
+                ideal=0.0,
+                worst=params["max_distance_km"],
+            ),
+            "km",
+        )
+    elif relation is Relation.FAR_FROM:
+        evaluator_type, scoring, unit = (
+            "distance",
+            CompiledScoring(
+                type="linear_increasing",
+                ideal=params["min_distance_km"],
+                worst=0.0,
+            ),
+            "km",
+        )
+    elif relation is Relation.INSIDE:
+        evaluator_type, scoring, unit = (
+            "contained_fraction",
+            CompiledScoring(type="linear_increasing", ideal=1.0, worst=0.0),
+            None,
+        )
+    elif relation is Relation.OUTSIDE:
+        evaluator_type, scoring, unit = (
+            "overlap_fraction",
+            CompiledScoring(type="linear_decreasing", ideal=0.0, worst=1.0),
+            None,
+        )
+    elif relation is Relation.CROSSES:
+        minimum = params.get("minimum_crossing_length_km")
+        evaluator_type = "crossing_length"
+        if minimum is None or minimum == 0.0:
+            scoring = CompiledScoring(type="positive")
+        else:
+            scoring = CompiledScoring(
+                type="linear_increasing",
+                ideal=minimum,
+                worst=0.0,
+            )
+        unit = "km"
+    elif relation is Relation.OVERLAPS:
+        evaluator_type, scoring, unit = (
+            "overlap_fraction",
+            CompiledScoring(
+                type="linear_increasing",
+                ideal=params["minimum_fraction"],
+                worst=0.0,
+            ),
+            None,
+        )
+    elif relation is Relation.ADJACENT:
+        evaluator_type, scoring, unit = (
+            "boundary_gap",
+            CompiledScoring(
+                type="linear_decreasing",
+                ideal=0.0,
+                worst=params["max_gap_km"],
+            ),
+            "km",
+        )
+    else:
+        raise CompilerError(f"unsupported relation: {relation.value!r}")
+
+    if constraint.weight is None:
+        raise CompilerError(f"soft constraint {constraint.id!r} requires weight")
+
+    return CompiledConstraint(
+        id=constraint.id,
+        source_relation=relation,
+        strength=ConstraintStrength.SOFT,
+        evaluator=CompiledEvaluator(
+            type=evaluator_type,
+            subject=subject,
+            target=target,
+        ),
+        scoring=scoring,
+        weight=constraint.weight,
+        unit=unit,
+    )
+
+
+def _compile_constraint(
+    constraint: ConstraintSpec,
+    *,
+    features_by_id: dict[str, ResolvedFeature],
+    width_km: float,
+    height_km: float,
+) -> CompiledConstraint:
+    if constraint.strength is ConstraintStrength.HARD:
+        return _compile_hard_constraint(
+            constraint,
+            features_by_id=features_by_id,
+            width_km=width_km,
+            height_km=height_km,
+        )
+    return _compile_soft_constraint(
+        constraint,
+        features_by_id=features_by_id,
+        width_km=width_km,
+        height_km=height_km,
+    )
+
+
 def compile_domain_spec(
     spec: DomainSpec,
     *,
@@ -504,7 +640,7 @@ def compile_domain_spec(
     width_km = spec.domain.size.width_km
     height_km = spec.domain.size.height_km
     compiled_constraints = tuple(
-        _compile_hard_constraint(
+        _compile_constraint(
             constraint,
             features_by_id=features_by_id,
             width_km=width_km,
