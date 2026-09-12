@@ -7,15 +7,15 @@ target: core-0.1
 implemented: true
 ---
 
-# Dependent Placement Candidate Filtering v0.1
+# Фильтрация candidates для dependent placement v0.1
 
 Этот checkpoint реализует первую половину runtime dependent placement после materialized `PlacementReservation` и Site Metrics v0.1.
 
-В scope входят:
+В область действия входят:
 
 ```text
 PlacementReservation
-+ dependent-placement feature recipe
++ recipe feature dependent-placement
 + TerrainState
 + HydrologyState
 + SurfaceState
@@ -23,23 +23,23 @@ PlacementReservation
 -> reservation containment
 -> canonical candidate order
 -> site metrics
--> hard SiteProfile requirements
+-> hard requirements SiteProfile
 -> valid sites
 ```
 
-Preference scoring, near-best filtering, weighted final selection и `PlacementState.final_points` не входят в этот checkpoint.
+Scoring preferences, фильтрация near-best, финальный weighted selection и `PlacementState.final_points` не входят в этот checkpoint.
 
-## Candidate spacing
+## Шаг сетки candidates
 
-Dependent-placement operator обязан иметь resolved semantic parameter:
+Operator dependent-placement обязан иметь resolved semantic parameter:
 
 ```text
 candidate_spacing_km
 ```
 
-Он должен разрешаться в finite float `> 0`.
+Он должен разрешаться в конечный float `> 0`.
 
-Sampling использует standard parameter namespace:
+Sampling использует стандартный namespace parameter:
 
 ```text
 stage   = placement
@@ -47,9 +47,9 @@ scope   = ("feature", feature_id, "parameter", "candidate_spacing_km")
 purpose = "sample"
 ```
 
-Параметр не выводится из raster cell size и не является hidden constant.
+Параметр не выводится из размера raster cell и не является скрытой константой.
 
-## Rotated square lattice
+## Повернутая квадратная lattice
 
 Для feature `<id>` используются два независимых streams:
 
@@ -65,81 +65,81 @@ purpose = "phase"
 
 Пусть `s = candidate_spacing_km`.
 
-Rotation stream делает один draw:
+Stream rotation делает один draw:
 
 ```text
 theta = uniform01 * (pi / 2)
 ```
 
-Период `pi/2` достаточен для square lattice: повороты на 90 градусов задают ту же решётку.
+Периода `pi/2` достаточно для square lattice: повороты на 90 градусов задают ту же решётку.
 
-Phase stream делает ровно два draw:
+Stream phase делает ровно два draw:
 
 ```text
 phase_u = uniform01 * s
 phase_v = uniform01 * s
 ```
 
-В rotated coordinates lattice points:
+В повернутых координатах points lattice:
 
 ```text
 u = phase_u + i*s
 v = phase_v + j*s
 ```
 
-World coordinates:
+Мировые координаты:
 
 ```text
 x = cos(theta)*u - sin(theta)*v
 y = sin(theta)*u + cos(theta)*v
 ```
 
-`i` и `j` — все integers, необходимые для покрытия axis-aligned domain rectangle. Для finite enumeration domain corners переводятся обратным rotation в `(u,v)`, после чего integer ranges вычисляются через `ceil`/`floor`.
+`i` и `j` — все integers, необходимые для покрытия axis-aligned rectangle domain. Для конечного enumeration углы domain переводятся обратным rotation в `(u,v)`, после чего диапазоны integers вычисляются через `ceil`/`floor`.
 
-Никаких retries, jitter, clamping, snapping или adaptive density нет.
+Retries, jitter, clamping, snapping или adaptive density отсутствуют.
 
-## Domain and reservation filtering
+## Фильтрация по domain и reservation
 
-После lattice enumeration остаются только точки, удовлетворяющие:
+После enumeration lattice остаются только точки, удовлетворяющие:
 
 ```text
 0 <= x <= domain.width_km
 0 <= y <= domain.height_km
 ```
 
-Затем candidate должен лежать inside/on:
+Затем candidate должен лежать внутри или на:
 
 ```text
 PlacementReservation.allowed_region
 ```
 
-Containment использует polygonal `covers` semantics: outer boundary разрешена, boundary hole не считается interior hole и также покрывается polygon boundary semantics backend-а.
+Containment использует polygonal semantics `covers`: outer boundary разрешена, boundary hole не считается interior hole и также покрывается boundary semantics backend-а.
 
-Пустой reservation даёт пустой candidate set.
+Пустой reservation даёт пустое множество candidates.
 
 Core не создаёт fallback point и не ослабляет reservation.
 
-## Canonical order
+## Канонический порядок
 
-После filtering candidate points сортируются по exact runtime doubles:
+После filtering points candidates сортируются по точным runtime doubles:
 
 ```text
 (x_km, y_km)
 ```
 
-Duplicates удаляются по exact pair `(x_km, y_km)` до сортировки.
+Duplicates удаляются по точной паре `(x_km, y_km)` до сортировки.
 
-Iteration order lattice enumeration не является semantic.
+Порядок iteration при enumeration lattice не является семантическим.
 
-## Candidate evaluation
+## Оценка candidate
 
-Каждый retained candidate оценивается через `Dependent Placement Site Metrics v0.1` с:
+Каждый оставшийся candidate оценивается через `Dependent Placement Site Metrics v0.1` с:
 
 ```text
 feature.effect.site_profile.footprint_radius_km
 ```
 
-Attempt-global `SiteMetricContext` создаётся один раз и переиспользуется всеми candidates.
+`SiteMetricContext` уровня attempt создаётся один раз и переиспользуется всеми candidates.
 
 ## Hard requirements
 
@@ -156,11 +156,11 @@ Requirement:
 metric evaluator value
 ```
 
-применяется к metric registry Site Metrics v0.1.
+применяется к registry metrics Site Metrics v0.1.
 
-Unknown metric id или evaluator — explicit placement capability error.
+Неизвестный id metric или evaluator — явный placement capability error.
 
-Semantics:
+Семантика:
 
 ```text
 less_or_equal:    metric <= value
@@ -174,19 +174,19 @@ IEEE `+inf` для `distance_to_water` сохраняет обычные compari
 +inf >= finite -> true
 ```
 
-Candidate valid только если проходят все requirements.
+Candidate валиден только если проходят все requirements.
 
-Если requirements отсутствуют, все retained candidates valid.
+Если requirements отсутствуют, все оставшиеся candidates валидны.
 
-## Empty valid set
+## Пустое множество валидных sites
 
-Пустой valid-site set является semantic placement failure, а не capability error и не вызывает hidden retry.
+Пустое множество valid sites является семантической ошибкой placement, а не capability error и не вызывает скрытый retry.
 
-В этом checkpoint runtime helper возвращает пустой tuple. Последующий complete placement stage переведёт это состояние в attempt rejection.
+В этом checkpoint runtime helper возвращает пустой tuple. Последующая полная стадия placement переводит это состояние в отклонение attempt.
 
 ## Runtime representation
 
-Runtime-only:
+Только runtime:
 
 ```text
 EvaluatedSite
@@ -194,20 +194,18 @@ EvaluatedSite
   metrics: dict[str, float]
 ```
 
-Он не является serialized Core contract и не попадает в `DomainData`.
+Он не является сериализуемым контрактом Core и не попадает в `DomainData`.
 
-## Non-goals
+## Что не входит в этот checkpoint
 
-Не входят:
-
-- preference scoring;
+- scoring preferences;
 - maximize/minimize/preferred_range;
-- suitability composite;
-- near-best filtering;
-- final weighted choice;
+- composite suitability;
+- фильтрация near-best;
+- финальный weighted choice;
 - `PlacementState`;
 - adaptive lattice spacing;
 - Poisson-disc/blue-noise placement;
-- inter-dependent deferred POI;
-- non-point deferred geometry;
-- raster-center candidate generation.
+- взаимозависимые deferred POI;
+- deferred geometry, отличная от point;
+- генерация candidates по центрам raster cells.
