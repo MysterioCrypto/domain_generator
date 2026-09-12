@@ -4,7 +4,7 @@ kind: design-baseline
 status: accepted
 normative: true
 target: core-0.1
-implemented: false
+implemented: true
 ---
 
 # Final Validation v0.1 — hard-complete slice
