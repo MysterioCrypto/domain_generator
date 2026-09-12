@@ -7,13 +7,13 @@ target: core-0.1
 implemented: true
 ---
 
-# Final Validation v0.1 — hard-complete slice
+# Финальная валидация v0.1 — полная поддержка hard-ограничений
 
-Этот checkpoint реализует production `FINAL` stage для реально поддерживаемого compiler slice: планы без user soft constraints.
+Этот checkpoint реализует production-стадию `FINAL` для реально поддерживаемого compiler slice: планов без пользовательских soft-ограничений.
 
 ## 1. Назначение
 
-Final Validation является observer последнего runtime state одного attempt. Он ничего не генерирует, не мутирует upstream outputs и не использует RNG.
+Финальная валидация наблюдает итоговое runtime-состояние одного attempt. Она ничего не генерирует, не мутирует результаты предыдущих стадий и не использует RNG.
 
 ```text
 LayoutCandidate
@@ -24,86 +24,86 @@ PlacementState
         +
 GenerationPlan
         ↓
-final geometry view
+представление финальной геометрии
         ↓
-user hard constraints
+пользовательские hard-ограничения
         ↓
 ValidationResult(stage=final)
 ```
 
-## 2. Final geometry view
+## 2. Представление финальной геометрии
 
-Structural features уже имеют concrete geometry в:
+Structural features уже имеют конкретную геометрию в:
 
 ```text
 LayoutCandidate.geometry_realizations[id]
 ```
 
-Deferred point features имеют final geometry в:
+Deferred point features имеют финальную геометрию в:
 
 ```text
 PlacementState.final_points[id]
 ```
 
-Final stage создаёт временный read-only geometry view:
+Стадия `FINAL` создаёт временное read-only представление:
 
 ```text
 final_geometries = structural geometries ∪ deferred final points
 ```
 
-Он не записывается обратно в `LayoutCandidate` и не становится новым serialized contract.
+Оно не записывается обратно в `LayoutCandidate` и не становится новым serialized contract.
 
-Для supported plan множество final geometry ids должно в точности совпадать с `GenerationPlan.features[*].id`.
+Для поддерживаемого плана множество id финальных геометрий должно в точности совпадать с `GenerationPlan.features[*].id`.
 
-## 3. Upstream completeness invariants
+## 3. Инварианты полноты входных данных
 
-Final stage проверяет как минимум:
+Стадия `FINAL` проверяет как минимум:
 
-- layout существует;
-- terrain существует;
-- hydrology существует;
-- surface существует;
-- placement существует;
+- существует `layout`;
+- существует `terrain`;
+- существует `hydrology`;
+- существует `surface`;
+- существует `placement`;
 - `layout.attempt_index` совпадает с текущим attempt;
-- final feature geometry set complete и не содержит лишних ids.
+- множество финальных геометрий полно и не содержит лишних id.
 
-Если upstream state неполон, это обычный rejected attempt:
+Если upstream state неполон, это обычное отклонение attempt:
 
-- engine invariant group fails;
+- группа engine invariants не проходит;
 - hard results не вычисляются;
-- ranking = null.
+- `ranking = null`.
 
 Это не capability error.
 
-## 4. Hard constraint evaluation
+## 4. Проверка hard-ограничений
 
-Если engine invariants прошли, Final повторно оценивает все compiled hard constraints из `GenerationPlan.constraints` против final geometry view.
+Если engine invariants прошли, стадия `FINAL` повторно оценивает все compiled hard constraints из `GenerationPlan.constraints` относительно финальной геометрии.
 
-Зачем повторная проверка нужна даже для structural-only constraints:
+Повторная проверка нужна даже для ограничений, относящихся только к structural features:
 
-- Final является независимой итоговой проверкой accepted candidate;
-- deferred feature constraints впервые могут быть оценены против concrete final point;
-- assembler получает candidate, который прошёл единый final hard gate.
+- `FINAL` является независимой итоговой проверкой accepted candidate;
+- ограничения deferred features впервые могут быть проверены относительно конкретной финальной точки;
+- assembler получает candidate, прошедший единый финальный hard gate.
 
-Constraint measurement/predicate semantics не дублируются. Final использует тот же canonical spatial evaluator, что и Layout.
+Семантика измерений и predicates не дублируется. `FINAL` использует тот же canonical spatial evaluator, что и `Layout`.
 
-Supported evaluator/predicate combinations остаются ровно теми, которые поддерживает current shared spatial evaluator. Неподдерживаемый evaluator/predicate является capability error, а измеренный predicate=false — normal candidate rejection.
+Поддерживаются ровно те комбинации evaluator/predicate, которые умеет текущий общий spatial evaluator. Неподдерживаемый evaluator/predicate является capability error, а измеренный `predicate=false` — обычным отклонением кандидата.
 
-Hard results упорядочиваются детерминированно по `constraint.id`.
+Hard results детерминированно упорядочиваются по `constraint.id`.
 
-## 5. Soft constraints
+## 5. Soft-ограничения
 
-Current compiler slice явно не компилирует user soft constraints.
+Текущий compiler slice явно не компилирует пользовательские soft-ограничения.
 
-Поэтому Final Validation v0.1 hard-complete НЕ делает вид, что soft scoring реализован.
+Поэтому Final Validation v0.1 не делает вид, что soft scoring уже реализован.
 
-Если `GenerationPlan` вручную содержит constraint со `strength=soft`, Final stage поднимает `FinalValidationCapabilityError`.
+Если в `GenerationPlan` вручную передан constraint со `strength=soft`, стадия `FINAL` поднимает `FinalValidationCapabilityError`.
 
-Soft compilation/scoring будет отдельным design checkpoint.
+Компиляция и scoring soft-ограничений будут отдельным design checkpoint.
 
 ## 6. Ranking
 
-Для всех поддерживаемых hard-only plans soft constraint set пуст.
+Для всех поддерживаемых hard-only plans множество soft constraints пусто.
 
 Если engine invariants и hard constraints прошли:
 
@@ -115,44 +115,44 @@ ranking.weighted_mean_score = 1.0
 
 Это canonical neutral ranking, уже принятый generation baseline.
 
-Если Final rejected:
+Если стадия `FINAL` отклонила candidate:
 
 ```text
 ranking = null
 ```
 
-## 7. RNG и mutation
+## 7. RNG и мутация состояния
 
 Final Validation:
 
 - не получает semantic random draws;
-- не reroll-ит geometry;
-- не исправляет constraint violations;
-- не меняет Layout/Terrain/Hydrology/Surface/Placement;
-- не создаёт DomainData;
-- не делает IO.
+- не делает reroll геометрии;
+- не исправляет нарушения constraints;
+- не изменяет `Layout` / `Terrain` / `Hydrology` / `Surface` / `Placement`;
+- не создаёт `DomainData`;
+- не выполняет IO.
 
-## 8. Capability errors vs rejection
+## 8. Capability error и обычное отклонение
 
-Normal rejection:
+Обычное отклонение кандидата:
 
-- missing upstream state;
-- incomplete final geometry set;
-- hard predicate measured and not satisfied.
+- отсутствует обязательное upstream state;
+- множество финальных геометрий неполно;
+- hard predicate был измерен и не выполнен.
 
 Capability error:
 
-- soft constraint присутствует в plan до implementation soft-scoring slice;
-- spatial evaluator/predicate construct structurally valid, но не поддерживается current Core capability.
+- в plan присутствует soft constraint до реализации soft-scoring slice;
+- конструкция spatial evaluator/predicate структурно корректна, но ещё не поддерживается текущими возможностями Core.
 
-## 9. Non-goals
+## 9. Что не входит в этот checkpoint
 
 Не входят:
 
-- soft constraint compilation;
+- компиляция soft constraints;
 - soft scoring curves;
-- DomainData assembly;
-- HydroFeature/lake materialization;
-- export/rendering;
+- сборка `DomainData`;
+- materialization `HydroFeature` / lakes;
+- export / rendering;
 - повторная procedural generation;
-- new spatial relation semantics.
+- новые spatial relation semantics.
