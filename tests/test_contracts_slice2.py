@@ -26,6 +26,8 @@ def minimal_plan() -> dict:
             "stream_threshold_km2": 25.0,
             "lake_min_area_km2": 1.0,
             "lake_min_depth_m": 2.0,
+            "river_depth_at_threshold_m": 0.5,
+            "river_depth_exponent": 0.3,
         },
         "features": [
             {
@@ -66,6 +68,8 @@ def test_generation_plan_parses_and_is_frozen() -> None:
     plan = GenerationPlan.model_validate(minimal_plan())
     assert plan.features[0].layout.shape == "band"
     assert plan.hydrology.stream_threshold_km2 == 25.0
+    assert plan.hydrology.river_depth_at_threshold_m == 0.5
+    assert plan.hydrology.river_depth_exponent == 0.3
     with pytest.raises(ValidationError):
         plan.grid = plan.grid
 
