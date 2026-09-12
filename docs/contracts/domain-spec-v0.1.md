@@ -30,6 +30,8 @@ hydrology:
   stream_threshold_km2: 25.0
   lake_min_area_km2: 1.0
   lake_min_depth_m: 2.0
+  river_depth_at_threshold_m: 0.5
+  river_depth_exponent: 0.30
 
 features: []
 constraints: []
@@ -55,17 +57,34 @@ hydrology:
   stream_threshold_km2: 25.0
   lake_min_area_km2: 1.0
   lake_min_depth_m: 2.0
+  river_depth_at_threshold_m: 0.5
+  river_depth_exponent: 0.30
 ```
 
-Все три значения обязательны, finite и строго положительны.
+Все пять значений обязательны и finite. Первые четыре строго положительны; `river_depth_exponent >= 0`.
 
 - `stream_threshold_km2` — minimum upstream catchment area, при которой raster cell классифицируется как stream cell;
 - `lake_min_area_km2` — minimum physical area connected depression component для сохранения как lake candidate;
-- `lake_min_depth_m` — minimum maximum physical fill depth connected depression component для сохранения как lake candidate.
+- `lake_min_depth_m` — minimum maximum physical fill depth connected depression component для сохранения как lake candidate;
+- `river_depth_at_threshold_m` — deterministic proxy depth stream cell ровно на пороге `stream_threshold_km2`;
+- `river_depth_exponent` — exponent роста proxy river depth с увеличением catchment area.
+
+Для stream cell вне accepted lake:
+
+```text
+A  = flow_accumulation_km2
+A0 = stream_threshold_km2
+D0 = river_depth_at_threshold_m
+p  = river_depth_exponent
+
+river_depth_m = D0 * (A / A0)^p
+```
+
+Это явная deterministic proxy-модель для canonical `water_depth`, а не physical discharge/hydraulic simulation.
 
 Эти значения не являются hidden defaults Core. Они входят в semantic `GenerationPlan` и его fingerprint. Изменение любого из них может менять hydrology result при неизменном terrain.
 
-В v0.1 этот recipe управляет только stream/lake classification. Он не задаёт rainfall, runoff, erosion, sea level, river width, lake evaporation или климатическую модель.
+В v0.1 recipe не задаёт rainfall, runoff, erosion, sea level, physical river width, lake evaporation или климатическую модель.
 
 ## FeatureSpec
 
@@ -267,6 +286,8 @@ hydrology:
   stream_threshold_km2: 25.0
   lake_min_area_km2: 1.0
   lake_min_depth_m: 2.0
+  river_depth_at_threshold_m: 0.5
+  river_depth_exponent: 0.30
 
 features:
   - id: mountain-01
