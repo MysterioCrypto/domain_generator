@@ -89,6 +89,11 @@ def intersect_geometry(left: BooleanGeometry, right: BooleanGeometry) -> Boolean
     return BooleanGeometry(left._value.intersection(right._value))
 
 
+def intersection_area_km2(left: BooleanGeometry, right: BooleanGeometry) -> float:
+    """Return polygonal intersection area in square kilometers using backend doubles."""
+    return float(left._value.intersection(right._value).area)
+
+
 def subtract_geometry(left: BooleanGeometry, right: BooleanGeometry) -> BooleanGeometry:
     return BooleanGeometry(left._value.difference(right._value))
 
