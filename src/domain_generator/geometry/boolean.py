@@ -210,3 +210,10 @@ def to_region_set(geometry: BooleanGeometry) -> RegionSet:
         for outer, holes in canonical
     )
     return RegionSet(polygons=polygons)
+
+
+def is_canonical_region_set(region_set: RegionSet) -> bool:
+    try:
+        return to_region_set(backend_region_set(region_set)) == region_set
+    except (ValueError, TypeError):
+        return False
