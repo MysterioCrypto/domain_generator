@@ -67,6 +67,14 @@ def sample_payloads() -> dict[type, dict]:
         "river_depth_at_threshold_m": 0.5,
         "river_depth_exponent": 0.3,
     }
+    surface = {
+        "moisture_base": 0.35,
+        "water_moisture_boost": 0.55,
+        "water_moisture_decay_km": 8.0,
+        "moisture_noise_amplitude": 0.1,
+        "moisture_noise_scale_km": 12.0,
+        "vegetation_slope_zero_deg": 45.0,
+    }
 
     return {
         DomainSpec: {
@@ -76,6 +84,7 @@ def sample_payloads() -> dict[type, dict]:
             "domain": {"size": {"width_km": 2.0, "height_km": 2.0}},
             "simulation": {"cell_size_km": 1.0},
             "hydrology": hydrology,
+            "surface": surface,
             "features": [],
             "constraints": [],
         },
@@ -91,6 +100,7 @@ def sample_payloads() -> dict[type, dict]:
             "domain": {"width_km": 2.0, "height_km": 2.0},
             "grid": {"cell_size_km": 1.0, "rows": 2, "columns": 2},
             "hydrology": hydrology,
+            "surface": surface,
             "features": [],
             "constraints": [],
         },
