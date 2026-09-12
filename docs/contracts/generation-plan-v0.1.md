@@ -32,11 +32,35 @@ grid:
   rows: 400
   columns: 480
 
+hydrology:
+  stream_threshold_km2: 25.0
+  lake_min_area_km2: 1.0
+  lake_min_depth_m: 2.0
+
 features: []
 constraints: []
 ```
 
 `spec_id` — provenance и не влияет на RNG. Child RNG seeds не хранятся в Plan.
+
+`hydrology` — fully resolved semantic recipe для downstream hydrology classification. Он не является execution policy и включается в semantic plan fingerprint.
+
+## Hydrology recipe
+
+```yaml
+hydrology:
+  stream_threshold_km2: 25.0
+  lake_min_area_km2: 1.0
+  lake_min_depth_m: 2.0
+```
+
+Все значения finite и строго положительны.
+
+- `stream_threshold_km2` применяется к canonical `flow_accumulation_km2` как `>= threshold`;
+- `lake_min_area_km2` фильтрует 8-connected components физической depression mask по площади;
+- `lake_min_depth_m` фильтрует те же components по maximum physical fill depth.
+
+Hydrology routing algorithm остаётся отдельной частью generator version semantics: Plan хранит world intent/configuration, но не сериализует внутренний Priority-Flood heap, tie-break state или routing arrays.
 
 ## ResolvedFeature
 
@@ -312,6 +336,7 @@ Core 0.1 materializes layout reservations только из hard spatial constra
 - selector parts совместимы с geometry shapes;
 - deferred dependency boundary соблюдена;
 - grid dimensions согласованы с physical dimensions;
+- hydrology recipe присутствует и имеет валидные physical thresholds;
 - compiled constraint recipes исполнимы поддерживаемым registry.
 
 Pipeline не повторяет эту semantic validation на каждом attempt.
@@ -323,7 +348,7 @@ Pipeline не повторяет эту semantic validation на каждом at
 - `spec_fingerprint` — fingerprint normalized source `DomainSpec`, включая metadata документа;
 - `plan_fingerprint` — SHA-256 canonical **executable projection** Plan.
 
-В semantic `plan_fingerprint` входят seed, grid/domain semantics, feature identities, layout/effect recipes, site profiles и compiled constraints. Не входят presentation/provenance-only данные вроде `label`, `tags`, `source_preset`, `spec_id` и generator debug metadata.
+В semantic `plan_fingerprint` входят seed, grid/domain semantics, hydrology recipe, feature identities, layout/effect recipes, site profiles и compiled constraints. Не входят presentation/provenance-only данные вроде `label`, `tags`, `source_preset`, `spec_id` и generator debug metadata.
 
 Это гарантирует, что косметическое переименование не меняет procedural identity Plan. Сам fingerprint не включается в fingerprinted payload. `LayoutCandidate` ссылается на `plan_fingerprint`.
 
@@ -334,6 +359,8 @@ Pipeline не повторяет эту semantic validation на каждом at
 - concrete centerline/boundary текущего attempt;
 - attempt-specific sampled values;
 - raster arrays;
+- routing/fill elevation arrays;
+- stream mask или lake candidate cells;
 - final coordinates dependent POI;
 - Python callable;
 - child RNG seeds;

@@ -22,6 +22,11 @@ def minimal_plan() -> dict:
         "seed": 123,
         "domain": {"width_km": 120.0, "height_km": 100.0},
         "grid": {"cell_size_km": 0.25, "rows": 400, "columns": 480},
+        "hydrology": {
+            "stream_threshold_km2": 25.0,
+            "lake_min_area_km2": 1.0,
+            "lake_min_depth_m": 2.0,
+        },
         "features": [
             {
                 "id": "mountain-01",
@@ -60,8 +65,16 @@ def minimal_plan() -> dict:
 def test_generation_plan_parses_and_is_frozen() -> None:
     plan = GenerationPlan.model_validate(minimal_plan())
     assert plan.features[0].layout.shape == "band"
+    assert plan.hydrology.stream_threshold_km2 == 25.0
     with pytest.raises(ValidationError):
         plan.grid = plan.grid
+
+
+def test_generation_plan_requires_hydrology_recipe() -> None:
+    data = minimal_plan()
+    del data["hydrology"]
+    with pytest.raises(ValidationError):
+        GenerationPlan.model_validate(data)
 
 
 def test_generation_plan_rejects_grid_mismatch() -> None:

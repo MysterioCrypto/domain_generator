@@ -30,6 +30,7 @@ from ..contracts.plan import (
     ParameterType,
     PlanDomain,
     PlanGrid,
+    PlanHydrology,
     PlanSource,
     RangeParameter,
     ReservationLayoutRecipe,
@@ -148,6 +149,7 @@ def semantic_plan_fingerprint(plan: GenerationPlan) -> str:
         "seed": plan.seed,
         "domain": plan.domain.model_dump(mode="json"),
         "grid": plan.grid.model_dump(mode="json"),
+        "hydrology": plan.hydrology.model_dump(mode="json"),
         "features": features,
         "constraints": constraints,
     }
@@ -527,6 +529,11 @@ def compile_domain_spec(
             cell_size_km=spec.simulation.cell_size_km,
             rows=rows,
             columns=columns,
+        ),
+        hydrology=PlanHydrology(
+            stream_threshold_km2=spec.hydrology.stream_threshold_km2,
+            lake_min_area_km2=spec.hydrology.lake_min_area_km2,
+            lake_min_depth_m=spec.hydrology.lake_min_depth_m,
         ),
         features=tuple(resolved_features),
         constraints=compiled_constraints,

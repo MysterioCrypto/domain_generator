@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from heapq import heappop, heappush
 from math import inf, sqrt
 
@@ -8,6 +9,12 @@ import numpy as np
 
 class HydrologyCapabilityError(RuntimeError):
     """A valid upstream terrain state cannot be routed by hydrology Core 0.1."""
+
+
+@dataclass(frozen=True, slots=True)
+class PriorityFloodSurfaces:
+    fill_elevation_m: np.ndarray
+    routing_elevation_m: np.ndarray
 
 
 D8_DIRECTIONS: tuple[tuple[int, int, float], ...] = (
@@ -35,11 +42,12 @@ def _is_edge(row: int, column: int, rows: int, columns: int) -> bool:
     return row == 0 or column == 0 or row == rows - 1 or column == columns - 1
 
 
-def priority_flood_routing_surface(elevation_m: np.ndarray) -> np.ndarray:
-    """Return float64 depression-conditioned routing surface without mutating input."""
+def priority_flood_surfaces(elevation_m: np.ndarray) -> PriorityFloodSurfaces:
+    """Return physical fill and strictly-draining routing surfaces without mutating input."""
     _require_2d_finite("elevation_m", elevation_m)
     terrain = elevation_m.astype(np.float64, copy=False)
     rows, columns = terrain.shape
+    fill = np.empty((rows, columns), dtype=np.float64)
     routing = np.empty((rows, columns), dtype=np.float64)
     visited = np.zeros((rows, columns), dtype=np.bool_)
     heap: list[tuple[float, int, int]] = []
@@ -49,12 +57,14 @@ def priority_flood_routing_surface(elevation_m: np.ndarray) -> np.ndarray:
             if not _is_edge(row, column, rows, columns) or visited[row, column]:
                 continue
             value = float(terrain[row, column])
+            fill[row, column] = value
             routing[row, column] = value
             visited[row, column] = True
             heappush(heap, (value, row, column))
 
     while heap:
-        current_height, row, column = heappop(heap)
+        current_routing, row, column = heappop(heap)
+        current_fill = float(fill[row, column])
         for delta_row, delta_column, _ in D8_DIRECTIONS:
             neighbor_row = row + delta_row
             neighbor_column = column + delta_column
@@ -64,18 +74,31 @@ def priority_flood_routing_surface(elevation_m: np.ndarray) -> np.ndarray:
                 continue
 
             original = float(terrain[neighbor_row, neighbor_column])
-            if original > current_height:
+            physical_fill = max(original, current_fill)
+            if original > current_routing:
                 routed = original
             else:
-                routed = float(np.nextafter(current_height, inf))
+                routed = float(np.nextafter(current_routing, inf))
 
+            fill[neighbor_row, neighbor_column] = physical_fill
             routing[neighbor_row, neighbor_column] = routed
             visited[neighbor_row, neighbor_column] = True
             heappush(heap, (routed, neighbor_row, neighbor_column))
 
     if not bool(visited.all()):
         raise HydrologyCapabilityError("Priority-Flood did not visit every terrain cell")
-    return routing
+    if not bool(np.all(routing >= fill)):
+        raise HydrologyCapabilityError("routing surface must not fall below physical fill surface")
+
+    return PriorityFloodSurfaces(
+        fill_elevation_m=fill,
+        routing_elevation_m=routing,
+    )
+
+
+def priority_flood_routing_surface(elevation_m: np.ndarray) -> np.ndarray:
+    """Compatibility wrapper returning only the strictly-draining routing surface."""
+    return priority_flood_surfaces(elevation_m).routing_elevation_m
 
 
 def d8_flow_direction(routing_elevation_m: np.ndarray, *, cell_size_km: float) -> np.ndarray:

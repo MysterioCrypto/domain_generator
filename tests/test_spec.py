@@ -11,6 +11,11 @@ def minimal_spec() -> dict:
         "seed": 123,
         "domain": {"size": {"width_km": 120.0, "height_km": 100.0}},
         "simulation": {"cell_size_km": 0.25},
+        "hydrology": {
+            "stream_threshold_km2": 25.0,
+            "lake_min_area_km2": 1.0,
+            "lake_min_depth_m": 2.0,
+        },
         "features": [],
         "constraints": [],
     }
@@ -20,6 +25,21 @@ def test_minimal_domain_spec_parses() -> None:
     spec = DomainSpec.model_validate(minimal_spec())
     assert spec.domain.size.width_km == 120.0
     assert spec.simulation.cell_size_km == 0.25
+    assert spec.hydrology.stream_threshold_km2 == 25.0
+
+
+def test_hydrology_recipe_is_required() -> None:
+    data = minimal_spec()
+    del data["hydrology"]
+    with pytest.raises(ValidationError):
+        DomainSpec.model_validate(data)
+
+
+def test_hydrology_thresholds_must_be_positive() -> None:
+    data = minimal_spec()
+    data["hydrology"]["lake_min_depth_m"] = 0.0
+    with pytest.raises(ValidationError):
+        DomainSpec.model_validate(data)
 
 
 def test_unknown_fields_are_rejected() -> None:

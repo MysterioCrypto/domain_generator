@@ -20,6 +20,7 @@ from domain_generator.contracts.plan import (
     ParameterType,
     PlanDomain,
     PlanGrid,
+    PlanHydrology,
     PlanSource,
     ResolvedFeature,
 )
@@ -87,6 +88,11 @@ def make_plan(
         seed=seed,
         domain=PlanDomain(width_km=120.0, height_km=80.0),
         grid=PlanGrid(cell_size_km=1.0, rows=80, columns=120),
+        hydrology=PlanHydrology(
+            stream_threshold_km2=25.0,
+            lake_min_area_km2=1.0,
+            lake_min_depth_m=2.0,
+        ),
         features=features,
         constraints=constraints,
     )

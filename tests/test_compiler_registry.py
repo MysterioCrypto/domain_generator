@@ -118,6 +118,11 @@ def base_spec() -> dict:
         "seed": 123456,
         "domain": {"size": {"width_km": 120.0, "height_km": 90.0}},
         "simulation": {"cell_size_km": 0.5},
+        "hydrology": {
+            "stream_threshold_km2": 25.0,
+            "lake_min_area_km2": 1.0,
+            "lake_min_depth_m": 2.0,
+        },
         "features": [
             {
                 "id": "mountain-01",
@@ -166,6 +171,9 @@ def test_compile_resolves_grid_feature_recipes_and_hard_constraints() -> None:
     assert plan.grid.rows == 180
     assert plan.grid.columns == 240
     assert plan.source.spec_fingerprint == domain_spec_fingerprint(spec)
+    assert plan.hydrology.stream_threshold_km2 == 25.0
+    assert plan.hydrology.lake_min_area_km2 == 1.0
+    assert plan.hydrology.lake_min_depth_m == 2.0
 
     mountain = plan.features[0]
     assert mountain.id == "mountain-01"
@@ -350,6 +358,18 @@ def test_semantic_plan_fingerprint_ignores_presentation_metadata_and_source_prov
 
     assert domain_spec_fingerprint(spec_a) != domain_spec_fingerprint(spec_b)
     assert semantic_plan_fingerprint(plan_a) == semantic_plan_fingerprint(plan_b)
+
+
+def test_semantic_plan_fingerprint_includes_hydrology_recipe() -> None:
+    spec_a = DomainSpec.model_validate(base_spec())
+    changed = base_spec()
+    changed["hydrology"]["stream_threshold_km2"] = 30.0
+    spec_b = DomainSpec.model_validate(changed)
+
+    plan_a = compile_domain_spec(spec_a, registry=registry(), generator_version="0.1.0.dev0")
+    plan_b = compile_domain_spec(spec_b, registry=registry(), generator_version="0.1.0.dev0")
+
+    assert semantic_plan_fingerprint(plan_a) != semantic_plan_fingerprint(plan_b)
 
 
 def test_compilation_is_deterministic() -> None:

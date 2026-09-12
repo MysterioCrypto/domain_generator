@@ -60,6 +60,12 @@ def sample_payloads() -> dict[type, dict]:
         },
     }
 
+    hydrology = {
+        "stream_threshold_km2": 1.0,
+        "lake_min_area_km2": 1.0,
+        "lake_min_depth_m": 1.0,
+    }
+
     return {
         DomainSpec: {
             "schema_version": "0.1",
@@ -67,6 +73,7 @@ def sample_payloads() -> dict[type, dict]:
             "seed": 7,
             "domain": {"size": {"width_km": 2.0, "height_km": 2.0}},
             "simulation": {"cell_size_km": 1.0},
+            "hydrology": hydrology,
             "features": [],
             "constraints": [],
         },
@@ -81,6 +88,7 @@ def sample_payloads() -> dict[type, dict]:
             "seed": 7,
             "domain": {"width_km": 2.0, "height_km": 2.0},
             "grid": {"cell_size_km": 1.0, "rows": 2, "columns": 2},
+            "hydrology": hydrology,
             "features": [],
             "constraints": [],
         },

@@ -3,13 +3,14 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from domain_generator.contracts.plan import GenerationPlan, PlanDomain, PlanGrid, PlanSource
+from domain_generator.contracts.plan import GenerationPlan, PlanDomain, PlanGrid, PlanHydrology, PlanSource
 from domain_generator.hydrology import (
     HydrologyState,
     d8_flow_direction,
     flow_accumulation_km2,
     generate_hydrology,
     priority_flood_routing_surface,
+    priority_flood_surfaces,
     validate_hydrology,
 )
 from domain_generator.terrain.state import TerrainState
@@ -34,6 +35,11 @@ def make_plan(*, rows: int, columns: int, cell_size_km: float = 1.0) -> Generati
             rows=rows,
             columns=columns,
         ),
+        hydrology=PlanHydrology(
+            stream_threshold_km2=1.0,
+            lake_min_area_km2=1.0,
+            lake_min_depth_m=1.0,
+        ),
         features=(),
         constraints=(),
     )
@@ -50,12 +56,15 @@ def test_priority_flood_conditions_depression_without_mutating_terrain() -> None
     )
     original = elevation.copy()
 
+    surfaces = priority_flood_surfaces(elevation)
     routing = priority_flood_routing_surface(elevation)
 
     assert np.array_equal(elevation, original)
-    assert routing.dtype == np.float64
-    assert routing[1, 1] == np.nextafter(np.float64(100.0), np.float64(np.inf))
-    assert routing[1, 1] > 100.0
+    assert surfaces.fill_elevation_m.dtype == np.float64
+    assert surfaces.routing_elevation_m.dtype == np.float64
+    assert surfaces.fill_elevation_m[1, 1] == 100.0
+    assert surfaces.routing_elevation_m[1, 1] == np.nextafter(np.float64(100.0), np.float64(np.inf))
+    assert np.array_equal(routing, surfaces.routing_elevation_m)
 
 
 def test_d8_uses_distance_normalization_and_canonical_tie_break() -> None:
@@ -70,8 +79,6 @@ def test_d8_uses_distance_normalization_and_canonical_tie_break() -> None:
 
     direction = d8_flow_direction(routing, cell_size_km=1.0)
 
-    # N/E/S/W have the same height drop, but orthogonal slope beats diagonals;
-    # exact orthogonal tie resolves to earliest canonical direction: N (0).
     assert direction[1, 1] == np.int8(0)
     edge = np.ones((3, 3), dtype=np.bool_)
     edge[1, 1] = False
@@ -81,10 +88,11 @@ def test_d8_uses_distance_normalization_and_canonical_tie_break() -> None:
 def test_flat_surface_receives_minimal_gradient_and_routes_every_interior_cell() -> None:
     elevation = np.full((5, 5), 25.0, dtype=np.float32)
 
-    routing = priority_flood_routing_surface(elevation)
-    direction = d8_flow_direction(routing, cell_size_km=1.0)
+    surfaces = priority_flood_surfaces(elevation)
+    direction = d8_flow_direction(surfaces.routing_elevation_m, cell_size_km=1.0)
 
-    assert np.all(routing >= elevation.astype(np.float64))
+    assert np.array_equal(surfaces.fill_elevation_m, elevation.astype(np.float64))
+    assert np.all(surfaces.routing_elevation_m >= surfaces.fill_elevation_m)
     assert np.all(direction[1:-1, 1:-1] >= 0)
     assert np.all(direction[0, :] == -1)
     assert np.all(direction[-1, :] == -1)
@@ -105,7 +113,7 @@ def test_flow_accumulation_uses_physical_cell_area() -> None:
         cell_size_km=0.5,
     )
 
-    assert direction[2, 1] == np.int8(2)  # E
+    assert direction[2, 1] == np.int8(2)
     assert direction[2, 2] == np.int8(2)
     assert direction[2, 3] == np.int8(2)
     assert accumulation[2, 1] == pytest.approx(0.25)
@@ -133,9 +141,12 @@ def test_generate_hydrology_replays_and_preserves_canonical_terrain() -> None:
     second = generate_hydrology(plan, terrain)
 
     assert np.array_equal(terrain.elevation_m, before)
+    assert np.array_equal(first.fill_elevation_m, second.fill_elevation_m)
     assert np.array_equal(first.routing_elevation_m, second.routing_elevation_m)
     assert np.array_equal(first.flow_direction, second.flow_direction)
     assert np.array_equal(first.flow_accumulation_km2, second.flow_accumulation_km2)
+    assert np.array_equal(first.stream_mask, second.stream_mask)
+    assert first.lake_candidates == second.lake_candidates
 
 
 def test_hydrology_validation_accepts_generated_state() -> None:
@@ -162,9 +173,11 @@ def test_hydrology_validation_accepts_generated_state() -> None:
 
     assert validation.engine_invariants.passed is True
     assert validation.stage.value == "hydrology"
+    assert hydrology.fill_elevation_m.dtype == np.float64
     assert hydrology.routing_elevation_m.dtype == np.float64
     assert hydrology.flow_direction.dtype == np.int8
     assert hydrology.flow_accumulation_km2.dtype == np.float64
+    assert hydrology.stream_mask.dtype == np.bool_
 
 
 def test_hydrology_validation_rejects_missing_upstream_terrain() -> None:
@@ -188,6 +201,7 @@ def test_validation_rejects_non_lower_receiver() -> None:
     terrain = TerrainState(elevation_m=np.zeros((3, 3), dtype=np.float32))
     hydrology = HydrologyState(
         routing_elevation_m=np.zeros((3, 3), dtype=np.float64),
+        fill_elevation_m=np.zeros((3, 3), dtype=np.float64),
         flow_direction=np.array(
             [
                 [-1, -1, -1],
@@ -197,6 +211,8 @@ def test_validation_rejects_non_lower_receiver() -> None:
             dtype=np.int8,
         ),
         flow_accumulation_km2=np.ones((3, 3), dtype=np.float64),
+        stream_mask=np.ones((3, 3), dtype=np.bool_),
+        lake_candidates=(),
     )
 
     validation = validate_hydrology(plan, terrain, hydrology, attempt_index=0)

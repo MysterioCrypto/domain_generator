@@ -303,12 +303,19 @@ class PlanGrid(FrozenStrictModel):
     columns: Annotated[StrictInt, Field(gt=0)]
 
 
+class PlanHydrology(FrozenStrictModel):
+    stream_threshold_km2: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
+    lake_min_area_km2: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
+    lake_min_depth_m: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
+
+
 class GenerationPlan(FrozenStrictModel):
     plan_version: Literal["0.1"]
     source: PlanSource
     seed: StrictInt
     domain: PlanDomain
     grid: PlanGrid
+    hydrology: PlanHydrology
     features: tuple[ResolvedFeature, ...] = ()
     constraints: tuple[CompiledConstraint, ...] = ()
 

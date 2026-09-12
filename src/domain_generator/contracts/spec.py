@@ -30,6 +30,12 @@ class SimulationConfig(FrozenStrictModel):
     cell_size_km: Annotated[StrictFloat, Field(gt=0.0)]
 
 
+class HydrologySpec(FrozenStrictModel):
+    stream_threshold_km2: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
+    lake_min_area_km2: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
+    lake_min_depth_m: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
+
+
 class FeatureSpec(FrozenStrictModel):
     id: Annotated[StrictStr, Field(min_length=1)]
     preset: Annotated[StrictStr, Field(min_length=1)]
@@ -166,6 +172,7 @@ class DomainSpec(StrictModel):
     seed: StrictInt
     domain: DomainConfig
     simulation: SimulationConfig
+    hydrology: HydrologySpec
     features: tuple[FeatureSpec, ...] = ()
     constraints: tuple[ConstraintSpec, ...] = ()
     label: StrictStr | None = None
