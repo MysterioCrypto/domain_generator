@@ -41,16 +41,14 @@ class PresetDefinition(FrozenStrictModel):
                 f"layout/effect: {sorted(overlap)}"
             )
 
-        expected_stage = {
-            FeatureFamily.TERRAIN: EffectStage.TERRAIN,
-            FeatureFamily.SURFACE: EffectStage.SURFACE,
-            FeatureFamily.POI: EffectStage.DEPENDENT_PLACEMENT,
-        }[self.family]
-        if self.effect.stage is not expected_stage:
-            raise ValueError(
-                f"preset family {self.family.value!r} requires effect stage "
-                f"{expected_stage.value!r} in Core 0.1"
-            )
-        if isinstance(self.layout, ReservationLayoutRecipe) and self.family is not FeatureFamily.POI:
-            raise ValueError("reservation layout is only supported for poi presets in Core 0.1")
+        if self.family is FeatureFamily.TERRAIN and self.effect.stage is not EffectStage.TERRAIN:
+            raise ValueError("terrain preset requires terrain effect stage in Core 0.1")
+        if self.family is FeatureFamily.SURFACE and self.effect.stage is not EffectStage.SURFACE:
+            raise ValueError("surface preset requires surface effect stage in Core 0.1")
+
+        if isinstance(self.layout, ReservationLayoutRecipe):
+            if self.family is not FeatureFamily.POI:
+                raise ValueError("reservation layout is only supported for poi presets in Core 0.1")
+            if self.effect.stage is not EffectStage.DEPENDENT_PLACEMENT:
+                raise ValueError("reservation layout requires dependent_placement effect stage")
         return self
