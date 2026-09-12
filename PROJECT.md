@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-area-layout-v0.1
-next_topic: placement-reservation-materialization
+checkpoint: M2-placement-reservation-materialization-v0.1
+next_topic: dependent-placement-site-selection
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -33,6 +33,9 @@ implemented_m2:
   - area-layout-generation-v0.1
   - area-layout-validation-v0.1
   - area-point-spatial-evaluators-v0.1
+  - shapely-geos-boolean-backend-v0.1
+  - canonical-region-set-conversion-v0.1
+  - placement-reservation-materialization-v0.1
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
@@ -40,6 +43,7 @@ canonical_documents:
   decisions: docs/decisions/
   contracts: docs/contracts/
   design_baseline: docs/design/core-0.1-generation-baseline.md
+  placement_reservations: docs/design/placement-reservation-materialization-v0.1.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
 ---
 
@@ -55,77 +59,83 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Уже реализованы serialized Pydantic contracts, JSON Schema snapshots, deterministic RNG v1, attempt orchestrator, deterministic candidate ranking, compiler/preset-registry boundary и все четыре базовых canonical layout primitive: point, corridor, band и area.
+Базовая canonical layout geometry Core 0.1 покрывает все четыре primitive: point, corridor, band и area. Поверх concrete geometry теперь добавлен первый deferred-layout слой — `PlacementReservation` для point POI.
 
-### Point layout
+### Point / corridor / band / area
 
-Generic point layout реализует `GenerationPlan -> LayoutCandidate` для `shape=point` с независимым feature RNG stream, domain-bound validation и базовыми hard point/rectangle constraints.
+- point — deterministic point inside domain;
+- corridor — ordered polyline с isolated start/end/control-point RNG streams;
+- band — corridor-like centerline + deterministic full-width profile;
+- area — simple CCW polygon без holes, generated через radial construction, но serialized только как boundary.
 
-### Corridor layout
-
-Алгоритм зафиксирован в `docs/design/corridor-layout-v0.1.md`:
-
-- canonical corridor как ordered polyline;
-- `control_point_count` и `curvature`;
-- независимые start/end/control-point RNG streams;
-- internal points через `t=i/(N+1)` и normal displacement `4*t*(1-t)`;
-- domain-safe centerline без clamp/retry;
-- explicit degenerate rejection;
-- `start`, `end`, `center`, `whole` resolution;
-- point↔corridor minimum-distance hard evaluation.
-
-### Band layout
-
-Алгоритм зафиксирован в `docs/design/band-layout-v0.1.md`:
-
-- canonical `BandGeometry = centerline + width_profile`;
-- отдельный `geometry/band` RNG namespace, не меняющий corridor replay;
-- centerline по той же geometric construction, что corridor;
-- parameters `control_point_count`, `curvature`, `width_km`, `width_sample_count`;
-- deterministic width positions `t=i/(K-1)`;
-- отдельные `width-start`, `width-end`, `width-internal` streams;
-- centerline внутри domain, footprint может выходить наружу;
-- `start`, `end`, `center` selectors;
-- `whole` и `boundary` остаются capability errors до footprint materialization.
-
-### Area layout
-
-Алгоритм зафиксирован в `docs/design/area-layout-v0.1.md`:
-
-- canonical area — простой outer polygon без holes;
-- runtime radial construction не сохраняется: `LayoutCandidate` содержит только polygon boundary;
-- parameters `vertex_count`, `radial_extent`, `radial_irregularity`;
-- независимые RNG streams `center`, `rotation`, `radial-variation`;
-- vertices строятся по равномерно возрастающим polar angles вокруг runtime generation center;
-- radial extent ограничивается расстоянием до rectangular domain boundary;
-- никаких hidden retries, repair или post-hoc vertex sorting;
-- engine invariants проверяют domain bounds, zero-length edges, self-intersections, nonzero signed area и CCW orientation;
-- semantic `area.center` вычисляется как polygon centroid, а не runtime generation center;
-- `whole` означает polygon footprint, `boundary` — outer ring;
-- point inside/outside area и point↔area whole/boundary distance поддержаны без polygon boolean library.
+Подробные normative semantics лежат в `docs/design/*-layout-v0.1.md`.
 
 ### Parameter sampling
 
-Runtime sampler поддерживает `fixed`, float `uniform`, inclusive `integer_uniform`, `categorical` и float `triangular`. Triangular mapping использует зафиксированную inverse-CDF формулу и считается частью RNG v1 semantics.
+Runtime sampler поддерживает `fixed`, float `uniform`, inclusive `integer_uniform`, `categorical` и float `triangular`. Triangular inverse-CDF mapping является частью RNG v1 semantics.
 
-Никакого constraint-aware steering или hidden retries нет: geometry сначала materialize-ится, затем supported hard constraints могут отклонить весь attempt.
+### PlacementReservation
+
+Normative semantics зафиксированы в `docs/design/placement-reservation-materialization-v0.1.md`.
+
+Реализовано:
+
+- reservation только для deferred POI с final point shape;
+- initial allowed region = весь rectangular domain;
+- hard `inside` -> intersection;
+- hard `outside` -> difference;
+- hard `near` -> intersection с fixed-semantics buffer;
+- hard `far_from` -> difference fixed-semantics buffer;
+- targets: literal point/rectangle, point feature, corridor whole/start/end/center, area whole/boundary/center, band start/end/center;
+- `band.whole`/`band.boundary` остаются capability errors до footprint materialization;
+- deferred feature как constraint target не поддержан в Core 0.1;
+- constraints применяются deterministic order по id;
+- `source_constraints` хранит реально применённые hard constraint ids;
+- empty RegionSet структурно валиден, но layout validation отклоняет attempt;
+- soft constraints не изменяют reservation;
+- reservation materialization не использует RNG.
+
+### Boolean geometry backend
+
+Внутренний backend — exact pinned `shapely==2.1.2` / GEOS. Shapely objects не входят в contracts или serialized artifacts.
+
+Buffer semantics явно фиксированы (`quad_segs=8`, round caps/joins), а результат преобразуется в собственный canonical `RegionSet`:
+
+- outer CCW;
+- holes CW;
+- deterministic ring start;
+- deterministic hole/polygon ordering;
+- empty geometry -> empty RegionSet;
+- lower-dimensional overlay remnants отбрасываются.
+
+Никакого precision snapping/rounding в v0.1 нет.
+
+### Layout stage
+
+Новый `layout_stage` объединяет:
+
+```text
+concrete geometry generation
+-> placement reservation materialization
+-> unified layout validation
+```
+
+Старый `geometry_layout_stage` сохраняется как узкий concrete-geometry handler/regression boundary.
 
 ## Следующий шаг
 
-Базовая canonical layout geometry Core 0.1 теперь покрывает point/corridor/band/area. Следующий bounded слой — materialization `PlacementReservation` для `layout.mode=reservation` через vector `RegionSet` и уже скомпилированные hard spatial constraints.
+После materialized reservation следующий bounded слой — **dependent placement site selection**: как из `allowed_region` и `SiteProfile` строятся valid sites, как оцениваются requirements/preferences и каким deterministic RNG stream выбирается одна финальная point position.
 
-Перед реализацией нужно отдельно определить минимальную boolean-geometry capability v0.1: какие hard relations реально материализуются в RegionSet, как представляются domain/intersection/exclusion operations и какие случаи честно остаются capability errors.
-
-Band polygon footprint materialization стоит рассматривать рядом с этой geometry capability, но не смешивать автоматически с reservation semantics.
+Перед реализацией нужно отдельно зафиксировать site candidate representation/resolution, metric evaluators и near-best weighted selection semantics. Нельзя молча привязывать placement к raster cell centers или конкретной sampling density.
 
 ## Ещё не сделано
 
+- dependent placement final point selection;
 - band polygon footprint materialization;
-- placement reservation materialization и RegionSet boolean operations;
-- area↔area polygon boolean evaluators;
+- general area↔area polygon boolean evaluators;
 - YAML/file preset loader и production preset catalog;
 - soft constraint scoring compilation;
-- terrain/hydrology/surface/dependent-placement generators;
+- terrain/hydrology/surface generators;
 - DomainData assembler/export bundle;
 - renderer и GitHub Actions.
 
