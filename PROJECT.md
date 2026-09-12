@@ -4,61 +4,25 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-compiler-registry-minimal-slice
-next_topic: first-layout-geometry-vertical-slice
+checkpoint: M2-point-layout-v0.1
+next_topic: corridor-layout-semantics
 completed:
   - M0-project-foundation
   - M1-data-contracts
-accepted_m1_topics:
-  - domain-size-and-grid
-  - world-coordinate-convention
-  - feature-preset-model
-  - constraint-and-spatial-selector-model
-  - parameter-domain-and-sampling-model
-  - preset-registry-boundary
-  - generation-plan-role
-  - layout-candidate-role
-  - placement-reservations
-  - domain-data-bundle-model
-  - canonical-derived-debug-data
-  - staged-validation-and-ranking
-  - terrain-generation-baseline
-  - hydrology-generation-baseline
-  - surface-generation-baseline
-  - poi-suitability-v0.1
-  - attempt-model-v0.1
-  - deterministic-rng-namespaces-v0.1
-  - versioning-and-replay-v0.1
-  - core-stage-dependency-dag
-  - python-data-model-v0.1
-  - domain-spec-v0.1-design
-  - generation-plan-v0.1-design
-  - layout-candidate-v0.1-design
-  - domain-data-v0.1-design
-  - validation-result-v0.1-design
-  - generation-config-v0.1-design
-  - m1-contract-consistency-review
 implemented_m2:
   - minimal-python-package
-  - geometry-value-models-v0.1
-  - domain-spec-pydantic-v0.1
-  - generation-plan-pydantic-v0.1
-  - layout-candidate-pydantic-v0.1
-  - validation-result-pydantic-v0.1
-  - generation-config-pydantic-v0.1
-  - domain-data-pydantic-v0.1
+  - serialized-contract-layer-v0.1
   - generated-json-schema-v0.1
-  - contract-schema-roundtrip-tests
   - deterministic-rng-protocol-v1
   - xoshiro256starstar-v1
-  - rng-golden-and-isolation-tests
-  - runtime-candidate-state-v0.1
   - attempt-pipeline-skeleton-v0.1
   - deterministic-candidate-ranking-v0.1
   - typed-preset-definition-v0.1
   - in-memory-preset-registry-boundary
   - deterministic-domain-spec-compiler-slice
   - semantic-plan-fingerprint
+  - point-layout-generation-v0.1
+  - point-layout-validation-v0.1
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
@@ -79,45 +43,36 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 ## Текущее состояние
 
-`M0 — Project foundation` и `M1 — Data contracts` завершены.
+`M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-`M2 — Deterministic pipeline` уже содержит полный serialized contract layer Core 0.1, generated JSON Schema snapshots Draft 2020-12, deterministic RNG v1, attempt orchestrator и первый compiler/preset-registry vertical slice.
+Уже реализованы serialized Pydantic contracts, JSON Schema snapshots, deterministic RNG v1, attempt orchestrator, deterministic candidate ranking и минимальный compiler/preset-registry boundary.
 
-RNG v1 зафиксирован нормативно в ADR-0010 и реализован через semantic namespaces, BLAKE2b-256 и `xoshiro256**`. Attempt skeleton реализует fixed stage order, early reject, отсутствие hidden retries и deterministic candidate ranking.
+Первый настоящий procedural vertical slice — generic point layout — зафиксирован в `docs/design/point-layout-v0.1.md` и реализует:
 
-Compiler slice теперь добавляет:
+- `GenerationPlan -> LayoutCandidate` для `layout.mode=geometry`, `shape=point`;
+- независимый RNG stream на feature с namespace `feature/<id>/geometry/point`, purpose `position`;
+- ровно два `uniform01()` draw на concrete `(x_km, y_km)`;
+- отсутствие hidden retries и constraint-aware steering;
+- semantic `plan_fingerprint` в `LayoutCandidate.source_plan`;
+- layout engine invariants для plan fingerprint, attempt index, полного набора point features и domain bounds;
+- hard point-to-point distance;
+- hard point-to-rectangle distance;
+- point-in-rectangle `contained_fraction` / `overlap_fraction`;
+- `ValidationResult(stage=layout)` и StageHandler adapter для существующего attempt orchestrator.
 
-- типизированный `PresetDefinition`;
-- immutable in-memory `PresetRegistry` boundary с duplicate-id и known-operator checks;
-- loader-independent registry API: YAML/file loading намеренно ещё не реализован;
-- deterministic `compile_domain_spec()` из `DomainSpec` в immutable `GenerationPlan`;
-- сохранение layout/effect ownership параметров;
-- fixed/range/one_of overrides с проверкой preset domain;
-- перенос sampler recipe в Plan без attempt-specific sampling;
-- physical compilation normalized points, anchors и 3x3 domain regions;
-- feature-reference и geometry-part compatibility checks;
-- rejection unsupported deferred-to-deferred hard dependencies;
-- uint64 seed check на compiler boundary для RNG v1;
-- canonical `spec_fingerprint` и semantic `plan_fingerprint`, исключающий labels/tags/source provenance;
-- hard relation compilation для `near`, `far_from`, `inside`, `outside`, `crosses`, `overlaps`, `adjacent`.
-
-Test presets существуют только внутри tests и не становятся Core content. Production preset YAML ещё не добавлялся.
-
-Soft constraint scoring compilation пока намеренно не реализован: DomainSpec с soft constraint compiler отклоняет явно, потому что точная relation->scoring mapping ещё не была зафиксирована и не должна быть выдумана реализацией.
+Geometry shapes кроме point и placement reservations пока явно unsupported, а не аппроксимируются. Soft constraint scoring также пока не реализован.
 
 ## Следующий шаг
 
-Подключить первый настоящий layout/geometry vertical slice к уже существующим Plan + RNG + attempt orchestrator. Начать с одной generic geometry family/shape path, достаточной для проверки полного пути `Plan -> LayoutCandidate`, не пытаясь сразу реализовать все terrain/hydrology algorithms.
-
-Перед этим отдельно решить только те детали layout algorithm, которые действительно влияют на deterministic semantics; illustrative mountain/fort examples не превращать в Core rules.
+Перед реализацией второй procedural geometry path отдельно определить deterministic semantics для `corridor`: как выбираются endpoints/control points, какие layout parameters действительно нужны и где проходит granularity RNG streams. После принятия подключить corridor к существующему layout generator/validator без специальных content rules.
 
 ## Ещё не сделано
 
+- corridor/band/area layout generation;
+- placement reservation materialization и RegionSet boolean operations;
 - YAML/file preset loader и production preset catalog;
 - soft constraint scoring compilation;
-- реальные layout stage handlers и placement reservation materialization;
-- geometry/grid operators;
-- terrain/hydrology/surface/placement generators;
+- terrain/hydrology/surface/dependent-placement generators;
 - DomainData assembler/export bundle;
 - renderer и GitHub Actions.
 
