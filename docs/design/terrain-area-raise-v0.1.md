@@ -95,7 +95,7 @@ Parameter должен иметь numeric float recipe и при sampling раз
 
 ```text
 inside/on AreaGeometry -> contribution = height_m
-outside              -> contribution = 0.0
+outside                 -> contribution = 0.0
 ```
 
 `raise` является additive structural operator. Отрицательные/нулевые значения не переинтерпретируются как `depress`/no-op.
@@ -163,7 +163,9 @@ Terrain `ValidationResult(stage=terrain)` содержит engine invariants:
 - все elevation values finite;
 - supported terrain feature set применён полностью и каждый feature ровно один раз.
 
-В этом slice terrain hard constraints отсутствуют, поэтому hard-constraint group пуст и passed=true, если engine invariants прошли.
+Terrain hard constraints в этом slice отсутствуют. Поэтому `HardConstraintGroup` всегда пуст и по контракту имеет `passed=true`; итоговая валидность terrain stage определяется engine invariants.
+
+Проверка complete feature application использует runtime trace IDs, собранный тем же stage handler; standalone validator не должен молча подменять этот trace ожидаемым feature set.
 
 Validation не модифицирует state.
 
