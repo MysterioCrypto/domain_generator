@@ -14,16 +14,28 @@ target: core-0.1
 
 Noise существует в world coordinates и не зависит от raster traversal order, количества cells или наличия соседних consumers.
 
-Первый consumer — terrain `ridge` operator. Primitive не означает terrain сам по себе.
+Первый consumer — terrain `ridge` operator. Primitive сам не знает о terrain feature type, operator name или конкретном caller.
 
 ## Inputs
 
 ```text
-feature_id: stable procedural identity
 attempt_index
+stage: RngStage
+scope: non-empty semantic RNG scope prefix
+purpose: non-empty semantic purpose
 scale_km > 0
 world point (x_km, y_km)
 root RNG factory
+```
+
+Caller отвечает за stable semantic namespace. Noise primitive лишь добавляет lattice-node coordinates.
+
+Для terrain ridge caller использует:
+
+```text
+stage = terrain
+scope = ("feature", feature_id, "ridge-noise")
+purpose = "value"
 ```
 
 ## Lattice
@@ -47,7 +59,13 @@ Noise nodes находятся в `(integer_i * scale_km, integer_j * scale_km)`
 
 ## Random-access node addressing
 
-Каждый lattice node получает собственный RNG-v1 stream:
+Каждый lattice node получает собственный RNG-v1 stream. К caller scope дописывается:
+
+```text
+("node", decimal(i), decimal(j))
+```
+
+Итоговый ridge example:
 
 ```text
 stage = terrain
@@ -59,7 +77,7 @@ scope = (
 purpose = "value"
 ```
 
-`decimal(i)`/`decimal(j)` — canonical base-10 integer representation без leading zeroes (обычный decimal integer string).
+`decimal(i)`/`decimal(j)` — canonical base-10 integer representation без leading zeroes, обычная decimal integer string.
 
 Node value:
 
@@ -111,10 +129,11 @@ noise = lerp(a, b, sy)
 
 - coordinates измеряются в km;
 - `scale_km` — physical wavelength/control scale, а не cell count;
+- stage/scope/purpose являются частью semantic caller namespace;
 - noise не sample-ится из mutable raster-order stream;
 - noise не округляет world coordinates;
 - implementation использует Python float / IEEE-754 double semantics;
-- changing this node-addressing/interpolation protocol is a generator semantic change.
+- changing node-addressing/interpolation protocol is a generator semantic change.
 
 ## Non-goals
 
