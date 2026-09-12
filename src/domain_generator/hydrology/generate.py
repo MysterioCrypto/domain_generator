@@ -21,7 +21,7 @@ from .routing import (
     flow_accumulation_km2,
     priority_flood_surfaces,
 )
-from .state import HydrologyState, LakeCandidate
+from .state import HydrologyState
 
 
 def generate_hydrology(plan: GenerationPlan, terrain: TerrainState) -> HydrologyState:
@@ -92,73 +92,22 @@ def _receivers_are_strictly_lower(state: HydrologyState) -> bool:
     return True
 
 
-def _cells_are_8_connected(cells: tuple[tuple[int, int], ...]) -> bool:
-    if not cells:
-        return False
-    cell_set = set(cells)
-    seen = {cells[0]}
-    stack = [cells[0]]
-    while stack:
-        row, column = stack.pop()
-        for delta_row, delta_column, _ in D8_DIRECTIONS:
-            candidate = (row + delta_row, column + delta_column)
-            if candidate in cell_set and candidate not in seen:
-                seen.add(candidate)
-                stack.append(candidate)
-    return seen == cell_set
-
-
-def _lake_candidates_valid(
+def _lake_candidates_are_complete(
     plan: GenerationPlan,
     terrain: TerrainState,
     hydrology: HydrologyState,
 ) -> bool:
-    terrain64 = terrain.elevation_m.astype(np.float64, copy=False)
-    fill = hydrology.fill_elevation_m
-    depth = fill - terrain64
-    rows, columns = depth.shape
-    cell_area = plan.grid.cell_size_km * plan.grid.cell_size_km
-    all_seen: set[tuple[int, int]] = set()
-    previous_key: tuple[int, int] | None = None
-
-    for candidate in hydrology.lake_candidates:
-        if not isinstance(candidate, LakeCandidate) or not candidate.cells:
-            return False
-        if tuple(sorted(candidate.cells)) != candidate.cells:
-            return False
-        if len(set(candidate.cells)) != len(candidate.cells):
-            return False
-        if previous_key is not None and candidate.cells[0] <= previous_key:
-            return False
-        previous_key = candidate.cells[0]
-        if not _cells_are_8_connected(candidate.cells):
-            return False
-
-        for cell in candidate.cells:
-            row, column = cell
-            if not (0 <= row < rows and 0 <= column < columns):
-                return False
-            if cell in all_seen or not depth[cell] > 0.0:
-                return False
-            all_seen.add(cell)
-
-        surface = float(fill[candidate.cells[0]])
-        if any(float(fill[cell]) != surface for cell in candidate.cells):
-            return False
-        area = len(candidate.cells) * cell_area
-        max_depth = max(float(depth[cell]) for cell in candidate.cells)
-        if candidate.area_km2 != area:
-            return False
-        if candidate.max_depth_m != max_depth:
-            return False
-        if candidate.surface_elevation_m != surface:
-            return False
-        if candidate.area_km2 < plan.hydrology.lake_min_area_km2:
-            return False
-        if candidate.max_depth_m < plan.hydrology.lake_min_depth_m:
-            return False
-
-    return True
+    try:
+        expected = extract_lake_candidates(
+            terrain.elevation_m,
+            hydrology.fill_elevation_m,
+            cell_size_km=plan.grid.cell_size_km,
+            lake_min_area_km2=plan.hydrology.lake_min_area_km2,
+            lake_min_depth_m=plan.hydrology.lake_min_depth_m,
+        )
+    except HydrologyCapabilityError:
+        return False
+    return hydrology.lake_candidates == expected
 
 
 def validate_hydrology(
@@ -190,7 +139,7 @@ def validate_hydrology(
     receivers_lower = False
     accumulation_minimum = False
     stream_matches_threshold = False
-    lake_candidates_valid = False
+    lake_candidates_complete = False
 
     if hydrology_exists:
         routing = hydrology.routing_elevation_m
@@ -242,7 +191,7 @@ def validate_hydrology(
                 )
             )
         if terrain_exists and terrain_shape and fill_shape:
-            lake_candidates_valid = _lake_candidates_valid(plan, terrain, hydrology)
+            lake_candidates_complete = _lake_candidates_are_complete(plan, terrain, hydrology)
 
     results = (
         EngineInvariantResult(id="hydrology-upstream-terrain-exists", passed=terrain_exists),
@@ -274,7 +223,7 @@ def validate_hydrology(
         EngineInvariantResult(id="hydrology-stream-shape-matches-grid", passed=stream_shape),
         EngineInvariantResult(id="hydrology-stream-dtype-bool", passed=stream_dtype),
         EngineInvariantResult(id="hydrology-stream-threshold-classification", passed=stream_matches_threshold),
-        EngineInvariantResult(id="hydrology-lake-candidates-valid", passed=lake_candidates_valid),
+        EngineInvariantResult(id="hydrology-lake-candidates-complete", passed=lake_candidates_complete),
     )
     passed = all(result.passed for result in results)
 
