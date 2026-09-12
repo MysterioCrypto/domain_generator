@@ -36,6 +36,8 @@ hydrology:
   stream_threshold_km2: 25.0
   lake_min_area_km2: 1.0
   lake_min_depth_m: 2.0
+  river_depth_at_threshold_m: 0.5
+  river_depth_exponent: 0.30
 
 features: []
 constraints: []
@@ -43,7 +45,7 @@ constraints: []
 
 `spec_id` — provenance и не влияет на RNG. Child RNG seeds не хранятся в Plan.
 
-`hydrology` — fully resolved semantic recipe для downstream hydrology classification. Он не является execution policy и включается в semantic plan fingerprint.
+`hydrology` — fully resolved semantic recipe для downstream hydrology classification/network/water-depth generation. Он не является execution policy и включается в semantic plan fingerprint.
 
 ## Hydrology recipe
 
@@ -52,15 +54,29 @@ hydrology:
   stream_threshold_km2: 25.0
   lake_min_area_km2: 1.0
   lake_min_depth_m: 2.0
+  river_depth_at_threshold_m: 0.5
+  river_depth_exponent: 0.30
 ```
 
-Все значения finite и строго положительны.
+Все значения finite. `stream_threshold_km2`, `lake_min_area_km2`, `lake_min_depth_m` и `river_depth_at_threshold_m` строго положительны; `river_depth_exponent >= 0`.
 
 - `stream_threshold_km2` применяется к canonical `flow_accumulation_km2` как `>= threshold`;
 - `lake_min_area_km2` фильтрует 8-connected components физической depression mask по площади;
-- `lake_min_depth_m` фильтрует те же components по maximum physical fill depth.
+- `lake_min_depth_m` фильтрует те же components по maximum physical fill depth;
+- `river_depth_at_threshold_m` задаёт proxy river depth при catchment area, равной stream threshold;
+- `river_depth_exponent` задаёт степень роста proxy river depth с catchment area.
 
-Hydrology routing algorithm остаётся отдельной частью generator version semantics: Plan хранит world intent/configuration, но не сериализует внутренний Priority-Flood heap, tie-break state или routing arrays.
+Для stream cell вне accepted lake:
+
+```text
+river_depth_m = river_depth_at_threshold_m
+                * (flow_accumulation_km2 / stream_threshold_km2)
+                  ** river_depth_exponent
+```
+
+Это deterministic proxy для canonical `water_depth`, не discharge/hydraulic simulation.
+
+Hydrology routing/network algorithms остаются частью generator version semantics: Plan хранит world intent/configuration, но не сериализует внутренний Priority-Flood heap, tie-break state, routing arrays, `RiverNetwork` realization или `water_depth` array.
 
 ## ResolvedFeature
 
@@ -336,7 +352,7 @@ Core 0.1 materializes layout reservations только из hard spatial constra
 - selector parts совместимы с geometry shapes;
 - deferred dependency boundary соблюдена;
 - grid dimensions согласованы с physical dimensions;
-- hydrology recipe присутствует и имеет валидные physical thresholds;
+- hydrology recipe присутствует и имеет валидные physical thresholds/proxy parameters;
 - compiled constraint recipes исполнимы поддерживаемым registry.
 
 Pipeline не повторяет эту semantic validation на каждом attempt.
@@ -361,6 +377,8 @@ Pipeline не повторяет эту semantic validation на каждом at
 - raster arrays;
 - routing/fill elevation arrays;
 - stream mask или lake candidate cells;
+- `RiverNetwork` realization;
+- canonical `water_depth` array;
 - final coordinates dependent POI;
 - Python callable;
 - child RNG seeds;

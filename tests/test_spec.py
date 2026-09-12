@@ -15,6 +15,8 @@ def minimal_spec() -> dict:
             "stream_threshold_km2": 25.0,
             "lake_min_area_km2": 1.0,
             "lake_min_depth_m": 2.0,
+            "river_depth_at_threshold_m": 0.5,
+            "river_depth_exponent": 0.3,
         },
         "features": [],
         "constraints": [],
@@ -26,6 +28,8 @@ def test_minimal_domain_spec_parses() -> None:
     assert spec.domain.size.width_km == 120.0
     assert spec.simulation.cell_size_km == 0.25
     assert spec.hydrology.stream_threshold_km2 == 25.0
+    assert spec.hydrology.river_depth_at_threshold_m == 0.5
+    assert spec.hydrology.river_depth_exponent == 0.3
 
 
 def test_hydrology_recipe_is_required() -> None:
@@ -35,9 +39,26 @@ def test_hydrology_recipe_is_required() -> None:
         DomainSpec.model_validate(data)
 
 
-def test_hydrology_thresholds_must_be_positive() -> None:
+def test_hydrology_positive_values_must_be_positive() -> None:
+    for field in (
+        "stream_threshold_km2",
+        "lake_min_area_km2",
+        "lake_min_depth_m",
+        "river_depth_at_threshold_m",
+    ):
+        data = minimal_spec()
+        data["hydrology"][field] = 0.0
+        with pytest.raises(ValidationError):
+            DomainSpec.model_validate(data)
+
+
+def test_river_depth_exponent_allows_zero_but_not_negative() -> None:
     data = minimal_spec()
-    data["hydrology"]["lake_min_depth_m"] = 0.0
+    data["hydrology"]["river_depth_exponent"] = 0.0
+    assert DomainSpec.model_validate(data).hydrology.river_depth_exponent == 0.0
+
+    data = minimal_spec()
+    data["hydrology"]["river_depth_exponent"] = -0.1
     with pytest.raises(ValidationError):
         DomainSpec.model_validate(data)
 

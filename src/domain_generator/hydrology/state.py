@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from ..contracts.data import RiverNetwork
+
 
 @dataclass(frozen=True, slots=True)
 class LakeCandidate:
@@ -25,3 +27,5 @@ class HydrologyState:
     flow_accumulation_km2: np.ndarray
     stream_mask: np.ndarray
     lake_candidates: tuple[LakeCandidate, ...]
+    river_network: RiverNetwork
+    water_depth_m: np.ndarray

@@ -22,6 +22,8 @@ def make_plan() -> GenerationPlan:
             stream_threshold_km2=1.0,
             lake_min_area_km2=1.0,
             lake_min_depth_m=1.0,
+            river_depth_at_threshold_m=0.5,
+            river_depth_exponent=0.3,
         ),
         features=(),
         constraints=(),

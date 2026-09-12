@@ -22,6 +22,8 @@ def make_plan(
     stream_threshold_km2: float = 3.0,
     lake_min_area_km2: float = 1.0,
     lake_min_depth_m: float = 1.0,
+    river_depth_at_threshold_m: float = 0.5,
+    river_depth_exponent: float = 0.3,
 ) -> GenerationPlan:
     return GenerationPlan(
         plan_version="0.1",
@@ -45,6 +47,8 @@ def make_plan(
             stream_threshold_km2=stream_threshold_km2,
             lake_min_area_km2=lake_min_area_km2,
             lake_min_depth_m=lake_min_depth_m,
+            river_depth_at_threshold_m=river_depth_at_threshold_m,
+            river_depth_exponent=river_depth_exponent,
         ),
         features=(),
         constraints=(),
@@ -206,6 +210,7 @@ def test_generate_hydrology_materializes_stream_and_lake_classification() -> Non
 
     assert state.fill_elevation_m.dtype == np.float64
     assert state.stream_mask.dtype == np.bool_
+    assert state.water_depth_m.dtype == np.float32
     assert state.lake_candidates == (
         LakeCandidate(
             cells=(
@@ -243,6 +248,8 @@ def test_validation_rejects_tampered_stream_mask() -> None:
         flow_accumulation_km2=state.flow_accumulation_km2,
         stream_mask=tampered,
         lake_candidates=state.lake_candidates,
+        river_network=state.river_network,
+        water_depth_m=state.water_depth_m,
     )
 
     validation = validate_hydrology(plan, terrain, mutated, attempt_index=0)

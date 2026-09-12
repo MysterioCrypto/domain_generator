@@ -34,6 +34,8 @@ class HydrologySpec(FrozenStrictModel):
     stream_threshold_km2: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
     lake_min_area_km2: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
     lake_min_depth_m: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
+    river_depth_at_threshold_m: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
+    river_depth_exponent: Annotated[StrictFloat, Field(ge=0.0, allow_inf_nan=False)]
 
 
 class FeatureSpec(FrozenStrictModel):
