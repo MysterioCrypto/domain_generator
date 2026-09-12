@@ -57,6 +57,8 @@ implemented_m2:
   - hydrology-validation-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
+infrastructure_queue:
+  - github-actions-pytest-ci-on-push-and-pull-request
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
@@ -88,7 +90,7 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет завершённую базовую цепочку structural + shaping. Hydrology покрывает routing, physical depression fill, stream/lake classification и текущий slice materialize-ит directed river topology и canonical runtime water depth.
+Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет завершённую базовую цепочку structural + shaping. Hydrology теперь покрывает routing, physical depression fill, stream/lake classification, directed river topology и canonical runtime water depth.
 
 ## Карта прогресса простыми словами
 
@@ -101,13 +103,14 @@ Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReserva
 [готово] flatten / shaping уже созданного рельефа
 [готово] куда течёт вода: Priority-Flood + D8 + catchment
 [готово] raster stream mask + физические lake candidates
-[PR]     directed RiverNetwork + canonical water_depth
+[готово] directed RiverNetwork + canonical water_depth
+[в очереди] GitHub Actions: pytest на push/PR
 [потом] влажность/растительность
 [потом] размещение POI
 [потом] сборка финального мира
 ```
 
-Текущий checkpoint отвечает на следующие вопросы: **как raster stream paths сжимаются в directed river graph** и **какая canonical глубина воды находится в каждой raster cell**. Lake polygon/HydroFeature materialization и physical river width остаются отдельными будущими задачами.
+Текущий hydrology checkpoint отвечает на вопросы: **как raster stream paths сжимаются в directed river graph** и **какая canonical глубина воды находится в каждой raster cell**. Lake polygon/HydroFeature materialization и physical river width остаются отдельными будущими задачами.
 
 ### Terrain pipeline
 
@@ -155,7 +158,7 @@ TerrainState.elevation_m
   -> HydrologyState
 ```
 
-Реализовано в текущем slice:
+Реализовано:
 
 - stable accepted-lake ids `lake-0001...` для river-node references;
 - accepted lakes suppress internal visible river segments;
@@ -196,6 +199,19 @@ D = river_depth_at_threshold_m
 
 Это deterministic proxy, не rainfall/runoff/discharge simulation.
 
+### Инфраструктурная очередь
+
+Добавить минимальный GitHub Actions CI, не связанный с semantic Core:
+
+```text
+push / pull_request
+  -> GitHub-hosted Ubuntu runner
+  -> install package + test dependencies
+  -> pytest
+```
+
+Цель — автоматически подтверждать полный regression suite на каждом PR/push и больше не зависеть от доступности локального execution-container. На semantic result, RNG и generator architecture этот workflow влиять не должен.
+
 ### Dependent placement site selection — accepted design, not implemented
 
 Normative semantics: `docs/design/dependent-placement-site-selection-v0.1.md`.
@@ -204,7 +220,7 @@ Normative semantics: `docs/design/dependent-placement-site-selection-v0.1.md`.
 
 ## Следующий шаг
 
-После принятия network/water checkpoint следующий bounded design-вопрос — **surface moisture + vegetation numerical semantics v0.1**.
+Следующий bounded design-вопрос — **surface moisture + vegetation numerical semantics v0.1**.
 
 Нужно зафиксировать до реализации:
 
@@ -219,6 +235,7 @@ Normative semantics: `docs/design/dependent-placement-site-selection-v0.1.md`.
 
 ## Ещё не сделано
 
+- GitHub Actions pytest CI (`push` + `pull_request`);
 - lake polygon vectorization / canonical `HydroFeature` materialization;
 - physical river width/sub-cell rasterization;
 - runoff/discharge/climate model;
@@ -231,7 +248,7 @@ Normative semantics: `docs/design/dependent-placement-site-selection-v0.1.md`.
 - YAML/file preset loader и production preset catalog;
 - soft constraint scoring compilation;
 - DomainData assembler/export bundle;
-- renderer и GitHub Actions.
+- renderer.
 
 ## Инварианты
 
