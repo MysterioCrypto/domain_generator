@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-dependent-placement-final-selection-v0.1
-next_topic: domain-data-assembler-v0.1
+checkpoint: M2-end-to-end-runtime-bundle-architecture-v0.1
+next_topic: final-validation-v0.1
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -70,6 +70,7 @@ implemented_m2:
   - placement-validation-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
+  - end-to-end-runtime-bundle-v0.1
 implemented_infrastructure:
   - github-actions-pytest-ci-on-push-and-pull-request
 canonical_documents:
@@ -79,6 +80,7 @@ canonical_documents:
   decisions: docs/decisions/
   contracts: docs/contracts/
   design_baseline: docs/design/core-0.1-generation-baseline.md
+  runtime_bundle: docs/design/end-to-end-runtime-bundle-v0.1.md
   placement_reservations: docs/design/placement-reservation-materialization-v0.1.md
   dependent_placement: docs/design/dependent-placement-site-selection-v0.1.md
   dependent_placement_site_metrics: docs/design/dependent-placement-site-metrics-v0.1.md
@@ -131,7 +133,7 @@ world / setting / application
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology и canonical runtime water depth. Surface покрывает base moisture/vegetation и explicit area feature biases. Dependent point placement реализован полностью до runtime `PlacementState` и placement-stage validation.
+Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology и canonical runtime water depth. Surface покрывает base moisture/vegetation и explicit area feature biases. Dependent point placement полностью реализован до runtime `PlacementState` и placement-stage validation.
 
 ## Карта прогресса простыми словами
 
@@ -144,35 +146,52 @@ Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReserva
 [готово] базовые moisture + vegetation fields
 [готово] explicit surface feature biases
 [готово] dependent-placement site metrics
-[готово] rotated candidate lattice + reservation filtering + hard requirements
-[текущий PR] preference scoring + near-best + weighted final selection + PlacementState
-[следом] DomainData assembly boundary
+[готово] candidate lattice + reservation filtering + hard requirements
+[готово] preference scoring + near-best + weighted final selection + PlacementState
+[принято] end-to-end runtime / bundle architecture
+[следом] Final Validation v0.1
+[потом] HydroFeature/lake materialization
+[потом] DomainData assembler
+[потом] bundle exporter + technical renderer + CLI/adapters
 
 [готово] GitHub Actions: pytest на push/PR
 ```
 
-## Setting Decoupling Cleanup — complete
+## End-to-End Runtime & Bundle Architecture v0.1 — accepted
 
-- `Domain` = generic bounded spatial region;
-- Core не знает конкретный setting/campaign/game system;
-- setting-specific presets, adapters и world data находятся вне базового Core;
-- generic examples не создают setting dependency.
+Normative semantics: `docs/design/end-to-end-runtime-bundle-v0.1.md`.
 
-## Surface — complete baseline
+Ключевые решения:
 
-Normative semantics:
+- Core — один Python package; stages вызываются как функции в одном process, а не как subprocess scripts;
+- local и remote execution используют один canonical generation entrypoint;
+- local mode — Python/CLI/API на машине пользователя;
+- remote mode — тот же entrypoint в GitHub Actions runner, request JSON в repository, result как workflow artifact;
+- GitHub Actions не является dependency Core;
+- canonical persisted rasters — `fields/*.npy`;
+- `domain.json` хранит structured metadata/features/networks/field descriptors, а не массивы raster values;
+- assembler не делает IO и не использует RNG;
+- exporter физически пишет bundle;
+- technical renderer и artistic/image-generation presentation находятся downstream и не меняют world state;
+- LLM/model работает через внешний adapter над DomainSpec/GenerationConfig и не управляет внутренними stages напрямую;
+- одинаковые semantic inputs + exact generator/RNG version должны давать один semantic result локально и в remote runner-е.
 
-- `docs/design/surface-base-fields-v0.1.md`;
-- `docs/design/surface-feature-bias-v0.1.md`.
+Reference output boundary:
 
-Canonical runtime fields:
+```text
+DomainBundle
+  domain.json
+  manifest.json
+  fields/
+    elevation.npy
+    water_depth.npy
+    moisture.npy
+    vegetation_density.npy
+  preview/        # optional, non-canonical
+  debug/          # optional, non-canonical
+```
 
-- `SurfaceState.moisture` float32 `[0,1]`;
-- `SurfaceState.vegetation_density` float32 `[0,1]`;
-- generic area operators `moisture_bias` / `vegetation_bias`;
-- canonical water precedence after surface contributions.
-
-## Dependent Placement — current checkpoint
+## Dependent Placement — complete
 
 Normative semantics:
 
@@ -215,33 +234,62 @@ PlacementReservation
 - empty valid-site set отклоняет весь attempt без hidden retry/fallback;
 - invalid placement recipe остаётся capability error.
 
-## Следующий шаг
+## Следующий design gate: Final Validation v0.1
 
-После принятия этого checkpoint следующий bounded design-вопрос — **DomainData Assembler v0.1**.
+Generation baseline уже фиксирует global ranking:
 
-До реализации нужно отдельно зафиксировать:
+```text
+effective_violation = (1 - score) * weight
 
-- какие runtime states становятся canonical `DomainData.fields/features/networks`;
-- как external field descriptors ссылаются на canonical raster artifacts;
-- как layout geometries и `PlacementState.final_points` объединяются в final feature list;
-- как hydrology `RiverNetwork` и lake representation переносятся в DomainData;
-- какие provenance/fingerprints/accepted attempt metadata записывает assembler;
-- canonical ordering final features/networks/field descriptors;
-- где заканчивается assembler и начинается IO/export bundle.
+candidate ranking:
+1. min worst effective violation
+2. max weighted mean score
+3. min attempt_index
+```
+
+При отсутствии soft constraints neutral ranking = `(0.0, 1.0)`.
+
+Но текущий compiler slice явно не компилирует user soft constraints. Поэтому нельзя считать Final Validation полностью реализованной, просто всегда выдавая neutral ranking.
+
+Перед implementation нужно отдельно решить:
+
+- где и когда оцениваются final user hard constraints, которые зависят от deferred final geometry;
+- где оцениваются user soft constraints;
+- какие evaluator/scoring recipes входят в Core 0.1 final evaluator registry;
+- как aggregate `HardConstraintResult` / `SoftConstraintResult` формируют final `ValidationResult`;
+- какие upstream completeness invariants проверяет final stage;
+- как избежать повторного применения stage-local constraints и двойного учёта;
+- какие unsupported compiled constructs являются capability error, а какие normal candidate rejection.
+
+## После Final Validation
+
+Следующие bounded checkpoints принятой end-to-end последовательности:
+
+1. HydroFeature / lake materialization v0.1;
+2. DomainData Assembler v0.1;
+3. DomainBundle Export v0.1;
+4. Technical Renderer v0.1;
+5. canonical CLI / Python application entrypoint;
+6. local model skill/adapter;
+7. remote GitHub Actions generation adapter.
 
 ## Ещё не сделано
 
+- Final Validation production stage;
+- soft constraint scoring compilation/evaluation;
 - DomainData assembler/export bundle;
 - lake polygon vectorization / canonical `HydroFeature` materialization;
+- technical renderer;
+- canonical CLI/application entrypoint;
+- local model skill/adapter;
+- remote generation GitHub workflow;
 - physical river width/sub-cell rasterization;
 - runoff/discharge/climate model;
 - standalone terrain `blend` operator;
 - advanced terrain shaping/erosion;
 - band polygon footprint materialization;
 - general area↔area polygon boolean evaluators;
-- YAML/file preset loader и production generic preset catalog;
-- soft constraint scoring compilation;
-- renderer.
+- YAML/file preset loader и production generic preset catalog.
 
 ## Инварианты
 
