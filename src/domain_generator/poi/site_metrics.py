@@ -133,10 +133,13 @@ def footprint_cells(
 ) -> tuple[tuple[int, int], ...]:
     """Return canonical raster support cells for one world-space candidate footprint."""
     containing = _validate_candidate(adapter, candidate)
-    if isinstance(footprint_radius_km, bool) or not isfinite(float(footprint_radius_km)):
+    if isinstance(footprint_radius_km, bool):
         raise SiteMetricCapabilityError("footprint_radius_km must be finite and >= 0")
-    radius = float(footprint_radius_km)
-    if radius < 0.0:
+    try:
+        radius = float(footprint_radius_km)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise SiteMetricCapabilityError("footprint_radius_km must be finite and >= 0") from exc
+    if not isfinite(radius) or radius < 0.0:
         raise SiteMetricCapabilityError("footprint_radius_km must be finite and >= 0")
     if radius == 0.0:
         return (containing,)
