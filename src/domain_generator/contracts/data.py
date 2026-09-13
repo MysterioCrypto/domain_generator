@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 from pydantic import Field, StrictFloat, StrictInt, StrictStr, model_validator
 
 from .common import FrozenStrictModel, NonNegativeFloat
-from .geometry import AreaGeometry, BandGeometry, CorridorGeometry, PointGeometry, WorldPoint
+from .geometry import AreaGeometry, BandGeometry, CorridorGeometry, PointGeometry, RegionSet, WorldPoint
 from .validation import RankingResult
 
 
@@ -113,6 +113,7 @@ class PoiFeature(FrozenStrictModel):
 class LakeProperties(FrozenStrictModel):
     area_km2: NonNegativeFloat
     surface_elevation_m: Annotated[StrictFloat, Field(allow_inf_nan=False)]
+    max_depth_m: NonNegativeFloat
 
 
 class HydroFeature(FrozenStrictModel):
@@ -120,7 +121,7 @@ class HydroFeature(FrozenStrictModel):
     tags: tuple[StrictStr, ...] = ()
     source: GeneratedFeatureSource
     family: Literal[OutputFeatureFamily.HYDRO] = OutputFeatureFamily.HYDRO
-    geometry: AreaGeometry
+    geometry: RegionSet
     properties: LakeProperties
 
 

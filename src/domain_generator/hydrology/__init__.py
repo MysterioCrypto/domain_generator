@@ -1,5 +1,7 @@
 from .classification import classify_stream_mask, extract_lake_candidates
 from .generate import generate_hydrology, hydrology_stage, validate_hydrology
+from .ids import lake_feature_id
+from .materialize import materialize_lake_features, validate_river_lake_references
 from .network import build_river_network
 from .routing import (
     D8_DIRECTIONS,
@@ -28,8 +30,11 @@ __all__ = [
     "flow_accumulation_km2",
     "generate_hydrology",
     "hydrology_stage",
+    "lake_feature_id",
+    "materialize_lake_features",
     "priority_flood_routing_surface",
     "priority_flood_surfaces",
     "river_depth_proxy_m",
     "validate_hydrology",
+    "validate_river_lake_references",
 ]

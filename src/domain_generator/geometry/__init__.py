@@ -25,11 +25,13 @@ from .boolean import (
     backend_rectangle,
     backend_region_set,
     buffer_geometry,
+    geometry_area_km2,
     intersect_geometry,
     intersection_area_km2,
     is_canonical_region_set,
     subtract_geometry,
     to_region_set,
+    union_geometry,
 )
 from .queries import region_set_covers_point
 
@@ -46,10 +48,12 @@ __all__ = [
     "backend_rectangle",
     "backend_region_set",
     "buffer_geometry",
+    "geometry_area_km2",
     "intersect_geometry",
     "intersection_area_km2",
     "is_canonical_region_set",
     "region_set_covers_point",
     "subtract_geometry",
     "to_region_set",
+    "union_geometry",
 ]
