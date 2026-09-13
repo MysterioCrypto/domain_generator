@@ -4,7 +4,7 @@ kind: design-baseline
 status: accepted
 normative: true
 target: core-0.1
-implemented: false
+implemented: true
 ---
 
 # Technical Renderer v0.1
