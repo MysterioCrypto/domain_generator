@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-technical-renderer-v0.1-design
-next_topic: technical-renderer-v0.1-implementation
+checkpoint: M2-technical-renderer-v0.1-implementation
+next_topic: technical-renderer-v0.1-acceptance
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -65,6 +65,7 @@ implemented_m2:
   - domain-data-assembler-v0.1
   - domain-bundle-export-v0.1
   - bundle-manifest-v0.1
+  - technical-renderer-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
   - end-to-end-runtime-bundle-v0.1
@@ -132,18 +133,20 @@ Core знает generic geometry, terrain, hydrology, fields, networks, constrai
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-На `main` находятся generation pipeline до Final Validation, HydroFeature materialization, DomainData Assembler и DomainBundle Export v0.1. `Technical Renderer v0.1` design принят; runtime implementation ещё отсутствует.
+На `main` находятся generation pipeline до Final Validation, HydroFeature materialization, DomainData Assembler, DomainBundle Export v0.1 и принятый normative design Technical Renderer v0.1.
 
-`main` до merge этого design PR:
+`main` после merge design PR #40:
 
 ```text
-901be6c39fed43d1756253d95d1b653ece1a6bc8
+58600a6696bccc6da2a2e66c259713e81c465ec1
 ```
 
-Подтверждённый полный CI implementation PR #38:
+Runtime implementation Technical Renderer готов в PR #41 и **не должен merge-иться без отдельного принятия пользователя**.
+
+Подтверждённый полный CI implementation PR #41:
 
 ```text
-281 passed
+290 passed
 ```
 
 ## Карта прогресса простыми словами
@@ -163,8 +166,8 @@ Core знает generic geometry, terrain, hydrology, fields, networks, constrai
 [готово] DomainData Assembler v0.1
 [готово] DomainBundle Export v0.1
 [принято] Technical Renderer v0.1 — design
-[дальше после docs merge] Technical Renderer v0.1 — implementation
-[потом] canonical CLI / Python application entrypoint
+[готово в PR #41] Technical Renderer v0.1 — implementation
+[после принятия/merge] canonical CLI / Python application entrypoint — design gate
 [потом] local model skill/adapter
 [потом] remote GitHub Actions generation adapter
 
@@ -198,28 +201,11 @@ Core stages работают в одном Python process. Local и remote execu
 
 Normative semantics: `docs/design/domain-data-assembler-v0.1.md`.
 
-Canonical boundary:
-
-```text
-DomainSpec + GenerationPlan + GenerationConfig + selected DomainCandidate
-        ↓
-DomainData Assembler
-        ↓
-DomainAssembly
-  data: DomainData
-  field_payloads:
-    elevation
-    water_depth
-    moisture
-    vegetation_density
-```
-
 Assembler не использует RNG/IO/rendering, не reroll-ит candidate и не пересчитывает upstream state. Canonical raster payloads — exact `float32`, independent read-only copies.
 
 ## DomainBundle Export v0.1 — accepted / implemented / merged PR #38
 
 Normative semantics: `docs/design/domain-bundle-export-v0.1.md`.
-Design PR #37 и implementation PR #38 merged.
 
 Canonical persisted layout:
 
@@ -234,48 +220,89 @@ Canonical persisted layout:
     vegetation_density.npy
 ```
 
-Ключевые semantics:
+Exporter не меняет semantic world state, не использует RNG и публикует final directory только после успешной записи temporary sibling tree.
 
-- input path и output path не привязаны к обязательным `input/`/`output/` directories;
-- target output path задаётся caller-ом;
-- internal persisted paths — relative POSIX paths;
-- filesystem API построен на `pathlib.Path`, поэтому рассчитан на Windows и POSIX environments;
-- `BundleManifest v0.1` хранит SHA-256 и size canonical persisted files;
-- `manifest.json` не хэширует сам себя;
-- existing output target → explicit error, overwrite/force в v0.1 отсутствует;
-- запись идёт в temporary sibling tree с final rename;
-- normal failure вызывает best-effort cleanup;
-- exporter не меняет semantic world state и не использует RNG.
-
-## Technical Renderer v0.1 — accepted design
+## Technical Renderer v0.1 — accepted / implemented in PR #41
 
 Normative semantics: `docs/design/technical-renderer-v0.1.md`.
 
-Technical renderer создаёт deterministic diagnostic top-down PNG из `DomainAssembly` без изменения world semantics. Базовые layers: elevation, vegetation, water, lakes, rivers и semantic features. World-space north находится сверху; aspect ratio сохраняется; long side baseline — 1600 px; raster visualisation не выполняет semantic smoothing.
+Implementation boundary:
 
-Renderer является optional downstream component с отдельной `render` dependency boundary и headless backend. PNG не является canonical world state.
+```text
+DomainAssembly
+  data: DomainData
+  field_payloads
+        ↓
+render_technical_map(...)
+        ↓
+technical-map.png
+```
 
-Важно: `technical-map.png` не считается оптимальным control image для художественной image generation. В будущем может появиться отдельный `Presentation / imagegen guide renderer`, который из canonical rasters/vectors строит image-model-friendly reference без изменения geography. Raw `.npy`/JSON не принимаются как надёжный прямой spatial interface к image model.
+Реализовано:
 
-## Следующий bounded implementation checkpoint
+- optional package extra `domain-generator[render]`;
+- Matplotlib `Agg` headless backend;
+- caller-provided PNG path;
+- 1600 px long-side baseline с сохранением world aspect ratio;
+- north-up world coordinate convention;
+- elevation base raster;
+- vegetation alpha overlay;
+- canonical water mask;
+- lake RegionSet outlines;
+- river centerlines + minimal direction markers;
+- Point/POI, Corridor, Band width samples, Area/Surface overlays;
+- labels, north indicator, scale, legend, domain boundary;
+- nearest-neighbour raster display без semantic smoothing;
+- BandGeometry не преобразуется скрыто в polygon footprint;
+- exact input payload checks;
+- existing target rejection;
+- immediate preview parent creation only;
+- temporary sibling PNG + validation + final rename;
+- no RNG, reroll, generation or mutation;
+- byte-determinism test внутри одной supported environment.
 
-`Technical Renderer v0.1` implementation.
+CI implementation head проверяет 290 tests, включая 9 renderer-specific tests.
 
-Implementation выполняется отдельным PR после merge normative design docs и не merge-ится без отдельного явного принятия пользователя.
+`technical-map.png` остаётся diagnostic non-canonical artifact. Он не считается оптимальным control image для image-generation model.
 
-После renderer:
+## Presentation / imagegen guide boundary
+
+Для будущей художественной карты отдельно зарезервирован downstream слой:
+
+```text
+DomainData + canonical rasters + vectors
+        ↓
+Presentation / imagegen guide renderer
+        ↓
+imagegen-guide.png
+        ↓
+image generation / artistic transform
+        ↓
+campaign-map.png
+```
+
+Он должен сохранять canonical geography, но может подготавливать её в более удобной для image model форме, чем nearest-neighbour technical grid. Этот слой пока не спроектирован и не является частью PR #41.
+
+## Следующий checkpoint
+
+Сейчас требуется отдельное пользовательское принятие implementation PR #41. После принятия и merge следующий bounded design gate:
 
 ```text
 canonical CLI / Python application entrypoint
-→ local model skill/adapter
+```
+
+Далее:
+
+```text
+local model skill/adapter
 → remote GitHub Actions generation adapter
 ```
 
-Presentation/imagegen guide layer является отдельной downstream задачей и не блокирует canonical CLI.
+Presentation/imagegen guide renderer остаётся отдельной downstream задачей и не блокирует canonical CLI.
 
 ## Ещё не сделано
 
-- Technical Renderer v0.1 implementation;
+- merge Technical Renderer v0.1 implementation PR #41;
 - presentation/imagegen guide renderer;
 - canonical CLI/application entrypoint;
 - local model skill/adapter;
