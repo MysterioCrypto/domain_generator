@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: integration-and-hardening
 status: in-progress
 current_milestone: M11-acceptance-suite
-checkpoint: remote-github-actions-generation-adapter-v0.1-design
-next_topic: remote-github-actions-generation-adapter-v0.1-implementation
+checkpoint: remote-github-actions-generation-adapter-v0.1-implementation
+next_topic: remote-github-actions-generation-adapter-v0.1-acceptance
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -56,66 +56,29 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 # Состояние проекта
 
-`domain_generator` — независимое setting-agnostic procedural Core. M0–M10 функционально завершены; M11 Acceptance Suite остаётся release gate Core 0.1. Integration track использует публичную application boundary и не меняет Core semantics.
+`domain_generator` — независимое setting-agnostic procedural Core. M0–M10 функционально завершены; M11 Acceptance Suite остаётся release gate Core 0.1.
 
-## Карта прогресса простыми словами
+## Карта прогресса
 
 ```text
-[готово] contracts / geometry / layout / constraints
-[готово] terrain / hydrology / surface
-[готово] dependent placement / validation / ranking
-[готово] DomainData / DomainBundle / manifest
-[готово] Technical Renderer v0.1
-[готово] GenerationRequest + PresetCatalog v0.1
-[готово] canonical Python API + domain-generator CLI
+[готово] Core pipeline / validation / ranking
+[готово] DomainData / DomainBundle / Technical Renderer
+[готово] canonical Python API + CLI
 [готово] Local Model Skill / Adapter v0.1
 [готово] Codex Integration Packaging v0.1
 
-[принято] Remote GitHub Actions Generation Adapter v0.1 — design
-[дальше] Remote GitHub Actions Generation Adapter v0.1 — implementation
+[PR #52 / 341 passed] Remote GitHub Actions Generation Adapter v0.1 — implementation
+[сейчас] отдельное принятие implementation PR #52
+[после merge] real remote-generation E2E + cleanup verification
 [release gate] M11 Acceptance Suite / Core 0.1 hardening
 [отдельно позже] Presentation / ImageGen Guide Renderer
 ```
 
-## Canonical application boundary
+## Remote GitHub Actions Generation Adapter v0.1 — implementation checkpoint
 
-```text
-GenerationRequest + external PresetCatalog
-        ↓
-PresetRegistry + CORE_OPERATOR_IDS
-        ↓
-generate_domain(...)
-        ↓
-Compiler → Layout → Terrain → Hydrology → Surface
-→ Dependent Placement → Final Validation → deterministic selection
-→ DomainData Assembler
-        ↓
-DomainAssembly
-   ├─ DomainBundle Export
-   └─ optional Technical Renderer
-        ↓
-atomic application publication
-```
+Normative design: `docs/design/remote-github-actions-generation-adapter-v0.1.md`.
 
-## Local Model Skill / Adapter v0.1 — implemented and merged
-
-Normative semantics: `docs/design/local-model-skill-adapter-v0.1.md`.
-
-Provider-neutral integration реализует model-facing preset projection, optional guide validation, strict `LocalModelDecision`, conservative edit policy, compiler preflight, maximum-two-repair orchestration, exactly one canonical generation after successful preflight and structured audit without chain-of-thought.
-
-## Codex Integration Packaging v0.1 — implemented and merged
-
-Normative semantics: `docs/design/codex-integration-packaging-v0.1.md`.
-
-Merged implementation provides root `AGENTS.md`, repository-local Codex skill, integration guide and packaging tests. Codex uses the same canonical CLI/application contract and does not introduce provider-specific Core semantics.
-
-Merged implementation PR: `#49`, merge commit `495fca9b85c56074f4a3c881e12a01f6689ed440`. Clean implementation suite: `330 passed`.
-
-## Remote GitHub Actions Generation Adapter v0.1 — accepted design
-
-Normative semantics: `docs/design/remote-github-actions-generation-adapter-v0.1.md`.
-
-Accepted boundary:
+PR #52 реализует:
 
 ```text
 workflow_dispatch                 pull_request: remote-requests/**
@@ -133,41 +96,7 @@ workflow_dispatch                 pull_request: remote-requests/**
  domain-bundle  technical-preview  generation-diagnostics
 ```
 
-Properties:
-
-- `workflow_dispatch` supports manual/Codex/CLI clients;
-- PR-trigger path supports chat/agents that can create branch/files/PR but cannot dispatch workflows directly;
-- PR requests live under `remote-requests/<id>/` with `request.json`, optional `presets.json` and transport-only `run.json`;
-- exact workflow checkout SHA is the generator revision;
-- workflow inputs do not duplicate semantic `GenerationRequest` fields;
-- repository-relative input paths are validated against traversal/absolute paths;
-- canonical `domain-generator generate` runs at most once per workflow execution;
-- no automatic seed changes, reroll, semantic repair or hidden replanning;
-- canonical DomainBundle remains unmodified;
-- technical preview is additionally published as a small separate artifact when requested;
-- diagnostics are published even on failure while the job remains failed;
-- generation workflow permissions remain `contents: read` and generated world data is never pushed back to Git;
-- local Codex execution remains available in parallel with remote execution;
-- temporary chat/agent branches use `remote-generation/<id>` and are deleted after artifact retrieval + PR close;
-- branch cleanup is isolated into a separate closed-PR cleanup workflow with narrowly scoped `contents: write`, leaving the generation workflow read-only.
-
-## Temporary generation branch lifecycle
-
-```text
-create remote-generation/<id>
-→ write remote-requests/<id>/...
-→ open PR
-→ run generation
-→ retrieve artifacts
-→ close PR without merge
-→ delete temporary branch
-```
-
-GitHub's built-in automatic head-branch deletion is useful for merged PRs, but generation PRs normally close without merge, so v0.1 includes an explicit cleanup path. Cleanup may fail without changing generation outcome; stale branches can then be removed manually later.
-
-## Следующий implementation checkpoint
-
-Отдельный implementation PR должен добавить минимум:
+Добавлены:
 
 ```text
 .github/workflows/generate-domain.yml
@@ -178,33 +107,61 @@ remote-requests/example/
 tests/test_github_actions_generation_adapter.py
 ```
 
-После merge implementation должен пройти первый реальный end-to-end generation test через временный `remote-generation/**` branch + `remote-requests/**` PR, включая retrieval artifacts, PR close и branch cleanup.
+Проверенные свойства:
 
-Implementation PR не merge-ится без отдельного явного принятия пользователя.
+- generation workflow использует `contents: read`;
+- cleanup write permission изолирован в closed-PR workflow;
+- cleanup ограничен same-repository branches `remote-generation/*`;
+- request/preset paths защищены от absolute/traversal/out-of-workspace inputs;
+- canonical `domain-generator generate` вызывается максимум один раз;
+- semantic failure не вызывает reroll/repair;
+- outputs не коммитятся в repository;
+- PR workflow checkout-ит exact PR head SHA;
+- `generator_commit` получает exact actually checked-out revision, а synthetic/raw `github_sha` хранится отдельно;
+- full suite: `341 passed`.
 
-## После Remote GitHub Actions Adapter
+## Реальный remote smoke-test
+
+Новый `generate-domain` workflow уже был реально выполнен на PR #52, потому что implementation добавляет `remote-requests/example/**`.
+
+Исправленный smoke run:
 
 ```text
-M11 Acceptance Suite / Core 0.1 hardening
-→ Core 0.1 release candidate
+run: 34775535265
+head: d16c681ebf1d97c00568e7c7f130c81654a9297d
+result: success
 ```
 
-Presentation/ImageGen Guide Renderer остаётся отдельным downstream track.
+Он успешно прошёл exact checkout, canonical generation и создал все три artifacts:
 
-## Still outside current checkpoint
+```text
+domain-bundle
+technical-preview
+generation-diagnostics
+```
 
-- concrete local-model/OpenAI backend runtime;
-- M11 Acceptance Suite / release hardening;
-- presentation/imagegen guide renderer;
-- production generic/setting-specific preset catalogs outside Core;
-- YAML adapter;
-- physical river width/discharge;
-- climate/biome model;
-- advanced terrain shaping/erosion;
-- LLM inside GitHub Actions;
-- automatic semantic repair/reroll;
-- batch generation, artifact attestations, Releases/S3/Pages publication.
+Artifact ZIP успешно извлекается GitHub connector-ом в chat runtime. Прямое распаковывание ZIP/inline PNG в текущем runtime пока не подтверждено из-за ошибки файлового runtime; это downstream retrieval/UI issue, а не failure remote generation.
+
+До implementation acceptance PR #52 не merge-ится.
+
+## После merge
+
+Первый production-shaped E2E выполняется отдельным temporary flow:
+
+```text
+remote-generation/<id>
+→ remote-requests/<id>/...
+→ PR
+→ generation artifacts
+→ close PR without merge
+→ cleanup workflow
+→ verify branch deleted
+```
+
+Этот post-merge E2E нужен, потому что branch PR #52 намеренно имеет namespace `impl/...` и cleanup workflow не должен её удалять.
+
+После успешного E2E следующий Core gate — M11 Acceptance Suite / Core 0.1 hardening.
 
 ## Invariants
 
-INV-001..INV-011 remain unchanged. Architecture changes are discussed and documented before implementation; implementation PRs merge only after separate explicit acceptance.
+INV-001..INV-011 remain unchanged. Implementation PRs merge only after separate explicit acceptance.

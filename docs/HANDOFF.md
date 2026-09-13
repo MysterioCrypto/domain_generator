@@ -4,154 +4,106 @@
 
 ## Текущее состояние на 2026-09-13
 
-M0–M10 Core 0.1 функционально завершены. Core release gate — M11 Acceptance Suite. Canonical generation/application/CLI boundary merged.
+M0–M10 Core 0.1 функционально завершены. M11 Acceptance Suite остаётся release gate.
 
-`Local Model Skill / Adapter v0.1` implemented and merged through PR #47.
+`Local Model Skill / Adapter v0.1` и `Codex Integration Packaging v0.1` реализованы и смержены.
 
-`Codex Integration Packaging v0.1` implemented and merged through PR #49. Merge commit: `495fca9b85c56074f4a3c881e12a01f6689ed440`. Clean implementation suite: `330 passed`.
+`Remote GitHub Actions Generation Adapter v0.1` design принят и смержен через docs PR #51. Implementation находится в открытом PR #52 и требует отдельного пользовательского принятия до merge.
 
-Текущий accepted bounded design — `Remote GitHub Actions Generation Adapter v0.1`.
+## Implementation PR #52
 
-Normative design:
-
-```text
-docs/design/remote-github-actions-generation-adapter-v0.1.md
-```
-
-## Accepted remote execution model
-
-Remote GitHub Actions integration является transport/execution layer над canonical CLI и не создаёт новый generator.
-
-```text
-workflow_dispatch                 pull_request: remote-requests/**
-       │                                      │
-       └──────────────┬───────────────────────┘
-                      ↓
-             exact repository checkout
-                      ↓
-              safe path validation
-                      ↓
-           domain-generator generate
-              exactly once
-                      ↓
-        ┌─────────────┼─────────────┐
-        ↓             ↓             ↓
- domain-bundle  technical-preview  generation-diagnostics
-```
-
-## Trigger paths
-
-### Manual / Codex / CLI client
-
-`workflow_dispatch` принимает только transport-level inputs:
-
-- `request_path`;
-- optional `presets_path`;
-- `preview` boolean.
-
-Semantic generation configuration не дублируется в Actions inputs.
-
-### Chat/agent path
-
-Для клиентов, которые умеют создавать branch/files/PR, но не умеют `workflow_dispatch`, используется PR trigger только по:
-
-```text
-remote-requests/**
-```
-
-Runnable unit:
-
-```text
-remote-requests/<id>/request.json
-remote-requests/<id>/presets.json   # optional
-remote-requests/<id>/run.json       # transport-only manifest
-```
-
-Temporary generation branch использует namespace:
-
-```text
-remote-generation/<id>
-```
-
-## Accepted execution semantics
-
-- exact workflow checkout SHA является generator revision;
-- никакого secondary checkout `main` или установки другой generator revision;
-- repository paths проходят traversal/absolute/out-of-workspace safety checks;
-- canonical CLI вызывается максимум один раз;
-- semantic validation остаётся в application/compiler;
-- generation failure не вызывает seed change, reroll, max-attempts increase, constraint relaxation, feature deletion/move или LLM repair;
-- generated world data не коммитится в repository;
-- generation workflow permissions: `contents: read`;
-- local Codex path через `AGENTS.md` + skill сохраняется параллельно.
-
-## Artifacts
-
-Success:
-
-```text
-domain-bundle
-technical-preview        # when preview=true
-generation-diagnostics
-```
-
-Failure:
-
-```text
-generation-diagnostics
-+ failed workflow status
-```
-
-Diagnostics включают execution metadata, snapshots request/presets, stdout/stderr. Они не входят в canonical DomainBundle.
-
-Technical preview публикуется отдельно для удобного retrieval. Возможность конкретного chat host показать downloaded PNG inline проверяется первым реальным end-to-end run и не является частью generator semantics.
-
-## Temporary branch cleanup
-
-Remote-generation branches являются эфемерным transport state и не должны накапливаться.
-
-Lifecycle:
-
-```text
-create remote-generation/<id>
-→ write remote-requests/<id>/...
-→ open generation PR
-→ run workflow
-→ retrieve artifacts/diagnostics
-→ close PR without merge
-→ delete remote-generation/<id>
-```
-
-Generation workflow остаётся read-only. Автоматический cleanup изолирован в отдельный workflow, запускаемый только после `pull_request: closed`, с минимальным `contents: write` и строгой проверкой same-repository branch prefix `remote-generation/`.
-
-Cleanup не влияет на результат уже завершённой generation. Если он не сработал, ветка удаляется вручную позднее. Workflow artifacts остаются привязаны к workflow run согласно retention policy; удаление temporary branch не является удалением run/artifacts.
-
-## Implementation slice
-
-Следующий отдельный implementation PR должен добавить минимум:
+Добавлены:
 
 ```text
 .github/workflows/generate-domain.yml
 .github/workflows/cleanup-remote-generation.yml
 scripts/remote_generation.py
 docs/integrations/github-actions-generation.md
-remote-requests/example/
+remote-requests/example/request.json
+remote-requests/example/run.json
 tests/test_github_actions_generation_adapter.py
 ```
 
-`scripts/remote_generation.py` остаётся repository integration helper вне `src/domain_generator`.
+Generation path:
 
-Tests должны покрыть triggers, generation read-only permissions, exact checkout contract, path safety, canonical CLI single invocation, artifacts/diagnostics, no reroll/repair, а также закрытый-PR cleanup только для same-repository `remote-generation/` branches.
+```text
+workflow_dispatch / PR remote-requests/**
+        ↓
+exact checkout revision
+        ↓
+safe path validation
+        ↓
+canonical domain-generator CLI exactly once
+        ↓
+domain-bundle + technical-preview + generation-diagnostics
+```
 
-После implementation merge обязателен первый реальный end-to-end generation run через temporary `remote-generation/**` branch + `remote-requests/**` PR с artifact retrieval, PR close и branch cleanup.
+Generation workflow остаётся `contents: read`. Cleanup write permission находится только в отдельном `pull_request: closed` workflow и применяется только к same-repository branches `remote-generation/*`.
+
+## Проверки
+
+Полный suite на исправленном implementation head:
+
+```text
+341 passed
+```
+
+Реальный remote smoke-test также уже прошёл на PR #52:
+
+```text
+run id: 34775535265
+head SHA: d16c681ebf1d97c00568e7c7f130c81654a9297d
+result: success
+```
+
+Workflow:
+
+- checkout-нул exact PR head SHA;
+- вызвал canonical generator один раз;
+- успешно загрузил `domain-bundle`;
+- успешно загрузил `technical-preview`;
+- успешно загрузил `generation-diagnostics`.
+
+Artifact ZIP удалось получить из GitHub через доступный chat connector. Прямое извлечение PNG из ZIP текущим файловым runtime пока не подтверждено; это downstream retrieval/UI вопрос, не проблема generator workflow.
+
+## Provenance correction
+
+Первый smoke-test обнаружил, что GitHub `pull_request` event имеет synthetic `GITHUB_SHA`, который не обязан совпадать с явно checkout-нутым PR head.
+
+Уточнение зафиксировано до code fix в:
+
+```text
+docs/decisions/remote-generation-pr-sha-provenance.md
+```
+
+Теперь:
+
+- `generator_commit` = exact revision, реально переданная в `actions/checkout`;
+- PR path использует `github.event.pull_request.head.sha`;
+- raw GitHub event SHA сохраняется отдельно как `github_sha`;
+- никакого второго checkout/revision не появляется.
+
+## Temporary branches
+
+После merge #52 нужен отдельный production-shaped E2E:
+
+```text
+create remote-generation/<id>
+→ add remote-requests/<id>/...
+→ open PR
+→ retrieve artifacts
+→ close PR without merge
+→ cleanup-remote-generation
+→ verify temporary branch deleted
+```
+
+PR #52 сам для cleanup-test не используется, потому что его branch имеет namespace `impl/...` и намеренно не должен автоматически удаляться.
 
 ## Merge rule
 
-Design уже принят. Docs-only design PR может быть смержен после зелёного CI.
+PR #52 MUST remain unmerged until separate explicit user acceptance of this implementation checkpoint.
 
-Implementation PR НЕ merge-ится без отдельного явного пользовательского принятия.
-
-После этого:
+После acceptance/merge и реального cleanup E2E:
 
 ```text
 M11 Acceptance Suite / Core 0.1 hardening
