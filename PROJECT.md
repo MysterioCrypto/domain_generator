@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-technical-renderer-v0.1-implementation
-next_topic: technical-renderer-v0.1-acceptance
+checkpoint: M2-technical-renderer-v0.1-merged
+next_topic: canonical-cli-python-entrypoint-design
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -133,17 +133,15 @@ Core знает generic geometry, terrain, hydrology, fields, networks, constrai
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-На `main` находятся generation pipeline до Final Validation, HydroFeature materialization, DomainData Assembler, DomainBundle Export v0.1 и принятый normative design Technical Renderer v0.1.
+На `main` находятся полный generation pipeline до Final Validation, HydroFeature materialization, DomainData Assembler, DomainBundle Export v0.1 и Technical Renderer v0.1.
 
-`main` после merge design PR #40:
+`main` после merge PR #41:
 
 ```text
-58600a6696bccc6da2a2e66c259713e81c465ec1
+e050dc8c609f01c70ebfc7c2fe79e9c4b425ff6a
 ```
 
-Runtime implementation Technical Renderer готов в PR #41 и **не должен merge-иться без отдельного принятия пользователя**.
-
-Подтверждённый полный CI implementation PR #41:
+Technical Renderer v0.1 принят пользователем и смержен. Подтверждённый полный CI implementation PR #41:
 
 ```text
 290 passed
@@ -165,9 +163,8 @@ Runtime implementation Technical Renderer готов в PR #41 и **не дол�
 [готово] soft constraint compilation + scoring + final ranking
 [готово] DomainData Assembler v0.1
 [готово] DomainBundle Export v0.1
-[принято] Technical Renderer v0.1 — design
-[готово в PR #41] Technical Renderer v0.1 — implementation
-[после принятия/merge] canonical CLI / Python application entrypoint — design gate
+[готово] Technical Renderer v0.1
+[дальше] canonical CLI / Python application entrypoint — design gate
 [потом] local model skill/adapter
 [потом] remote GitHub Actions generation adapter
 
@@ -222,7 +219,7 @@ Canonical persisted layout:
 
 Exporter не меняет semantic world state, не использует RNG и публикует final directory только после успешной записи temporary sibling tree.
 
-## Technical Renderer v0.1 — accepted / implemented in PR #41
+## Technical Renderer v0.1 — accepted / implemented / merged PR #41
 
 Normative semantics: `docs/design/technical-renderer-v0.1.md`.
 
@@ -245,23 +242,13 @@ technical-map.png
 - caller-provided PNG path;
 - 1600 px long-side baseline с сохранением world aspect ratio;
 - north-up world coordinate convention;
-- elevation base raster;
-- vegetation alpha overlay;
-- canonical water mask;
-- lake RegionSet outlines;
-- river centerlines + minimal direction markers;
+- elevation, vegetation и canonical water raster layers;
+- lake RegionSet outlines и river centerlines;
 - Point/POI, Corridor, Band width samples, Area/Surface overlays;
-- labels, north indicator, scale, legend, domain boundary;
+- labels, north indicator, scale, legend и domain boundary;
 - nearest-neighbour raster display без semantic smoothing;
-- BandGeometry не преобразуется скрыто в polygon footprint;
-- exact input payload checks;
-- existing target rejection;
-- immediate preview parent creation only;
-- temporary sibling PNG + validation + final rename;
-- no RNG, reroll, generation or mutation;
-- byte-determinism test внутри одной supported environment.
-
-CI implementation head проверяет 290 tests, включая 9 renderer-specific tests.
+- existing target rejection и temporary sibling publication;
+- no RNG, reroll, generation or mutation.
 
 `technical-map.png` остаётся diagnostic non-canonical artifact. Он не считается оптимальным control image для image-generation model.
 
@@ -281,17 +268,17 @@ image generation / artistic transform
 campaign-map.png
 ```
 
-Он должен сохранять canonical geography, но может подготавливать её в более удобной для image model форме, чем nearest-neighbour technical grid. Этот слой пока не спроектирован и не является частью PR #41.
+Он должен сохранять canonical geography, но может подготавливать её в более удобной для image model форме, чем nearest-neighbour technical grid. Этот слой пока не спроектирован.
 
-## Следующий checkpoint
-
-Сейчас требуется отдельное пользовательское принятие implementation PR #41. После принятия и merge следующий bounded design gate:
+## Следующий bounded design gate
 
 ```text
 canonical CLI / Python application entrypoint
 ```
 
-Далее:
+Нужно определить единый application-level вызов для local и remote execution: входной request path, output path, compilation/generation/assembly/export/render orchestration, error/exit-code semantics и Python API boundary. До принятия design runtime implementation не начинается.
+
+После него:
 
 ```text
 local model skill/adapter
@@ -302,7 +289,6 @@ Presentation/imagegen guide renderer остаётся отдельной downstr
 
 ## Ещё не сделано
 
-- merge Technical Renderer v0.1 implementation PR #41;
 - presentation/imagegen guide renderer;
 - canonical CLI/application entrypoint;
 - local model skill/adapter;
