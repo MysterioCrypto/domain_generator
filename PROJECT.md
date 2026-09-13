@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-soft-constraint-scoring-v0.1
-next_topic: hydrofeature-lake-materialization-v0.1
+checkpoint: M2-hydrofeature-lake-materialization-design-v0.1
+next_topic: hydrofeature-lake-materialization-implementation-v0.1
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -78,6 +78,7 @@ accepted_designs:
   - end-to-end-runtime-bundle-v0.1
   - final-validation-hard-v0.1
   - soft-constraint-compilation-scoring-v0.1
+  - hydrofeature-lake-materialization-v0.1
 implemented_infrastructure:
   - github-actions-pytest-ci-on-push-and-pull-request
 canonical_documents:
@@ -90,6 +91,7 @@ canonical_documents:
   runtime_bundle: docs/design/end-to-end-runtime-bundle-v0.1.md
   final_validation_hard: docs/design/final-validation-hard-v0.1.md
   soft_constraint_scoring: docs/design/soft-constraint-compilation-scoring-v0.1.md
+  hydrofeature_lake_materialization: docs/design/hydrofeature-lake-materialization-v0.1.md
   placement_reservations: docs/design/placement-reservation-materialization-v0.1.md
   dependent_placement: docs/design/dependent-placement-site-selection-v0.1.md
   dependent_placement_site_metrics: docs/design/dependent-placement-site-metrics-v0.1.md
@@ -142,7 +144,7 @@ world / setting / application
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology и canonical runtime water depth. Surface покрывает base moisture/vegetation и explicit area feature biases. Dependent point placement реализован полностью. Final Validation имеет production hard gate и полный user-soft global ranking для поддерживаемых canonical spatial measurements.
+Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology и canonical runtime water depth. Surface покрывает base moisture/vegetation и explicit area feature biases. Dependent point placement реализован полностью. Final Validation имеет production hard gate и полный user-soft global ranking для поддерживаемых canonical spatial measurements. Design exact semantic materialization lakes в `HydroFeature` принят; implementation ещё не выполнен.
 
 ## Карта прогресса простыми словами
 
@@ -160,7 +162,8 @@ Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReserva
 [готово] Final Validation hard gate
 [готово] soft constraint compilation + scoring + final ranking
 [принято] end-to-end runtime / bundle architecture
-[следом] HydroFeature / lake materialization
+[принято] HydroFeature / lake materialization design
+[следом] HydroFeature / lake materialization implementation
 [потом] DomainData assembler
 [потом] bundle exporter + technical renderer + CLI/adapters
 
@@ -247,7 +250,7 @@ Normative soft semantics: `docs/design/soft-constraint-compilation-scoring-v0.1.
 - unsupported evaluator/scoring construct является explicit capability error;
 - Final не использует RNG, не делает IO и ничего не исправляет.
 
-## Soft Constraint Compilation & Scoring v0.1 — accepted / implemented in PR #32
+## Soft Constraint Compilation & Scoring v0.1 — accepted / implemented / merged PR #32
 
 `DomainSpec` различает `hard`/`soft` constraints и использует `weight` для soft. Compiler переводит soft variants существующих relations в `CompiledScoring` без второго набора spatial measurements.
 
@@ -267,21 +270,37 @@ Deferred-to-deferred soft constraint допустим после materialization
 
 `SiteProfile.preferences` остаются локальной эвристикой выбора site внутри одного attempt и не входят скрыто в global ranking.
 
-## Следующий design gate: HydroFeature / lake materialization v0.1
+## HydroFeature / Lake Materialization v0.1 — accepted design
 
-Hydrology сейчас хранит `lake_candidates` как raster cell components. Для будущего `DomainData` нужно отдельно зафиксировать semantic materialization lake features и их canonical geometry representation.
+Normative semantics: `docs/design/hydrofeature-lake-materialization-v0.1.md`.
 
-До implementation нельзя молча решать:
+Принято:
 
-- как connected raster lake cells превращаются в canonical vector geometry;
-- использовать ли точный union cell squares → `RegionSet`;
-- остаётся ли `HydroFeature.geometry` одним `AreaGeometry`, становится `RegionSet` или допускает union type;
-- canonical ordering/identity emergent lake features;
-- какие properties lake materialization переносит из hydrology runtime state.
+```text
+LakeCandidate.cells
+→ exact world-space cell squares
+→ exact polygonal union
+→ canonical RegionSet
+→ HydroFeature
+```
 
-Этот вопрос является отдельным architecture checkpoint по INV-006.
+Ключевые решения:
 
-## После HydroFeature
+- `HydroFeature.geometry` становится `RegionSet`, а не `AreaGeometry` и не union type;
+- exact raster footprint сохраняется без smoothing, simplification, marching-squares approximation или hidden bridges;
+- holes и D8 diagonal multipart geometry являются нормальными формами `RegionSet`;
+- существующий order `lake_candidates` определяет IDs `lake-0001`, `lake-0002`, ...;
+- один `lake_feature_id` helper должен использоваться network, water и materializer;
+- `LakeProperties` получает уже вычисляемый `max_depth_m`;
+- `HydrologyState` получает `lake_features: dict[str, HydroFeature]`;
+- geometry area обязана соответствовать `candidate.area_km2`;
+- `RiverNode.feature_id` для lake inflow/outlet обязан разрешаться в materialized lake feature;
+- materialization принадлежит hydrology layer, не future assembler;
+- materializer не использует RNG, IO, renderer или external model.
+
+Этот architecture checkpoint принят по INV-006; следующий bounded checkpoint — implementation этой semantics.
+
+## После HydroFeature implementation
 
 Следующие bounded checkpoints принятой end-to-end последовательности:
 
@@ -294,8 +313,8 @@ Hydrology сейчас хранит `lake_candidates` как raster cell compone
 
 ## Ещё не сделано
 
+- HydroFeature/lake materialization implementation;
 - DomainData assembler/export bundle;
-- lake polygon vectorization / canonical `HydroFeature` materialization;
 - technical renderer;
 - canonical CLI/application entrypoint;
 - local model skill/adapter;
