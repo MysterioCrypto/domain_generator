@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: integration-and-hardening
 status: in-progress
 current_milestone: M11-acceptance-suite
-checkpoint: codex-integration-packaging-v0.1-design
-next_topic: codex-integration-packaging-v0.1-implementation
+checkpoint: codex-integration-packaging-v0.1-implementation
+next_topic: codex-integration-packaging-v0.1-acceptance
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -20,6 +20,7 @@ completed:
   - M10-stable-outputs-v0.1
 implemented_integrations:
   - local-model-skill-adapter-v0.1
+  - codex-integration-packaging-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
   - end-to-end-runtime-bundle-v0.1
@@ -67,9 +68,9 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 [готово] canonical Python API + domain-generator CLI
 [готово] Local Model Skill / Adapter v0.1
 
-[принято] Codex Integration Packaging v0.1 — design
-[дальше] Codex Integration Packaging v0.1 — implementation
-[потом] Remote GitHub Actions Generation Adapter
+[PR #49 / CI 330 passed] Codex Integration Packaging v0.1 — implementation
+[сейчас] отдельное принятие implementation PR #49
+[после merge] Remote GitHub Actions Generation Adapter — design gate
 [release gate] M11 Acceptance Suite / Core 0.1 hardening
 [отдельно позже] Presentation / ImageGen Guide Renderer
 ```
@@ -100,39 +101,11 @@ Normative semantics: `docs/design/local-model-skill-adapter-v0.1.md`.
 
 Provider-neutral integration реализует model-facing preset projection, optional guide validation, strict `LocalModelDecision`, conservative edit policy, compiler preflight, maximum-two-repair orchestration, exactly one canonical generation after successful preflight and structured audit without chain-of-thought.
 
-Concrete model provider/backend остаётся внешним к Core.
-
-## Codex Integration Packaging v0.1 — accepted design
+## Codex Integration Packaging v0.1 — implementation ready in PR #49
 
 Normative semantics: `docs/design/codex-integration-packaging-v0.1.md`.
 
-Цель — сделать repository self-explanatory для Codex без отдельного OpenAI backend:
-
-```text
-Codex
-  ├─ root AGENTS.md
-  └─ .codex/skills/domain-generator-authoring/SKILL.md
-             ↓
-GenerationRequest + PresetCatalog
-             ↓
-canonical domain-generator CLI / public application API
-             ↓
-DomainBundle + optional technical preview
-```
-
-Границы:
-
-- `AGENTS.md` — короткая постоянная карта проекта и workflow;
-- Codex skill — специализированная authoring/generation instruction;
-- skill ссылается на provider-neutral `docs/skills/local-model-authoring-v0.1.md`, а не вводит новую semantics;
-- Codex не вызывает internal generation stages и не редактирует canonical output как world-authoring mechanism;
-- bounded technical repair и no-hidden-reroll policy сохраняются;
-- concrete OpenAI API client/CodexHost/MCP остаются вне v0.1;
-- repository-local skill также должен быть пригоден для user-level установки через `$skill-installer`.
-
-## Следующий implementation checkpoint
-
-Отдельный implementation PR должен добавить:
+Implementation adds:
 
 ```text
 AGENTS.md
@@ -141,17 +114,43 @@ docs/integrations/codex.md
 tests/test_codex_packaging.py
 ```
 
-Implementation PR не merge-ится без отдельного явного принятия пользователя.
-
-## После Codex packaging
+Runtime/user flow:
 
 ```text
-Remote GitHub Actions Generation Adapter — design gate
-→ M11 Acceptance Suite / Core 0.1 hardening
-→ Core 0.1 release candidate
+Codex
+  ├─ root AGENTS.md
+  └─ domain-generator-authoring skill
+             ↓
+GenerationRequest + PresetCatalog
+             ↓
+canonical domain-generator CLI / public application API
+             ↓
+DomainBundle + optional technical preview
 ```
 
-Presentation/ImageGen Guide Renderer остаётся отдельным downstream track.
+Properties:
+
+- no OpenAI API/provider dependency enters Core;
+- `AGENTS.md` remains concise routing/workflow guidance;
+- skill frontmatter uses only `name` and `description`;
+- skill reuses `docs/skills/local-model-authoring-v0.1.md` rather than duplicating semantics;
+- bounded technical repair / no hidden semantic reroll policy is explicit;
+- internal generation stages are explicitly forbidden as end-user authoring entrypoints;
+- user integration note documents repository-local use and `$skill-installer` installation from the GitHub skill directory;
+- 7 packaging-specific tests were added;
+- full clean functional suite: `330 passed`.
+
+## Current checkpoint rule
+
+PR #49 remains open and must not be merged until the user separately accepts this implementation checkpoint.
+
+After acceptance/merge the next bounded integration design gate is:
+
+```text
+Remote GitHub Actions Generation Adapter
+```
+
+Then M11 Acceptance Suite / Core 0.1 hardening and release candidate work.
 
 ## Still outside current checkpoint
 
