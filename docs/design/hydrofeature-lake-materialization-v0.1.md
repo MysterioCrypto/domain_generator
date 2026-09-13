@@ -4,7 +4,7 @@ kind: design
 status: accepted
 normative: true
 target: core-0.1
-implemented: false
+implemented: true
 ---
 
 # HydroFeature / Lake Materialization v0.1
@@ -134,7 +134,7 @@ Silent fallback geometry запрещён.
 
 ## Implementation checkpoint v0.1
 
-Входят:
+Реализованы:
 
 - canonical `lake_feature_id` helper;
 - exact cell-square union materializer;
