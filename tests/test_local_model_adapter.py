@@ -294,7 +294,7 @@ def test_edit_policy_violation_can_be_reported_for_repair(tmp_path: Path) -> Non
 
 
 def test_max_repairs_is_bounded() -> None:
-    with pytest.raises(lm.LocalModelAdapterInputError, match="\[0, 2\]"):
+    with pytest.raises(lm.LocalModelAdapterInputError, match=r"\[0, 2\]"):
         lm.run_local_model_adapter(
             user_intent="x",
             base_request=request(),
