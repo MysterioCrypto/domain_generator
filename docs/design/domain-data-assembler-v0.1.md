@@ -4,7 +4,7 @@ kind: design
 status: accepted
 normative: true
 target: core-0.1
-implemented: false
+implemented: true
 ---
 
 # DomainData Assembler v0.1
@@ -174,7 +174,7 @@ Core 0.1 резервирует для generated lakes полный pattern:
 
 User `FeatureSpec.id`, полностью совпадающий с этим pattern, недопустим.
 
-Reject должен происходить на input validation/compile boundary до procedural generation. Assembler дополнительно проверяет duplicate IDs и никогда не выполняет silent overwrite.
+Reject происходит на `DomainSpec` validation boundary до procedural generation. Assembler дополнительно проверяет duplicate IDs и никогда не выполняет silent overwrite.
 
 Существующий generated protocol остаётся:
 
@@ -291,13 +291,13 @@ class DomainAssembly:
     field_payloads: Mapping[str, np.ndarray]
 ```
 
-Concrete implementation может использовать readonly mapping wrapper/эквивалентную immutable boundary, но consumer не должен иметь mutable structural access к assembly mapping.
+Implementation использует readonly mapping wrapper; assembler-produced payload arrays также read-only.
 
 `DomainData` остаётся serialized semantic root; NumPy arrays сериализуются будущим exporter-ом отдельно.
 
 ## 16. Invariants
 
-Assembler v0.1 обязан обеспечивать:
+Assembler v0.1 обеспечивает:
 
 1. assembly выполняется только после successful Final Validation;
 2. никакого RNG;
@@ -315,7 +315,7 @@ Assembler v0.1 обязан обеспечивать:
 
 ## 17. Implementation checkpoint
 
-В implementation v0.1 входят:
+Реализованы:
 
 - `DomainAssembly` in-memory boundary;
 - `DomainAssemblyError`;
@@ -328,7 +328,9 @@ Assembler v0.1 обязан обеспечивать:
 - readonly copied field payloads;
 - provenance/identity/validation summary assembly;
 - deterministic ordering;
-- unit/integration tests и schema regeneration только если serialized schema действительно меняется.
+- unit/integration tests.
+
+Serialized `DomainData` schema не менялась, поэтому schema regeneration не потребовалась.
 
 Не входят:
 

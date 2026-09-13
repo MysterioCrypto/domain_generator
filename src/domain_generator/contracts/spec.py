@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+import re
 from typing import Annotated
 
 from pydantic import Field, StrictFloat, StrictInt, StrictStr, model_validator
@@ -15,6 +16,9 @@ from .common import (
     Relation,
     StrictModel,
 )
+
+
+_GENERATED_LAKE_ID_RE = re.compile(r"^lake-[0-9]{4,}$")
 
 
 class DomainSize(FrozenStrictModel):
@@ -210,6 +214,11 @@ class DomainSpec(StrictModel):
         feature_ids = [feature.id for feature in self.features]
         if len(feature_ids) != len(set(feature_ids)):
             raise ValueError("feature ids must be unique")
+        reserved = sorted(feature_id for feature_id in feature_ids if _GENERATED_LAKE_ID_RE.fullmatch(feature_id))
+        if reserved:
+            raise ValueError(
+                f"feature ids use reserved generated hydro namespace: {reserved}"
+            )
         constraint_ids = [constraint.id for constraint in self.constraints]
         if len(constraint_ids) != len(set(constraint_ids)):
             raise ValueError("constraint ids must be unique")
