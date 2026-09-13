@@ -4,7 +4,7 @@ kind: design
 status: accepted
 normative: true
 target: core-0.1
-implemented: false
+implemented: true
 ---
 
 # Canonical CLI / Python Application Entrypoint v0.1
