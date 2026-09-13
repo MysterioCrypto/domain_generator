@@ -15,6 +15,7 @@ from ..contracts.data import (
 from ..contracts.geometry import WorldPoint
 from ..contracts.plan import GenerationPlan
 from ..grid import GridAdapter
+from .ids import lake_feature_id
 from .routing import D8_DIRECTIONS, HydrologyCapabilityError
 from .state import LakeCandidate
 from .water import accepted_lake_cell_map
@@ -134,11 +135,10 @@ def build_river_network(
             raise HydrologyCapabilityError("stream cell drains to non-stream cell outside accepted lake")
         ordinary_indegree[receiver] += 1
 
-    # descriptor, last lake cell before exit, first outside receiver
     lake_outlets: list[tuple[_NodeDescriptor, Cell, Cell]] = []
     lake_outlet_count_by_receiver = {cell: 0 for cell in outside_stream_cells}
-    for index, candidate in enumerate(lake_candidates, start=1):
-        lake_id = f"lake-{index:04d}"
+    for index, candidate in enumerate(lake_candidates):
+        lake_id = lake_feature_id(index)
         candidate_cells = set(candidate.cells)
         for cell in candidate.cells:
             receiver = _receiver(flow_direction, cell)
@@ -279,8 +279,6 @@ def build_river_network(
     ):
         downstream_node = cell_nodes.get(receiver)
         if downstream_node is not None:
-            # The confluence-cell accumulation already includes all branches.
-            # Preserve the catchment carried specifically by this lake branch.
             segment_records.append(
                 (
                     node_id_by_key[descriptor.key],

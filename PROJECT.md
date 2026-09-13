@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-hydrofeature-lake-materialization-design-v0.1
-next_topic: hydrofeature-lake-materialization-implementation-v0.1
+checkpoint: M2-hydrofeature-lake-materialization-v0.1
+next_topic: domain-data-assembler-v0.1
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -73,6 +73,7 @@ implemented_m2:
   - soft-constraint-compilation-v0.1
   - soft-constraint-scoring-v0.1
   - final-soft-ranking-v0.1
+  - hydrofeature-lake-materialization-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
   - end-to-end-runtime-bundle-v0.1
@@ -144,7 +145,9 @@ world / setting / application
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology и canonical runtime water depth. Surface покрывает base moisture/vegetation и explicit area feature biases. Dependent point placement реализован полностью. Final Validation имеет production hard gate и полный user-soft global ranking для поддерживаемых canonical spatial measurements. Design exact semantic materialization lakes в `HydroFeature` принят; implementation ещё не выполнен.
+Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology, canonical runtime water depth и exact semantic lake materialization. Surface покрывает base moisture/vegetation и explicit area feature biases. Dependent point placement реализован полностью. Final Validation имеет production hard gate и полный user-soft global ranking для поддерживаемых canonical spatial measurements.
+
+HydroFeature / Lake Materialization implementation готов в PR #34 и проходит CI, но до отдельного принятия пользователя не считается merged-состоянием `main`.
 
 ## Карта прогресса простыми словами
 
@@ -162,9 +165,8 @@ Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReserva
 [готово] Final Validation hard gate
 [готово] soft constraint compilation + scoring + final ranking
 [принято] end-to-end runtime / bundle architecture
-[принято] HydroFeature / lake materialization design
-[следом] HydroFeature / lake materialization implementation
-[потом] DomainData assembler
+[готово в PR #34] HydroFeature / lake materialization implementation
+[следующий design gate после merge #34] DomainData Assembler v0.1
 [потом] bundle exporter + technical renderer + CLI/adapters
 
 [готово] GitHub Actions: pytest на push/PR
@@ -233,13 +235,12 @@ PlacementReservation
 ## Final Validation v0.1 — hard + soft
 
 Normative hard semantics: `docs/design/final-validation-hard-v0.1.md`.
-
 Normative soft semantics: `docs/design/soft-constraint-compilation-scoring-v0.1.md`.
 
 Реализовано:
 
 - temporary final geometry view объединяет structural `LayoutCandidate.geometry_realizations` и deferred `PlacementState.final_points` без mutation upstream state;
-- Final проверяет наличие layout/terrain/hydrology/surface/placement, attempt identity, plan fingerprint и complete/disjoint final feature geometry sets;
+- Final проверяет upstream completeness, attempt identity, plan fingerprint и complete/disjoint final feature geometry sets;
 - все hard compiled constraints повторно оцениваются против final geometry в canonical `constraint.id` order;
 - hard predicate failure является normal rejected attempt;
 - после hard gate soft compiled constraints оцениваются против той же final geometry и того же canonical spatial measurement boundary;
@@ -250,31 +251,20 @@ Normative soft semantics: `docs/design/soft-constraint-compilation-scoring-v0.1.
 - unsupported evaluator/scoring construct является explicit capability error;
 - Final не использует RNG, не делает IO и ничего не исправляет.
 
-## Soft Constraint Compilation & Scoring v0.1 — accepted / implemented / merged PR #32
+## Soft Constraint Compilation & Scoring v0.1 — complete
 
-`DomainSpec` различает `hard`/`soft` constraints и использует `weight` для soft. Compiler переводит soft variants существующих relations в `CompiledScoring` без второго набора spatial measurements.
-
-Базовая semantics:
-
-```text
-linear_increasing:
-score = clamp((measurement - worst) / (ideal - worst), 0, 1)
-
-linear_decreasing:
-score = clamp((worst - measurement) / (worst - ideal), 0, 1)
-```
+PR #32 merged. `DomainSpec` различает `hard`/`soft` constraints и использует `weight` для soft. Compiler переводит soft variants существующих relations в `CompiledScoring` без второго набора spatial measurements.
 
 При `ideal == worst` используется step semantics без epsilon. Для `crosses` с нулевым minimum используется strict `positive`: `measurement > 0 -> 1`, иначе `0`.
 
-Deferred-to-deferred soft constraint допустим после materialization обеих final geometries, если canonical evaluator поддерживает geometry pair. Hard deferred-to-deferred dependency остаётся запрещённой.
+Deferred-to-deferred soft constraint допустим после materialization обеих final geometries, если canonical evaluator поддерживает geometry pair. Hard deferred-to-deferred dependency остаётся запрещённой. `SiteProfile.preferences` не входят скрыто в global ranking.
 
-`SiteProfile.preferences` остаются локальной эвристикой выбора site внутри одного attempt и не входят скрыто в global ranking.
-
-## HydroFeature / Lake Materialization v0.1 — accepted design
+## HydroFeature / Lake Materialization v0.1 — accepted / implemented in PR #34
 
 Normative semantics: `docs/design/hydrofeature-lake-materialization-v0.1.md`.
+Design documentation merged через PR #33. Runtime implementation находится в PR #34 и ждёт отдельного принятия перед merge.
 
-Принято:
+Реализовано:
 
 ```text
 LakeCandidate.cells
@@ -284,36 +274,48 @@ LakeCandidate.cells
 → HydroFeature
 ```
 
-Ключевые решения:
-
-- `HydroFeature.geometry` становится `RegionSet`, а не `AreaGeometry` и не union type;
+- `HydroFeature.geometry` — `RegionSet`, не `AreaGeometry` и не union type;
 - exact raster footprint сохраняется без smoothing, simplification, marching-squares approximation или hidden bridges;
-- holes и D8 diagonal multipart geometry являются нормальными формами `RegionSet`;
-- существующий order `lake_candidates` определяет IDs `lake-0001`, `lake-0002`, ...;
-- один `lake_feature_id` helper должен использоваться network, water и materializer;
-- `LakeProperties` получает уже вычисляемый `max_depth_m`;
-- `HydrologyState` получает `lake_features: dict[str, HydroFeature]`;
-- geometry area обязана соответствовать `candidate.area_km2`;
-- `RiverNode.feature_id` для lake inflow/outlet обязан разрешаться в materialized lake feature;
-- materialization принадлежит hydrology layer, не future assembler;
+- holes и D8 diagonal multipart geometry сохраняются;
+- `lake_feature_id()` централизует существующий `lake-0001`, `lake-0002`, ... protocol для network/water/materializer;
+- `LakeProperties` содержит `max_depth_m`;
+- `HydrologyState` содержит `lake_features: dict[str, HydroFeature]`;
+- materializer проверяет candidate cells, overlap, non-empty geometry, canonical RegionSet и area consistency;
+- `RiverNode.feature_id` для lake inflow/outlet проверяется против materialized lake features;
+- hydrology validation повторно materializes expected lake features и проверяет их completeness;
+- `DomainData` JSON Schema snapshot обновлён;
 - materializer не использует RNG, IO, renderer или external model.
 
-Этот architecture checkpoint принят по INV-006; следующий bounded checkpoint — implementation этой semantics.
+Implementation checkpoint подтверждён полным pytest run `266 passed` до финальной status-doc sync. Финальный PR head должен пройти CI повторно после этих Markdown-изменений.
 
-## После HydroFeature implementation
+## Следующий design gate после merge PR #34
 
-Следующие bounded checkpoints принятой end-to-end последовательности:
+`DomainData Assembler v0.1`.
 
-1. DomainData Assembler v0.1;
-2. DomainBundle Export v0.1;
-3. Technical Renderer v0.1;
-4. canonical CLI / Python application entrypoint;
-5. local model skill/adapter;
-6. remote GitHub Actions generation adapter.
+Нужно формализовать, как accepted pipeline state превращается в `DomainAssembly`/`DomainData` без новой генерации:
+
+1. identity/provenance;
+2. structural + placed + hydro feature merge;
+3. river network packaging;
+4. canonical field descriptors и in-memory field payloads;
+5. final validation summary;
+6. deterministic feature/network ordering;
+7. assembler capability/error boundary;
+8. строгий запрет RNG, IO, re-generation и renderer semantics.
+
+После assembler:
+
+```text
+DomainData Assembler
+→ DomainBundle Export
+→ Technical Renderer
+→ canonical CLI / Python application entrypoint
+→ local model skill/adapter
+→ remote GitHub Actions generation adapter
+```
 
 ## Ещё не сделано
 
-- HydroFeature/lake materialization implementation;
 - DomainData assembler/export bundle;
 - technical renderer;
 - canonical CLI/application entrypoint;

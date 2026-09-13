@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from .ids import lake_feature_id
 from .routing import HydrologyCapabilityError
 from .state import LakeCandidate
 
@@ -12,8 +13,8 @@ def accepted_lake_cell_map(
 ) -> dict[tuple[int, int], str]:
     rows, columns = shape
     mapping: dict[tuple[int, int], str] = {}
-    for index, candidate in enumerate(lake_candidates, start=1):
-        lake_id = f"lake-{index:04d}"
+    for index, candidate in enumerate(lake_candidates):
+        lake_id = lake_feature_id(index)
         for cell in candidate.cells:
             row, column = cell
             if not (0 <= row < rows and 0 <= column < columns):

@@ -14,41 +14,30 @@
 
 Репозиторий: `MysterioCrypto/domain_generator`.
 
-`main` после merge PR #32:
+`main` после merge design PR #33:
 
 ```text
-c20fe0705c90e2faec6557378ad0daccedb6bb5b
+b50fed2b8f24a660cdf37e5739d08511f2800d9f
 ```
 
 ### Уже в main
 
 - PR #31 Documentation Language Cleanup v0.1 — merged;
 - PR #30 Final Validation hard-complete v0.1 — merged;
-- PR #32 Soft Constraint Compilation & Scoring v0.1 — merged.
+- PR #32 Soft Constraint Compilation & Scoring v0.1 — merged;
+- PR #33 HydroFeature / Lake Materialization design v0.1 — merged.
 
-Final Validation имеет production hard gate и полный user-soft global ranking для поддерживаемых canonical spatial measurements.
+### Текущий implementation checkpoint
 
-## Soft Constraint Compilation & Scoring v0.1 — complete
+PR #34 `Implement HydroFeature / Lake Materialization v0.1` открыт и **не должен merge-иться без отдельного принятия пользователя**.
 
-Canonical design: `docs/design/soft-constraint-compilation-scoring-v0.1.md`.
+Implementation branch:
+
+```text
+impl/m2-hydrofeature-lake-materialization-v0.1
+```
 
 Реализовано:
-
-- soft variants существующих spatial relations компилируются в `CompiledScoring`;
-- scoring recipes: `linear_increasing`, `linear_decreasing`, `positive`;
-- hard/soft используют один canonical spatial measurement boundary;
-- Final сначала применяет hard gate, затем soft scoring;
-- `effective_violation = (1-score)*weight`;
-- ranking: min worst violation → max weighted mean → min attempt index;
-- deferred-to-deferred soft допустим, если final geometry pair поддерживается evaluator-ом;
-- hard deferred-to-deferred dependency остаётся запрещённой;
-- `SiteProfile.preferences` не входят в global user-soft ranking.
-
-## HydroFeature / Lake Materialization v0.1 — design accepted
-
-Canonical design: `docs/design/hydrofeature-lake-materialization-v0.1.md`.
-
-Принято:
 
 ```text
 LakeCandidate.cells
@@ -58,35 +47,47 @@ LakeCandidate.cells
 → HydroFeature
 ```
 
-Основные решения:
-
-- `HydroFeature.geometry` становится `RegionSet`;
-- smoothing/simplification/marching-squares в semantic materialization запрещены;
+- `HydroFeature.geometry` — `RegionSet`;
 - holes и D8 diagonal multipart geometry сохраняются точно;
-- IDs сохраняют существующий protocol `lake-0001`, `lake-0002`, ...;
-- один helper должен использоваться network/water/materializer;
-- `LakeProperties` получает уже вычисляемый `max_depth_m`;
-- `HydrologyState` получает `lake_features: dict[str, HydroFeature]`;
-- lake materialization принадлежит hydrology layer, а не будущему assembler;
-- river lake references обязаны разрешаться в materialized lake features;
-- materializer не использует RNG/IO/renderer.
+- smoothing/simplification/marching-squares отсутствуют;
+- `lake_feature_id()` задаёт единый `lake-NNNN` protocol для network/water/materializer;
+- `LakeProperties` содержит `max_depth_m`;
+- `HydrologyState` содержит materialized `lake_features`;
+- hydrology generation materializes lakes до river-reference validation;
+- lake geometry area проверяется против `candidate.area_km2`;
+- river lake references проверяются против materialized features;
+- `DomainData` schema snapshot обновлён под `RegionSet` и `max_depth_m`;
+- synthetic `HydrologyState` fixtures сохраняют совместимость через empty default, но production hydrology validation требует exact materialization при наличии lake candidates.
 
-Design branch:
+Последний подтверждённый code/schema CI до status-doc sync:
 
 ```text
-design/m2-hydrofeature-lake-materialization-v0.1
+266 passed
 ```
 
-Implementation ещё не должен считаться принятым или merged до отдельного checkpoint пользователя.
+После изменения status docs требуется проверить CI финального PR head заново.
+
+## Soft Constraint Compilation & Scoring v0.1 — complete
+
+Canonical design: `docs/design/soft-constraint-compilation-scoring-v0.1.md`.
+
+- soft relations компилируются в `CompiledScoring`;
+- scoring recipes: `linear_increasing`, `linear_decreasing`, `positive`;
+- hard/soft используют один canonical spatial measurement boundary;
+- Final сначала применяет hard gate, затем soft scoring;
+- `effective_violation = (1-score)*weight`;
+- ranking: min worst violation → max weighted mean → min attempt index;
+- deferred-to-deferred soft допустим при поддерживаемой final geometry pair;
+- `SiteProfile.preferences` не входят в global user-soft ranking.
 
 ## Рабочий процесс
 
 - Один bounded архитектурный вопрос за раз.
-- Сначала объяснить design и последствия.
+- Сначала design и последствия.
 - Пользователь принимает/изменяет/отклоняет.
-- После принятия зафиксировать normative docs до runtime implementation.
-- Implementation вести отдельным PR.
-- Implementation PR не merge-ить без явного принятия пользователем соответствующего checkpoint.
+- После принятия normative docs фиксируются до runtime implementation.
+- Implementation ведётся отдельным PR.
+- Implementation PR не merge-ить без явного принятия пользователем checkpoint.
 - GitHub Actions pytest — каноническая execution-проверка.
 - Иллюстративные примеры ненормативны.
 
@@ -130,11 +131,11 @@ DomainBundle
 
 Локальный и remote режимы используют один Core entrypoint. GitHub Actions — adapter/infrastructure, не Core dependency. Technical PNG и художественная стилизация downstream и не меняют world state.
 
-## Следующий порядок
+## Следующий порядок после принятия и merge PR #34
 
 ```text
-HydroFeature / lake materialization implementation v0.1
-→ DomainData Assembler v0.1
+DomainData Assembler v0.1 design
+→ DomainData Assembler implementation
 → DomainBundle Export v0.1
 → Technical Renderer v0.1
 → canonical CLI / Python application entrypoint

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 
-from ..contracts.data import RiverNetwork
+from ..contracts.data import HydroFeature, RiverNetwork
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,3 +29,4 @@ class HydrologyState:
     lake_candidates: tuple[LakeCandidate, ...]
     river_network: RiverNetwork
     water_depth_m: np.ndarray
+    lake_features: dict[str, HydroFeature] = field(default_factory=dict)

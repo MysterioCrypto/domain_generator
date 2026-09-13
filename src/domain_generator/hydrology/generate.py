@@ -14,6 +14,7 @@ from ..contracts.validation import (
 from ..pipeline.attempts import AttemptContext, CandidateState
 from ..terrain.state import TerrainState
 from .classification import classify_stream_mask, extract_lake_candidates
+from .materialize import materialize_lake_features, validate_river_lake_references
 from .network import build_river_network
 from .routing import (
     D8_DIRECTIONS,
@@ -54,6 +55,7 @@ def generate_hydrology(plan: GenerationPlan, terrain: TerrainState) -> Hydrology
         lake_min_area_km2=plan.hydrology.lake_min_area_km2,
         lake_min_depth_m=plan.hydrology.lake_min_depth_m,
     )
+    lake_features = materialize_lake_features(plan, lake_candidates)
     river_network = build_river_network(
         plan,
         direction,
@@ -61,6 +63,7 @@ def generate_hydrology(plan: GenerationPlan, terrain: TerrainState) -> Hydrology
         stream_mask,
         lake_candidates,
     )
+    validate_river_lake_references(river_network, lake_features)
     water_depth = build_water_depth_m(
         elevation,
         fill,
@@ -78,6 +81,7 @@ def generate_hydrology(plan: GenerationPlan, terrain: TerrainState) -> Hydrology
         flow_accumulation_km2=accumulation,
         stream_mask=stream_mask,
         lake_candidates=lake_candidates,
+        lake_features=lake_features,
         river_network=river_network,
         water_depth_m=water_depth,
     )
@@ -131,6 +135,14 @@ def _lake_candidates_are_complete(
     return hydrology.lake_candidates == expected
 
 
+def _lake_features_are_complete(plan: GenerationPlan, hydrology: HydrologyState) -> bool:
+    try:
+        expected = materialize_lake_features(plan, hydrology.lake_candidates)
+    except (HydrologyCapabilityError, ValueError, TypeError):
+        return False
+    return hydrology.lake_features == expected
+
+
 def _river_network_is_complete(plan: GenerationPlan, hydrology: HydrologyState) -> bool:
     try:
         expected = build_river_network(
@@ -143,6 +155,14 @@ def _river_network_is_complete(plan: GenerationPlan, hydrology: HydrologyState) 
     except (HydrologyCapabilityError, ValueError):
         return False
     return hydrology.river_network == expected
+
+
+def _river_lake_references_are_valid(hydrology: HydrologyState) -> bool:
+    try:
+        validate_river_lake_references(hydrology.river_network, hydrology.lake_features)
+    except HydrologyCapabilityError:
+        return False
+    return True
 
 
 def _water_depth_is_complete(
@@ -196,7 +216,9 @@ def validate_hydrology(
     accumulation_minimum = False
     stream_matches_threshold = False
     lake_candidates_complete = False
+    lake_features_complete = False
     river_network_complete = False
+    river_lake_references_valid = False
     water_nonnegative = False
     water_depth_complete = False
 
@@ -256,8 +278,10 @@ def validate_hydrology(
             )
         if terrain_exists and terrain_shape and fill_shape:
             lake_candidates_complete = _lake_candidates_are_complete(plan, terrain, hydrology)
+        lake_features_complete = _lake_features_are_complete(plan, hydrology)
         if direction_shape and accumulation_shape and stream_shape:
             river_network_complete = _river_network_is_complete(plan, hydrology)
+        river_lake_references_valid = _river_lake_references_are_valid(hydrology)
         if terrain_exists and terrain_shape and fill_shape and accumulation_shape and stream_shape and water_shape:
             water_depth_complete = _water_depth_is_complete(plan, terrain, hydrology)
 
@@ -292,7 +316,9 @@ def validate_hydrology(
         EngineInvariantResult(id="hydrology-stream-dtype-bool", passed=stream_dtype),
         EngineInvariantResult(id="hydrology-stream-threshold-classification", passed=stream_matches_threshold),
         EngineInvariantResult(id="hydrology-lake-candidates-complete", passed=lake_candidates_complete),
+        EngineInvariantResult(id="hydrology-lake-features-complete", passed=lake_features_complete),
         EngineInvariantResult(id="hydrology-river-network-complete", passed=river_network_complete),
+        EngineInvariantResult(id="hydrology-river-lake-references-valid", passed=river_lake_references_valid),
         EngineInvariantResult(id="hydrology-water-depth-shape-matches-grid", passed=water_shape),
         EngineInvariantResult(id="hydrology-water-depth-dtype-float32", passed=water_dtype),
         EngineInvariantResult(id="hydrology-water-depth-finite", passed=water_finite),

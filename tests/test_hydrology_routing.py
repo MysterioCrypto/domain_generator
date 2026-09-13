@@ -158,6 +158,7 @@ def test_generate_hydrology_replays_and_preserves_canonical_terrain() -> None:
     assert np.array_equal(first.flow_accumulation_km2, second.flow_accumulation_km2)
     assert np.array_equal(first.stream_mask, second.stream_mask)
     assert first.lake_candidates == second.lake_candidates
+    assert first.lake_features == second.lake_features
     assert first.river_network == second.river_network
     assert np.array_equal(first.water_depth_m, second.water_depth_m)
 
@@ -227,6 +228,7 @@ def test_validation_rejects_non_lower_receiver() -> None:
         flow_accumulation_km2=np.ones((3, 3), dtype=np.float64),
         stream_mask=np.ones((3, 3), dtype=np.bool_),
         lake_candidates=(),
+        lake_features={},
         river_network=RiverNetwork(),
         water_depth_m=np.zeros((3, 3), dtype=np.float32),
     )
