@@ -14,10 +14,10 @@
 
 Репозиторий: `MysterioCrypto/domain_generator`.
 
-`main` после merge PR #34:
+`main` после merge design PR #35:
 
 ```text
-d9c6145f6e49df351fb86372f05ffc6f953ea85b
+7cbd089d4530ff3db8238710edf988bbc6b1dd17
 ```
 
 ### Уже в main
@@ -26,56 +26,42 @@ d9c6145f6e49df351fb86372f05ffc6f953ea85b
 - PR #31 Documentation Language Cleanup v0.1 — merged;
 - PR #32 Soft Constraint Compilation & Scoring v0.1 — merged;
 - PR #33 HydroFeature / Lake Materialization design v0.1 — merged;
-- PR #34 HydroFeature / Lake Materialization implementation v0.1 — merged.
+- PR #34 HydroFeature / Lake Materialization implementation v0.1 — merged;
+- PR #35 DomainData Assembler design v0.1 — merged.
 
-Hydrology теперь materializes accepted lakes как exact canonical `RegionSet` semantic features и сохраняет единый `lake-NNNN` identity protocol для network/water/features.
+### Текущий implementation checkpoint
 
-Последний подтверждённый implementation suite PR #34:
+PR #36 `Implement DomainData Assembler v0.1` открыт и **не должен merge-иться без отдельного принятия пользователя**.
 
-```text
-266 passed
-```
-
-## DomainData Assembler v0.1 — design accepted
-
-Canonical design: `docs/design/domain-data-assembler-v0.1.md`.
-
-Design принят пользователем; implementation ещё не считается выполненным или merged.
-
-Принятая граница:
+Implementation branch:
 
 ```text
-DomainSpec
-GenerationPlan
-GenerationConfig
-selected DomainCandidate
-        ↓
-DomainData Assembler
-        ↓
-DomainAssembly
-  data: DomainData
-  field_payloads:
-    elevation
-    water_depth
-    moisture
-    vegetation_density
+impl/m2-domain-data-assembler-v0.1
 ```
 
-Ключевые решения:
+Реализовано:
 
-- assembler получает только выбранный `DomainCandidate`, не занимается ranking/selection;
-- `DomainSpec` передаётся отдельно, чтобы сохранить `identity.label` и проверить spec↔plan provenance;
-- generation-config fingerprint включает version + semantic config и исключает observability;
-- specified final features собираются из layout + placement geometry без повторной generation;
-- готовые hydrology `lake_features` переносятся без повторной vectorization;
-- generated hydro namespace `^lake-[0-9]{4,}$` резервируется и запрещается для user feature IDs;
-- duplicate semantic feature ID — explicit error, silent overwrite запрещён;
-- network `rivers` присутствует всегда, даже если пустой;
-- canonical fields: elevation, water_depth, moisture, vegetation_density;
-- field payloads обязаны быть exact expected shape + float32;
-- assembler делает независимые read-only copies canonical arrays для защиты accepted candidate от downstream mutation;
-- `ValidationSummary` строится из уже успешного final validation/ranking;
-- никаких RNG, IO, renderer, reroll, re-ranking или скрытой regeneration.
+- `DomainAssembly` in-memory boundary;
+- `assemble_domain(spec, plan, config, candidate)` без RNG/IO/rerank;
+- semantic `GenerationConfig` fingerprint без observability;
+- reserved generated hydro IDs `^lake-[0-9]{4,}$` на `DomainSpec` validation boundary;
+- specified features из final layout/placement geometry;
+- merge specified + ready hydrology `HydroFeature` с collision guard;
+- canonical network `rivers`;
+- canonical descriptors для elevation/water_depth/moisture/vegetation_density;
+- exact float32/shape checks;
+- independent read-only payload copies;
+- identity/provenance/final validation summary;
+- deterministic feature/field/network ordering;
+- explicit `DomainAssemblyError` boundary.
+
+Подтверждённый push CI текущей code semantics:
+
+```text
+272 passed
+```
+
+Serialized `DomainData` schema не менялась, поэтому schema snapshot regeneration не требуется.
 
 ## Рабочий процесс
 
@@ -86,7 +72,6 @@ DomainAssembly
 - Implementation ведётся отдельным PR.
 - Implementation PR не merge-ить без явного принятия пользователем checkpoint.
 - GitHub Actions pytest — каноническая execution-проверка.
-- Иллюстративные примеры ненормативны.
 
 ## Главная граница Core
 
@@ -106,8 +91,6 @@ world / setting / application
  renderer / exporter / integration
 ```
 
-Core знает generic geometry, terrain, hydrology, fields, networks, constraints, procedural features и placement rules. Core не знает конкретный сеттинг, кампанию, game-system rules, lore, LLM provider, GitHub как обязательный runtime, UI или renderer.
-
 ## End-to-End target
 
 ```text
@@ -126,13 +109,10 @@ DomainBundle
   preview/technical-map.png   # non-canonical
 ```
 
-Локальный и remote режимы используют один Core entrypoint. GitHub Actions — adapter/infrastructure, не Core dependency. Technical PNG и художественная стилизация downstream и не меняют world state.
-
-## Следующий порядок
+## Следующий порядок после принятия и merge PR #36
 
 ```text
-DomainData Assembler implementation v0.1
-→ DomainBundle Export v0.1 design
+DomainBundle Export v0.1 design
 → DomainBundle Export implementation
 → Technical Renderer v0.1
 → canonical CLI / Python application entrypoint
