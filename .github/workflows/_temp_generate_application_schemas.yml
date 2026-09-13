@@ -1,0 +1,40 @@
+name: Temporary application schema codegen
+
+on:
+  push:
+    branches:
+      - impl/m2-canonical-cli-python-entrypoint-v0.1
+
+permissions:
+  contents: write
+
+jobs:
+  codegen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: impl/m2-canonical-cli-python-entrypoint-v0.1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package
+        run: python -m pip install -e .
+
+      - name: Generate JSON Schema snapshots
+        run: python -m domain_generator.schema_export
+
+      - name: Commit generated snapshots
+        shell: bash
+        run: |
+          git add schemas/v0.1
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Generate application schema snapshots"
+          git push origin HEAD:impl/m2-canonical-cli-python-entrypoint-v0.1
