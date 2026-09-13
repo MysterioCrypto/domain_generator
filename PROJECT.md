@@ -146,8 +146,24 @@ Properties:
 - canonical DomainBundle remains unmodified;
 - technical preview is additionally published as a small separate artifact when requested;
 - diagnostics are published even on failure while the job remains failed;
-- workflow permissions remain `contents: read` and generated world data is never pushed back to Git;
-- local Codex execution remains available in parallel with remote execution.
+- generation workflow permissions remain `contents: read` and generated world data is never pushed back to Git;
+- local Codex execution remains available in parallel with remote execution;
+- temporary chat/agent branches use `remote-generation/<id>` and are deleted after artifact retrieval + PR close;
+- branch cleanup is isolated into a separate closed-PR cleanup workflow with narrowly scoped `contents: write`, leaving the generation workflow read-only.
+
+## Temporary generation branch lifecycle
+
+```text
+create remote-generation/<id>
+→ write remote-requests/<id>/...
+→ open PR
+→ run generation
+→ retrieve artifacts
+→ close PR without merge
+→ delete temporary branch
+```
+
+GitHub's built-in automatic head-branch deletion is useful for merged PRs, but generation PRs normally close without merge, so v0.1 includes an explicit cleanup path. Cleanup may fail without changing generation outcome; stale branches can then be removed manually later.
 
 ## Следующий implementation checkpoint
 
@@ -155,13 +171,14 @@ Properties:
 
 ```text
 .github/workflows/generate-domain.yml
+.github/workflows/cleanup-remote-generation.yml
 scripts/remote_generation.py
 docs/integrations/github-actions-generation.md
 remote-requests/example/
 tests/test_github_actions_generation_adapter.py
 ```
 
-После merge implementation должен пройти первый реальный end-to-end generation test через временный `remote-requests/**` PR, включая retrieval artifacts.
+После merge implementation должен пройти первый реальный end-to-end generation test через временный `remote-generation/**` branch + `remote-requests/**` PR, включая retrieval artifacts, PR close и branch cleanup.
 
 Implementation PR не merge-ится без отдельного явного принятия пользователя.
 
