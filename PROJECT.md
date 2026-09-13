@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-domain-data-assembler-v0.1
-next_topic: domain-bundle-export-v0.1
+checkpoint: M2-domain-bundle-export-v0.1
+next_topic: technical-renderer-v0.1
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -22,19 +22,10 @@ implemented_m2:
   - deterministic-domain-spec-compiler-slice
   - semantic-plan-fingerprint
   - point-layout-generation-v0.1
-  - point-layout-validation-v0.1
-  - generic-resolved-parameter-sampling-v0.1
-  - triangular-sampler-rng-v1-mapping
   - corridor-layout-generation-v0.1
-  - corridor-layout-validation-v0.1
   - band-layout-generation-v0.1
-  - band-width-profile-v0.1
-  - band-layout-validation-v0.1
   - area-layout-generation-v0.1
-  - area-layout-validation-v0.1
-  - area-point-spatial-evaluators-v0.1
   - shapely-geos-boolean-backend-v0.1
-  - canonical-region-set-conversion-v0.1
   - placement-reservation-materialization-v0.1
   - canonical-grid-cell-center-adapter-v0.1
   - terrain-state-v0.1
@@ -48,8 +39,6 @@ implemented_m2:
   - priority-flood-routing-v0.1
   - deterministic-d8-v0.1
   - catchment-accumulation-km2-v0.1
-  - hydrology-semantic-recipe-v0.1
-  - physical-fill-surface-v0.1
   - stream-mask-classification-v0.1
   - lake-candidate-classification-v0.1
   - river-network-extraction-v0.1
@@ -60,7 +49,6 @@ implemented_m2:
   - terrain-slope-derived-v0.1
   - surface-moisture-base-v0.1
   - surface-vegetation-base-v0.1
-  - surface-validation-v0.1
   - surface-feature-bias-v0.1
   - dependent-placement-site-metrics-v0.1
   - dependent-placement-candidate-filtering-v0.1
@@ -75,6 +63,8 @@ implemented_m2:
   - final-soft-ranking-v0.1
   - hydrofeature-lake-materialization-v0.1
   - domain-data-assembler-v0.1
+  - domain-bundle-export-v0.1
+  - bundle-manifest-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
   - end-to-end-runtime-bundle-v0.1
@@ -82,6 +72,7 @@ accepted_designs:
   - soft-constraint-compilation-scoring-v0.1
   - hydrofeature-lake-materialization-v0.1
   - domain-data-assembler-v0.1
+  - domain-bundle-export-v0.1
 implemented_infrastructure:
   - github-actions-pytest-ci-on-push-and-pull-request
 canonical_documents:
@@ -96,10 +87,9 @@ canonical_documents:
   soft_constraint_scoring: docs/design/soft-constraint-compilation-scoring-v0.1.md
   hydrofeature_lake_materialization: docs/design/hydrofeature-lake-materialization-v0.1.md
   domain_data_assembler: docs/design/domain-data-assembler-v0.1.md
+  domain_bundle_export: docs/design/domain-bundle-export-v0.1.md
   placement_reservations: docs/design/placement-reservation-materialization-v0.1.md
   dependent_placement: docs/design/dependent-placement-site-selection-v0.1.md
-  dependent_placement_site_metrics: docs/design/dependent-placement-site-metrics-v0.1.md
-  dependent_placement_candidate_filtering: docs/design/dependent-placement-candidate-filtering-v0.1.md
   terrain_area_raise: docs/design/terrain-area-raise-v0.1.md
   terrain_band_ridge: docs/design/terrain-band-ridge-v0.1.md
   terrain_structural_flatten: docs/design/terrain-structural-flatten-v0.1.md
@@ -114,7 +104,7 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 # Состояние проекта
 
-Этот файл — короткая каноническая точка входа для нового чата или агента.
+Этот файл — короткая каноническая точка входа для нового чата или агента. Подробные normative semantics находятся в `docs/design/`, `docs/contracts/` и `docs/decisions/`.
 
 ## Цель и граница продукта
 
@@ -129,9 +119,9 @@ world / setting / application
           ↓
    domain_generator
           ↓
-      DomainData
+ DomainData / DomainBundle
           ↓
- renderer / exporter / integration
+ renderer / integration
 ```
 
 Core знает generic geometry, terrain, hydrology, fields, networks, constraints, procedural features и placement rules. Core не знает конкретный setting/campaign, game-system rules, lore, LLM provider, GitHub как обязательный runtime, UI или renderer.
@@ -140,12 +130,18 @@ Core знает generic geometry, terrain, hydrology, fields, networks, constrai
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-Layout, Terrain, Hydrology, Surface, Dependent Placement и Final Validation реализованы. Hydrology materializes accepted lakes в exact semantic `HydroFeature`. DomainData Assembler implementation готов в PR #36 и проходит CI, но до отдельного принятия пользователя не считается merged-состоянием `main`.
+На `main` уже находятся полный generation pipeline до Final Validation, HydroFeature materialization, DomainData Assembler и DomainBundle Export v0.1.
 
-`main` после design PR #35:
+`main` после merge PR #38:
 
 ```text
-7cbd089d4530ff3db8238710edf988bbc6b1dd17
+5b665487695bdf45c802c1ac6b9a67c05caff816
+```
+
+Подтверждённый полный CI implementation PR #38:
+
+```text
+281 passed
 ```
 
 ## Карта прогресса простыми словами
@@ -162,17 +158,17 @@ Layout, Terrain, Hydrology, Surface, Dependent Placement и Final Validation р�
 [готово] dependent placement
 [готово] Final Validation hard gate
 [готово] soft constraint compilation + scoring + final ranking
-[принято] end-to-end runtime / bundle architecture
-[готово в PR #36] DomainData Assembler v0.1
-[следующий design gate после merge #36] DomainBundle Export v0.1
-[потом] Technical Renderer
-[потом] canonical CLI/Python entrypoint
-[потом] local/remote adapters
+[готово] DomainData Assembler v0.1
+[готово] DomainBundle Export v0.1
+[дальше] Technical Renderer v0.1 — design gate
+[потом] canonical CLI / Python application entrypoint
+[потом] local model skill/adapter
+[потом] remote GitHub Actions generation adapter
 
 [готово] GitHub Actions: pytest на push/PR
 ```
 
-## End-to-End Runtime & Bundle Architecture v0.1 — accepted
+## End-to-End Runtime & Bundle Architecture v0.1
 
 Normative semantics: `docs/design/end-to-end-runtime-bundle-v0.1.md`.
 
@@ -186,72 +182,23 @@ DomainSpec
   -> Surface
   -> Dependent Placement
   -> Final Validation
-  -> DomainData Assembly
+  -> DomainData Assembler
+  -> DomainAssembly
   -> DomainBundle Export
+  -> persisted bundle
   -> Technical Renderer / adapters downstream
 ```
 
 Core stages работают в одном Python process. Local и remote execution должны использовать один canonical entrypoint. GitHub Actions остаётся adapter/infrastructure, а не dependency Core.
 
-Canonical bundle baseline:
-
-```text
-DomainBundle
-  domain.json
-  manifest.json
-  fields/
-    elevation.npy
-    water_depth.npy
-    moisture.npy
-    vegetation_density.npy
-  preview/        # optional, non-canonical
-  debug/          # optional, non-canonical
-```
-
-## Final Validation v0.1 — complete
-
-Normative hard semantics: `docs/design/final-validation-hard-v0.1.md`.
-Normative soft semantics: `docs/design/soft-constraint-compilation-scoring-v0.1.md`.
-
-Final Validation наблюдает полный upstream state без mutation, повторно применяет hard constraints к final geometry, оценивает soft constraints через тот же canonical spatial measurement boundary и выдаёт deterministic ranking. RNG/IO/fallback отсутствуют.
-
-## HydroFeature / Lake Materialization v0.1 — accepted / implemented / merged PR #34
-
-Normative semantics: `docs/design/hydrofeature-lake-materialization-v0.1.md`.
-
-```text
-LakeCandidate.cells
-→ exact world-space cell squares
-→ exact polygonal union
-→ canonical RegionSet
-→ HydroFeature
-```
-
-- `HydroFeature.geometry` — `RegionSet`;
-- holes и D8 diagonal multipart geometry сохраняются точно;
-- `lake_feature_id()` централизует `lake-NNNN` protocol;
-- `LakeProperties` содержит `max_depth_m`;
-- `HydrologyState` содержит готовые `lake_features`;
-- river lake references проверяются против materialized features.
-
-PR #34 merged commit:
-
-```text
-d9c6145f6e49df351fb86372f05ffc6f953ea85b
-```
-
-## DomainData Assembler v0.1 — accepted / implemented in PR #36
+## DomainData Assembler v0.1 — accepted / implemented / merged PR #36
 
 Normative semantics: `docs/design/domain-data-assembler-v0.1.md`.
-Design documentation merged через PR #35. Runtime implementation находится в PR #36 и ждёт отдельного принятия перед merge.
 
 Canonical boundary:
 
 ```text
-DomainSpec
-GenerationPlan
-GenerationConfig
-selected DomainCandidate
+DomainSpec + GenerationPlan + GenerationConfig + selected DomainCandidate
         ↓
 DomainData Assembler
         ↓
@@ -264,55 +211,56 @@ DomainAssembly
     vegetation_density
 ```
 
-Реализовано:
+Assembler не использует RNG/IO/rendering, не reroll-ит candidate и не пересчитывает upstream state. Canonical raster payloads — exact `float32`, independent read-only copies.
 
-- `DomainAssembly` как in-memory, non-serialized boundary;
-- `assemble_domain()` принимает только уже selected final-valid candidate;
-- spec↔plan provenance проверяется до assembly;
-- `identity.id/label` сохраняются из `DomainSpec`;
-- semantic generation-config fingerprint включает version + semantic и исключает observability;
-- user final features собираются из layout/placement geometry без повторной generation;
-- готовые hydrology `HydroFeature` переносятся без повторной vectorization;
-- user feature IDs, совпадающие с `^lake-[0-9]{4,}$`, отклоняются на `DomainSpec` validation boundary;
-- specified/generated feature collision вызывает explicit error, silent overwrite невозможен;
-- `rivers` network присутствует всегда, включая empty network;
-- canonical field descriptors фиксированы для elevation/water_depth/moisture/vegetation_density;
-- payload arrays обязаны иметь exact expected shape и `float32`, implicit cast/resize запрещены;
-- assembler делает independent C-order copies и помечает payload arrays read-only;
-- `field_payloads` mapping structurally read-only;
-- validation summary использует уже успешный Final Validation ranking;
-- deterministic mapping order не зависит от traversal order runtime dicts;
-- assembler не использует RNG, IO, renderer, reroll, re-ranking или hidden regeneration.
+## DomainBundle Export v0.1 — accepted / implemented / merged PR #38
 
-Serialized `DomainData` contract не изменился; schema snapshot regeneration не понадобилась.
+Normative semantics: `docs/design/domain-bundle-export-v0.1.md`.
+Design PR #37 и implementation PR #38 merged.
 
-Подтверждённый полный push CI implementation semantics:
+Canonical persisted layout:
 
 ```text
-272 passed
+<caller-provided-output>/
+  domain.json
+  manifest.json
+  fields/
+    elevation.npy
+    water_depth.npy
+    moisture.npy
+    vegetation_density.npy
 ```
 
-Финальный PR head должен пройти push + PR checks повторно после status-doc synchronization.
+Ключевые semantics:
 
-## Следующий bounded design gate после принятия и merge PR #36
+- input path и output path не привязаны к обязательным `input/`/`output/` directories;
+- target output path задаётся caller-ом;
+- internal persisted paths — relative POSIX paths;
+- filesystem API построен на `pathlib.Path`, поэтому рассчитан на Windows и POSIX environments;
+- `BundleManifest v0.1` хранит SHA-256 и size canonical persisted files;
+- `manifest.json` не хэширует сам себя;
+- existing output target → explicit error, overwrite/force в v0.1 отсутствует;
+- запись идёт в temporary sibling tree с final rename;
+- normal failure вызывает best-effort cleanup;
+- exporter не меняет semantic world state и не использует RNG.
 
-`DomainBundle Export v0.1`.
+## Следующий bounded design gate
 
-Нужно будет отдельно определить persisted boundary: `domain.json`, `.npy`, manifest, deterministic serialization, path validation, overwrite/atomic-write semantics, failure cleanup и отношение canonical vs optional debug/preview artifacts.
+`Technical Renderer v0.1`.
 
-После exporter:
+До отдельного принятия design semantics renderer не реализуется. Нужно будет отдельно определить, какие semantic layers рисуются, как строится deterministic technical preview, coordinate/orientation convention, размеры изображения, legend/style boundary и место `preview/technical-map.png` относительно canonical bundle.
+
+После renderer:
 
 ```text
-Technical Renderer v0.1
-→ canonical CLI / Python application entrypoint
+canonical CLI / Python application entrypoint
 → local model skill/adapter
 → remote GitHub Actions generation adapter
 ```
 
 ## Ещё не сделано
 
-- DomainBundle Export v0.1;
-- technical renderer;
+- Technical Renderer v0.1;
 - canonical CLI/application entrypoint;
 - local model skill/adapter;
 - remote generation GitHub workflow;
