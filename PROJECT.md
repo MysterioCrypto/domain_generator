@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: integration-and-hardening
 status: in-progress
 current_milestone: M11-acceptance-suite
-checkpoint: codex-integration-packaging-v0.1-merged
-next_topic: remote-github-actions-generation-adapter-design
+checkpoint: remote-github-actions-generation-adapter-v0.1-design
+next_topic: remote-github-actions-generation-adapter-v0.1-implementation
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -33,6 +33,7 @@ accepted_designs:
   - canonical-cli-python-entrypoint-v0.1
   - local-model-skill-adapter-v0.1
   - codex-integration-packaging-v0.1
+  - remote-github-actions-generation-adapter-v0.1
 implemented_infrastructure:
   - github-actions-pytest-ci-on-push-and-pull-request
 canonical_documents:
@@ -49,6 +50,7 @@ canonical_documents:
   canonical_entrypoint: docs/design/canonical-cli-python-entrypoint-v0.1.md
   local_model_adapter: docs/design/local-model-skill-adapter-v0.1.md
   codex_integration: docs/design/codex-integration-packaging-v0.1.md
+  remote_github_actions_generation: docs/design/remote-github-actions-generation-adapter-v0.1.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
 ---
 
@@ -69,7 +71,8 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 [готово] Local Model Skill / Adapter v0.1
 [готово] Codex Integration Packaging v0.1
 
-[следующий design gate] Remote GitHub Actions Generation Adapter
+[принято] Remote GitHub Actions Generation Adapter v0.1 — design
+[дальше] Remote GitHub Actions Generation Adapter v0.1 — implementation
 [release gate] M11 Acceptance Suite / Core 0.1 hardening
 [отдельно позже] Presentation / ImageGen Guide Renderer
 ```
@@ -104,64 +107,86 @@ Provider-neutral integration реализует model-facing preset projection, 
 
 Normative semantics: `docs/design/codex-integration-packaging-v0.1.md`.
 
-Merged implementation provides:
+Merged implementation provides root `AGENTS.md`, repository-local Codex skill, integration guide and packaging tests. Codex uses the same canonical CLI/application contract and does not introduce provider-specific Core semantics.
+
+Merged implementation PR: `#49`, merge commit `495fca9b85c56074f4a3c881e12a01f6689ed440`. Clean implementation suite: `330 passed`.
+
+## Remote GitHub Actions Generation Adapter v0.1 — accepted design
+
+Normative semantics: `docs/design/remote-github-actions-generation-adapter-v0.1.md`.
+
+Accepted boundary:
 
 ```text
-AGENTS.md
-.codex/skills/domain-generator-authoring/SKILL.md
-docs/integrations/codex.md
-tests/test_codex_packaging.py
-```
-
-Runtime/user flow:
-
-```text
-Codex
-  ├─ root AGENTS.md
-  └─ domain-generator-authoring skill
-             ↓
-GenerationRequest + PresetCatalog
-             ↓
-canonical domain-generator CLI / public application API
-             ↓
-DomainBundle + optional technical preview
+workflow_dispatch                 pull_request: remote-requests/**
+       │                                      │
+       └──────────────┬───────────────────────┘
+                      ↓
+             exact repository checkout
+                      ↓
+              safe path validation
+                      ↓
+           canonical CLI exactly once
+                      ↓
+        ┌─────────────┼─────────────┐
+        ↓             ↓             ↓
+ domain-bundle  technical-preview  generation-diagnostics
 ```
 
 Properties:
 
-- no OpenAI API/provider dependency enters Core;
-- `AGENTS.md` remains concise routing/workflow guidance;
-- skill frontmatter uses only `name` and `description`;
-- skill reuses `docs/skills/local-model-authoring-v0.1.md` rather than duplicating semantics;
-- bounded technical repair / no hidden semantic reroll policy is explicit;
-- internal generation stages are explicitly forbidden as end-user authoring entrypoints;
-- user integration note documents repository-local use and `$skill-installer` installation from the GitHub skill directory;
-- 7 packaging-specific tests were added;
-- clean implementation suite: `330 passed`.
+- `workflow_dispatch` supports manual/Codex/CLI clients;
+- PR-trigger path supports chat/agents that can create branch/files/PR but cannot dispatch workflows directly;
+- PR requests live under `remote-requests/<id>/` with `request.json`, optional `presets.json` and transport-only `run.json`;
+- exact workflow checkout SHA is the generator revision;
+- workflow inputs do not duplicate semantic `GenerationRequest` fields;
+- repository-relative input paths are validated against traversal/absolute paths;
+- canonical `domain-generator generate` runs at most once per workflow execution;
+- no automatic seed changes, reroll, semantic repair or hidden replanning;
+- canonical DomainBundle remains unmodified;
+- technical preview is additionally published as a small separate artifact when requested;
+- diagnostics are published even on failure while the job remains failed;
+- workflow permissions remain `contents: read` and generated world data is never pushed back to Git;
+- local Codex execution remains available in parallel with remote execution.
 
-Merged implementation PR: `#49`, merge commit `495fca9b85c56074f4a3c881e12a01f6689ed440`.
+## Следующий implementation checkpoint
 
-## Следующий bounded integration design gate
+Отдельный implementation PR должен добавить минимум:
 
 ```text
-Remote GitHub Actions Generation Adapter
+.github/workflows/generate-domain.yml
+scripts/remote_generation.py
+docs/integrations/github-actions-generation.md
+remote-requests/example/
+tests/test_github_actions_generation_adapter.py
 ```
 
-Цель следующего gate — определить remote execution wrapper вокруг уже существующего canonical CLI: какие inputs получает workflow, как фиксируется exact generator revision, какие artifacts публикуются и как remote path сохраняет те же semantics, что локальный запуск.
+После merge implementation должен пройти первый реальный end-to-end generation test через временный `remote-requests/**` PR, включая retrieval artifacts.
 
-После него — M11 Acceptance Suite / Core 0.1 hardening и release candidate work.
+Implementation PR не merge-ится без отдельного явного принятия пользователя.
+
+## После Remote GitHub Actions Adapter
+
+```text
+M11 Acceptance Suite / Core 0.1 hardening
+→ Core 0.1 release candidate
+```
+
+Presentation/ImageGen Guide Renderer остаётся отдельным downstream track.
 
 ## Still outside current checkpoint
 
 - concrete local-model/OpenAI backend runtime;
-- Remote GitHub Actions Generation Adapter;
 - M11 Acceptance Suite / release hardening;
 - presentation/imagegen guide renderer;
 - production generic/setting-specific preset catalogs outside Core;
 - YAML adapter;
 - physical river width/discharge;
 - climate/biome model;
-- advanced terrain shaping/erosion.
+- advanced terrain shaping/erosion;
+- LLM inside GitHub Actions;
+- automatic semantic repair/reroll;
+- batch generation, artifact attestations, Releases/S3/Pages publication.
 
 ## Invariants
 
