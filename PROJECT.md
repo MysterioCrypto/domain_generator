@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: integration-and-hardening
 status: in-progress
 current_milestone: M11-acceptance-suite
-checkpoint: canonical-cli-python-entrypoint-v0.1-merged
-next_topic: local-model-skill-adapter-v0.1-design
+checkpoint: local-model-skill-adapter-v0.1-design
+next_topic: local-model-skill-adapter-v0.1-implementation
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -53,6 +53,7 @@ accepted_designs:
   - domain-bundle-export-v0.1
   - technical-renderer-v0.1
   - canonical-cli-python-entrypoint-v0.1
+  - local-model-skill-adapter-v0.1
 implemented_infrastructure:
   - github-actions-pytest-ci-on-push-and-pull-request
 canonical_documents:
@@ -67,6 +68,7 @@ canonical_documents:
   domain_bundle_export: docs/design/domain-bundle-export-v0.1.md
   technical_renderer: docs/design/technical-renderer-v0.1.md
   canonical_entrypoint: docs/design/canonical-cli-python-entrypoint-v0.1.md
+  local_model_adapter: docs/design/local-model-skill-adapter-v0.1.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
 ---
 
@@ -74,67 +76,30 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `domain_generator` — независимое setting-agnostic procedural Core для генерации ограниченных пространственных регионов с управляемой случайностью.
 
-```text
-world / setting / application
-          ↓
-   adapters / presets
-          ↓
-      GenerationRequest
-          ↓
-   domain_generator
-          ↓
- DomainData / DomainBundle
-          ↓
- renderer / integration
-```
-
-Core не знает конкретный setting/campaign, game-system rules, lore, LLM provider, GitHub как обязательный runtime, UI или художественный renderer.
-
-## Текущее состояние
-
-PR #44 `Canonical CLI / Python Application Entrypoint v0.1` принят пользователем и merged.
-
-Текущий `main` после merge:
-
-```text
-f5efd8cc88fca28713d000d7112f3caa59292ad5
-```
-
-CI merge commit — success. Implementation checkpoint до merge проходил полный suite `312 passed`.
-
-Основной Core pipeline и application boundary замкнуты. M0–M10 функционально завершены; следующий release gate Core 0.1 — M11 Acceptance Suite. Параллельно следующий выбранный integration design gate — `Local Model Skill / Adapter v0.1`.
+Core generation/application boundary уже замкнут: M0–M10 функционально завершены. Core 0.1 release gate — M11 Acceptance Suite. Параллельно идёт integration track, который не меняет Core semantics.
 
 ## Карта прогресса простыми словами
 
 ```text
-[готово] описание region/domain и serialized contracts
-[готово] geometry + layout + constraints
-[готово] terrain / elevation / noise / shaping
-[готово] hydrology / rivers / lakes / water_depth
-[готово] moisture / vegetation / surface biases
-[готово] dependent placement
-[готово] Final Validation + soft ranking
-[готово] DomainData Assembler v0.1
-[готово] DomainBundle Export v0.1
+[готово] contracts / geometry / layout / constraints
+[готово] terrain / hydrology / surface
+[готово] dependent placement / validation / ranking
+[готово] DomainData / DomainBundle / manifest
 [готово] Technical Renderer v0.1
 [готово] GenerationRequest + PresetCatalog v0.1
-[готово] canonical Python application entrypoint
-[готово] domain-generator generate CLI
+[готово] canonical Python API + domain-generator CLI
 
-[дальше] Local Model Skill / Adapter v0.1 — design gate
+[принято] Local Model Skill / Adapter v0.1 — design
+[дальше после docs merge] Local Model Skill / Adapter v0.1 — implementation
 [потом] Remote GitHub Actions Generation Adapter
-[release gate Core 0.1] Acceptance Suite / hardening
+[release gate] M11 Acceptance Suite / Core 0.1 hardening
 [отдельно позже] Presentation / ImageGen Guide Renderer
 ```
 
-## Реализованная сквозная граница
+## Реализованная canonical application boundary
 
 ```text
-GenerationRequest
-  ├─ DomainSpec
-  └─ GenerationConfig
-        +
-external PresetCatalog
+GenerationRequest + external PresetCatalog
         ↓
 PresetRegistry + CORE_OPERATOR_IDS
         ↓
@@ -147,7 +112,7 @@ Compiler
 → Surface
 → Dependent Placement
 → Final Validation
-→ deterministic candidate selection
+→ deterministic selection
 → DomainData Assembler
         ↓
 DomainAssembly
@@ -157,97 +122,67 @@ DomainAssembly
 atomic application publication
 ```
 
-## Canonical application boundary — implemented
-
-Канонический in-memory API:
-
-```python
-generate_domain(
-    *,
-    spec: DomainSpec,
-    config: GenerationConfig,
-    registry: PresetRegistry,
-) -> DomainAssembly
-```
-
-Filesystem API:
-
-```python
-generate_domain_bundle(
-    *,
-    request: GenerationRequest,
-    registry: PresetRegistry,
-    output_dir: Path,
-    render_preview: bool = False,
-) -> GenerateApplicationResult
-```
-
 CLI:
 
 ```text
 domain-generator generate <request.json> --output <dir>
-domain-generator generate <request.json> --presets <catalog.json> --output <dir>
 domain-generator generate <request.json> --presets <catalog.json> --output <dir> --preview
 ```
 
-Application-level output публикуется атомарно. Existing target не перезаписывается. Success stdout — machine-readable JSON, diagnostics — stderr.
+## Local Model Skill / Adapter v0.1 — accepted design
 
-## Local Model Skill / Adapter — следующий design gate
+Normative semantics: `docs/design/local-model-skill-adapter-v0.1.md`.
 
-Следующий слой должен превращать человеческое описание региона в validated `GenerationRequest`, выбирать только существующие presets/capabilities и запускать canonical application boundary без прямого доступа модели к внутренним stages.
-
-Базовая идея:
+Цель integration layer:
 
 ```text
-natural-language intent
+natural-language user intent
+  + base GenerationRequest
+  + canonical PresetCatalog
+  + optional PresetGuideCatalog
         ↓
-Local Model Adapter
+model-facing authoring context
         ↓
-GenerationRequest + selected external PresetCatalog
+provider-neutral local model host
         ↓
-canonical application entrypoint
+LocalModelDecision
+        ↓
+validation + compiler preflight
+        ↓
+canonical application API
         ↓
 DomainBundle + optional technical preview
 ```
 
-Нужно определить:
+Ключевые границы:
 
-- input/output contract adapter-а;
-- как модель видит catalog/capabilities;
-- разрешённые и запрещённые действия;
-- validation/repair loop для технически невалидных requests;
-- предел количества автоматических исправлений;
-- границу между техническим repair и скрытым semantic reroll;
-- local execution/tool boundary;
-- logging/auditability.
+- Core не получает LLM/provider dependencies;
+- model-facing preset projection детерминированно выводится из canonical catalog;
+- optional guide описывает смысл preset/parameter, но не меняет capabilities/ranges;
+- caller предоставляет base `GenerationRequest` с техническими defaults;
+- модель возвращает strict `ready` или `needs_clarification` decision;
+- preflight выполняет contract/registry/compiler validation до generation;
+- допускается initial draft + максимум два automatic technical repair;
+- repair не может менять user semantics, seed, hard constraints или generation policy ради успеха;
+- после успешного preflight выполняется один semantic application run;
+- generation failure не запускает hidden replanning/reroll;
+- technical preview не используется для автономной эстетической оценки;
+- audit сохраняет final request, assumptions/questions, attempts/diagnostics и input digests, но не chain-of-thought;
+- concrete Ollama/llama.cpp/OpenAI backend находится вне v0.1 semantics.
 
-До принятия design runtime implementation adapter-а не начинается.
+## Следующий implementation checkpoint
+
+После merge принятого docs PR отдельный implementation PR должен реализовать provider-neutral bounded slice: adapter contracts, catalog projection, guide validation, edit policy, model Protocol/callback, decision parsing, compiler preflight, maximum-two-repair orchestration, one-generation boundary, structured audit result и reference skill/instruction artifact.
+
+Implementation PR не merge-ится без отдельного явного принятия пользователя.
 
 ## Core 0.1 release gate
 
-После integration work необходимо пройти M11 Acceptance Suite: фиксированные representative specs/seeds и end-to-end assertions на semantic properties, topology, provenance/fingerprints и bundle output. После этого можно формировать Core 0.1 release candidate.
-
-## Technical Renderer и художественная карта
-
-`technical-map.png` — diagnostic non-canonical artifact, не финальная карта и не оптимальный image-generation control image.
-
-Будущий отдельный downstream flow:
-
-```text
-DomainData + canonical rasters + vectors
-        ↓
-Presentation / ImageGen Guide Renderer
-        ↓
-imagegen-guide.png
-        ↓
-image generation
-        ↓
-campaign-map.png
-```
+M11 Acceptance Suite должен проверить representative fixed specs/seeds, semantic properties, topology, provenance/fingerprints и bundle output. После этого можно формировать Core 0.1 release candidate.
 
 ## Ещё не сделано
 
-- Local Model Skill / Adapter v0.1;
+- Local Model Skill / Adapter v0.1 implementation;
 - Remote GitHub Actions Generation Adapter;
 - Core 0.1 Acceptance Suite / release hardening;
 - presentation/imagegen guide renderer;
