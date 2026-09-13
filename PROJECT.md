@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-domain-bundle-export-v0.1
-next_topic: technical-renderer-v0.1
+checkpoint: M2-technical-renderer-v0.1-design
+next_topic: technical-renderer-v0.1-implementation
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -73,6 +73,7 @@ accepted_designs:
   - hydrofeature-lake-materialization-v0.1
   - domain-data-assembler-v0.1
   - domain-bundle-export-v0.1
+  - technical-renderer-v0.1
 implemented_infrastructure:
   - github-actions-pytest-ci-on-push-and-pull-request
 canonical_documents:
@@ -88,6 +89,7 @@ canonical_documents:
   hydrofeature_lake_materialization: docs/design/hydrofeature-lake-materialization-v0.1.md
   domain_data_assembler: docs/design/domain-data-assembler-v0.1.md
   domain_bundle_export: docs/design/domain-bundle-export-v0.1.md
+  technical_renderer: docs/design/technical-renderer-v0.1.md
   placement_reservations: docs/design/placement-reservation-materialization-v0.1.md
   dependent_placement: docs/design/dependent-placement-site-selection-v0.1.md
   terrain_area_raise: docs/design/terrain-area-raise-v0.1.md
@@ -130,12 +132,12 @@ Core знает generic geometry, terrain, hydrology, fields, networks, constrai
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-На `main` уже находятся полный generation pipeline до Final Validation, HydroFeature materialization, DomainData Assembler и DomainBundle Export v0.1.
+На `main` находятся generation pipeline до Final Validation, HydroFeature materialization, DomainData Assembler и DomainBundle Export v0.1. `Technical Renderer v0.1` design принят; runtime implementation ещё отсутствует.
 
-`main` после merge PR #38:
+`main` до merge этого design PR:
 
 ```text
-5b665487695bdf45c802c1ac6b9a67c05caff816
+901be6c39fed43d1756253d95d1b653ece1a6bc8
 ```
 
 Подтверждённый полный CI implementation PR #38:
@@ -160,7 +162,8 @@ Core знает generic geometry, terrain, hydrology, fields, networks, constrai
 [готово] soft constraint compilation + scoring + final ranking
 [готово] DomainData Assembler v0.1
 [готово] DomainBundle Export v0.1
-[дальше] Technical Renderer v0.1 — design gate
+[принято] Technical Renderer v0.1 — design
+[дальше после docs merge] Technical Renderer v0.1 — implementation
 [потом] canonical CLI / Python application entrypoint
 [потом] local model skill/adapter
 [потом] remote GitHub Actions generation adapter
@@ -244,11 +247,21 @@ Canonical persisted layout:
 - normal failure вызывает best-effort cleanup;
 - exporter не меняет semantic world state и не использует RNG.
 
-## Следующий bounded design gate
+## Technical Renderer v0.1 — accepted design
 
-`Technical Renderer v0.1`.
+Normative semantics: `docs/design/technical-renderer-v0.1.md`.
 
-До отдельного принятия design semantics renderer не реализуется. Нужно будет отдельно определить, какие semantic layers рисуются, как строится deterministic technical preview, coordinate/orientation convention, размеры изображения, legend/style boundary и место `preview/technical-map.png` относительно canonical bundle.
+Technical renderer создаёт deterministic diagnostic top-down PNG из `DomainAssembly` без изменения world semantics. Базовые layers: elevation, vegetation, water, lakes, rivers и semantic features. World-space north находится сверху; aspect ratio сохраняется; long side baseline — 1600 px; raster visualisation не выполняет semantic smoothing.
+
+Renderer является optional downstream component с отдельной `render` dependency boundary и headless backend. PNG не является canonical world state.
+
+Важно: `technical-map.png` не считается оптимальным control image для художественной image generation. В будущем может появиться отдельный `Presentation / imagegen guide renderer`, который из canonical rasters/vectors строит image-model-friendly reference без изменения geography. Raw `.npy`/JSON не принимаются как надёжный прямой spatial interface к image model.
+
+## Следующий bounded implementation checkpoint
+
+`Technical Renderer v0.1` implementation.
+
+Implementation выполняется отдельным PR после merge normative design docs и не merge-ится без отдельного явного принятия пользователя.
 
 После renderer:
 
@@ -258,9 +271,12 @@ canonical CLI / Python application entrypoint
 → remote GitHub Actions generation adapter
 ```
 
+Presentation/imagegen guide layer является отдельной downstream задачей и не блокирует canonical CLI.
+
 ## Ещё не сделано
 
-- Technical Renderer v0.1;
+- Technical Renderer v0.1 implementation;
+- presentation/imagegen guide renderer;
 - canonical CLI/application entrypoint;
 - local model skill/adapter;
 - remote generation GitHub workflow;
