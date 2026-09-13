@@ -15,10 +15,10 @@
 
 Репозиторий: `MysterioCrypto/domain_generator`.
 
-`main` до merge design PR Technical Renderer:
+`main` после merge design PR #40:
 
 ```text
-901be6c39fed43d1756253d95d1b653ece1a6bc8
+58600a6696bccc6da2a2e66c259713e81c465ec1
 ```
 
 ### Уже в main
@@ -29,19 +29,48 @@
 - PR #33/#34 HydroFeature / Lake Materialization design + implementation — merged;
 - PR #35/#36 DomainData Assembler design + implementation — merged;
 - PR #37/#38 DomainBundle Export design + implementation — merged;
-- PR #39 post-merge exporter status sync — merged.
+- PR #39 post-merge exporter status sync — merged;
+- PR #40 Technical Renderer v0.1 normative design — merged.
 
-Последний принятый implementation checkpoint — `DomainBundle Export v0.1`.
+Последний принятый implementation checkpoint на `main` — `DomainBundle Export v0.1`.
 
-`Technical Renderer v0.1` design принят пользователем; normative semantics находятся в `docs/design/technical-renderer-v0.1.md`. Runtime implementation ещё отсутствует и должен идти отдельным PR после merge design docs.
+## Текущий implementation checkpoint
 
-Подтверждённый полный CI PR #38:
+PR #41 `Implement Technical Renderer v0.1` открыт и **не должен merge-иться без отдельного принятия пользователя**.
+
+Implementation branch:
 
 ```text
-281 passed
+impl/m2-technical-renderer-v0.1
 ```
 
-## Реализованная сквозная граница
+Реализовано:
+
+- `render_technical_map(assembly, output_path)`;
+- optional `render` package extra;
+- headless Matplotlib/Agg;
+- elevation / vegetation / water raster composition;
+- exact lake RegionSet outlines;
+- river centerlines и minimal direction markers;
+- Point/POI, Corridor, Band width samples, Area/Surface geometry;
+- labels, north marker, scale, legend, domain boundary;
+- 1600 px long-side baseline с сохранением domain aspect ratio;
+- nearest-neighbour raster visualization без semantic smoothing;
+- caller-provided PNG path;
+- immediate parent creation only;
+- existing-target rejection;
+- temporary sibling file + PNG validation + final rename;
+- renderer не использует RNG, не reroll-ит и не мутирует `DomainAssembly`.
+
+Подтверждённый полный CI текущей implementation semantics:
+
+```text
+290 passed
+```
+
+В suite входят 9 renderer-specific tests: output dimensions/aspect, deterministic PNG bytes, no mutation, current geometry/network coverage, existing-target protection, parent semantics, field mismatch, PNG suffix и temp cleanup при failure.
+
+## Реализованная сквозная граница до renderer
 
 ```text
 DomainSpec
@@ -59,52 +88,42 @@ DomainSpec
   -> persisted bundle
 ```
 
-Canonical persisted bundle v0.1:
+В PR #41 добавляется downstream diagnostic branch:
 
 ```text
-<caller-provided-output>/
-  domain.json
-  manifest.json
-  fields/
-    elevation.npy
-    water_depth.npy
-    moisture.npy
-    vegetation_density.npy
+DomainAssembly
+  -> Technical Renderer
+  -> technical-map.png
 ```
 
-`BundleManifest v0.1` хранит SHA-256 и размеры canonical persisted files. Exporter не использует RNG, не изменяет semantic world state, не поддерживает overwrite и публикует final directory только после успешной записи temporary sibling tree.
+`technical-map.png` остаётся non-canonical artifact.
 
-## Technical Renderer v0.1 — accepted design
+## Technical Renderer v0.1 semantics
 
-Renderer получает `DomainAssembly` и caller-provided PNG path, строит deterministic diagnostic top-down map и не меняет semantic world state.
+Normative design: `docs/design/technical-renderer-v0.1.md`.
 
-Базовые semantics:
+Базовый visual stack:
 
 ```text
 elevation
 → vegetation overlay
 → water mask
-→ lake polygons
+→ lake outlines
 → river centerlines
 → semantic features
 → labels / north / scale / legend
 ```
 
-- north сверху;
-- world-space aspect ratio сохраняется;
-- baseline long side = 1600 px;
-- raster cells отображаются без semantic smoothing;
-- BandGeometry не получает скрыто синтезированный polygon footprint;
-- renderer dependency остаётся optional (`render` extra), target implementation — headless Matplotlib/Agg;
-- output existing target отклоняется, final PNG публикуется через temporary sibling + rename;
-- renderer не использует RNG и не влияет на generation/validation.
+North сверху, world-space aspect ratio сохраняется, raster cells не проходят semantic smoothing, BandGeometry не получает скрыто синтезированный polygon footprint.
 
-`technical-map.png` — diagnostic artifact, а не canonical world state и не гарантированно оптимальный reference для image-generation model.
+## Граница будущей художественной карты
 
-Для будущей художественной карты зафиксирована отдельная downstream boundary:
+`technical-map.png` — diagnostic artifact, а не оптимальный control image для image-generation model.
+
+Зафиксирована отдельная downstream идея:
 
 ```text
-DomainData + rasters + vectors
+DomainData + canonical rasters + vectors
         ↓
 Presentation / imagegen guide renderer
         ↓
@@ -115,7 +134,9 @@ image generation / artistic transform
 campaign-map.png
 ```
 
-Этот guide renderer пока не спроектирован. Его задача будет сохранить canonical geography, но представить её image model в более подходящем визуальном виде, чем nearest-neighbour technical grid.
+Guide renderer пока не спроектирован. Его задача — сохранять canonical geography, но представлять её image model в более подходящем виде, чем nearest-neighbour technical grid.
+
+Не рассчитывать на raw `.npy`/JSON как на надёжный прямой spatial interface к image-generation model.
 
 ## Рабочий процесс
 
@@ -127,29 +148,14 @@ campaign-map.png
 - Implementation PR не merge-ить без явного принятия пользователем checkpoint.
 - GitHub Actions pytest — каноническая execution-проверка.
 
-## Главная граница Core
-
-`domain_generator` — setting-agnostic procedural Core.
-
-```text
-world / setting / application
-          ↓
-   adapter / presets
-          ↓
-      DomainSpec
-          ↓
-   domain_generator
-          ↓
-      DomainData / DomainBundle
-          ↓
- renderer / integration
-```
-
 ## Следующий порядок
 
+Сейчас требуется отдельное принятие PR #41.
+
+После принятия/merge:
+
 ```text
-Technical Renderer v0.1 implementation
-→ canonical CLI / Python application entrypoint
+canonical CLI / Python application entrypoint — design gate
 → local model skill/adapter
 → remote GitHub Actions generation adapter
 ```
