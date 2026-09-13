@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: integration-and-hardening
 status: in-progress
 current_milestone: M11-acceptance-suite
-checkpoint: codex-integration-packaging-v0.1-implementation
-next_topic: codex-integration-packaging-v0.1-acceptance
+checkpoint: codex-integration-packaging-v0.1-merged
+next_topic: remote-github-actions-generation-adapter-design
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -67,10 +67,9 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 [готово] GenerationRequest + PresetCatalog v0.1
 [готово] canonical Python API + domain-generator CLI
 [готово] Local Model Skill / Adapter v0.1
+[готово] Codex Integration Packaging v0.1
 
-[PR #49 / CI 330 passed] Codex Integration Packaging v0.1 — implementation
-[сейчас] отдельное принятие implementation PR #49
-[после merge] Remote GitHub Actions Generation Adapter — design gate
+[следующий design gate] Remote GitHub Actions Generation Adapter
 [release gate] M11 Acceptance Suite / Core 0.1 hardening
 [отдельно позже] Presentation / ImageGen Guide Renderer
 ```
@@ -101,11 +100,11 @@ Normative semantics: `docs/design/local-model-skill-adapter-v0.1.md`.
 
 Provider-neutral integration реализует model-facing preset projection, optional guide validation, strict `LocalModelDecision`, conservative edit policy, compiler preflight, maximum-two-repair orchestration, exactly one canonical generation after successful preflight and structured audit without chain-of-thought.
 
-## Codex Integration Packaging v0.1 — implementation ready in PR #49
+## Codex Integration Packaging v0.1 — implemented and merged
 
 Normative semantics: `docs/design/codex-integration-packaging-v0.1.md`.
 
-Implementation adds:
+Merged implementation provides:
 
 ```text
 AGENTS.md
@@ -138,19 +137,19 @@ Properties:
 - internal generation stages are explicitly forbidden as end-user authoring entrypoints;
 - user integration note documents repository-local use and `$skill-installer` installation from the GitHub skill directory;
 - 7 packaging-specific tests were added;
-- full clean functional suite: `330 passed`.
+- clean implementation suite: `330 passed`.
 
-## Current checkpoint rule
+Merged implementation PR: `#49`, merge commit `495fca9b85c56074f4a3c881e12a01f6689ed440`.
 
-PR #49 remains open and must not be merged until the user separately accepts this implementation checkpoint.
-
-After acceptance/merge the next bounded integration design gate is:
+## Следующий bounded integration design gate
 
 ```text
 Remote GitHub Actions Generation Adapter
 ```
 
-Then M11 Acceptance Suite / Core 0.1 hardening and release candidate work.
+Цель следующего gate — определить remote execution wrapper вокруг уже существующего canonical CLI: какие inputs получает workflow, как фиксируется exact generator revision, какие artifacts публикуются и как remote path сохраняет те же semantics, что локальный запуск.
+
+После него — M11 Acceptance Suite / Core 0.1 hardening и release candidate work.
 
 ## Still outside current checkpoint
 

@@ -8,15 +8,15 @@ M0–M10 Core 0.1 функционально завершены. Core release ga
 
 `Local Model Skill / Adapter v0.1` implemented and merged through PR #47.
 
-`Codex Integration Packaging v0.1` design merged through PR #48. Implementation находится в открытом PR #49 и требует отдельного пользовательского принятия до merge.
+`Codex Integration Packaging v0.1` design merged through PR #48, implementation accepted and merged through PR #49.
 
-Implementation branch:
+Implementation merge commit:
 
 ```text
-impl/codex-integration-packaging-v0.1
+495fca9b85c56074f4a3c881e12a01f6689ed440
 ```
 
-Functional checkpoint до финального status-doc commit:
+Clean implementation suite:
 
 ```text
 330 passed
@@ -24,7 +24,7 @@ Functional checkpoint до финального status-doc commit:
 
 Новые 7 tests находятся в `tests/test_codex_packaging.py`.
 
-## Что реализовано в PR #49
+## Что теперь доступно для Codex
 
 ```text
 Codex
@@ -38,7 +38,7 @@ canonical CLI / public application API
 DomainBundle + optional technical preview
 ```
 
-Implementation details:
+Merged integration details:
 
 - root `AGENTS.md` provides concise project/workflow routing;
 - root instructions route domain authoring/generation work to `domain-generator-authoring`;
@@ -52,35 +52,28 @@ Implementation details:
 - internal generation stages are explicitly rejected as end-user authoring entrypoints;
 - canonical `.npy` / `domain.json` outputs are not manually edited to alter world geography;
 - `docs/integrations/codex.md` explains repository-local use and user-level installation via `$skill-installer` from the GitHub skill directory;
-- user-level location is documented as `$CODEX_HOME/skills` with restart guidance;
 - no OpenAI API client, CodexHost, MCP server or provider dependency was added.
 
-## Tests added
-
-Packaging tests cover:
-
-- required files exist;
-- exact minimal frontmatter keys;
-- skill name matches directory id;
-- `AGENTS.md` routes to project status/skill/canonical CLI and test command;
-- referenced canonical repository documents exist;
-- skill uses `domain-generator generate`, bounded repair, one-generation/no-reroll semantics;
-- manual canonical-output editing is prohibited;
-- integration note includes repository-local and `$skill-installer` installation paths.
-
-Full suite before final status-doc commits: `330 passed`.
-
-## Merge rule
-
-PR #49 MUST remain unmerged until a separate explicit user acceptance of this implementation checkpoint.
-
-After acceptance/merge:
+## Следующий bounded gate
 
 ```text
 Remote GitHub Actions Generation Adapter — design gate
-→ implementation
+```
+
+Следующий design должен определить remote wrapper вокруг существующего `domain-generator generate`:
+
+- какие request/catalog inputs принимает workflow;
+- как фиксируется exact generator revision;
+- какие canonical/noncanonical artifacts публикуются;
+- как передаются ошибки и provenance;
+- как гарантируется, что GitHub Actions не становится вторым генератором и не меняет semantics Core.
+
+После design acceptance:
+
+```text
+Remote GitHub Actions Generation Adapter — implementation
 → M11 Acceptance Suite / Core 0.1 hardening
 → Core 0.1 release candidate
 ```
 
-Presentation/ImageGen Guide Renderer remains a separate downstream track.
+Presentation/ImageGen Guide Renderer остаётся отдельным downstream track.
