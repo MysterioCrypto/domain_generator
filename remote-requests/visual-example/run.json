@@ -1,0 +1,6 @@
+{
+  "run_version": "0.1",
+  "request_path": "remote-requests/visual-example/request.json",
+  "presets_path": "remote-requests/visual-example/presets.json",
+  "preview": true
+}
