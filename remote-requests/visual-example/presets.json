@@ -1,0 +1,61 @@
+{
+  "preset_catalog_version": "0.1",
+  "presets": [
+    {
+      "id": "visual_ridge",
+      "family": "terrain",
+      "layout": {
+        "mode": "geometry",
+        "shape": "band",
+        "parameters": {
+          "control_point_count": {
+            "kind": "fixed",
+            "type": "integer",
+            "value": 4
+          },
+          "curvature": {
+            "kind": "fixed",
+            "type": "float",
+            "value": 0.35
+          },
+          "width_km": {
+            "kind": "fixed",
+            "type": "float",
+            "value": 5.0
+          },
+          "width_sample_count": {
+            "kind": "fixed",
+            "type": "integer",
+            "value": 7
+          }
+        }
+      },
+      "effect": {
+        "stage": "terrain",
+        "operator": "ridge",
+        "parameters": {
+          "height_m": {
+            "kind": "fixed",
+            "type": "float",
+            "value": 350.0
+          },
+          "profile_power": {
+            "kind": "fixed",
+            "type": "float",
+            "value": 1.4
+          },
+          "roughness": {
+            "kind": "fixed",
+            "type": "float",
+            "value": 0.3
+          },
+          "roughness_scale_km": {
+            "kind": "fixed",
+            "type": "float",
+            "value": 2.0
+          }
+        }
+      }
+    }
+  ]
+}
