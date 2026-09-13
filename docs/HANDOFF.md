@@ -67,7 +67,11 @@ remote-requests/<id>/presets.json   # optional
 remote-requests/<id>/run.json       # transport-only manifest
 ```
 
-Temporary generation PR обычно закрывается без merge после artifact retrieval.
+Temporary generation branch использует namespace:
+
+```text
+remote-generation/<id>
+```
 
 ## Accepted execution semantics
 
@@ -78,7 +82,7 @@ Temporary generation PR обычно закрывается без merge пос�
 - semantic validation остаётся в application/compiler;
 - generation failure не вызывает seed change, reroll, max-attempts increase, constraint relaxation, feature deletion/move или LLM repair;
 - generated world data не коммитится в repository;
-- workflow permissions: `contents: read`;
+- generation workflow permissions: `contents: read`;
 - local Codex path через `AGENTS.md` + skill сохраняется параллельно.
 
 ## Artifacts
@@ -102,12 +106,33 @@ Diagnostics включают execution metadata, snapshots request/presets, stdo
 
 Technical preview публикуется отдельно для удобного retrieval. Возможность конкретного chat host показать downloaded PNG inline проверяется первым реальным end-to-end run и не является частью generator semantics.
 
+## Temporary branch cleanup
+
+Remote-generation branches являются эфемерным transport state и не должны накапливаться.
+
+Lifecycle:
+
+```text
+create remote-generation/<id>
+→ write remote-requests/<id>/...
+→ open generation PR
+→ run workflow
+→ retrieve artifacts/diagnostics
+→ close PR without merge
+→ delete remote-generation/<id>
+```
+
+Generation workflow остаётся read-only. Автоматический cleanup изолирован в отдельный workflow, запускаемый только после `pull_request: closed`, с минимальным `contents: write` и строгой проверкой same-repository branch prefix `remote-generation/`.
+
+Cleanup не влияет на результат уже завершённой generation. Если он не сработал, ветка удаляется вручную позднее. Workflow artifacts остаются привязаны к workflow run согласно retention policy; удаление temporary branch не является удалением run/artifacts.
+
 ## Implementation slice
 
 Следующий отдельный implementation PR должен добавить минимум:
 
 ```text
 .github/workflows/generate-domain.yml
+.github/workflows/cleanup-remote-generation.yml
 scripts/remote_generation.py
 docs/integrations/github-actions-generation.md
 remote-requests/example/
@@ -116,9 +141,9 @@ tests/test_github_actions_generation_adapter.py
 
 `scripts/remote_generation.py` остаётся repository integration helper вне `src/domain_generator`.
 
-Tests должны покрыть triggers, read-only permissions, exact checkout contract, path safety, canonical CLI single invocation, artifacts/diagnostics, no reroll/repair и отсутствие repository writes.
+Tests должны покрыть triggers, generation read-only permissions, exact checkout contract, path safety, canonical CLI single invocation, artifacts/diagnostics, no reroll/repair, а также закрытый-PR cleanup только для same-repository `remote-generation/` branches.
 
-После implementation merge обязателен первый реальный end-to-end generation run через temporary `remote-requests/**` PR с artifact retrieval.
+После implementation merge обязателен первый реальный end-to-end generation run через temporary `remote-generation/**` branch + `remote-requests/**` PR с artifact retrieval, PR close и branch cleanup.
 
 ## Merge rule
 
