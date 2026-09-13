@@ -6,87 +6,81 @@
 
 M0–M10 Core 0.1 функционально завершены. Core release gate — M11 Acceptance Suite. Canonical generation/application/CLI boundary merged.
 
-`Local Model Skill / Adapter v0.1` design был принят и implementation PR #47 смержен. Provider-neutral adapter теперь является частью integration track.
+`Local Model Skill / Adapter v0.1` implemented and merged through PR #47.
 
-Текущий bounded gate — `Codex Integration Packaging v0.1`.
+`Codex Integration Packaging v0.1` design merged through PR #48. Implementation находится в открытом PR #49 и требует отдельного пользовательского принятия до merge.
 
-Normative design:
-
-```text
-docs/design/codex-integration-packaging-v0.1.md
-```
-
-## Зачем нужен Codex packaging
-
-Programmatic model integration и interactive Codex usage — разные внешние оболочки над одной canonical generator boundary.
+Implementation branch:
 
 ```text
-Programmatic model
-    ↓
-LocalModelHost
-    ↓
-Local Model Adapter
-    ↓
-canonical application API
+impl/codex-integration-packaging-v0.1
 ```
+
+Functional checkpoint до финального status-doc commit:
+
+```text
+330 passed
+```
+
+Новые 7 tests находятся в `tests/test_codex_packaging.py`.
+
+## Что реализовано в PR #49
 
 ```text
 Codex
-    ├─ AGENTS.md
-    └─ domain-generator-authoring skill
+  ├─ AGENTS.md
+  └─ .codex/skills/domain-generator-authoring/SKILL.md
+             ↓
+GenerationRequest + PresetCatalog
              ↓
 canonical CLI / public application API
+             ↓
+DomainBundle + optional technical preview
 ```
 
-Codex packaging не добавляет OpenAI dependency в Core и не создаёт отдельный генератор.
+Implementation details:
 
-## Accepted Codex design
+- root `AGENTS.md` provides concise project/workflow routing;
+- root instructions route domain authoring/generation work to `domain-generator-authoring`;
+- skill uses Codex-compatible YAML frontmatter with only `name` and `description`;
+- trigger metadata covers creation, revision, validation, troubleshooting, generation, DomainBundle and preview tasks;
+- skill points to `docs/skills/local-model-authoring-v0.1.md` for provider-neutral semantic policy;
+- skill requires actual base `GenerationRequest` / canonical `PresetCatalog` rather than invented capabilities;
+- technical repair is bounded to initial draft + maximum two repairs;
+- successful preflight is followed by one semantic generation run;
+- generation failure does not trigger hidden replanning/reroll;
+- internal generation stages are explicitly rejected as end-user authoring entrypoints;
+- canonical `.npy` / `domain.json` outputs are not manually edited to alter world geography;
+- `docs/integrations/codex.md` explains repository-local use and user-level installation via `$skill-installer` from the GitHub skill directory;
+- user-level location is documented as `$CODEX_HOME/skills` with restart guidance;
+- no OpenAI API client, CodexHost, MCP server or provider dependency was added.
 
-Implementation должен добавить:
+## Tests added
 
-```text
-AGENTS.md
-.codex/skills/domain-generator-authoring/SKILL.md
-docs/integrations/codex.md
-tests/test_codex_packaging.py
-```
+Packaging tests cover:
 
-`AGENTS.md`:
+- required files exist;
+- exact minimal frontmatter keys;
+- skill name matches directory id;
+- `AGENTS.md` routes to project status/skill/canonical CLI and test command;
+- referenced canonical repository documents exist;
+- skill uses `domain-generator generate`, bounded repair, one-generation/no-reroll semantics;
+- manual canonical-output editing is prohibited;
+- integration note includes repository-local and `$skill-installer` installation paths.
 
-- действует как короткая карта repository/workflow;
-- направляет к `PROJECT.md` и canonical design docs;
-- закрепляет docs-before-implementation / separate implementation acceptance;
-- отправляет domain authoring/generation задачи к specialized skill;
-- запрещает обход canonical application boundary.
-
-Codex skill:
-
-- имеет YAML frontmatter только `name` + `description`;
-- trigger description покрывает создание/редактирование/validation/generation domain requests;
-- body ссылается на `docs/skills/local-model-authoring-v0.1.md` как provider-neutral semantic reference;
-- использует `GenerationRequest`, `PresetCatalog` и `domain-generator generate`;
-- сохраняет bounded technical repair policy;
-- не делает hidden reroll/replanning после generation failure;
-- не вызывает internal generation stages напрямую.
-
-User integration note должна объяснить repository-local usage и optional user-level installation через Codex `$skill-installer` из GitHub directory URL. После user-level install Codex может потребовать restart для discovery skill.
-
-## Проверка implementation
-
-`tests/test_codex_packaging.py` должен статически проверять структуру упаковки, frontmatter, существование repository references, canonical CLI boundary и отсутствие инструкций на прямой вызов внутренних stages.
-
-Сетевой OpenAI/Codex test не нужен.
+Full suite before final status-doc commits: `330 passed`.
 
 ## Merge rule
 
-После docs-only design PR implementation идёт отдельным PR и не merge-ится без отдельного пользовательского принятия.
+PR #49 MUST remain unmerged until a separate explicit user acceptance of this implementation checkpoint.
 
-## После Codex Integration Packaging
+After acceptance/merge:
 
 ```text
 Remote GitHub Actions Generation Adapter — design gate
+→ implementation
 → M11 Acceptance Suite / Core 0.1 hardening
 → Core 0.1 release candidate
 ```
 
-Presentation/ImageGen Guide Renderer остаётся отдельным downstream track.
+Presentation/ImageGen Guide Renderer remains a separate downstream track.
