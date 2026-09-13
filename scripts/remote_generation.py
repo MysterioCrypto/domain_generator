@@ -69,10 +69,12 @@ def load_run_manifest(workspace: Path, raw_path: str) -> tuple[str, str | None, 
 
 
 def _execution_metadata(*, request_rel: str | None, presets_rel: str | None, preview: bool) -> dict[str, Any]:
+    github_sha = os.getenv("GITHUB_SHA")
     return {
         "execution_version": "0.1",
         "repository": os.getenv("GITHUB_REPOSITORY"),
-        "generator_commit": os.getenv("GITHUB_SHA"),
+        "generator_commit": os.getenv("GENERATOR_COMMIT") or github_sha,
+        "github_sha": github_sha,
         "workflow_run_id": os.getenv("GITHUB_RUN_ID"),
         "workflow_run_attempt": os.getenv("GITHUB_RUN_ATTEMPT"),
         "event_name": os.getenv("GITHUB_EVENT_NAME"),
