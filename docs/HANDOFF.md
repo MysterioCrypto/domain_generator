@@ -1,79 +1,98 @@
 # Handoff: продолжение разработки `domain_generator`
 
-Этот файл — ненормативная оперативная точка входа для нового чата/агента. Канонические архитектурные решения остаются в `PROJECT.md`, `docs/architecture.md`, `docs/decisions/` и `docs/design/`.
+Этот файл — ненормативная оперативная точка входа для нового чата/агента. Канонические решения находятся в `PROJECT.md`, `docs/architecture.md`, `docs/decisions/` и `docs/design/`.
 
 ## С чего начинать новый чат
 
 1. Прочитать `PROJECT.md`.
 2. Прочитать `docs/design/end-to-end-runtime-bundle-v0.1.md`.
 3. Прочитать `docs/design/soft-constraint-compilation-scoring-v0.1.md`.
-4. Проверить состояние PR #32 перед любыми новыми изменениями.
-5. Не придумывать новую архитектуру без обсуждения: действует INV-006.
+4. Прочитать `docs/design/hydrofeature-lake-materialization-v0.1.md`.
+5. Не менять архитектуру без обсуждения: действует INV-006.
 
 ## Текущее состояние на 2026-09-13
 
 Репозиторий: `MysterioCrypto/domain_generator`.
 
+`main` после merge PR #32:
+
+```text
+c20fe0705c90e2faec6557378ad0daccedb6bb5b
+```
+
 ### Уже в main
 
 - PR #31 Documentation Language Cleanup v0.1 — merged;
 - PR #30 Final Validation hard-complete v0.1 — merged;
-- `main` перед PR #32: `c793878644f80091bb772f0f640d9dcc135dd903`.
+- PR #32 Soft Constraint Compilation & Scoring v0.1 — merged.
 
-Final Validation уже имеет production hard gate, final geometry view и neutral ranking для hard-only plans.
+Final Validation имеет production hard gate и полный user-soft global ranking для поддерживаемых canonical spatial measurements.
 
-### PR #32 — Soft Constraint Compilation & Scoring v0.1
+## Soft Constraint Compilation & Scoring v0.1 — complete
 
-- URL: https://github.com/MysterioCrypto/domain_generator/pull/32
-- branch: `impl/m2-soft-constraint-scoring-v0.1`;
-- design принят пользователем до implementation;
-- canonical design: `docs/design/soft-constraint-compilation-scoring-v0.1.md`;
-- compiler принимает soft variants существующих relations;
+Canonical design: `docs/design/soft-constraint-compilation-scoring-v0.1.md`.
+
+Реализовано:
+
+- soft variants существующих spatial relations компилируются в `CompiledScoring`;
 - scoring recipes: `linear_increasing`, `linear_decreasing`, `positive`;
-- soft evaluation использует тот же canonical spatial measurement boundary, что и hard evaluation;
-- Final сначала применяет hard gate, затем оценивает soft constraints и строит ranking;
-- deferred-to-deferred soft constraints допустимы, если существующий evaluator поддерживает final geometry pair;
+- hard/soft используют один canonical spatial measurement boundary;
+- Final сначала применяет hard gate, затем soft scoring;
+- `effective_violation = (1-score)*weight`;
+- ranking: min worst violation → max weighted mean → min attempt index;
+- deferred-to-deferred soft допустим, если final geometry pair поддерживается evaluator-ом;
 - hard deferred-to-deferred dependency остаётся запрещённой;
-- `SiteProfile.preferences` не входят в global user-soft ranking;
-- новые spatial relations/evaluators этим checkpoint не добавляются.
+- `SiteProfile.preferences` не входят в global user-soft ranking.
 
-Scoring:
+## HydroFeature / Lake Materialization v0.1 — design accepted
 
-```text
-effective_violation = (1 - score) * weight
+Canonical design: `docs/design/hydrofeature-lake-materialization-v0.1.md`.
 
-worst_effective_violation = max(effective_violation_i)
-weighted_mean_score = sum(score_i * weight_i) / sum(weight_i)
-```
-
-Global candidate ordering остаётся:
+Принято:
 
 ```text
-1. min worst_effective_violation
-2. max weighted_mean_score
-3. min attempt_index
+LakeCandidate.cells
+→ exact world-space cell squares
+→ exact GEOS union
+→ canonical RegionSet
+→ HydroFeature
 ```
 
-Если soft constraints отсутствуют:
+Основные решения:
+
+- `HydroFeature.geometry` становится `RegionSet`;
+- smoothing/simplification/marching-squares в semantic materialization запрещены;
+- holes и D8 diagonal multipart geometry сохраняются точно;
+- IDs сохраняют существующий protocol `lake-0001`, `lake-0002`, ...;
+- один helper должен использоваться network/water/materializer;
+- `LakeProperties` получает уже вычисляемый `max_depth_m`;
+- `HydrologyState` получает `lake_features: dict[str, HydroFeature]`;
+- lake materialization принадлежит hydrology layer, а не будущему assembler;
+- river lake references обязаны разрешаться в materialized lake features;
+- materializer не использует RNG/IO/renderer.
+
+Design branch:
 
 ```text
-worst_effective_violation = 0.0
-weighted_mean_score = 1.0
+design/m2-hydrofeature-lake-materialization-v0.1
 ```
+
+Implementation ещё не должен считаться принятым или merged до отдельного checkpoint пользователя.
 
 ## Рабочий процесс
 
 - Один bounded архитектурный вопрос за раз.
 - Сначала объяснить design и последствия.
 - Пользователь принимает/изменяет/отклоняет.
-- Только после принятия обновить документацию и затем реализацию.
+- После принятия зафиксировать normative docs до runtime implementation.
+- Implementation вести отдельным PR.
 - Implementation PR не merge-ить без явного принятия пользователем соответствующего checkpoint.
 - GitHub Actions pytest — каноническая execution-проверка.
-- Иллюстративные примеры ненормативны и не могут становиться Core rules без отдельного решения.
+- Иллюстративные примеры ненормативны.
 
 ## Главная граница Core
 
-`domain_generator` — полностью setting-agnostic procedural Core.
+`domain_generator` — setting-agnostic procedural Core.
 
 ```text
 world / setting / application
@@ -89,13 +108,9 @@ world / setting / application
  renderer / exporter / integration
 ```
 
-Core знает generic geometry, terrain, hydrology, continuous/surface fields, networks, constraints, procedural features и placement rules.
-
-Core не знает конкретный сеттинг, кампанию, игровую систему, lore, LLM provider, GitHub как обязательный runtime, UI или renderer.
+Core знает generic geometry, terrain, hydrology, fields, networks, constraints, procedural features и placement rules. Core не знает конкретный сеттинг, кампанию, game-system rules, lore, LLM provider, GitHub как обязательный runtime, UI или renderer.
 
 ## End-to-End target
-
-Один и тот же Core должен исполняться локально и удалённо:
 
 ```text
 DomainSpec JSON/YAML-adapter
@@ -113,17 +128,12 @@ DomainBundle
   preview/technical-map.png   # non-canonical
 ```
 
-Локальный режим: быстрый запуск Python/CLI/API или model skill на машине пользователя.
+Локальный и remote режимы используют один Core entrypoint. GitHub Actions — adapter/infrastructure, не Core dependency. Technical PNG и художественная стилизация downstream и не меняют world state.
 
-Удалённый режим: request JSON в repository → GitHub Actions → тот же canonical entrypoint → workflow artifact. GitHub Actions является adapter/infrastructure, не dependency Core.
-
-Technical PNG — точная downstream визуализация canonical data. Художественная image-generation стилизация находится ещё дальше downstream и не меняет world state.
-
-## Следующий порядок после принятия PR #32
+## Следующий порядок
 
 ```text
-merge Soft Constraint Compilation & Scoring v0.1
-→ HydroFeature / lake materialization v0.1
+HydroFeature / lake materialization implementation v0.1
 → DomainData Assembler v0.1
 → DomainBundle Export v0.1
 → Technical Renderer v0.1
@@ -132,6 +142,4 @@ merge Soft Constraint Compilation & Scoring v0.1
 → remote GitHub Actions generation adapter
 ```
 
-HydroFeature/lake materialization требует отдельного design checkpoint. Нельзя молча решать representation lake geometry или менять `HydroFeature.geometry` без обсуждения.
-
-Обновлять этот handoff при крупных checkpoint-ах, но не использовать его вместо нормативных design/ADR документов.
+Обновлять этот handoff при крупных checkpoint-ах, но не использовать вместо нормативных design/ADR документов.
