@@ -9,16 +9,17 @@
 3. Прочитать `docs/design/domain-data-assembler-v0.1.md`.
 4. Прочитать `docs/design/domain-bundle-export-v0.1.md`.
 5. Прочитать `docs/design/technical-renderer-v0.1.md`.
-6. Не менять архитектуру без обсуждения: действует INV-006.
+6. Прочитать `docs/design/canonical-cli-python-entrypoint-v0.1.md`.
+7. Не менять архитектуру без обсуждения: действует INV-006.
 
 ## Текущее состояние на 2026-09-13
 
 Репозиторий: `MysterioCrypto/domain_generator`.
 
-`main` после merge PR #41:
+Базовый `main` принятого canonical entrypoint design:
 
 ```text
-e050dc8c609f01c70ebfc7c2fe79e9c4b425ff6a
+0eaf1b0269afd39089be0975c504601df5f28685
 ```
 
 ### Уже в main
@@ -31,41 +32,144 @@ e050dc8c609f01c70ebfc7c2fe79e9c4b425ff6a
 - PR #37/#38 DomainBundle Export design + implementation — merged;
 - PR #39 post-merge exporter status sync — merged;
 - PR #40 Technical Renderer v0.1 normative design — merged;
-- PR #41 Technical Renderer v0.1 implementation — accepted and merged.
+- PR #41 Technical Renderer v0.1 implementation — accepted and merged;
+- PR #42 post-merge Technical Renderer status sync — merged.
 
-Последний принятый implementation checkpoint — `Technical Renderer v0.1`.
+Последний принятый implementation checkpoint — `Technical Renderer v0.1`. Полный CI implementation PR #41: `290 passed`.
 
-Подтверждённый полный CI PR #41:
+## Текущий design checkpoint
 
-```text
-290 passed
-```
+`Canonical CLI / Python Application Entrypoint v0.1` принят пользователем.
 
-В suite входят 9 renderer-specific tests: output dimensions/aspect, deterministic PNG bytes, no mutation, current geometry/network coverage, existing-target protection, parent semantics, field mismatch, PNG suffix и temp cleanup при failure.
-
-## Реализованная сквозная граница
+Normative design:
 
 ```text
-DomainSpec
-  -> Compiler
-  -> GenerationPlan
-  -> Layout
-  -> Terrain
-  -> Hydrology
-  -> Surface
-  -> Dependent Placement
-  -> Final Validation
-  -> DomainData Assembler
-  -> DomainAssembly
-     ├-> DomainBundle Export -> persisted bundle
-     └-> Technical Renderer -> technical-map.png
+docs/design/canonical-cli-python-entrypoint-v0.1.md
 ```
 
-`technical-map.png` остаётся non-canonical diagnostic artifact. Renderer использует optional `render` dependency, headless Matplotlib/Agg, сохраняет north-up/world aspect ratio, отображает canonical raster/vector semantics без semantic smoothing и не использует RNG/не мутирует `DomainAssembly`.
+Design фиксирует:
 
-## Граница будущей художественной карты
+```text
+GenerationRequest JSON
++ external PresetCatalog JSON
+        ↓
+PresetRegistry + CORE_OPERATOR_IDS
+        ↓
+generate_domain(...)
+        ↓
+Compiler
+→ fixed Core stages
+→ deterministic selection
+→ DomainData Assembler
+        ↓
+DomainAssembly
+        ↓
+DomainBundle Export
+        ↓
+optional Technical Renderer
+        ↓
+atomic application output
+```
 
-`technical-map.png` не считается оптимальным control image для image-generation model. Зафиксирована отдельная downstream идея:
+## Канонический Python API
+
+```python
+generate_domain(
+    *,
+    spec: DomainSpec,
+    config: GenerationConfig,
+    registry: PresetRegistry,
+) -> DomainAssembly
+```
+
+`generate_domain()` не выполняет filesystem IO/rendering и не предоставляет caller-у переставлять canonical stage order.
+
+Фиксированный order:
+
+```text
+layout_stage
+→ terrain_stage
+→ hydrology_stage
+→ surface_stage
+→ placement_stage
+→ final_stage
+```
+
+## Serialized application inputs
+
+`GenerationRequest v0.1`:
+
+```json
+{
+  "request_version": "0.1",
+  "domain_spec": { "...": "DomainSpec" },
+  "generation_config": { "...": "GenerationConfig" }
+}
+```
+
+`PresetCatalog v0.1`:
+
+```json
+{
+  "preset_catalog_version": "0.1",
+  "presets": [ { "...": "PresetDefinition" } ]
+}
+```
+
+Preset catalog остаётся внешним reusable input и не является built-in setting catalog Core. В v0.1 serialized baseline — JSON; YAML позже может быть adapter-ом.
+
+Пользовательский catalog не задаёт `operator_ids`. Core application использует canonical capability set текущей версии:
+
+```text
+raise
+depress
+ridge
+flatten
+moisture_bias
+vegetation_bias
+suitability_placement
+```
+
+## CLI semantics
+
+Основной запуск:
+
+```text
+domain-generator generate <request.json> --output <directory>
+```
+
+При features:
+
+```text
+domain-generator generate <request.json> --presets <presets.json> --output <directory>
+```
+
+Technical preview:
+
+```text
+domain-generator generate <request.json> --presets <presets.json> --output <directory> --preview
+```
+
+Mandatory `input/`, `requests/` или `output/` directories отсутствуют. Пути задаёт caller. Existing output target не перезаписывается.
+
+Requested result публикуется atomic application-level: bundle и requested preview сначала создаются внутри temporary sibling root, затем весь root получает final name.
+
+Stable exit classes:
+
+```text
+0 success
+2 invalid CLI arguments
+3 request/catalog parse or validation error
+4 compile/generation/capability/attempt exhaustion
+5 assembly/export/render/filesystem failure
+70 internal invariant or unexpected application failure
+```
+
+Success stdout — один machine-readable JSON object; diagnostics идут в stderr.
+
+## Граница renderer / imagegen
+
+`technical-map.png` остаётся diagnostic non-canonical artifact. Будущий artistic flow отделён:
 
 ```text
 DomainData + canonical rasters + vectors
@@ -74,12 +178,12 @@ Presentation / imagegen guide renderer
         ↓
 imagegen-guide.png
         ↓
-image generation / artistic transform
+image generation
         ↓
 campaign-map.png
 ```
 
-Guide renderer пока не спроектирован. Его задача — сохранять canonical geography, но представлять её image model в более подходящем виде, чем nearest-neighbour technical grid. Не рассчитывать на raw `.npy`/JSON как на надёжный прямой spatial interface к image-generation model.
+Он не входит в canonical entrypoint implementation checkpoint.
 
 ## Рабочий процесс
 
@@ -91,21 +195,17 @@ Guide renderer пока не спроектирован. Его задача —
 - Implementation PR не merge-ить без явного принятия пользователем checkpoint.
 - GitHub Actions pytest — каноническая execution-проверка.
 
-## Следующий bounded design gate
+## Следующий порядок
+
+Сейчас нужно завершить и merge-ить docs-only PR принятого `Canonical CLI / Python Application Entrypoint v0.1` после зелёного CI.
+
+После docs merge:
 
 ```text
-canonical CLI / Python application entrypoint
-```
-
-Нужно спроектировать единый application-level вызов, который связывает уже готовые stages для local и remote execution: request input, output path, compile/generate/assemble/export/render orchestration, ошибки и exit codes, Python API и CLI boundary.
-
-После него:
-
-```text
-local model skill/adapter
+canonical CLI / Python application entrypoint — implementation PR
+→ отдельное пользовательское принятие
+→ local model skill/adapter
 → remote GitHub Actions generation adapter
 ```
 
-Presentation/imagegen guide renderer остаётся отдельной downstream задачей и не блокирует canonical CLI.
-
-Обновлять этот handoff при крупных checkpoint-ах, но не использовать вместо нормативных design/ADR документов.
+Presentation/imagegen guide renderer остаётся отдельной downstream задачей.
