@@ -6,18 +6,18 @@
 
 1. Прочитать `PROJECT.md`.
 2. Прочитать `docs/design/end-to-end-runtime-bundle-v0.1.md`.
-3. Прочитать `docs/design/hydrofeature-lake-materialization-v0.1.md`.
-4. Прочитать `docs/design/domain-data-assembler-v0.1.md`.
+3. Прочитать `docs/design/domain-data-assembler-v0.1.md`.
+4. Прочитать `docs/design/domain-bundle-export-v0.1.md`.
 5. Не менять архитектуру без обсуждения: действует INV-006.
 
 ## Текущее состояние на 2026-09-13
 
 Репозиторий: `MysterioCrypto/domain_generator`.
 
-`main` после merge design PR #35:
+`main` после merge PR #38:
 
 ```text
-7cbd089d4530ff3db8238710edf988bbc6b1dd17
+5b665487695bdf45c802c1ac6b9a67c05caff816
 ```
 
 ### Уже в main
@@ -25,43 +25,52 @@
 - PR #30 Final Validation hard-complete v0.1 — merged;
 - PR #31 Documentation Language Cleanup v0.1 — merged;
 - PR #32 Soft Constraint Compilation & Scoring v0.1 — merged;
-- PR #33 HydroFeature / Lake Materialization design v0.1 — merged;
-- PR #34 HydroFeature / Lake Materialization implementation v0.1 — merged;
-- PR #35 DomainData Assembler design v0.1 — merged.
+- PR #33/#34 HydroFeature / Lake Materialization design + implementation — merged;
+- PR #35/#36 DomainData Assembler design + implementation — merged;
+- PR #37/#38 DomainBundle Export design + implementation — merged.
 
-### Текущий implementation checkpoint
+Последний принятый implementation checkpoint — `DomainBundle Export v0.1`.
 
-PR #36 `Implement DomainData Assembler v0.1` открыт и **не должен merge-иться без отдельного принятия пользователя**.
-
-Implementation branch:
+Подтверждённый полный CI PR #38:
 
 ```text
-impl/m2-domain-data-assembler-v0.1
+281 passed
 ```
 
-Реализовано:
-
-- `DomainAssembly` in-memory boundary;
-- `assemble_domain(spec, plan, config, candidate)` без RNG/IO/rerank;
-- semantic `GenerationConfig` fingerprint без observability;
-- reserved generated hydro IDs `^lake-[0-9]{4,}$` на `DomainSpec` validation boundary;
-- specified features из final layout/placement geometry;
-- merge specified + ready hydrology `HydroFeature` с collision guard;
-- canonical network `rivers`;
-- canonical descriptors для elevation/water_depth/moisture/vegetation_density;
-- exact float32/shape checks;
-- independent read-only payload copies;
-- identity/provenance/final validation summary;
-- deterministic feature/field/network ordering;
-- explicit `DomainAssemblyError` boundary.
-
-Подтверждённый push CI текущей code semantics:
+## Реализованная сквозная граница
 
 ```text
-272 passed
+DomainSpec
+  -> Compiler
+  -> GenerationPlan
+  -> Layout
+  -> Terrain
+  -> Hydrology
+  -> Surface
+  -> Dependent Placement
+  -> Final Validation
+  -> DomainData Assembler
+  -> DomainAssembly
+  -> DomainBundle Export
+  -> persisted bundle
 ```
 
-Serialized `DomainData` schema не менялась, поэтому schema snapshot regeneration не требуется.
+Canonical persisted bundle v0.1:
+
+```text
+<caller-provided-output>/
+  domain.json
+  manifest.json
+  fields/
+    elevation.npy
+    water_depth.npy
+    moisture.npy
+    vegetation_density.npy
+```
+
+`BundleManifest v0.1` хранит SHA-256 и размеры canonical persisted files. Exporter не использует RNG, не изменяет semantic world state, не поддерживает overwrite и публикует final directory только после успешной записи temporary sibling tree.
+
+Input path и output path не привязаны к обязательным repository folders. Будущий CLI должен получать их параметрами. Internal bundle paths остаются relative POSIX paths; filesystem target работает через `pathlib.Path`, поэтому архитектура рассчитана на Windows и POSIX environments.
 
 ## Рабочий процесс
 
@@ -86,38 +95,20 @@ world / setting / application
           ↓
    domain_generator
           ↓
-      DomainData
+      DomainData / DomainBundle
           ↓
- renderer / exporter / integration
+ renderer / integration
 ```
 
-## End-to-End target
+## Следующий bounded design gate
 
 ```text
-DomainSpec JSON/YAML-adapter
-        ↓
-canonical Python/CLI entrypoint
-        ↓
-Core pipeline
-        ↓
-DomainAssembly
-        ↓
-DomainBundle
-  domain.json
-  manifest.json
-  fields/*.npy
-  preview/technical-map.png   # non-canonical
-```
-
-## Следующий порядок после принятия и merge PR #36
-
-```text
-DomainBundle Export v0.1 design
-→ DomainBundle Export implementation
-→ Technical Renderer v0.1
+Technical Renderer v0.1
 → canonical CLI / Python application entrypoint
 → local model skill/adapter
 → remote GitHub Actions generation adapter
 ```
+
+Technical Renderer ещё не спроектирован и не должен реализовываться до отдельного принятия design semantics.
 
 Обновлять этот handoff при крупных checkpoint-ах, но не использовать вместо нормативных design/ADR документов.

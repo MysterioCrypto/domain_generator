@@ -4,7 +4,7 @@ kind: design-baseline
 status: accepted
 normative: true
 target: core-0.1
-implemented: false
+implemented: true
 ---
 
 # DomainBundle Export v0.1
@@ -276,4 +276,4 @@ Exporter не выполняет fallback, auto-fix, regeneration или reroll.
 
 ## 18. Next checkpoint
 
-После implementation и отдельного принятия DomainBundle Export v0.1 следующий bounded design gate — `Technical Renderer v0.1`.
+Implementation DomainBundle Export v0.1 принят и merged через PR #38. Следующий bounded design gate — `Technical Renderer v0.1`.
