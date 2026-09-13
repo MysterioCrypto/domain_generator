@@ -54,6 +54,7 @@ def test_generation_workflow_has_bounded_read_only_contract() -> None:
     assert "contents: read" in text
     assert "contents: write" not in text
     assert "github.event.pull_request.head.sha" in text
+    assert "GENERATOR_COMMIT:" in text
     assert "fetch-depth: 0" in text
     assert "actions/upload-artifact@v4" in text
     assert "domain-bundle" in text
@@ -145,7 +146,8 @@ def test_helper_invokes_canonical_cli_exactly_once_and_writes_diagnostics(tmp_pa
         return SimpleNamespace(returncode=0, stdout='{"status":"ok"}\n', stderr="")
 
     monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
-    monkeypatch.setenv("GITHUB_SHA", "abc123")
+    monkeypatch.setenv("GITHUB_SHA", "synthetic-merge-sha")
+    monkeypatch.setenv("GENERATOR_COMMIT", "exact-head-sha")
     monkeypatch.setenv("GITHUB_RUN_ID", "99")
     monkeypatch.setenv("GITHUB_RUN_ATTEMPT", "1")
     monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
@@ -169,7 +171,8 @@ def test_helper_invokes_canonical_cli_exactly_once_and_writes_diagnostics(tmp_pa
     assert (work_dir / "execution" / "stdout.txt").read_text(encoding="utf-8") == '{"status":"ok"}\n'
 
     metadata = json.loads((work_dir / "execution" / "remote-execution.json").read_text(encoding="utf-8"))
-    assert metadata["generator_commit"] == "abc123"
+    assert metadata["generator_commit"] == "exact-head-sha"
+    assert metadata["github_sha"] == "synthetic-merge-sha"
     assert metadata["cli_exit_code"] == 0
     assert metadata["transport_error"] is None
     assert metadata["request_sha256"]
