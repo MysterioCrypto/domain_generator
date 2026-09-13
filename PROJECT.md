@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-technical-renderer-v0.1-merged
-next_topic: canonical-cli-python-entrypoint-design
+checkpoint: M2-canonical-cli-python-entrypoint-v0.1-design
+next_topic: canonical-cli-python-entrypoint-v0.1-implementation
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -75,6 +75,7 @@ accepted_designs:
   - domain-data-assembler-v0.1
   - domain-bundle-export-v0.1
   - technical-renderer-v0.1
+  - canonical-cli-python-entrypoint-v0.1
 implemented_infrastructure:
   - github-actions-pytest-ci-on-push-and-pull-request
 canonical_documents:
@@ -85,29 +86,16 @@ canonical_documents:
   contracts: docs/contracts/
   design_baseline: docs/design/core-0.1-generation-baseline.md
   runtime_bundle: docs/design/end-to-end-runtime-bundle-v0.1.md
-  final_validation_hard: docs/design/final-validation-hard-v0.1.md
-  soft_constraint_scoring: docs/design/soft-constraint-compilation-scoring-v0.1.md
-  hydrofeature_lake_materialization: docs/design/hydrofeature-lake-materialization-v0.1.md
   domain_data_assembler: docs/design/domain-data-assembler-v0.1.md
   domain_bundle_export: docs/design/domain-bundle-export-v0.1.md
   technical_renderer: docs/design/technical-renderer-v0.1.md
-  placement_reservations: docs/design/placement-reservation-materialization-v0.1.md
-  dependent_placement: docs/design/dependent-placement-site-selection-v0.1.md
-  terrain_area_raise: docs/design/terrain-area-raise-v0.1.md
-  terrain_band_ridge: docs/design/terrain-band-ridge-v0.1.md
-  terrain_structural_flatten: docs/design/terrain-structural-flatten-v0.1.md
-  world_space_noise: docs/design/world-space-value-noise-v1.md
-  hydrology_routing: docs/design/hydrology-routing-core-v0.1.md
-  hydrology_classification: docs/design/hydrology-classification-v0.1.md
-  hydrology_network_waterdepth: docs/design/hydrology-network-waterdepth-v0.1.md
-  surface_base_fields: docs/design/surface-base-fields-v0.1.md
-  surface_feature_bias: docs/design/surface-feature-bias-v0.1.md
+  canonical_entrypoint: docs/design/canonical-cli-python-entrypoint-v0.1.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
 ---
 
 # Состояние проекта
 
-Этот файл — короткая каноническая точка входа для нового чата или агента. Подробные normative semantics находятся в `docs/design/`, `docs/contracts/` и `docs/decisions/`.
+Этот файл — короткая каноническая точка входа. Подробные normative semantics находятся в `docs/design/`, `docs/contracts/` и `docs/decisions/`.
 
 ## Цель и граница продукта
 
@@ -127,25 +115,21 @@ world / setting / application
  renderer / integration
 ```
 
-Core знает generic geometry, terrain, hydrology, fields, networks, constraints, procedural features и placement rules. Core не знает конкретный setting/campaign, game-system rules, lore, LLM provider, GitHub как обязательный runtime, UI или renderer.
+Core знает generic geometry, terrain, hydrology, fields, networks, constraints, procedural features и placement rules. Core не знает конкретный setting/campaign, game-system rules, lore, LLM provider, GitHub как обязательный runtime, UI или художественный renderer.
 
 ## Текущее состояние
 
 `M0 — Project foundation` и `M1 — Data contracts` завершены. `M2 — Deterministic pipeline` находится в реализации.
 
-На `main` находятся полный generation pipeline до Final Validation, HydroFeature materialization, DomainData Assembler, DomainBundle Export v0.1 и Technical Renderer v0.1.
+На `main` до этого design PR находятся полный generation pipeline до Final Validation, HydroFeature materialization, DomainData Assembler, DomainBundle Export v0.1 и Technical Renderer v0.1.
 
-`main` после merge PR #41:
-
-```text
-e050dc8c609f01c70ebfc7c2fe79e9c4b425ff6a
-```
-
-Technical Renderer v0.1 принят пользователем и смержен. Подтверждённый полный CI implementation PR #41:
+Базовый `main` для принятого design:
 
 ```text
-290 passed
+0eaf1b0269afd39089be0975c504601df5f28685
 ```
+
+Последний принятый implementation checkpoint — `Technical Renderer v0.1`; PR #41 merged, полный CI — `290 passed`.
 
 ## Карта прогресса простыми словами
 
@@ -164,16 +148,15 @@ Technical Renderer v0.1 принят пользователем и смерже�
 [готово] DomainData Assembler v0.1
 [готово] DomainBundle Export v0.1
 [готово] Technical Renderer v0.1
-[дальше] canonical CLI / Python application entrypoint — design gate
+[принято] canonical CLI / Python application entrypoint v0.1 — design
+[дальше после docs merge] canonical CLI / Python application entrypoint — implementation
 [потом] local model skill/adapter
 [потом] remote GitHub Actions generation adapter
 
 [готово] GitHub Actions: pytest на push/PR
 ```
 
-## End-to-End Runtime & Bundle Architecture v0.1
-
-Normative semantics: `docs/design/end-to-end-runtime-bundle-v0.1.md`.
+## Реализованная сквозная граница
 
 ```text
 DomainSpec
@@ -187,74 +170,64 @@ DomainSpec
   -> Final Validation
   -> DomainData Assembler
   -> DomainAssembly
-  -> DomainBundle Export
-  -> persisted bundle
-  -> Technical Renderer / adapters downstream
+     ├-> DomainBundle Export -> persisted bundle
+     └-> Technical Renderer -> technical-map.png
 ```
 
-Core stages работают в одном Python process. Local и remote execution должны использовать один canonical entrypoint. GitHub Actions остаётся adapter/infrastructure, а не dependency Core.
+Core stages работают в одном Python process. Local и remote execution должны использовать один canonical application entrypoint; GitHub Actions остаётся adapter/infrastructure, а не dependency Core.
 
-## DomainData Assembler v0.1 — accepted / implemented / merged PR #36
+## Canonical CLI / Python Application Entrypoint v0.1 — accepted design
 
-Normative semantics: `docs/design/domain-data-assembler-v0.1.md`.
+Normative semantics: `docs/design/canonical-cli-python-entrypoint-v0.1.md`.
 
-Assembler не использует RNG/IO/rendering, не reroll-ит candidate и не пересчитывает upstream state. Canonical raster payloads — exact `float32`, independent read-only copies.
-
-## DomainBundle Export v0.1 — accepted / implemented / merged PR #38
-
-Normative semantics: `docs/design/domain-bundle-export-v0.1.md`.
-
-Canonical persisted layout:
+Канонический in-memory API:
 
 ```text
-<caller-provided-output>/
-  domain.json
-  manifest.json
-  fields/
-    elevation.npy
-    water_depth.npy
-    moisture.npy
-    vegetation_density.npy
+generate_domain(spec, config, registry) -> DomainAssembly
 ```
 
-Exporter не меняет semantic world state, не использует RNG и публикует final directory только после успешной записи temporary sibling tree.
+Он связывает compiler, фиксированный stage order, deterministic candidate selection и assembler, но не выполняет filesystem IO или rendering.
 
-## Technical Renderer v0.1 — accepted / implemented / merged PR #41
-
-Normative semantics: `docs/design/technical-renderer-v0.1.md`.
-
-Implementation boundary:
+Application layer поверх него:
 
 ```text
+GenerationRequest JSON
++ optional external PresetCatalog JSON
++ caller-provided output path
+        ↓
+generate_domain(...)
+        ↓
 DomainAssembly
-  data: DomainData
-  field_payloads
         ↓
-render_technical_map(...)
+DomainBundle Export
         ↓
-technical-map.png
+optional Technical Renderer
+        ↓
+atomic application publication
 ```
 
-Реализовано:
+Ключевые semantics:
 
-- optional package extra `domain-generator[render]`;
-- Matplotlib `Agg` headless backend;
-- caller-provided PNG path;
-- 1600 px long-side baseline с сохранением world aspect ratio;
-- north-up world coordinate convention;
-- elevation, vegetation и canonical water raster layers;
-- lake RegionSet outlines и river centerlines;
-- Point/POI, Corridor, Band width samples, Area/Surface overlays;
-- labels, north indicator, scale, legend и domain boundary;
-- nearest-neighbour raster display без semantic smoothing;
-- existing target rejection и temporary sibling publication;
-- no RNG, reroll, generation or mutation.
+- один и тот же application entrypoint для local/remote execution;
+- `GenerationRequest` содержит `DomainSpec + GenerationConfig`;
+- reusable `PresetCatalog` остаётся внешним и setting-specific catalogs не зашиваются в Core;
+- user catalog не может объявлять возможности движка: application использует versioned `CORE_OPERATOR_IDS`;
+- canonical CLI: `domain-generator generate <request.json> --output <dir>`;
+- `--presets <catalog.json>` требуется при непустом feature set;
+- `--preview` создаёт non-canonical `preview/technical-map.png` и не меняет semantic fingerprint;
+- mandatory `input/`, `requests/` и `output/` directories отсутствуют;
+- output target задаётся caller-ом и не перезаписывается;
+- requested bundle + preview публикуются как единый application result через temporary sibling root;
+- JSON stdout используется для machine-readable success result; diagnostics идут в stderr;
+- stable exit classes: `0`, `2`, `3`, `4`, `5`, `70`;
+- CLI не принимает fake `--generator-version`, version берётся из installed package;
+- базовый serialized input/catalog v0.1 — JSON; YAML остаётся будущим adapter-ом.
 
-`technical-map.png` остаётся diagnostic non-canonical artifact. Он не считается оптимальным control image для image-generation model.
+## Technical Renderer и художественная карта
 
-## Presentation / imagegen guide boundary
+`technical-map.png` — diagnostic non-canonical artifact, а не оптимальный control image для image-generation model.
 
-Для будущей художественной карты отдельно зарезервирован downstream слой:
+Отдельно зарезервирован будущий downstream слой:
 
 ```text
 DomainData + canonical rasters + vectors
@@ -268,15 +241,11 @@ image generation / artistic transform
 campaign-map.png
 ```
 
-Он должен сохранять canonical geography, но может подготавливать её в более удобной для image model форме, чем nearest-neighbour technical grid. Этот слой пока не спроектирован.
+Он пока не спроектирован и не блокирует canonical application entrypoint.
 
-## Следующий bounded design gate
+## Следующий checkpoint
 
-```text
-canonical CLI / Python application entrypoint
-```
-
-Нужно определить единый application-level вызов для local и remote execution: входной request path, output path, compilation/generation/assembly/export/render orchestration, error/exit-code semantics и Python API boundary. До принятия design runtime implementation не начинается.
+После merge принятого docs PR — отдельный implementation PR `canonical CLI / Python application entrypoint v0.1`. Он не merge-ится без отдельного пользовательского принятия.
 
 После него:
 
@@ -285,21 +254,20 @@ local model skill/adapter
 → remote GitHub Actions generation adapter
 ```
 
-Presentation/imagegen guide renderer остаётся отдельной downstream задачей и не блокирует canonical CLI.
-
 ## Ещё не сделано
 
-- presentation/imagegen guide renderer;
-- canonical CLI/application entrypoint;
+- canonical CLI/application entrypoint implementation;
 - local model skill/adapter;
 - remote generation GitHub workflow;
+- presentation/imagegen guide renderer;
+- production generic preset catalog;
+- YAML preset/request adapter;
 - physical river width/sub-cell rasterization;
 - runoff/discharge/climate model;
 - standalone terrain `blend` operator;
 - advanced terrain shaping/erosion;
 - band polygon footprint materialization;
-- general area↔area polygon boolean evaluators;
-- YAML/file preset loader и production generic preset catalog.
+- general area↔area polygon boolean evaluators.
 
 ## Инварианты
 
@@ -317,6 +285,4 @@ Presentation/imagegen guide renderer остаётся отдельной downstr
 
 ## Правило совместной работы
 
-Перед существенным изменением архитектуры сначала объяснить предлагаемое изменение, затрагиваемые решения и последствия; после принятия обновить документацию и только затем реализацию.
-
-В конце каждого milestone или значимого checkpoint обновлять: что принято, что реализовано, что остаётся открытым и какой вопрос следующий.
+Перед существенным изменением архитектуры сначала объяснить изменение и последствия; после принятия обновить normative docs и только затем runtime implementation. Implementation PR merge-ится только после отдельного явного принятия checkpoint.
