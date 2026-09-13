@@ -7,6 +7,7 @@ import pytest
 from jsonschema import Draft202012Validator, ValidationError
 
 from domain_generator.contracts import (
+    BundleManifest,
     DomainData,
     DomainSpec,
     GenerationConfig,
@@ -157,6 +158,26 @@ def sample_payloads() -> dict[type, dict]:
                     "weighted_mean_score": 1.0,
                 },
             },
+        },
+        BundleManifest: {
+            "bundle_version": "0.1",
+            "domain_data_version": "0.1",
+            "domain_id": "schema-test-domain",
+            "canonical_files": [
+                {
+                    "path": "domain.json",
+                    "kind": "domain_data",
+                    "sha256": "sha256:" + "0" * 64,
+                    "size_bytes": 1,
+                },
+                {
+                    "path": "fields/elevation.npy",
+                    "kind": "field",
+                    "sha256": "sha256:" + "1" * 64,
+                    "size_bytes": 2,
+                    "field_id": "elevation",
+                },
+            ],
         },
     }
 

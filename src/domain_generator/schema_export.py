@@ -7,6 +7,7 @@ from typing import Final
 from pydantic import BaseModel
 
 from .contracts import (
+    BundleManifest,
     DomainData,
     DomainSpec,
     GenerationConfig,
@@ -24,6 +25,7 @@ ROOT_CONTRACT_MODELS: Final[dict[str, type[BaseModel]]] = {
     "validation-result.schema.json": ValidationResult,
     "generation-config.schema.json": GenerationConfig,
     "domain-data.schema.json": DomainData,
+    "bundle-manifest.schema.json": BundleManifest,
 }
 
 
