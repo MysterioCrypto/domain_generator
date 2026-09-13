@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: implementation
 status: in-progress
 current_milestone: M2-deterministic-pipeline
-checkpoint: M2-hydrofeature-lake-materialization-v0.1
-next_topic: domain-data-assembler-v0.1
+checkpoint: M2-domain-data-assembler-design-v0.1
+next_topic: domain-data-assembler-implementation-v0.1
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -80,6 +80,7 @@ accepted_designs:
   - final-validation-hard-v0.1
   - soft-constraint-compilation-scoring-v0.1
   - hydrofeature-lake-materialization-v0.1
+  - domain-data-assembler-v0.1
 implemented_infrastructure:
   - github-actions-pytest-ci-on-push-and-pull-request
 canonical_documents:
@@ -93,6 +94,7 @@ canonical_documents:
   final_validation_hard: docs/design/final-validation-hard-v0.1.md
   soft_constraint_scoring: docs/design/soft-constraint-compilation-scoring-v0.1.md
   hydrofeature_lake_materialization: docs/design/hydrofeature-lake-materialization-v0.1.md
+  domain_data_assembler: docs/design/domain-data-assembler-v0.1.md
   placement_reservations: docs/design/placement-reservation-materialization-v0.1.md
   dependent_placement: docs/design/dependent-placement-site-selection-v0.1.md
   dependent_placement_site_metrics: docs/design/dependent-placement-site-metrics-v0.1.md
@@ -147,7 +149,9 @@ world / setting / application
 
 Layout Core 0.1 покрывает point/corridor/band/area и `PlacementReservation` для deferred point POI. Terrain имеет structural + shaping pipeline. Hydrology покрывает routing, lake/stream classification, directed river topology, canonical runtime water depth и exact semantic lake materialization. Surface покрывает base moisture/vegetation и explicit area feature biases. Dependent point placement реализован полностью. Final Validation имеет production hard gate и полный user-soft global ranking для поддерживаемых canonical spatial measurements.
 
-HydroFeature / Lake Materialization implementation готов в PR #34 и проходит CI, но до отдельного принятия пользователя не считается merged-состоянием `main`.
+PR #34 `HydroFeature / Lake Materialization v0.1` принят и merged в `main` commit `d9c6145f6e49df351fb86372f05ffc6f953ea85b`.
+
+Следующая принятая архитектурная граница — `DomainData Assembler v0.1`; runtime implementation ещё не выполнен.
 
 ## Карта прогресса простыми словами
 
@@ -157,6 +161,7 @@ HydroFeature / Lake Materialization implementation готов в PR #34 и пр�
 [готово] ограничения размещения
 [готово] terrain: поднятия / впадины / хребты / shaping
 [готово] hydrology: routing / streams / lakes / RiverNetwork / water_depth
+[готово] semantic HydroFeature для lakes
 [готово] базовые moisture + vegetation fields
 [готово] explicit surface feature biases
 [готово] dependent-placement site metrics
@@ -165,9 +170,11 @@ HydroFeature / Lake Materialization implementation готов в PR #34 и пр�
 [готово] Final Validation hard gate
 [готово] soft constraint compilation + scoring + final ranking
 [принято] end-to-end runtime / bundle architecture
-[готово в PR #34] HydroFeature / lake materialization implementation
-[следующий design gate после merge #34] DomainData Assembler v0.1
-[потом] bundle exporter + technical renderer + CLI/adapters
+[принято] DomainData Assembler v0.1 design
+[следом] DomainData Assembler implementation v0.1
+[потом] DomainBundle Export
+[потом] Technical Renderer
+[потом] CLI/Python entrypoint + local/remote adapters
 
 [готово] GitHub Actions: pytest на push/PR
 ```
@@ -178,18 +185,14 @@ Normative semantics: `docs/design/end-to-end-runtime-bundle-v0.1.md`.
 
 Ключевые решения:
 
-- Core — один Python package; stages вызываются как функции в одном process, а не как subprocess scripts;
+- Core — один Python package; stages вызываются как functions в одном process;
 - local и remote execution используют один canonical generation entrypoint;
-- local mode — Python/CLI/API на машине пользователя;
-- remote mode — тот же entrypoint в GitHub Actions runner, request JSON в repository, result как workflow artifact;
-- GitHub Actions не является dependency Core;
 - canonical persisted rasters — `fields/*.npy`;
-- `domain.json` хранит structured metadata/features/networks/field descriptors, а не массивы raster values;
+- `domain.json` хранит structured metadata/features/networks/field descriptors;
 - assembler не делает IO и не использует RNG;
 - exporter физически пишет bundle;
-- technical renderer и artistic/image-generation presentation находятся downstream и не меняют world state;
-- LLM/model работает через внешний adapter над DomainSpec/GenerationConfig и не управляет внутренними stages напрямую;
-- одинаковые semantic inputs + exact generator/RNG version должны давать один semantic result локально и в remote runner-е.
+- technical renderer и artistic presentation downstream и не меняют world state;
+- exact supported semantic inputs + exact generator/RNG version должны быть reproducible между local и remote execution.
 
 Reference output boundary:
 
@@ -206,63 +209,22 @@ DomainBundle
   debug/          # optional, non-canonical
 ```
 
-## Dependent Placement — complete
-
-Normative semantics:
-
-- `docs/design/dependent-placement-site-selection-v0.1.md`;
-- `docs/design/dependent-placement-site-metrics-v0.1.md`;
-- `docs/design/dependent-placement-candidate-filtering-v0.1.md`.
-
-Полный runtime pipeline:
-
-```text
-PlacementReservation
--> rotated/phase-shifted world-space lattice
--> reservation containment
--> canonical candidate order
--> site metrics
--> hard requirements
--> valid sites
--> maximize / minimize / preferred_range scores
--> weighted composite suitability
--> near-best set
--> deterministic weighted choice
--> PlacementState.final_points
--> placement validation
-```
-
-## Final Validation v0.1 — hard + soft
+## Final Validation v0.1 — hard + soft complete
 
 Normative hard semantics: `docs/design/final-validation-hard-v0.1.md`.
 Normative soft semantics: `docs/design/soft-constraint-compilation-scoring-v0.1.md`.
 
-Реализовано:
+Final Validation:
 
-- temporary final geometry view объединяет structural `LayoutCandidate.geometry_realizations` и deferred `PlacementState.final_points` без mutation upstream state;
-- Final проверяет upstream completeness, attempt identity, plan fingerprint и complete/disjoint final feature geometry sets;
-- все hard compiled constraints повторно оцениваются против final geometry в canonical `constraint.id` order;
-- hard predicate failure является normal rejected attempt;
-- после hard gate soft compiled constraints оцениваются против той же final geometry и того же canonical spatial measurement boundary;
-- soft score нормализован в `[0,1]` через `linear_increasing`, `linear_decreasing` или strict `positive` recipe;
-- `effective_violation = (1-score)*weight`;
-- global ranking сначала минимизирует `worst_effective_violation`, затем максимизирует `weighted_mean_score`, затем использует `attempt_index`;
-- hard-only plan сохраняет neutral ranking `(0.0, 1.0)`;
-- unsupported evaluator/scoring construct является explicit capability error;
-- Final не использует RNG, не делает IO и ничего не исправляет.
+- наблюдает complete upstream state без mutation;
+- повторно оценивает hard constraints по final geometry;
+- оценивает soft constraints через тот же canonical spatial measurement boundary;
+- выдаёт deterministic ranking;
+- не использует RNG/IO и ничего не исправляет.
 
-## Soft Constraint Compilation & Scoring v0.1 — complete
-
-PR #32 merged. `DomainSpec` различает `hard`/`soft` constraints и использует `weight` для soft. Compiler переводит soft variants существующих relations в `CompiledScoring` без второго набора spatial measurements.
-
-При `ideal == worst` используется step semantics без epsilon. Для `crosses` с нулевым minimum используется strict `positive`: `measurement > 0 -> 1`, иначе `0`.
-
-Deferred-to-deferred soft constraint допустим после materialization обеих final geometries, если canonical evaluator поддерживает geometry pair. Hard deferred-to-deferred dependency остаётся запрещённой. `SiteProfile.preferences` не входят скрыто в global ranking.
-
-## HydroFeature / Lake Materialization v0.1 — accepted / implemented in PR #34
+## HydroFeature / Lake Materialization v0.1 — accepted / implemented / merged PR #34
 
 Normative semantics: `docs/design/hydrofeature-lake-materialization-v0.1.md`.
-Design documentation merged через PR #33. Runtime implementation находится в PR #34 и ждёт отдельного принятия перед merge.
 
 Реализовано:
 
@@ -274,41 +236,64 @@ LakeCandidate.cells
 → HydroFeature
 ```
 
-- `HydroFeature.geometry` — `RegionSet`, не `AreaGeometry` и не union type;
-- exact raster footprint сохраняется без smoothing, simplification, marching-squares approximation или hidden bridges;
-- holes и D8 diagonal multipart geometry сохраняются;
-- `lake_feature_id()` централизует существующий `lake-0001`, `lake-0002`, ... protocol для network/water/materializer;
+- `HydroFeature.geometry` — `RegionSet`;
+- holes и D8 diagonal multipart geometry сохраняются точно;
+- `lake_feature_id()` централизует protocol `lake-0001`, `lake-0002`, ...;
 - `LakeProperties` содержит `max_depth_m`;
-- `HydrologyState` содержит `lake_features: dict[str, HydroFeature]`;
-- materializer проверяет candidate cells, overlap, non-empty geometry, canonical RegionSet и area consistency;
-- `RiverNode.feature_id` для lake inflow/outlet проверяется против materialized lake features;
-- hydrology validation повторно materializes expected lake features и проверяет их completeness;
-- `DomainData` JSON Schema snapshot обновлён;
-- materializer не использует RNG, IO, renderer или external model.
+- `HydrologyState` содержит готовые `lake_features`;
+- river lake references валидируются против materialized features;
+- schema snapshot синхронизирован;
+- финальный suite PR #34: `266 passed`.
 
-Implementation checkpoint подтверждён полным pytest run `266 passed` до финальной status-doc sync. Финальный PR head должен пройти CI повторно после этих Markdown-изменений.
+## DomainData Assembler v0.1 — accepted design
 
-## Следующий design gate после merge PR #34
+Normative semantics: `docs/design/domain-data-assembler-v0.1.md`.
 
-`DomainData Assembler v0.1`.
-
-Нужно формализовать, как accepted pipeline state превращается в `DomainAssembly`/`DomainData` без новой генерации:
-
-1. identity/provenance;
-2. structural + placed + hydro feature merge;
-3. river network packaging;
-4. canonical field descriptors и in-memory field payloads;
-5. final validation summary;
-6. deterministic feature/network ordering;
-7. assembler capability/error boundary;
-8. строгий запрет RNG, IO, re-generation и renderer semantics.
-
-После assembler:
+Принята conceptual граница:
 
 ```text
+DomainSpec
+GenerationPlan
+GenerationConfig
+selected DomainCandidate
+        ↓
 DomainData Assembler
-→ DomainBundle Export
-→ Technical Renderer
+        ↓
+DomainAssembly
+  data: DomainData
+  field_payloads:
+    elevation
+    water_depth
+    moisture
+    vegetation_density
+```
+
+Ключевые решения:
+
+- assembler получает выбранный final-valid candidate и не занимается ranking/selection;
+- spec↔plan provenance обязательно проверяется;
+- `DomainSpec.label` сохраняется в `DomainData.identity`;
+- generation-config fingerprint включает version + semantic config и исключает observability;
+- specified final geometry берётся только из layout/placement results;
+- hydrology lakes переносятся как уже готовые `HydroFeature`;
+- generated lake namespace `^lake-[0-9]{4,}$` зарезервирован от user feature IDs;
+- duplicate semantic feature IDs запрещены, silent overwrite невозможен;
+- `rivers` network присутствует canonical всегда;
+- canonical fields фиксированы: elevation, water_depth, moisture, vegetation_density;
+- canonical payload arrays должны быть exact float32 + expected shape;
+- assembler создаёт independent read-only copies payloads;
+- validation summary берётся из уже успешного final validation;
+- assembler не использует RNG, IO, renderer, reroll, re-ranking или regeneration.
+
+## Следующий bounded checkpoint
+
+`DomainData Assembler implementation v0.1`.
+
+После него:
+
+```text
+DomainBundle Export v0.1
+→ Technical Renderer v0.1
 → canonical CLI / Python application entrypoint
 → local model skill/adapter
 → remote GitHub Actions generation adapter
@@ -316,7 +301,8 @@ DomainData Assembler
 
 ## Ещё не сделано
 
-- DomainData assembler/export bundle;
+- DomainData Assembler implementation;
+- DomainBundle exporter/manifest/atomic-write semantics;
 - technical renderer;
 - canonical CLI/application entrypoint;
 - local model skill/adapter;
