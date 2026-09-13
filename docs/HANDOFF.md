@@ -15,10 +15,10 @@
 
 Репозиторий: `MysterioCrypto/domain_generator`.
 
-`main` после merge design PR #40:
+`main` после merge PR #41:
 
 ```text
-58600a6696bccc6da2a2e66c259713e81c465ec1
+e050dc8c609f01c70ebfc7c2fe79e9c4b425ff6a
 ```
 
 ### Уже в main
@@ -30,39 +30,12 @@
 - PR #35/#36 DomainData Assembler design + implementation — merged;
 - PR #37/#38 DomainBundle Export design + implementation — merged;
 - PR #39 post-merge exporter status sync — merged;
-- PR #40 Technical Renderer v0.1 normative design — merged.
+- PR #40 Technical Renderer v0.1 normative design — merged;
+- PR #41 Technical Renderer v0.1 implementation — accepted and merged.
 
-Последний принятый implementation checkpoint на `main` — `DomainBundle Export v0.1`.
+Последний принятый implementation checkpoint — `Technical Renderer v0.1`.
 
-## Текущий implementation checkpoint
-
-PR #41 `Implement Technical Renderer v0.1` открыт и **не должен merge-иться без отдельного принятия пользователя**.
-
-Implementation branch:
-
-```text
-impl/m2-technical-renderer-v0.1
-```
-
-Реализовано:
-
-- `render_technical_map(assembly, output_path)`;
-- optional `render` package extra;
-- headless Matplotlib/Agg;
-- elevation / vegetation / water raster composition;
-- exact lake RegionSet outlines;
-- river centerlines и minimal direction markers;
-- Point/POI, Corridor, Band width samples, Area/Surface geometry;
-- labels, north marker, scale, legend, domain boundary;
-- 1600 px long-side baseline с сохранением domain aspect ratio;
-- nearest-neighbour raster visualization без semantic smoothing;
-- caller-provided PNG path;
-- immediate parent creation only;
-- existing-target rejection;
-- temporary sibling file + PNG validation + final rename;
-- renderer не использует RNG, не reroll-ит и не мутирует `DomainAssembly`.
-
-Подтверждённый полный CI текущей implementation semantics:
+Подтверждённый полный CI PR #41:
 
 ```text
 290 passed
@@ -70,7 +43,7 @@ impl/m2-technical-renderer-v0.1
 
 В suite входят 9 renderer-specific tests: output dimensions/aspect, deterministic PNG bytes, no mutation, current geometry/network coverage, existing-target protection, parent semantics, field mismatch, PNG suffix и temp cleanup при failure.
 
-## Реализованная сквозная граница до renderer
+## Реализованная сквозная граница
 
 ```text
 DomainSpec
@@ -84,43 +57,15 @@ DomainSpec
   -> Final Validation
   -> DomainData Assembler
   -> DomainAssembly
-  -> DomainBundle Export
-  -> persisted bundle
+     ├-> DomainBundle Export -> persisted bundle
+     └-> Technical Renderer -> technical-map.png
 ```
 
-В PR #41 добавляется downstream diagnostic branch:
-
-```text
-DomainAssembly
-  -> Technical Renderer
-  -> technical-map.png
-```
-
-`technical-map.png` остаётся non-canonical artifact.
-
-## Technical Renderer v0.1 semantics
-
-Normative design: `docs/design/technical-renderer-v0.1.md`.
-
-Базовый visual stack:
-
-```text
-elevation
-→ vegetation overlay
-→ water mask
-→ lake outlines
-→ river centerlines
-→ semantic features
-→ labels / north / scale / legend
-```
-
-North сверху, world-space aspect ratio сохраняется, raster cells не проходят semantic smoothing, BandGeometry не получает скрыто синтезированный polygon footprint.
+`technical-map.png` остаётся non-canonical diagnostic artifact. Renderer использует optional `render` dependency, headless Matplotlib/Agg, сохраняет north-up/world aspect ratio, отображает canonical raster/vector semantics без semantic smoothing и не использует RNG/не мутирует `DomainAssembly`.
 
 ## Граница будущей художественной карты
 
-`technical-map.png` — diagnostic artifact, а не оптимальный control image для image-generation model.
-
-Зафиксирована отдельная downstream идея:
+`technical-map.png` не считается оптимальным control image для image-generation model. Зафиксирована отдельная downstream идея:
 
 ```text
 DomainData + canonical rasters + vectors
@@ -134,9 +79,7 @@ image generation / artistic transform
 campaign-map.png
 ```
 
-Guide renderer пока не спроектирован. Его задача — сохранять canonical geography, но представлять её image model в более подходящем виде, чем nearest-neighbour technical grid.
-
-Не рассчитывать на raw `.npy`/JSON как на надёжный прямой spatial interface к image-generation model.
+Guide renderer пока не спроектирован. Его задача — сохранять canonical geography, но представлять её image model в более подходящем виде, чем nearest-neighbour technical grid. Не рассчитывать на raw `.npy`/JSON как на надёжный прямой spatial interface к image-generation model.
 
 ## Рабочий процесс
 
@@ -148,15 +91,18 @@ Guide renderer пока не спроектирован. Его задача —
 - Implementation PR не merge-ить без явного принятия пользователем checkpoint.
 - GitHub Actions pytest — каноническая execution-проверка.
 
-## Следующий порядок
-
-Сейчас требуется отдельное принятие PR #41.
-
-После принятия/merge:
+## Следующий bounded design gate
 
 ```text
-canonical CLI / Python application entrypoint — design gate
-→ local model skill/adapter
+canonical CLI / Python application entrypoint
+```
+
+Нужно спроектировать единый application-level вызов, который связывает уже готовые stages для local и remote execution: request input, output path, compile/generate/assemble/export/render orchestration, ошибки и exit codes, Python API и CLI boundary.
+
+После него:
+
+```text
+local model skill/adapter
 → remote GitHub Actions generation adapter
 ```
 
