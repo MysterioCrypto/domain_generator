@@ -12,9 +12,11 @@ from domain_generator.contracts import (
     DomainSpec,
     GenerationConfig,
     GenerationPlan,
+    GenerationRequest,
     LayoutCandidate,
     ValidationResult,
 )
+from domain_generator.presets import PresetCatalog
 from domain_generator.schema_export import (
     ROOT_CONTRACT_MODELS,
     generate_schema_documents,
@@ -76,19 +78,28 @@ def sample_payloads() -> dict[type, dict]:
         "moisture_noise_scale_km": 12.0,
         "vegetation_slope_zero_deg": 45.0,
     }
+    domain_spec = {
+        "schema_version": "0.1",
+        "id": "schema-test-domain",
+        "seed": 7,
+        "domain": {"size": {"width_km": 2.0, "height_km": 2.0}},
+        "simulation": {"cell_size_km": 1.0},
+        "hydrology": hydrology,
+        "surface": surface,
+        "features": [],
+        "constraints": [],
+    }
+    generation_config = {
+        "generation_config_version": "0.1",
+        "semantic": {
+            "max_attempts": 4,
+            "target_valid_candidates": 2,
+        },
+        "observability": {},
+    }
 
     return {
-        DomainSpec: {
-            "schema_version": "0.1",
-            "id": "schema-test-domain",
-            "seed": 7,
-            "domain": {"size": {"width_km": 2.0, "height_km": 2.0}},
-            "simulation": {"cell_size_km": 1.0},
-            "hydrology": hydrology,
-            "surface": surface,
-            "features": [],
-            "constraints": [],
-        },
+        DomainSpec: domain_spec,
         GenerationPlan: {
             "plan_version": "0.1",
             "source": {
@@ -124,14 +135,7 @@ def sample_payloads() -> dict[type, dict]:
                 "weighted_mean_score": 1.0,
             },
         },
-        GenerationConfig: {
-            "generation_config_version": "0.1",
-            "semantic": {
-                "max_attempts": 4,
-                "target_valid_candidates": 2,
-            },
-            "observability": {},
-        },
+        GenerationConfig: generation_config,
         DomainData: {
             "domain_data_version": "0.1",
             "identity": {"id": "schema-test-domain"},
@@ -178,6 +182,15 @@ def sample_payloads() -> dict[type, dict]:
                     "field_id": "elevation",
                 },
             ],
+        },
+        GenerationRequest: {
+            "request_version": "0.1",
+            "domain_spec": domain_spec,
+            "generation_config": generation_config,
+        },
+        PresetCatalog: {
+            "preset_catalog_version": "0.1",
+            "presets": [],
         },
     }
 

@@ -1,5 +1,6 @@
 """Serializable Core 0.1 contracts and immutable value models."""
 
+from .application import GenerationRequest
 from .bundle import BundleFileEntry, BundleFileKind, BundleManifest
 from .common import ConstraintStrength, DomainCompass, FeaturePart, Relation
 from .config import GenerationConfig, ObservabilityConfig, SemanticGenerationConfig
@@ -28,6 +29,7 @@ __all__ = [
     "FieldRole",
     "GenerationConfig",
     "GenerationPlan",
+    "GenerationRequest",
     "Geometry",
     "HydrologySpec",
     "LayoutCandidate",
