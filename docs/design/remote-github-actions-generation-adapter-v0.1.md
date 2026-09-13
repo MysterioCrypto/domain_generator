@@ -192,14 +192,14 @@ Diagnostics не являются частью canonical DomainBundle.
 
 ## 8. Permissions и repository writes
 
-Workflow использует минимальные permissions:
+Generation workflow использует минимальные permissions:
 
 ```yaml
 permissions:
   contents: read
 ```
 
-Workflow не выполняет `git push`, не создаёт commits/releases и не записывает generated outputs обратно в repository.
+Generation workflow не выполняет `git push`, не создаёт commits/releases и не записывает generated outputs обратно в repository.
 
 GitHub Actions artifact storage — единственный v0.1 publication mechanism.
 
@@ -212,7 +212,7 @@ user intent
   ↓
 agent/Codex authors request files
   ↓
-temporary branch
+temporary branch: remote-generation/<id>
   ↓
 remote-requests/<id>/...
   ↓
@@ -223,13 +223,66 @@ PR-triggered GitHub Actions run
 artifact retrieval
   ↓
 DomainBundle / technical preview / diagnostics
+  ↓
+close PR without merge
+  ↓
+delete temporary branch
 ```
-
-После retrieval временный PR может быть закрыт без merge.
 
 Способ отображения downloaded PNG inline в конкретном chat host является downstream UI concern и не входит в adapter semantics. Adapter обязан сделать preview легко извлекаемым отдельным artifact.
 
-## 10. Local Codex path сохраняется
+## 10. Temporary branch lifecycle и cleanup
+
+Remote-generation branches являются эфемерным transport state и не должны накапливаться в repository.
+
+Canonical branch namespace для agent-driven generation:
+
+```text
+remote-generation/<request-id>
+```
+
+Lifecycle:
+
+```text
+create branch
+→ create request files
+→ open generation PR
+→ run workflow
+→ retrieve artifacts/diagnostics
+→ close PR without merge
+→ delete branch
+```
+
+Удаление branch не является частью generation semantics и не должно происходить внутри read-only generation workflow.
+
+Для автоматического cleanup v0.1 допускается отдельный workflow:
+
+```text
+.github/workflows/cleanup-remote-generation.yml
+```
+
+Он запускается только на `pull_request` event `closed` и только если одновременно выполнены условия:
+
+- PR head repository = текущий repository, не fork;
+- `head.ref` начинается с `remote-generation/`;
+- PR уже закрыт;
+- target/base branch не удаляется;
+- workflow не имеет доступа к generation inputs/artifacts для изменения world state.
+
+Только cleanup workflow получает минимально необходимое write permission для удаления head branch:
+
+```yaml
+permissions:
+  contents: write
+```
+
+Generation workflow при этом остаётся строго `contents: read`.
+
+Cleanup failure не изменяет результат уже завершённой generation: ветку можно удалить вручную позднее. Artifacts принадлежат workflow run и сохраняются согласно artifact retention policy независимо от дальнейшего удаления временной branch; удаление самого workflow run отдельно удаляет связанные artifacts.
+
+GitHub repository setting `Automatically delete head branches` полезен для обычных merged PR, но не является достаточным механизмом для generation PR, которые обычно закрываются без merge.
+
+## 11. Local Codex path сохраняется
 
 Remote adapter не заменяет repository-local Codex integration.
 
@@ -252,12 +305,13 @@ Codex/chat/client
 
 Оба используют один application/CLI contract.
 
-## 11. Implementation slice v0.1
+## 12. Implementation slice v0.1
 
 Implementation PR должен добавить минимум:
 
 ```text
 .github/workflows/generate-domain.yml
+.github/workflows/cleanup-remote-generation.yml
 scripts/remote_generation.py
 docs/integrations/github-actions-generation.md
 remote-requests/example/
@@ -266,12 +320,12 @@ tests/test_github_actions_generation_adapter.py
 
 `scripts/remote_generation.py` допустим как repository integration helper, но он не входит в `src/domain_generator` и не становится Core API. Его обязанности ограничены path safety, execution metadata, CLI invocation orchestration и diagnostics packaging.
 
-## 12. Tests
+## 13. Tests
 
 Минимальный test coverage:
 
-- workflow имеет `workflow_dispatch` и PR path filter `remote-requests/**`;
-- workflow permissions — `contents: read`;
+- generation workflow имеет `workflow_dispatch` и PR path filter `remote-requests/**`;
+- generation workflow permissions — `contents: read`;
 - semantic inputs не дублируются отдельными workflow parameters;
 - exact checkout/revision используется без secondary checkout `main`;
 - helper rejects absolute/traversal/out-of-workspace paths;
@@ -279,12 +333,16 @@ tests/test_github_actions_generation_adapter.py
 - optional presets корректно поддерживается;
 - success создаёт bundle/preview/diagnostics layout;
 - CLI failure сохраняет diagnostics и остаётся failure;
-- workflow использует `actions/upload-artifact@v4`;
-- нет `git push`, semantic reroll/repair loop или direct internal-stage execution.
+- generation workflow использует `actions/upload-artifact@v4`;
+- generation workflow не имеет `contents: write`, `git push`, semantic reroll/repair loop или direct internal-stage execution;
+- cleanup workflow запускается только на closed PR;
+- cleanup workflow удаляет только same-repository head refs с prefix `remote-generation/`;
+- cleanup workflow не способен удалить default/base branch по ошибке;
+- cleanup workflow write permission изолирован от generation workflow.
 
-Network GitHub API test не обязателен для unit/static suite. Первый реальный merged workflow должен быть отдельно проверен end-to-end test run через temporary `remote-requests/**` PR.
+Network GitHub API test не обязателен для unit/static suite. Первый реальный merged workflow должен быть отдельно проверен end-to-end test run через temporary `remote-generation/**` branch + `remote-requests/**` PR, включая artifact retrieval, PR close и branch cleanup.
 
-## 13. Out of scope v0.1
+## 14. Out of scope v0.1
 
 - LLM внутри GitHub Actions;
 - automatic semantic repair/reroll;
@@ -296,7 +354,7 @@ Network GitHub API test не обязателен для unit/static suite. Пе
 - Presentation/ImageGen Guide Renderer;
 - изменение Core contracts/pipeline semantics.
 
-## 14. Acceptance boundary
+## 15. Acceptance boundary
 
 Design принят до implementation согласно INV-006.
 
