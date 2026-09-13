@@ -1,5 +1,6 @@
 """Serializable Core 0.1 contracts and immutable value models."""
 
+from .bundle import BundleFileEntry, BundleFileKind, BundleManifest
 from .common import ConstraintStrength, DomainCompass, FeaturePart, Relation
 from .config import GenerationConfig, ObservabilityConfig, SemanticGenerationConfig
 from .data import DomainData, FieldDescriptor, FieldRole, RiverNetwork
@@ -12,6 +13,9 @@ from .validation import RankingResult, ValidationResult, ValidationStage
 __all__ = [
     "AreaGeometry",
     "BandGeometry",
+    "BundleFileEntry",
+    "BundleFileKind",
+    "BundleManifest",
     "ConstraintSpec",
     "ConstraintStrength",
     "CorridorGeometry",
