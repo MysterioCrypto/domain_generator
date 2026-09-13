@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -27,6 +27,6 @@ class HydrologyState:
     flow_accumulation_km2: np.ndarray
     stream_mask: np.ndarray
     lake_candidates: tuple[LakeCandidate, ...]
-    lake_features: dict[str, HydroFeature]
     river_network: RiverNetwork
     water_depth_m: np.ndarray
+    lake_features: dict[str, HydroFeature] = field(default_factory=dict)
