@@ -12,9 +12,11 @@ from .contracts import (
     DomainSpec,
     GenerationConfig,
     GenerationPlan,
+    GenerationRequest,
     LayoutCandidate,
     ValidationResult,
 )
+from .presets import PresetCatalog
 
 JSON_SCHEMA_DIALECT: Final = "https://json-schema.org/draft/2020-12/schema"
 
@@ -26,11 +28,13 @@ ROOT_CONTRACT_MODELS: Final[dict[str, type[BaseModel]]] = {
     "generation-config.schema.json": GenerationConfig,
     "domain-data.schema.json": DomainData,
     "bundle-manifest.schema.json": BundleManifest,
+    "generation-request.schema.json": GenerationRequest,
+    "preset-catalog.schema.json": PresetCatalog,
 }
 
 
 def generate_schema_documents() -> dict[str, dict[str, object]]:
-    """Generate JSON Schema documents for the public Core 0.1 root contracts."""
+    """Generate JSON Schema documents for the public Core/Application 0.1 root contracts."""
     documents: dict[str, dict[str, object]] = {}
     for filename, model in ROOT_CONTRACT_MODELS.items():
         schema = model.model_json_schema(by_alias=True, mode="validation")
