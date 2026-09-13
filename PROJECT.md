@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: integration-and-hardening
 status: in-progress
 current_milestone: M11-acceptance-suite
-checkpoint: remote-github-actions-generation-adapter-v0.1-implementation
-next_topic: remote-github-actions-generation-adapter-v0.1-acceptance
+checkpoint: remote-github-actions-generation-adapter-v0.1-merged
+next_topic: m11-acceptance-suite-design
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -21,6 +21,7 @@ completed:
 implemented_integrations:
   - local-model-skill-adapter-v0.1
   - codex-integration-packaging-v0.1
+  - remote-github-actions-generation-adapter-v0.1
 accepted_designs:
   - dependent-placement-site-selection-v0.1
   - end-to-end-runtime-bundle-v0.1
@@ -36,6 +37,7 @@ accepted_designs:
   - remote-github-actions-generation-adapter-v0.1
 implemented_infrastructure:
   - github-actions-pytest-ci-on-push-and-pull-request
+  - github-actions-remote-domain-generation-v0.1
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
@@ -56,7 +58,7 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 # Состояние проекта
 
-`domain_generator` — независимое setting-agnostic procedural Core. M0–M10 функционально завершены; M11 Acceptance Suite остаётся release gate Core 0.1.
+`domain_generator` — независимое setting-agnostic procedural Core. M0–M10 функционально завершены. Integration track до Core 0.1 также собран; текущий release gate — M11 Acceptance Suite.
 
 ## Карта прогресса
 
@@ -66,19 +68,20 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 [готово] canonical Python API + CLI
 [готово] Local Model Skill / Adapter v0.1
 [готово] Codex Integration Packaging v0.1
+[готово] Remote GitHub Actions Generation Adapter v0.1
+[готово] remote-generation E2E + automatic branch cleanup
+[готово] visual remote smoke example
 
-[PR #52 / 341 passed] Remote GitHub Actions Generation Adapter v0.1 — implementation
-[сейчас] отдельное принятие implementation PR #52
-[после merge] real remote-generation E2E + cleanup verification
+[дальше] M11 Acceptance Suite — design gate
 [release gate] M11 Acceptance Suite / Core 0.1 hardening
 [отдельно позже] Presentation / ImageGen Guide Renderer
 ```
 
-## Remote GitHub Actions Generation Adapter v0.1 — implementation checkpoint
+## Remote GitHub Actions Generation Adapter v0.1 — complete
 
 Normative design: `docs/design/remote-github-actions-generation-adapter-v0.1.md`.
 
-PR #52 реализует:
+Implementation merged through PR #52. It provides:
 
 ```text
 workflow_dispatch                 pull_request: remote-requests/**
@@ -96,72 +99,43 @@ workflow_dispatch                 pull_request: remote-requests/**
  domain-bundle  technical-preview  generation-diagnostics
 ```
 
-Добавлены:
+Verified properties:
+
+- generation workflow is `contents: read`;
+- cleanup write permission is isolated in the closed-PR cleanup workflow;
+- cleanup only targets same-repository `remote-generation/*` branches;
+- exact checked-out revision is recorded as generator provenance;
+- request/preset paths reject absolute/traversal/out-of-workspace inputs;
+- canonical CLI runs at most once;
+- semantic failures do not trigger reroll/repair;
+- outputs are Actions artifacts, never repository commits.
+
+## Real E2E verification
+
+A real temporary `remote-generation/cleanup-e2e-20260913` flow was executed after merge:
 
 ```text
-.github/workflows/generate-domain.yml
-.github/workflows/cleanup-remote-generation.yml
-scripts/remote_generation.py
-docs/integrations/github-actions-generation.md
-remote-requests/example/
-tests/test_github_actions_generation_adapter.py
-```
-
-Проверенные свойства:
-
-- generation workflow использует `contents: read`;
-- cleanup write permission изолирован в closed-PR workflow;
-- cleanup ограничен same-repository branches `remote-generation/*`;
-- request/preset paths защищены от absolute/traversal/out-of-workspace inputs;
-- canonical `domain-generator generate` вызывается максимум один раз;
-- semantic failure не вызывает reroll/repair;
-- outputs не коммитятся в repository;
-- PR workflow checkout-ит exact PR head SHA;
-- `generator_commit` получает exact actually checked-out revision, а synthetic/raw `github_sha` хранится отдельно;
-- full suite: `341 passed`.
-
-## Реальный remote smoke-test
-
-Новый `generate-domain` workflow уже был реально выполнен на PR #52, потому что implementation добавляет `remote-requests/example/**`.
-
-Исправленный smoke run:
-
-```text
-run: 34775535265
-head: d16c681ebf1d97c00568e7c7f130c81654a9297d
-result: success
-```
-
-Он успешно прошёл exact checkout, canonical generation и создал все три artifacts:
-
-```text
-domain-bundle
-technical-preview
-generation-diagnostics
-```
-
-Artifact ZIP успешно извлекается GitHub connector-ом в chat runtime. Прямое распаковывание ZIP/inline PNG в текущем runtime пока не подтверждено из-за ошибки файлового runtime; это downstream retrieval/UI issue, а не failure remote generation.
-
-До implementation acceptance PR #52 не merge-ится.
-
-## После merge
-
-Первый production-shaped E2E выполняется отдельным temporary flow:
-
-```text
-remote-generation/<id>
-→ remote-requests/<id>/...
-→ PR
-→ generation artifacts
+create temporary branch
+→ create remote request
+→ open PR #54
+→ generate-domain success
 → close PR without merge
-→ cleanup workflow
-→ verify branch deleted
+→ cleanup-remote-generation success
+→ branch no longer exists
 ```
 
-Этот post-merge E2E нужен, потому что branch PR #52 намеренно имеет namespace `impl/...` и cleanup workflow не должен её удалять.
+This verifies the complete branch lifecycle, not only static tests.
 
-После успешного E2E следующий Core gate — M11 Acceptance Suite / Core 0.1 hardening.
+## Visual smoke example
+
+PR #53 added `remote-requests/visual-example/` with a real ridge preset and a larger grid. The resulting technical preview visibly contains generated terrain, water/surface layers and feature geometry. This remains an engineering diagnostic representation, not a player-facing map.
+
+## Next gate: M11 Acceptance Suite
+
+The next bounded design slice is the Core 0.1 acceptance suite. It should define fixed representative specs/seeds and semantic assertions for the already implemented pipeline before any release-candidate declaration.
+
+Presentation/ImageGen Guide Renderer remains a separate downstream track and does not block M11.
 
 ## Invariants
 
-INV-001..INV-011 remain unchanged. Implementation PRs merge only after separate explicit acceptance.
+INV-001..INV-011 remain unchanged. Architecture changes are discussed and documented before implementation; implementation PRs merge only after separate explicit acceptance.
