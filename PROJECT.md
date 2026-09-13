@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: integration-and-hardening
 status: in-progress
 current_milestone: M11-acceptance-suite
-checkpoint: local-model-skill-adapter-v0.1-implementation
-next_topic: local-model-skill-adapter-v0.1-acceptance
+checkpoint: codex-integration-packaging-v0.1-design
+next_topic: codex-integration-packaging-v0.1-implementation
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -31,6 +31,7 @@ accepted_designs:
   - technical-renderer-v0.1
   - canonical-cli-python-entrypoint-v0.1
   - local-model-skill-adapter-v0.1
+  - codex-integration-packaging-v0.1
 implemented_infrastructure:
   - github-actions-pytest-ci-on-push-and-pull-request
 canonical_documents:
@@ -46,6 +47,7 @@ canonical_documents:
   technical_renderer: docs/design/technical-renderer-v0.1.md
   canonical_entrypoint: docs/design/canonical-cli-python-entrypoint-v0.1.md
   local_model_adapter: docs/design/local-model-skill-adapter-v0.1.md
+  codex_integration: docs/design/codex-integration-packaging-v0.1.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
 ---
 
@@ -63,10 +65,11 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 [готово] Technical Renderer v0.1
 [готово] GenerationRequest + PresetCatalog v0.1
 [готово] canonical Python API + domain-generator CLI
+[готово] Local Model Skill / Adapter v0.1
 
-[PR #47 / CI 323 passed] Local Model Skill / Adapter v0.1 — implementation
-[сейчас] отдельное принятие implementation PR #47
-[после merge] Remote GitHub Actions Generation Adapter — design gate
+[принято] Codex Integration Packaging v0.1 — design
+[дальше] Codex Integration Packaging v0.1 — implementation
+[потом] Remote GitHub Actions Generation Adapter
 [release gate] M11 Acceptance Suite / Core 0.1 hardening
 [отдельно позже] Presentation / ImageGen Guide Renderer
 ```
@@ -91,71 +94,68 @@ DomainAssembly
 atomic application publication
 ```
 
-## Local Model Skill / Adapter v0.1 — accepted design / implementation ready in PR #47
+## Local Model Skill / Adapter v0.1 — implemented and merged
 
 Normative semantics: `docs/design/local-model-skill-adapter-v0.1.md`.
 
-Implementation boundary:
+Provider-neutral integration реализует model-facing preset projection, optional guide validation, strict `LocalModelDecision`, conservative edit policy, compiler preflight, maximum-two-repair orchestration, exactly one canonical generation after successful preflight and structured audit without chain-of-thought.
+
+Concrete model provider/backend остаётся внешним к Core.
+
+## Codex Integration Packaging v0.1 — accepted design
+
+Normative semantics: `docs/design/codex-integration-packaging-v0.1.md`.
+
+Цель — сделать repository self-explanatory для Codex без отдельного OpenAI backend:
 
 ```text
-user intent
-  + base GenerationRequest
-  + PresetCatalog
-  + optional PresetGuideCatalog
-        ↓
-ModelAuthoringContext
-        ↓
-provider-neutral LocalModelHost
-        ↓
-LocalModelDecision
-        ├─ needs_clarification → no generation
-        └─ ready
+Codex
+  ├─ root AGENTS.md
+  └─ .codex/skills/domain-generator-authoring/SKILL.md
              ↓
-        edit-policy validation
-        registry/compiler preflight
+GenerationRequest + PresetCatalog
              ↓
-        initial draft + max 2 technical repairs
+canonical domain-generator CLI / public application API
              ↓
-        exactly one canonical generate_domain_bundle(...)
-             ↓
-        DomainBundle + optional technical preview
+DomainBundle + optional technical preview
 ```
 
-PR #47 implements:
+Границы:
 
-- adapter namespace independent of concrete model providers;
-- deterministic model-facing projection of canonical presets;
-- optional guide validation against canonical preset ids/parameters;
-- `ready` / `needs_clarification` decision contracts;
-- conservative base-request edit policy, including hidden seed-change rejection by default;
-- provider-neutral `LocalModelHost` Protocol;
-- compiler preflight before generation;
-- bounded repair loop: maximum three drafts total;
-- no model repair after generation failure and no hidden reroll/replanning;
-- exactly one application generation call after successful preflight;
-- structured audit digests/diagnostics without chain-of-thought;
-- reference skill `docs/skills/local-model-authoring-v0.1.md`;
-- 11 adapter-specific tests.
+- `AGENTS.md` — короткая постоянная карта проекта и workflow;
+- Codex skill — специализированная authoring/generation instruction;
+- skill ссылается на provider-neutral `docs/skills/local-model-authoring-v0.1.md`, а не вводит новую semantics;
+- Codex не вызывает internal generation stages и не редактирует canonical output как world-authoring mechanism;
+- bounded technical repair и no-hidden-reroll policy сохраняются;
+- concrete OpenAI API client/CodexHost/MCP остаются вне v0.1;
+- repository-local skill также должен быть пригоден для user-level установки через `$skill-installer`.
 
-Full suite on clean implementation head before final status-doc sync: `323 passed` with no project pytest warnings.
+## Следующий implementation checkpoint
 
-Concrete Ollama/llama.cpp/OpenAI backend remains out of scope; the adapter supplies the stable host boundary that such integrations can implement later.
-
-## Current checkpoint rule
-
-PR #47 remains open and must not be merged until the user separately accepts this implementation checkpoint.
-
-After acceptance/merge the next bounded integration design gate is:
+Отдельный implementation PR должен добавить:
 
 ```text
-Remote GitHub Actions Generation Adapter
+AGENTS.md
+.codex/skills/domain-generator-authoring/SKILL.md
+docs/integrations/codex.md
+tests/test_codex_packaging.py
 ```
 
-Then M11 Acceptance Suite / Core 0.1 hardening and release candidate work.
+Implementation PR не merge-ится без отдельного явного принятия пользователя.
 
-## Still outside this checkpoint
+## После Codex packaging
 
-- concrete local-model backend/runtime;
+```text
+Remote GitHub Actions Generation Adapter — design gate
+→ M11 Acceptance Suite / Core 0.1 hardening
+→ Core 0.1 release candidate
+```
+
+Presentation/ImageGen Guide Renderer остаётся отдельным downstream track.
+
+## Still outside current checkpoint
+
+- concrete local-model/OpenAI backend runtime;
 - Remote GitHub Actions Generation Adapter;
 - M11 Acceptance Suite / release hardening;
 - presentation/imagegen guide renderer;
