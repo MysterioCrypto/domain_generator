@@ -1,0 +1,130 @@
+name: generate-domain
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_path:
+        description: Repository-relative GenerationRequest JSON path
+        required: true
+        type: string
+      presets_path:
+        description: Optional repository-relative PresetCatalog JSON path
+        required: false
+        default: ""
+        type: string
+      preview:
+        description: Render technical preview
+        required: true
+        default: true
+        type: boolean
+  pull_request:
+    paths:
+      - "remote-requests/**"
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact generation revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install exact checked-out generator
+        run: python -m pip install -e ".[render]"
+
+      - name: Resolve PR run manifest
+        if: github.event_name == 'pull_request'
+        id: manifest
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mapfile -t manifests < <(git diff --name-only "$BASE_SHA" "$HEAD_SHA" -- 'remote-requests/**/run.json')
+          if [[ "${#manifests[@]}" -eq 1 ]]; then
+            printf 'path=%s\n' "${manifests[0]}" >> "$GITHUB_OUTPUT"
+          else
+            echo "Expected exactly one changed remote-requests/**/run.json; found ${#manifests[@]}" >&2
+            printf 'path=%s\n' '__invalid_manifest_selection__.json' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run canonical generation once
+        id: generation
+        shell: bash
+        env:
+          DISPATCH_REQUEST_PATH: ${{ inputs.request_path }}
+          DISPATCH_PRESETS_PATH: ${{ inputs.presets_path }}
+          DISPATCH_PREVIEW: ${{ inputs.preview }}
+          PR_MANIFEST_PATH: ${{ steps.manifest.outputs.path }}
+        run: |
+          set +e
+          work_dir="$RUNNER_TEMP/domain-generation"
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            python scripts/remote_generation.py \
+              --workspace "$GITHUB_WORKSPACE" \
+              --work-dir "$work_dir" \
+              --manifest "$PR_MANIFEST_PATH"
+            code=$?
+          else
+            args=(
+              --workspace "$GITHUB_WORKSPACE"
+              --work-dir "$work_dir"
+              --request-path "$DISPATCH_REQUEST_PATH"
+              --preview "$DISPATCH_PREVIEW"
+            )
+            if [[ -n "$DISPATCH_PRESETS_PATH" ]]; then
+              args+=(--presets-path "$DISPATCH_PRESETS_PATH")
+            fi
+            python scripts/remote_generation.py "${args[@]}"
+            code=$?
+          fi
+          printf 'exit_code=%s\n' "$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload canonical DomainBundle
+        if: steps.generation.outputs.exit_code == '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: domain-bundle
+          path: ${{ runner.temp }}/domain-generation/bundle
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload technical preview
+        if: steps.generation.outputs.exit_code == '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: technical-preview
+          path: ${{ runner.temp }}/domain-generation/bundle/preview/technical-map.png
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload generation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generation-diagnostics
+          path: ${{ runner.temp }}/domain-generation/execution
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Preserve generation failure status
+        if: always() && steps.generation.outputs.exit_code != '0'
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.generation.outputs.exit_code }}
+        run: |
+          code="${EXIT_CODE:-1}"
+          echo "Remote generation failed with exit code $code" >&2
+          exit "$code"
