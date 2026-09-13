@@ -63,6 +63,7 @@ jobs:
         id: generation
         shell: bash
         env:
+          GENERATOR_COMMIT: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           DISPATCH_REQUEST_PATH: ${{ inputs.request_path }}
           DISPATCH_PRESETS_PATH: ${{ inputs.presets_path }}
           DISPATCH_PREVIEW: ${{ inputs.preview }}
