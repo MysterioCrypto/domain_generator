@@ -1,0 +1,33 @@
+{
+  "request_version": "0.1",
+  "domain_spec": {
+    "schema_version": "0.1",
+    "id": "acceptance-a01-minimal",
+    "label": "A01 Minimal",
+    "seed": 1001,
+    "domain": {"size": {"width_km": 8.0, "height_km": 6.0}},
+    "simulation": {"cell_size_km": 1.0},
+    "hydrology": {
+      "stream_threshold_km2": 1000.0,
+      "lake_min_area_km2": 1000.0,
+      "lake_min_depth_m": 1000.0,
+      "river_depth_at_threshold_m": 0.5,
+      "river_depth_exponent": 0.3
+    },
+    "surface": {
+      "moisture_base": 0.35,
+      "water_moisture_boost": 0.0,
+      "water_moisture_decay_km": 8.0,
+      "moisture_noise_amplitude": 0.0,
+      "moisture_noise_scale_km": 12.0,
+      "vegetation_slope_zero_deg": 45.0
+    },
+    "features": [],
+    "constraints": []
+  },
+  "generation_config": {
+    "generation_config_version": "0.1",
+    "semantic": {"max_attempts": 1, "target_valid_candidates": 1},
+    "observability": {}
+  }
+}
