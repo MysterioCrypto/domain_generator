@@ -60,9 +60,11 @@ target: core-0.1
 
 Preview остаётся non-canonical и не является источником истины.
 
-## M11 — Acceptance suite — DESIGN ПРИНЯТ, IMPLEMENTATION СЛЕДУЮЩИЙ
+## M11 — Acceptance suite — ЗАВЕРШЕНО
 
 Normative design: `docs/design/m11-acceptance-suite-v0.1.md`.
+
+Implementation merged through PR #57 after separate acceptance. Final implementation CI: `357 passed in 12.47s`.
 
 M11 фиксирует семь representative worlds:
 
@@ -78,9 +80,20 @@ M11 фиксирует семь representative worlds:
 
 M11 также проверяет canonical DomainBundle path и deterministic provenance. Technical preview не является Core binary golden.
 
-Если acceptance suite обнаруживает production bug, он исправляется отдельным bugfix PR; acceptance implementation не должен тихо менять Core semantics.
+Acceptance suite обнаружил production defect на границе Layout/soft constraints. Он был исправлен отдельным PR #58 с regression test и только после этого acceptance baseline A06 был зафиксирован.
 
-После green M11 можно формировать Core 0.1 release candidate.
+Release gate сейчас green:
+
+```text
+full unit/integration suite
+A01..A07 acceptance worlds
+exact replay all cases
+canonical bundle acceptance
+engine/hard invariants
+provenance/fingerprints/digests
+```
+
+Таким образом Core 0.1 готов к короткому release-candidate review / hardening без добавления новых generation semantics.
 
 # Параллельный integration track вне Core — ЗАВЕРШЁН ДЛЯ 0.1
 
@@ -103,6 +116,21 @@ Presentation / ImageGen Guide Renderer
 ```
 
 Этот слой не изменяет semantic world state и не блокирует Core 0.1.
+
+# После M11
+
+Следующий bounded step:
+
+```text
+Core 0.1 release-candidate review / hardening
+→ package/version/release metadata
+→ documentation consistency
+→ known-blocker review
+→ final clean CI checklist
+→ Core 0.1 release candidate declaration
+```
+
+Любое semantic изменение, найденное на этом этапе, снова проходит обычный design gate и отдельный implementation acceptance.
 
 # Вне Core 0.1
 
