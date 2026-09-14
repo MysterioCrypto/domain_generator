@@ -1,0 +1,71 @@
+{
+  "preset_catalog_version": "0.1",
+  "presets": [
+    {
+      "id": "massif",
+      "family": "terrain",
+      "layout": {
+        "mode": "geometry",
+        "shape": "band",
+        "parameters": {
+          "control_point_count": {"kind": "fixed", "type": "integer", "value": 5},
+          "curvature": {"kind": "fixed", "type": "float", "value": 0.42},
+          "width_km": {"kind": "fixed", "type": "float", "value": 38.0},
+          "width_sample_count": {"kind": "fixed", "type": "integer", "value": 9}
+        }
+      },
+      "effect": {
+        "stage": "terrain",
+        "operator": "ridge",
+        "parameters": {
+          "height_m": {"kind": "fixed", "type": "float", "value": 820.0},
+          "profile_power": {"kind": "fixed", "type": "float", "value": 1.15},
+          "roughness": {"kind": "fixed", "type": "float", "value": 0.72},
+          "roughness_scale_km": {"kind": "fixed", "type": "float", "value": 6.0}
+        }
+      }
+    },
+    {
+      "id": "upland",
+      "family": "terrain",
+      "layout": {
+        "mode": "geometry",
+        "shape": "area",
+        "parameters": {
+          "vertex_count": {"kind": "fixed", "type": "integer", "value": 10},
+          "radial_extent": {"kind": "fixed", "type": "float", "value": 0.26},
+          "radial_irregularity": {"kind": "fixed", "type": "float", "value": 0.18}
+        }
+      },
+      "effect": {
+        "stage": "terrain",
+        "operator": "raise",
+        "parameters": {
+          "height_m": {"kind": "fixed", "type": "float", "value": 260.0},
+          "blend_width_km": {"kind": "fixed", "type": "float", "value": 12.0}
+        }
+      }
+    },
+    {
+      "id": "basin",
+      "family": "terrain",
+      "layout": {
+        "mode": "geometry",
+        "shape": "area",
+        "parameters": {
+          "vertex_count": {"kind": "fixed", "type": "integer", "value": 9},
+          "radial_extent": {"kind": "fixed", "type": "float", "value": 0.24},
+          "radial_irregularity": {"kind": "fixed", "type": "float", "value": 0.16}
+        }
+      },
+      "effect": {
+        "stage": "terrain",
+        "operator": "depress",
+        "parameters": {
+          "depth_m": {"kind": "fixed", "type": "float", "value": 230.0},
+          "blend_width_km": {"kind": "fixed", "type": "float", "value": 11.0}
+        }
+      }
+    }
+  ]
+}
