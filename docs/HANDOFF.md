@@ -4,133 +4,91 @@
 
 ## Текущее состояние на 2026-09-14
 
-Core 0.1 M0–M11 завершены. Integration track (`Local Model Adapter`, `Codex Integration Packaging`, `Remote GitHub Actions Generation Adapter`) также реализован и проверен end-to-end.
-
-**M11 Acceptance Suite v0.1 принят и смержен через PR #57.** Функциональный release gate Core 0.1 сейчас green.
-
-Accepted implementation head:
+Core 0.1 сохранён как pre-alpha snapshot:
 
 ```text
-6580046bcf13f38960ad75a8697e79a9594c881c
+release/0.1-prealpha
+9699c3d8079b8b9710d65eed60ff975158af0ad3
 ```
 
-Merge commit:
+Новая development line:
 
 ```text
-cd0a79b337f5e16e6336e36d843e8cba42251ca7
+dev/0.2
+9699c3d8079b8b9710d65eed60ff975158af0ad3
 ```
 
-Final CI:
+`main` административно выровнен на тот же snapshot перед началом 0.2.
+
+Старые рабочие branches очищены; долгоживущие refs: `main`, `release/0.1-prealpha`, `dev/0.2`.
+
+## Почему 0.2
+
+Core 0.1 доказал работоспособность инфраструктуры и exact replay, но visual diagnostic показал, что world-generation semantics слишком примитивны:
 
 ```text
-357 passed in 12.47s
+Terrain starts from flat zeros
++ sparse feature masks
+ridge ≈ blurred Band polyline
+river geometry ≈ raw D8 cell path
 ```
 
-## M11 acceptance worlds
+Guide Renderer experiment был закрыт без merge: улучшение presentation не решает upstream world-state problem.
+
+## Текущий design gate
+
+**v0.2 Batch A — Continuous Terrain Foundation**
+
+Normative design:
 
 ```text
-A01 minimal
-A02 terrain-ridge
-A03 hydrology-lake-river
-A04 surface
-A05 dependent-poi
-A06 constraints-ranking
-A07 complex-mixed
+docs/design/continuous-terrain-foundation-v0.2.md
 ```
 
-Каждый case имеет fixed request/catalog/seed и проверяет:
+Accepted scope:
 
 ```text
-exact replay
-+
-compact deterministic baseline
-+
-semantic correctness
+required TerrainSpec v0.2
+multi-scale deterministic base elevation
+stable RNG namespace per noise-layer id
+no per-domain min/max normalization
+smooth endpoint-preserving Band spine
+ridge as 2D massif influence
+smooth Area raise/depress transition
+TerrainState.base_elevation_m + final elevation_m
+0.2 acceptance migration
+early human-reviewed terrain visual checkpoint
 ```
 
-Baselines хранят canonical DomainData digest, field digests/shape/dtype/ranges, fingerprints, accepted attempt и validation summary. Они не переписываются автоматически.
+Hydrology, river geometry, climate/surface, placement и final artistic renderer не перерабатываются в Batch A.
 
-## Representative results
+## Development process 0.2
 
-### A03 Hydrology
-
-Фиксированный hydrology world создаёт:
+Шаги стали крупнее, но INV-006 сохраняется:
 
 ```text
-lake-0001
-72 river nodes
-36 river segments
+accepted design batch
+→ docs-only PR into dev/0.2
+→ merge after green CI
+→ one implementation PR for the whole batch
+→ tests + real elevation world
+→ visual checkpoint
+→ explicit human acceptance
+→ merge
 ```
 
-### A05 Dependent Placement
+После merge/abandon короткоживущую branch удаляем сразу.
 
-Проверяется stage boundary:
+## Следующий checkpoint
+
+После реализации Batch A нужен terrain-only visual review на representative world. Проверяем не красоту финальной карты, а сам elevation state:
 
 ```text
-Layout: reservation есть, final point нет
-Placement: final point есть
+continuous background relief
+broad massif instead of line-shaped ridge
+multi-scale relief
+smooth Area integration
+absence of obvious grid/corner artifacts
 ```
 
-### A06 Ranking
-
-Фиксированный ranking case выполняет:
-
-```text
-16 attempts
-2 hard-valid candidates: 8, 7
-разные soft scores
-winner = attempt 8
-```
-
-То есть acceptance действительно проверяет hard rejection и soft deterministic ranking, а не только тривиальный attempt 0.
-
-### A07 Complex Mixed
-
-Representative world объединяет terrain + hydrology + surface bias + deferred POI + hard/soft constraints + ranking + assembly + DomainBundle export. Baseline выбирает attempt 1 из двух valid candidates и содержит generated lake/river network.
-
-## Production defect discovered by M11
-
-A06 выявил дефект stage boundary: Layout пытался hard-валидировать structural soft constraint.
-
-Исправление было вынесено отдельным PR #58, а не спрятано в acceptance implementation:
-
-```text
-PR #58
-→ regression test
-→ 342 tests green
-→ separately accepted
-→ merged cd15b986e9a68f62fb7f8b80bd266e897125062b
-```
-
-После этого A06 прошёл и baseline был зафиксирован.
-
-## Core 0.1 release gate
-
-Green:
-
-```text
-full unit/integration suite
-A01..A07
-exact replay all cases
-compact deterministic baselines
-canonical bundle checks
-engine/hard invariants
-provenance/fingerprints/digests
-remote GitHub generation E2E
-```
-
-## Следующий bounded step
-
-Следующий этап не должен добавлять новые generation semantics. Нужен короткий **Core 0.1 release-candidate review / hardening**:
-
-```text
-package/version metadata
-release-facing documentation consistency
-known-blocker review
-final clean CI/release checklist
-→ Core 0.1 release candidate declaration
-```
-
-Любое обнаруженное semantic изменение снова проходит обычный design gate и не маскируется как release cleanup.
-
-Presentation/ImageGen Guide Renderer остаётся отдельным downstream track и не блокирует Core 0.1.
+Hydrology Batch B начинается только после явного принятия этого terrain checkpoint.
