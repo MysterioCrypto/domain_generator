@@ -1,0 +1,56 @@
+{
+  "request_version": "0.1",
+  "domain_spec": {
+    "schema_version": "0.1",
+    "id": "guide-demo-region",
+    "label": "Guide Renderer Demo Region",
+    "seed": 14092026,
+    "domain": {"size": {"width_km": 48.0, "height_km": 32.0}},
+    "simulation": {"cell_size_km": 0.5},
+    "hydrology": {
+      "stream_threshold_km2": 7.0,
+      "lake_min_area_km2": 0.75,
+      "lake_min_depth_m": 1.0,
+      "river_depth_at_threshold_m": 0.5,
+      "river_depth_exponent": 0.3
+    },
+    "surface": {
+      "moisture_base": 0.34,
+      "water_moisture_boost": 0.48,
+      "water_moisture_decay_km": 6.0,
+      "moisture_noise_amplitude": 0.12,
+      "moisture_noise_scale_km": 6.0,
+      "vegetation_slope_zero_deg": 45.0
+    },
+    "features": [
+      {"id": "ridge-01", "label": "Main Ridge", "preset": "demo_ridge"},
+      {"id": "basin-01", "label": "Lake Basin", "preset": "demo_basin"},
+      {"id": "wetland-01", "label": "Wet Ground", "preset": "demo_wetland"},
+      {"id": "settlement-01", "label": "Settlement", "preset": "demo_settlement"}
+    ],
+    "constraints": [
+      {
+        "id": "settlement-near-ridge",
+        "relation": "near",
+        "subject": {"feature": "settlement-01"},
+        "target": {"feature": "ridge-01", "part": "center"},
+        "strength": "hard",
+        "parameters": {"max_distance_km": 7.0}
+      },
+      {
+        "id": "settlement-near-center",
+        "relation": "near",
+        "subject": {"feature": "settlement-01"},
+        "target": {"domain_anchor": "center"},
+        "strength": "soft",
+        "parameters": {"max_distance_km": 24.0},
+        "weight": 1.0
+      }
+    ]
+  },
+  "generation_config": {
+    "generation_config_version": "0.1",
+    "semantic": {"max_attempts": 8, "target_valid_candidates": 2},
+    "observability": {}
+  }
+}
