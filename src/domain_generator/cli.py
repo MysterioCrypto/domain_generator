@@ -69,6 +69,11 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="also render preview/technical-map.png (requires domain-generator[render])",
     )
+    generate.add_argument(
+        "--guide-preview",
+        action="store_true",
+        help="also render preview/guide-map.png (requires domain-generator[render])",
+    )
     return parser
 
 
@@ -76,13 +81,16 @@ def _success_payload(result: GenerateApplicationResult) -> dict[str, object]:
     preview: str | None = None
     if result.technical_preview is not None:
         preview = result.technical_preview.relative_to(result.output_dir).as_posix()
-    return {
+    payload: dict[str, object] = {
         "accepted_attempt_index": result.assembly.data.provenance.accepted_attempt_index,
         "domain_id": result.assembly.data.identity.id,
         "output_dir": str(result.output_dir),
         "status": "ok",
         "technical_preview": preview,
     }
+    if result.guide_preview is not None:
+        payload["guide_preview"] = result.guide_preview.relative_to(result.output_dir).as_posix()
+    return payload
 
 
 def _run_generate(args: argparse.Namespace) -> int:
@@ -95,6 +103,7 @@ def _run_generate(args: argparse.Namespace) -> int:
             registry=registry,
             output_dir=args.output,
             render_preview=args.preview,
+            render_guide_preview=args.guide_preview,
         )
     except ApplicationInputError as exc:
         print(f"error: {exc}", file=sys.stderr)
