@@ -48,6 +48,7 @@ def test_generation_workflow_has_bounded_read_only_contract() -> None:
     assert "request_path:" in text
     assert "presets_path:" in text
     assert "preview:" in text
+    assert "guide_preview:" in text
     assert "seed:" not in text
     assert "width_km:" not in text
     assert "height_km:" not in text
@@ -59,6 +60,7 @@ def test_generation_workflow_has_bounded_read_only_contract() -> None:
     assert "actions/upload-artifact@v4" in text
     assert "domain-bundle" in text
     assert "technical-preview" in text
+    assert "guide-preview" in text
     assert "generation-diagnostics" in text
     assert "git push" not in text
     assert "--force" not in text
@@ -109,7 +111,33 @@ def test_safe_json_path_rejects_absolute_and_traversal(tmp_path: Path) -> None:
         helper.safe_json_path(workspace, "../outside.json", label="request")
 
 
-def test_manifest_resolution_supports_optional_presets(tmp_path: Path) -> None:
+def test_manifest_resolution_supports_optional_presets_and_guide_preview(tmp_path: Path) -> None:
+    helper = _load_helper()
+    workspace = tmp_path / "repo"
+    workspace.mkdir()
+    manifest = workspace / "run.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "run_version": "0.1",
+                "request_path": "request.json",
+                "presets_path": None,
+                "preview": True,
+                "guide_preview": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert helper.load_run_manifest(workspace, "run.json") == (
+        "request.json",
+        None,
+        True,
+        True,
+    )
+
+
+def test_old_manifest_without_guide_preview_defaults_false(tmp_path: Path) -> None:
     helper = _load_helper()
     workspace = tmp_path / "repo"
     workspace.mkdir()
@@ -126,7 +154,12 @@ def test_manifest_resolution_supports_optional_presets(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    assert helper.load_run_manifest(workspace, "run.json") == ("request.json", None, True)
+    assert helper.load_run_manifest(workspace, "run.json") == (
+        "request.json",
+        None,
+        True,
+        False,
+    )
 
 
 def test_helper_invokes_canonical_cli_exactly_once_and_writes_diagnostics(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -166,6 +199,7 @@ def test_helper_invokes_canonical_cli_exactly_once_and_writes_diagnostics(tmp_pa
     assert calls[0][0:2] == ["domain-generator", "generate"]
     assert "--presets" not in calls[0]
     assert "--preview" not in calls[0]
+    assert "--guide-preview" not in calls[0]
     assert (work_dir / "bundle" / "domain.json").is_file()
     assert (work_dir / "execution" / "request.json").is_file()
     assert (work_dir / "execution" / "stdout.txt").read_text(encoding="utf-8") == '{"status":"ok"}\n'
@@ -173,12 +207,14 @@ def test_helper_invokes_canonical_cli_exactly_once_and_writes_diagnostics(tmp_pa
     metadata = json.loads((work_dir / "execution" / "remote-execution.json").read_text(encoding="utf-8"))
     assert metadata["generator_commit"] == "exact-head-sha"
     assert metadata["github_sha"] == "synthetic-merge-sha"
+    assert metadata["preview"] is False
+    assert metadata["guide_preview"] is False
     assert metadata["cli_exit_code"] == 0
     assert metadata["transport_error"] is None
     assert metadata["request_sha256"]
 
 
-def test_helper_passes_optional_presets_and_preview(tmp_path: Path) -> None:
+def test_helper_passes_optional_presets_and_both_previews(tmp_path: Path) -> None:
     helper = _load_helper()
     workspace = tmp_path / "repo"
     workspace.mkdir()
@@ -196,6 +232,7 @@ def test_helper_passes_optional_presets_and_preview(tmp_path: Path) -> None:
         request_path="request.json",
         presets_path="presets.json",
         preview=True,
+        guide_preview=True,
         runner=fake_runner,
     )
 
@@ -203,6 +240,7 @@ def test_helper_passes_optional_presets_and_preview(tmp_path: Path) -> None:
     assert len(calls) == 1
     assert "--presets" in calls[0]
     assert "--preview" in calls[0]
+    assert "--guide-preview" in calls[0]
 
 
 def test_cli_failure_is_not_retried_and_diagnostics_survive(tmp_path: Path) -> None:
@@ -224,6 +262,7 @@ def test_cli_failure_is_not_retried_and_diagnostics_survive(tmp_path: Path) -> N
         request_path="request.json",
         presets_path=None,
         preview=False,
+        guide_preview=True,
         runner=failing_runner,
     )
 
@@ -232,6 +271,7 @@ def test_cli_failure_is_not_retried_and_diagnostics_survive(tmp_path: Path) -> N
     assert not (work_dir / "bundle").exists()
     assert (work_dir / "execution" / "stderr.txt").read_text(encoding="utf-8") == "generation failed\n"
     metadata = json.loads((work_dir / "execution" / "remote-execution.json").read_text(encoding="utf-8"))
+    assert metadata["guide_preview"] is True
     assert metadata["cli_exit_code"] == 4
     assert metadata["transport_error"] is None
 
