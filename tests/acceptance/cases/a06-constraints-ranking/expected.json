@@ -1,4 +1,23 @@
 {
   "case_version": "0.1",
-  "baseline": "PENDING"
+  "baseline": {
+    "accepted_attempt_index": 8,
+    "attempts_executed": 16,
+    "domain_data_sha256": "sha256:7474391a992bc6f0dcbcd6587f1897b6c8e0c2ee02002ea73befe7a97e6788e8",
+    "features": {
+      "ridge-01": {"family": "terrain", "geometry_type": "band", "source_type": "specified"}
+    },
+    "fields": {
+      "elevation": {"dtype": "float32", "max": 215.39010620117188, "min": 0.0, "sha256": "sha256:b23b16bb89fb8ac769b724885af38cab71ef4d536b6da61a37a430b74fe5b4f0", "shape": [16, 24]},
+      "moisture": {"dtype": "float32", "max": 0.3499999940395355, "min": 0.3499999940395355, "sha256": "sha256:46c4c60f3e97b3afb33fe1d36229bea3270e62e6cd3b90eaf4dad227c86d0e1c", "shape": [16, 24]},
+      "vegetation_density": {"dtype": "float32", "max": 0.3499999940395355, "min": 0.2851223051548004, "sha256": "sha256:671019028c126c104607f4009d1957fa40d7747be0c1916be8adcfdb6e9c1443", "shape": [16, 24]},
+      "water_depth": {"dtype": "float32", "max": 0.0, "min": 0.0, "sha256": "sha256:cf3dbf7452c612d72b306478b20c93a46ab96fccb1238059cc31d23691e95dc3", "shape": [16, 24]}
+    },
+    "generation_config_fingerprint": "sha256:3e1787aa7aa17119020c4243550fa77975faa60685df97f52530aaebf5e86aa9",
+    "plan_fingerprint": "sha256:92072232589d4a5c63c6eceea9db732c29da7384511f851be328a9b2e3b98765",
+    "rivers": {"nodes": 0, "segments": 0},
+    "spec_fingerprint": "sha256:53d12ce9a2324dca399ce85c7a6302b628d51d728ff3b0ab8a904d72007eae92",
+    "valid_candidate_attempts": [8, 7],
+    "validation": {"engine_invariants_passed": true, "hard_constraints_passed": true, "soft": {"weighted_mean_score": 0.7001867096851193, "worst_effective_violation": 0.2998132903148807}}
+  }
 }
