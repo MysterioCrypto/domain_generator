@@ -1,7 +1,7 @@
 ---
 design: m11-acceptance-suite-v0.1
 status: accepted
-implemented: false
+implemented: true
 scope: core-release-gate
 ---
 
@@ -418,9 +418,3 @@ tests/acceptance/test_replay.py
 ```
 
 Implementation PR может обнаружить Core bugs. Такие production fixes оформляются отдельно и не маскируются внутри acceptance implementation.
-
-## 22. Acceptance boundary
-
-Этот design принят до implementation согласно INV-006.
-
-Implementation PR M11 не merge-ится без отдельного явного пользовательского принятия после green CI и представления фактических acceptance results.

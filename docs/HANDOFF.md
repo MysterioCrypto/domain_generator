@@ -4,19 +4,29 @@
 
 ## Текущее состояние на 2026-09-14
 
-M0–M10 Core 0.1 функционально завершены. Integration track (`Local Model Adapter`, `Codex Integration Packaging`, `Remote GitHub Actions Generation Adapter`) реализован и проверен end-to-end.
+Core 0.1 M0–M11 завершены. Integration track (`Local Model Adapter`, `Codex Integration Packaging`, `Remote GitHub Actions Generation Adapter`) также реализован и проверен end-to-end.
 
-Текущий release gate — **M11 Acceptance Suite v0.1**. Design принят; следующий шаг — отдельный implementation PR.
+**M11 Acceptance Suite v0.1 принят и смержен через PR #57.** Функциональный release gate Core 0.1 сейчас green.
 
-Normative design:
+Accepted implementation head:
 
 ```text
-docs/design/m11-acceptance-suite-v0.1.md
+6580046bcf13f38960ad75a8697e79a9594c881c
 ```
 
-## Acceptance worlds
+Merge commit:
 
-Обязательные representative cases:
+```text
+cd0a79b337f5e16e6336e36d843e8cba42251ca7
+```
+
+Final CI:
+
+```text
+357 passed in 12.47s
+```
+
+## M11 acceptance worlds
 
 ```text
 A01 minimal
@@ -28,110 +38,99 @@ A06 constraints-ranking
 A07 complex-mixed
 ```
 
-Каждый case использует fixed request/catalog/seed и проверяет два слоя:
+Каждый case имеет fixed request/catalog/seed и проверяет:
 
 ```text
-exact replay / compact golden identity
+exact replay
++
+compact deterministic baseline
 +
 semantic correctness
 ```
 
-## Baseline strategy
+Baselines хранят canonical DomainData digest, field digests/shape/dtype/ranges, fingerprints, accepted attempt и validation summary. Они не переписываются автоматически.
 
-Repository не хранит большие `.npy` goldens как обязательную основу M11.
+## Representative results
 
-Для каждого case ожидается `expected.json` с compact metadata/digests и semantic expectations. Exact replay дополнительно сравнивает два независимых generation run внутри одной generator revision/version.
+### A03 Hydrology
 
-Canonical checks включают:
-
-- accepted attempt index;
-- DomainData deterministic digest/equality;
-- four canonical field payloads;
-- fingerprints/provenance;
-- DomainBundle manifest/hashes;
-- case-specific semantic assertions.
-
-Technical PNG не является Core release-gating binary golden.
-
-## Special acceptance cases
-
-### A05 Dependent POI
-
-Final result обязан содержать materialized POI point, satisfying SiteProfile requirements. Test-only stage harness дополнительно проверяет:
+Фиксированный hydrology world создаёт:
 
 ```text
-Layout → reservation exists, final point absent
-Placement → final point exists
+lake-0001
+72 river nodes
+36 river segments
 ```
 
-Нового production API для этого не создаётся.
+### A05 Dependent Placement
 
-### A06 Constraints / Ranking
-
-Case должен реально различать attempts/candidates и доказать canonical winner ordering:
+Проверяется stage boundary:
 
 ```text
-lower worst effective violation
-→ higher weighted mean score
-→ lower attempt index
+Layout: reservation есть, final point нет
+Placement: final point есть
 ```
 
-Hard-invalid candidate никогда не принимается.
+### A06 Ranking
+
+Фиксированный ranking case выполняет:
+
+```text
+16 attempts
+2 hard-valid candidates: 8, 7
+разные soft scores
+winner = attempt 8
+```
+
+То есть acceptance действительно проверяет hard rejection и soft deterministic ranking, а не только тривиальный attempt 0.
 
 ### A07 Complex Mixed
 
-Главный representative world объединяет terrain, hydrology, surface bias, dependent POI, hard/soft constraints, validation/ranking, assembly and bundle export.
+Representative world объединяет terrain + hydrology + surface bias + deferred POI + hard/soft constraints + ranking + assembly + DomainBundle export. Baseline выбирает attempt 1 из двух valid candidates и содержит generated lake/river network.
 
-## Bug policy
+## Production defect discovered by M11
 
-Если acceptance implementation обнаруживает production defect:
+A06 выявил дефект stage boundary: Layout пытался hard-валидировать structural soft constraint.
+
+Исправление было вынесено отдельным PR #58, а не спрятано в acceptance implementation:
 
 ```text
-red acceptance case
-→ separate bugfix PR
-→ green acceptance case
+PR #58
+→ regression test
+→ 342 tests green
+→ separately accepted
+→ merged cd15b986e9a68f62fb7f8b80bd266e897125062b
 ```
 
-Нельзя тихо менять Core behavior внутри M11 implementation только ради обновления baseline.
+После этого A06 прошёл и baseline был зафиксирован.
 
-`expected.json` также не переписывается автоматически при test failure.
+## Core 0.1 release gate
 
-## Release gate
-
-До Core 0.1 release candidate должны быть green:
+Green:
 
 ```text
 full unit/integration suite
 A01..A07
 exact replay all cases
+compact deterministic baselines
 canonical bundle checks
 engine/hard invariants
 provenance/fingerprints/digests
+remote GitHub generation E2E
 ```
 
-## Следующий implementation slice
+## Следующий bounded step
+
+Следующий этап не должен добавлять новые generation semantics. Нужен короткий **Core 0.1 release-candidate review / hardening**:
 
 ```text
-tests/acceptance/cases/a01-minimal/...
-tests/acceptance/cases/a02-terrain-ridge/...
-tests/acceptance/cases/a03-hydrology-lake-river/...
-tests/acceptance/cases/a04-surface/...
-tests/acceptance/cases/a05-dependent-poi/...
-tests/acceptance/cases/a06-constraints-ranking/...
-tests/acceptance/cases/a07-complex-mixed/...
-tests/acceptance/conftest.py
-tests/acceptance/support.py
-tests/acceptance/test_cases.py
-tests/acceptance/test_replay.py
+package/version metadata
+release-facing documentation consistency
+known-blocker review
+final clean CI/release checklist
+→ Core 0.1 release candidate declaration
 ```
 
-Implementation PR требует отдельного явного принятия перед merge.
+Любое обнаруженное semantic изменение снова проходит обычный design gate и не маскируется как release cleanup.
 
-После green/accepted M11:
-
-```text
-Core 0.1 hardening
-→ Core 0.1 release candidate
-```
-
-Presentation/ImageGen Guide Renderer остаётся отдельным downstream track.
+Presentation/ImageGen Guide Renderer остаётся отдельным downstream track и не блокирует Core 0.1.
