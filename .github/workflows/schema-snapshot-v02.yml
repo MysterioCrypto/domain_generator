@@ -1,29 +1,38 @@
 name: schema-snapshot-v02
 
 on:
-  pull_request:
+  push:
+    branches:
+      - "impl/v0.2-continuous-terrain-foundation"
     paths:
       - "src/domain_generator/contracts/**"
       - "src/domain_generator/schema_export.py"
       - ".github/workflows/schema-snapshot-v02.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   export:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: "impl/v0.2-continuous-terrain-foundation"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
       - run: python -m pip install -e ".[dev]"
       - run: python -m domain_generator.schema_export
-      - uses: actions/upload-artifact@v4
-        with:
-          name: schema-snapshots-v02
-          path: schemas/v0.2
-          if-no-files-found: error
-          retention-days: 1
+      - name: Commit generated snapshots when changed
+        run: |
+          if git diff --quiet -- schemas/v0.2; then
+            echo "schema snapshots already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add schemas/v0.2
+          git commit -m "chore: snapshot Core 0.2 JSON schemas"
+          git push origin HEAD:impl/v0.2-continuous-terrain-foundation
