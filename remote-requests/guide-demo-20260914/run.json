@@ -1,0 +1,7 @@
+{
+  "run_version": "0.1",
+  "request_path": "examples/guide-renderer/demo-region/request.json",
+  "presets_path": "examples/guide-renderer/demo-region/presets.json",
+  "preview": true,
+  "guide_preview": true
+}
