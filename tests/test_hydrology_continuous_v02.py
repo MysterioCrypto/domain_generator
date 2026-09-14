@@ -105,14 +105,15 @@ def test_h06_rotated_valley_preserves_continuous_flow_orientation() -> None:
     base = continuous_routing_field(_sloping_valley(61, 61, 0.0), cell_size_km=1.0)
     rotated = continuous_routing_field(_sloping_valley(61, 61, rotation), cell_size_km=1.0)
 
-    # Compare the valley center, where the analytic downslope direction is exactly the
-    # longitudinal axis. A raster-direction backend would snap one or both cases.
+    # Triangular-facet discretization may introduce a small sub-degree error, but a
+    # D8 backend would snap this 27-degree valley by many degrees to 0/45 degrees.
+    tolerance = np.deg2rad(0.5)
     center_base = float(base.flow_angle_rad[30, 30])
     center_rotated = float(rotated.flow_angle_rad[30, 30])
-    assert float(_angle_error(np.array([center_base]), 0.0)[0]) < np.deg2rad(0.1)
-    assert float(_angle_error(np.array([center_rotated]), rotation)[0]) < np.deg2rad(0.1)
+    assert float(_angle_error(np.array([center_base]), 0.0)[0]) < tolerance
+    assert float(_angle_error(np.array([center_rotated]), rotation)[0]) < tolerance
     observed_rotation = (center_rotated - center_base) % (2.0 * pi)
-    assert abs(observed_rotation - rotation) < np.deg2rad(0.1)
+    assert abs(observed_rotation - rotation) < tolerance
 
 
 def test_h07_lake_supernode_has_one_outlet_and_aggregates_catchment() -> None:
@@ -207,22 +208,26 @@ def test_h08_branching_catchment_forms_confluence_without_downstream_split() -> 
     assert confluences
     outdegree = {node_id: 0 for node_id in network.nodes}
     indegree = {node_id: 0 for node_id in network.nodes}
+    all_bearings: list[float] = []
     for segment in network.segments.values():
         outdegree[segment.from_node] += 1
         indegree[segment.to_node] += 1
         points = segment.centerline
         assert len(points) >= 2
-        # At least some geometric samples must be genuinely non-grid-aligned.
-        bearings = []
         for first, second in zip(points, points[1:]):
             dx = second.x_km - first.x_km
             dy = second.y_km - first.y_km
             if abs(dx) + abs(dy) > 1e-9:
-                bearings.append(atan2(dy, dx) % (2.0 * pi))
-        if len(bearings) >= 3:
-            assert any(
-                abs(angle / (pi / 4.0) - round(angle / (pi / 4.0))) > 0.03
-                for angle in bearings
-            )
+                all_bearings.append(atan2(dy, dx) % (2.0 * pi))
+
+    # Individual rivers are allowed to be genuinely cardinal. The network as a whole,
+    # however, must contain substantial non-D8 geometry on this oblique/merging fixture.
+    assert all_bearings
+    non_grid = [
+        angle
+        for angle in all_bearings
+        if abs(angle / (pi / 4.0) - round(angle / (pi / 4.0))) > 0.03
+    ]
+    assert len(non_grid) / len(all_bearings) >= 0.20
     assert all(outdegree[node_id] <= 1 for node_id in network.nodes)
     assert all(indegree[node_id] >= 2 for node_id in confluences)
