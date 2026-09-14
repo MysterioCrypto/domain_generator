@@ -5,8 +5,8 @@ from math import atan2, cos, pi, sin
 import numpy as np
 
 from domain_generator.contracts.plan import GenerationPlan
+from domain_generator.hydrology import build_continuous_river_network
 from domain_generator.hydrology.continuous import (
-    build_continuous_river_network,
     choose_lake_outlets,
     continuous_routing_field,
     distributed_flow_accumulation_km2,
