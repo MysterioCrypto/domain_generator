@@ -1,4 +1,4 @@
-"""Serializable Core 0.1 contracts and immutable value models."""
+"""Serializable Core contracts and immutable value models."""
 
 from .application import GenerationRequest
 from .bundle import BundleFileEntry, BundleFileKind, BundleManifest
@@ -8,7 +8,16 @@ from .data import DomainData, FieldDescriptor, FieldRole, RiverNetwork
 from .geometry import AreaGeometry, BandGeometry, CorridorGeometry, Geometry, PointGeometry, RegionSet, WorldPoint
 from .layout import LayoutCandidate, PlacementReservation
 from .plan import GenerationPlan, PlanHydrology, PlanSurface, ResolvedFeature
-from .spec import ConstraintSpec, DomainSpec, FeatureSpec, HydrologySpec, SurfaceSpec
+from .spec import (
+    ConstraintSpec,
+    DomainSpec,
+    FeatureSpec,
+    HydrologySpec,
+    SurfaceSpec,
+    TerrainNoiseLayerSpec,
+    TerrainSpec,
+)
+from .terrain import PlanTerrain, PlanTerrainNoiseLayer
 from .validation import RankingResult, ValidationResult, ValidationStage
 
 __all__ = [
@@ -37,6 +46,8 @@ __all__ = [
     "PlacementReservation",
     "PlanHydrology",
     "PlanSurface",
+    "PlanTerrain",
+    "PlanTerrainNoiseLayer",
     "PointGeometry",
     "RankingResult",
     "RegionSet",
@@ -45,6 +56,8 @@ __all__ = [
     "RiverNetwork",
     "SemanticGenerationConfig",
     "SurfaceSpec",
+    "TerrainNoiseLayerSpec",
+    "TerrainSpec",
     "ValidationResult",
     "ValidationStage",
     "WorldPoint",

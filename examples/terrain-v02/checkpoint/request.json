@@ -1,0 +1,55 @@
+{
+  "request_version": "0.2",
+  "domain_spec": {
+    "schema_version": "0.2",
+    "id": "terrain-v02-visual-checkpoint",
+    "label": "Core 0.2 Terrain Visual Checkpoint",
+    "seed": 2026091402,
+    "domain": {
+      "size": {
+        "width_km": 180.0,
+        "height_km": 120.0
+      }
+    },
+    "simulation": {
+      "cell_size_km": 1.0
+    },
+    "terrain": {
+      "base_elevation_m": 240.0,
+      "noise_layers": [
+        {"id": "macro", "scale_km": 180.0, "amplitude_m": 420.0},
+        {"id": "regional", "scale_km": 55.0, "amplitude_m": 170.0},
+        {"id": "local", "scale_km": 14.0, "amplitude_m": 55.0}
+      ]
+    },
+    "hydrology": {
+      "stream_threshold_km2": 250.0,
+      "lake_min_area_km2": 8.0,
+      "lake_min_depth_m": 3.0,
+      "river_depth_at_threshold_m": 0.5,
+      "river_depth_exponent": 0.3
+    },
+    "surface": {
+      "moisture_base": 0.35,
+      "water_moisture_boost": 0.55,
+      "water_moisture_decay_km": 8.0,
+      "moisture_noise_amplitude": 0.1,
+      "moisture_noise_scale_km": 20.0,
+      "vegetation_slope_zero_deg": 45.0
+    },
+    "features": [
+      {"id": "massif-01", "preset": "massif"},
+      {"id": "upland-01", "preset": "upland"},
+      {"id": "basin-01", "preset": "basin"}
+    ],
+    "constraints": []
+  },
+  "generation_config": {
+    "generation_config_version": "0.1",
+    "semantic": {
+      "max_attempts": 1,
+      "target_valid_candidates": 1
+    },
+    "observability": {}
+  }
+}

@@ -13,6 +13,7 @@ from .common import (
     Number,
     Relation,
 )
+from .terrain import PlanTerrain
 
 
 class FeatureFamily(StrEnum):
@@ -194,7 +195,7 @@ class ResolvedFeature(FrozenStrictModel):
     def validate_lifecycle(self) -> "ResolvedFeature":
         if isinstance(self.layout, ReservationLayoutRecipe):
             if self.family is not FeatureFamily.POI:
-                raise ValueError("reservation layout is only supported for poi features in Core 0.1")
+                raise ValueError("reservation layout is only supported for poi features")
             if self.effect.stage is not EffectStage.DEPENDENT_PLACEMENT:
                 raise ValueError("reservation layout requires dependent_placement effect")
         return self
@@ -287,7 +288,7 @@ class CompiledConstraint(FrozenStrictModel):
 
 class PlanSource(FrozenStrictModel):
     spec_id: Annotated[StrictStr, Field(min_length=1)]
-    spec_schema_version: Literal["0.1"]
+    spec_schema_version: Literal["0.1", "0.2"]
     spec_fingerprint: Annotated[StrictStr, Field(min_length=1)]
     generator_version: Annotated[StrictStr, Field(min_length=1)]
 
@@ -321,11 +322,12 @@ class PlanSurface(FrozenStrictModel):
 
 
 class GenerationPlan(FrozenStrictModel):
-    plan_version: Literal["0.1"]
+    plan_version: Literal["0.1", "0.2"]
     source: PlanSource
     seed: StrictInt
     domain: PlanDomain
     grid: PlanGrid
+    terrain: PlanTerrain | None = None
     hydrology: PlanHydrology
     surface: PlanSurface
     features: tuple[ResolvedFeature, ...] = ()
@@ -333,6 +335,12 @@ class GenerationPlan(FrozenStrictModel):
 
     @model_validator(mode="after")
     def validate_plan(self) -> "GenerationPlan":
+        if self.source.spec_schema_version != self.plan_version:
+            raise ValueError("plan_version must match source spec_schema_version")
+        if self.plan_version == "0.2" and self.terrain is None:
+            raise ValueError("GenerationPlan 0.2 requires terrain synthesis plan")
+        if self.plan_version == "0.1" and self.terrain is not None:
+            raise ValueError("GenerationPlan 0.1 cannot contain terrain synthesis plan")
         if self.grid.columns * self.grid.cell_size_km != self.domain.width_km:
             raise ValueError("grid columns must exactly match domain width")
         if self.grid.rows * self.grid.cell_size_km != self.domain.height_km:
