@@ -1,0 +1,92 @@
+{
+  "preset_catalog_version": "0.1",
+  "presets": [
+    {
+      "id": "a07_ridge",
+      "family": "terrain",
+      "layout": {
+        "mode": "geometry",
+        "shape": "band",
+        "parameters": {
+          "control_point_count": {"kind": "fixed", "type": "integer", "value": 4},
+          "curvature": {"kind": "fixed", "type": "float", "value": 0.35},
+          "width_km": {"kind": "fixed", "type": "float", "value": 4.0},
+          "width_sample_count": {"kind": "fixed", "type": "integer", "value": 7}
+        }
+      },
+      "effect": {
+        "stage": "terrain",
+        "operator": "ridge",
+        "parameters": {
+          "height_m": {"kind": "fixed", "type": "float", "value": 300.0},
+          "profile_power": {"kind": "fixed", "type": "float", "value": 1.4},
+          "roughness": {"kind": "fixed", "type": "float", "value": 0.25},
+          "roughness_scale_km": {"kind": "fixed", "type": "float", "value": 2.0}
+        }
+      }
+    },
+    {
+      "id": "a07_basin",
+      "family": "terrain",
+      "layout": {
+        "mode": "geometry",
+        "shape": "area",
+        "parameters": {
+          "vertex_count": {"kind": "fixed", "type": "integer", "value": 8},
+          "radial_extent": {"kind": "fixed", "type": "float", "value": 0.32},
+          "radial_irregularity": {"kind": "fixed", "type": "float", "value": 0.15}
+        }
+      },
+      "effect": {
+        "stage": "terrain",
+        "operator": "depress",
+        "parameters": {
+          "depth_m": {"kind": "fixed", "type": "float", "value": 65.0}
+        }
+      }
+    },
+    {
+      "id": "a07_wetland",
+      "family": "surface",
+      "layout": {
+        "mode": "geometry",
+        "shape": "area",
+        "parameters": {
+          "vertex_count": {"kind": "fixed", "type": "integer", "value": 6},
+          "radial_extent": {"kind": "fixed", "type": "float", "value": 0.25},
+          "radial_irregularity": {"kind": "fixed", "type": "float", "value": 0.2}
+        }
+      },
+      "effect": {
+        "stage": "surface",
+        "operator": "moisture_bias",
+        "parameters": {
+          "delta_moisture": {"kind": "fixed", "type": "float", "value": 0.25}
+        }
+      }
+    },
+    {
+      "id": "a07_settlement",
+      "family": "poi",
+      "layout": {"mode": "reservation", "final_shape": "point"},
+      "effect": {
+        "stage": "dependent_placement",
+        "operator": "suitability_placement",
+        "parameters": {
+          "candidate_spacing_km": {"kind": "fixed", "type": "float", "value": 1.0},
+          "near_best_delta": {"kind": "fixed", "type": "float", "value": 0.15}
+        },
+        "site_profile": {
+          "footprint_radius_km": 0.25,
+          "requirements": [
+            {"metric": "moisture_mean", "evaluator": "greater_or_equal", "value": 0.2}
+          ],
+          "preferences": [
+            {"metric": "elevation_mean", "evaluator": "maximize", "weight": 0.6},
+            {"metric": "distance_to_water", "evaluator": "minimize", "weight": 0.4}
+          ]
+        }
+      }
+    }
+  ]
+}
