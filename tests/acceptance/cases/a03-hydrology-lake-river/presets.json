@@ -1,0 +1,25 @@
+{
+  "preset_catalog_version": "0.1",
+  "presets": [
+    {
+      "id": "a03_basin",
+      "family": "terrain",
+      "layout": {
+        "mode": "geometry",
+        "shape": "area",
+        "parameters": {
+          "vertex_count": {"kind": "fixed", "type": "integer", "value": 8},
+          "radial_extent": {"kind": "fixed", "type": "float", "value": 0.4},
+          "radial_irregularity": {"kind": "fixed", "type": "float", "value": 0.15}
+        }
+      },
+      "effect": {
+        "stage": "terrain",
+        "operator": "depress",
+        "parameters": {
+          "depth_m": {"kind": "fixed", "type": "float", "value": 80.0}
+        }
+      }
+    }
+  ]
+}
