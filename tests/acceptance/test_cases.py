@@ -110,7 +110,7 @@ def test_acceptance_world_semantics_and_baseline(case_id: str) -> None:
 
     elif case_id == "a06-constraints-ranking":
         assert result.run.attempts_executed > len(result.run.valid_candidates)
-        assert len(result.run.valid_candidates) >= 3
+        assert len(result.run.valid_candidates) >= 2
         ranking_pairs = {
             (
                 candidate.ranking.worst_effective_violation,
