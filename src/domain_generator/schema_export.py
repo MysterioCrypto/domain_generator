@@ -19,6 +19,7 @@ from .contracts import (
 from .presets import PresetCatalog
 
 JSON_SCHEMA_DIALECT: Final = "https://json-schema.org/draft/2020-12/schema"
+CURRENT_SCHEMA_DIRECTORY: Final = "v0.2"
 
 ROOT_CONTRACT_MODELS: Final[dict[str, type[BaseModel]]] = {
     "domain-spec.schema.json": DomainSpec,
@@ -34,7 +35,7 @@ ROOT_CONTRACT_MODELS: Final[dict[str, type[BaseModel]]] = {
 
 
 def generate_schema_documents() -> dict[str, dict[str, object]]:
-    """Generate JSON Schema documents for the public Core/Application 0.1 root contracts."""
+    """Generate JSON Schema documents for the current Core/Application root contracts."""
     documents: dict[str, dict[str, object]] = {}
     for filename, model in ROOT_CONTRACT_MODELS.items():
         schema = model.model_json_schema(by_alias=True, mode="validation")
@@ -56,7 +57,7 @@ def write_schema_snapshots(output_dir: Path) -> None:
 
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[2]
-    write_schema_snapshots(repo_root / "schemas" / "v0.1")
+    write_schema_snapshots(repo_root / "schemas" / CURRENT_SCHEMA_DIRECTORY)
 
 
 if __name__ == "__main__":
