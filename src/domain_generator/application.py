@@ -40,6 +40,7 @@ class GenerateApplicationResult:
     output_dir: Path
     manifest: BundleManifest
     technical_preview: Path | None
+    guide_preview: Path | None
 
     def __post_init__(self) -> None:
         if not isinstance(self.assembly, DomainAssembly):
@@ -50,6 +51,8 @@ class GenerateApplicationResult:
             raise TypeError("manifest must be BundleManifest")
         if self.technical_preview is not None and not isinstance(self.technical_preview, Path):
             raise TypeError("technical_preview must be pathlib.Path or None")
+        if self.guide_preview is not None and not isinstance(self.guide_preview, Path):
+            raise TypeError("guide_preview must be pathlib.Path or None")
 
 
 _CANONICAL_STEPS: tuple[StageStep, ...] = (
@@ -167,6 +170,7 @@ def generate_domain_bundle(
     registry: PresetRegistry,
     output_dir: Path,
     render_preview: bool = False,
+    render_guide_preview: bool = False,
 ) -> GenerateApplicationResult:
     """Generate and atomically publish the complete requested application result."""
     if not isinstance(request, GenerationRequest):
@@ -175,6 +179,8 @@ def generate_domain_bundle(
         raise TypeError("registry must be PresetRegistry")
     if not isinstance(render_preview, bool):
         raise TypeError("render_preview must be bool")
+    if not isinstance(render_guide_preview, bool):
+        raise TypeError("render_guide_preview must be bool")
 
     _validate_output_target(output_dir)
     assembly = generate_domain(
@@ -197,7 +203,7 @@ def generate_domain_bundle(
         except DomainBundleExportError as exc:
             raise ApplicationOutputError("failed to export canonical domain bundle") from exc
 
-        preview_was_rendered = False
+        technical_preview_was_rendered = False
         if render_preview:
             try:
                 from .technical_renderer import TechnicalRenderError, render_technical_map
@@ -206,13 +212,30 @@ def generate_domain_bundle(
                     assembly=assembly,
                     output_path=bundle_root / "preview" / "technical-map.png",
                 )
-                preview_was_rendered = True
+                technical_preview_was_rendered = True
             except ImportError as exc:
                 raise ApplicationOutputError(
                     "technical preview requires optional render dependencies; install domain-generator[render]"
                 ) from exc
             except TechnicalRenderError as exc:
                 raise ApplicationOutputError("failed to render requested technical preview") from exc
+
+        guide_preview_was_rendered = False
+        if render_guide_preview:
+            try:
+                from .guide_renderer import GuideRenderError, render_guide_map
+
+                render_guide_map(
+                    assembly=assembly,
+                    output_path=bundle_root / "preview" / "guide-map.png",
+                )
+                guide_preview_was_rendered = True
+            except ImportError as exc:
+                raise ApplicationOutputError(
+                    "guide preview requires optional render dependencies; install domain-generator[render]"
+                ) from exc
+            except GuideRenderError as exc:
+                raise ApplicationOutputError("failed to render requested guide preview") from exc
 
         if output_dir.exists():
             raise ApplicationOutputError("output directory appeared during generation; refusing to overwrite")
@@ -221,12 +244,20 @@ def generate_domain_bundle(
         except OSError as exc:
             raise ApplicationOutputError("failed to publish generated application output") from exc
 
-        preview_path = output_dir / "preview" / "technical-map.png" if preview_was_rendered else None
+        technical_preview_path = (
+            output_dir / "preview" / "technical-map.png"
+            if technical_preview_was_rendered
+            else None
+        )
+        guide_preview_path = (
+            output_dir / "preview" / "guide-map.png" if guide_preview_was_rendered else None
+        )
         return GenerateApplicationResult(
             assembly=assembly,
             output_dir=output_dir,
             manifest=exported.manifest,
-            technical_preview=preview_path,
+            technical_preview=technical_preview_path,
+            guide_preview=guide_preview_path,
         )
     except ApplicationOutputError:
         raise
