@@ -42,7 +42,7 @@ def safe_json_path(workspace: Path, raw: str, *, label: str) -> Path:
     return resolved
 
 
-def load_run_manifest(workspace: Path, raw_path: str) -> tuple[str, str | None, bool]:
+def load_run_manifest(workspace: Path, raw_path: str) -> tuple[str, str | None, bool, bool]:
     manifest_path = safe_json_path(workspace, raw_path, label="manifest")
     try:
         payload = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -50,7 +50,7 @@ def load_run_manifest(workspace: Path, raw_path: str) -> tuple[str, str | None, 
         raise ValueError(f"invalid run manifest JSON: {exc}") from exc
     if not isinstance(payload, dict):
         raise ValueError("run manifest must be a JSON object")
-    allowed = {"run_version", "request_path", "presets_path", "preview"}
+    allowed = {"run_version", "request_path", "presets_path", "preview", "guide_preview"}
     unknown = set(payload) - allowed
     if unknown:
         raise ValueError(f"run manifest has unknown keys: {sorted(unknown)}")
@@ -59,16 +59,25 @@ def load_run_manifest(workspace: Path, raw_path: str) -> tuple[str, str | None, 
     request_path = payload.get("request_path")
     presets_path = payload.get("presets_path")
     preview = payload.get("preview", False)
+    guide_preview = payload.get("guide_preview", False)
     if not isinstance(request_path, str) or not request_path:
         raise ValueError("run manifest request_path must be a non-empty string")
     if presets_path is not None and not isinstance(presets_path, str):
         raise ValueError("run manifest presets_path must be a string or null")
     if not isinstance(preview, bool):
         raise ValueError("run manifest preview must be boolean")
-    return request_path, presets_path, preview
+    if not isinstance(guide_preview, bool):
+        raise ValueError("run manifest guide_preview must be boolean")
+    return request_path, presets_path, preview, guide_preview
 
 
-def _execution_metadata(*, request_rel: str | None, presets_rel: str | None, preview: bool) -> dict[str, Any]:
+def _execution_metadata(
+    *,
+    request_rel: str | None,
+    presets_rel: str | None,
+    preview: bool,
+    guide_preview: bool,
+) -> dict[str, Any]:
     github_sha = os.getenv("GITHUB_SHA")
     return {
         "execution_version": "0.1",
@@ -83,6 +92,7 @@ def _execution_metadata(*, request_rel: str | None, presets_rel: str | None, pre
         "presets_path": presets_rel,
         "presets_sha256": None,
         "preview": preview,
+        "guide_preview": guide_preview,
         "cli_exit_code": None,
         "transport_error": None,
     }
@@ -95,6 +105,7 @@ def execute_remote_generation(
     request_path: str,
     presets_path: str | None,
     preview: bool,
+    guide_preview: bool = False,
     runner: Any = subprocess.run,
 ) -> int:
     if work_dir.exists():
@@ -107,6 +118,7 @@ def execute_remote_generation(
         request_rel=request_path,
         presets_rel=presets_path,
         preview=preview,
+        guide_preview=guide_preview,
     )
     stdout_text = ""
     stderr_text = ""
@@ -134,6 +146,8 @@ def execute_remote_generation(
             command.extend(["--presets", str(presets)])
         if preview:
             command.append("--preview")
+        if guide_preview:
+            command.append("--guide-preview")
 
         completed = runner(
             command,
@@ -176,6 +190,7 @@ def build_parser() -> argparse.ArgumentParser:
     source.add_argument("--request-path")
     parser.add_argument("--presets-path")
     parser.add_argument("--preview", type=_parse_bool, default=False)
+    parser.add_argument("--guide-preview", type=_parse_bool, default=False)
     return parser
 
 
@@ -184,10 +199,14 @@ def main(argv: list[str] | None = None) -> int:
     request_path = args.request_path
     presets_path = args.presets_path
     preview = args.preview
+    guide_preview = args.guide_preview
 
     if args.manifest:
         try:
-            request_path, presets_path, preview = load_run_manifest(args.workspace, args.manifest)
+            request_path, presets_path, preview, guide_preview = load_run_manifest(
+                args.workspace,
+                args.manifest,
+            )
         except Exception as exc:
             work_dir = args.work_dir
             if work_dir.exists():
@@ -195,7 +214,12 @@ def main(argv: list[str] | None = None) -> int:
                 return TRANSPORT_ERROR
             execution_dir = work_dir / "execution"
             execution_dir.mkdir(parents=True)
-            metadata = _execution_metadata(request_rel=None, presets_rel=None, preview=False)
+            metadata = _execution_metadata(
+                request_rel=None,
+                presets_rel=None,
+                preview=False,
+                guide_preview=False,
+            )
             metadata["transport_error"] = str(exc)
             (execution_dir / "stdout.txt").write_text("", encoding="utf-8")
             (execution_dir / "stderr.txt").write_text(
@@ -214,6 +238,7 @@ def main(argv: list[str] | None = None) -> int:
         request_path=request_path,
         presets_path=presets_path,
         preview=preview,
+        guide_preview=guide_preview,
     )
 
 
