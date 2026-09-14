@@ -1,0 +1,6 @@
+{
+  "run_version": "0.1",
+  "request_path": "examples/terrain-v02/checkpoint/request.json",
+  "presets_path": "examples/terrain-v02/checkpoint/presets.json",
+  "preview": true
+}
