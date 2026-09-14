@@ -1,0 +1,51 @@
+{
+  "preset_catalog_version": "0.1",
+  "presets": [
+    {
+      "id": "a05_ridge",
+      "family": "terrain",
+      "layout": {
+        "mode": "geometry",
+        "shape": "band",
+        "parameters": {
+          "control_point_count": {"kind": "fixed", "type": "integer", "value": 3},
+          "curvature": {"kind": "fixed", "type": "float", "value": 0.2},
+          "width_km": {"kind": "fixed", "type": "float", "value": 3.0},
+          "width_sample_count": {"kind": "fixed", "type": "integer", "value": 5}
+        }
+      },
+      "effect": {
+        "stage": "terrain",
+        "operator": "ridge",
+        "parameters": {
+          "height_m": {"kind": "fixed", "type": "float", "value": 180.0},
+          "profile_power": {"kind": "fixed", "type": "float", "value": 1.2},
+          "roughness": {"kind": "fixed", "type": "float", "value": 0.0},
+          "roughness_scale_km": {"kind": "fixed", "type": "float", "value": 2.0}
+        }
+      }
+    },
+    {
+      "id": "a05_poi",
+      "family": "poi",
+      "layout": {"mode": "reservation", "final_shape": "point"},
+      "effect": {
+        "stage": "dependent_placement",
+        "operator": "suitability_placement",
+        "parameters": {
+          "candidate_spacing_km": {"kind": "fixed", "type": "float", "value": 1.0},
+          "near_best_delta": {"kind": "fixed", "type": "float", "value": 0.0}
+        },
+        "site_profile": {
+          "footprint_radius_km": 0.25,
+          "requirements": [
+            {"metric": "moisture_mean", "evaluator": "greater_or_equal", "value": 0.4}
+          ],
+          "preferences": [
+            {"metric": "elevation_mean", "evaluator": "maximize", "weight": 1.0}
+          ]
+        }
+      }
+    }
+  ]
+}

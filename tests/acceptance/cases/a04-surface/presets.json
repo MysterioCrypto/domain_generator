@@ -1,0 +1,45 @@
+{
+  "preset_catalog_version": "0.1",
+  "presets": [
+    {
+      "id": "a04_basin",
+      "family": "terrain",
+      "layout": {
+        "mode": "geometry",
+        "shape": "area",
+        "parameters": {
+          "vertex_count": {"kind": "fixed", "type": "integer", "value": 7},
+          "radial_extent": {"kind": "fixed", "type": "float", "value": 0.32},
+          "radial_irregularity": {"kind": "fixed", "type": "float", "value": 0.1}
+        }
+      },
+      "effect": {
+        "stage": "terrain",
+        "operator": "depress",
+        "parameters": {
+          "depth_m": {"kind": "fixed", "type": "float", "value": 50.0}
+        }
+      }
+    },
+    {
+      "id": "a04_wetland",
+      "family": "surface",
+      "layout": {
+        "mode": "geometry",
+        "shape": "area",
+        "parameters": {
+          "vertex_count": {"kind": "fixed", "type": "integer", "value": 6},
+          "radial_extent": {"kind": "fixed", "type": "float", "value": 0.28},
+          "radial_irregularity": {"kind": "fixed", "type": "float", "value": 0.1}
+        }
+      },
+      "effect": {
+        "stage": "surface",
+        "operator": "moisture_bias",
+        "parameters": {
+          "delta_moisture": {"kind": "fixed", "type": "float", "value": 0.4}
+        }
+      }
+    }
+  ]
+}

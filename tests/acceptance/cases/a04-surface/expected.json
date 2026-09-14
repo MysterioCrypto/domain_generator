@@ -1,0 +1,25 @@
+{
+  "case_version": "0.1",
+  "baseline": {
+    "accepted_attempt_index": 0,
+    "attempts_executed": 1,
+    "domain_data_sha256": "sha256:db65a979f0cf35baac02546fb33c264bf9e9b97b764f266efdac8726b05fdba3",
+    "features": {
+      "basin-01": {"family": "terrain", "geometry_type": "area", "source_type": "specified"},
+      "lake-0001": {"family": "hydro", "geometry_type": "region_set", "source_type": "generated"},
+      "wetland-01": {"family": "surface", "geometry_type": "area", "source_type": "specified"}
+    },
+    "fields": {
+      "elevation": {"dtype": "float32", "max": 0.0, "min": -50.0, "sha256": "sha256:3a68d1e812f15e2dd8380e5d320fa065a7b610f1de5bbb6a9e1ea5878acf82b2", "shape": [28, 40]},
+      "moisture": {"dtype": "float32", "max": 1.0, "min": 0.30000001192092896, "sha256": "sha256:ccdda2bdbb64b9aadf827badb79dfd9b4665ef709fb35f2aa7edf0bd77cbda46", "shape": [28, 40]},
+      "vegetation_density": {"dtype": "float32", "max": 0.699999988079071, "min": 0.0, "sha256": "sha256:4c461b7b22b738bba5b43aaeeacd903b3f7de6919239b746b9bd050a3e24e5fa", "shape": [28, 40]},
+      "water_depth": {"dtype": "float32", "max": 50.0, "min": 0.0, "sha256": "sha256:90eb97677ce048bbb77ecf32e9ecb190aadac75e677b41d295dbfb98801b2745", "shape": [28, 40]}
+    },
+    "generation_config_fingerprint": "sha256:a9c96f82f2477fea35f2c5d4aa7d17f543b52089e411f7dd3e521bbff3ad0381",
+    "plan_fingerprint": "sha256:d361e0bee60a63dcd8b3485fe601032fe812bbbd8d5b1e7dd63686afa4da3cce",
+    "rivers": {"nodes": 0, "segments": 0},
+    "spec_fingerprint": "sha256:5d8f8b65638c00dd0936642b7fa9fbbdf60e0132dfc46b99f9c59cb4172a34ee",
+    "valid_candidate_attempts": [0],
+    "validation": {"engine_invariants_passed": true, "hard_constraints_passed": true, "soft": {"weighted_mean_score": 1.0, "worst_effective_violation": 0.0}}
+  }
+}
