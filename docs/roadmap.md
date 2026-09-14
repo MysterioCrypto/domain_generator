@@ -60,33 +60,39 @@ target: core-0.1
 
 Preview остаётся non-canonical и не является источником истины.
 
-## M11 — Acceptance suite — СЛЕДУЮЩИЙ RELEASE GATE CORE 0.1
+## M11 — Acceptance suite — DESIGN ПРИНЯТ, IMPLEMENTATION СЛЕДУЮЩИЙ
 
-Нужен набор фиксированных specs/seeds, проверяющий систему целиком, а не только отдельные modules:
+Normative design: `docs/design/m11-acceptance-suite-v0.1.md`.
 
-- minimal domain;
-- representative terrain;
-- hydrology/lake/river case;
-- surface fields;
-- dependent POI placement;
-- constraints/ranking;
-- complex mixed-domain example;
-- stable application/bundle output assertions.
+M11 фиксирует семь representative worlds:
 
-Acceptance suite должен проверять semantic properties, provenance/fingerprints и topology/metrics там, где это устойчивее хранения больших binary golden files.
+- A01 minimal;
+- A02 terrain-ridge;
+- A03 hydrology-lake-river;
+- A04 surface;
+- A05 dependent-poi;
+- A06 constraints-ranking;
+- A07 complex-mixed.
 
-После прохождения M11 можно формировать Core 0.1 release candidate.
+Каждый case проверяет exact replay и semantic properties одновременно. Baseline хранится компактно через `expected.json`, fingerprints/digests и case-specific assertions вместо обязательных больших binary golden files.
 
-# Параллельный integration track вне Core
+M11 также проверяет canonical DomainBundle path и deterministic provenance. Technical preview не является Core binary golden.
 
-После появления canonical application entrypoint внешние consumers могут развиваться независимо от release hardening Core:
+Если acceptance suite обнаруживает production bug, он исправляется отдельным bugfix PR; acceptance implementation не должен тихо менять Core semantics.
+
+После green M11 можно формировать Core 0.1 release candidate.
+
+# Параллельный integration track вне Core — ЗАВЕРШЁН ДЛЯ 0.1
+
+Реализованы:
 
 ```text
 Local Model Skill / Adapter v0.1
-→ Remote GitHub Actions Generation Adapter
+→ Codex Integration Packaging v0.1
+→ Remote GitHub Actions Generation Adapter v0.1
 ```
 
-Оба слоя обязаны использовать canonical `GenerationRequest` / `PresetCatalog` / CLI или Python application boundary и не создавать альтернативный generation pipeline.
+Все слои используют canonical `GenerationRequest` / `PresetCatalog` / CLI или Python application boundary и не создают альтернативный generation pipeline.
 
 Отдельный downstream presentation track:
 
@@ -96,7 +102,7 @@ Presentation / ImageGen Guide Renderer
 → artistic map generation
 ```
 
-Этот слой не изменяет semantic world state.
+Этот слой не изменяет semantic world state и не блокирует Core 0.1.
 
 # Вне Core 0.1
 

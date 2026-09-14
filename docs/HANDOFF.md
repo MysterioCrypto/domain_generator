@@ -2,81 +2,136 @@
 
 Этот файл — ненормативная оперативная точка входа. Канонические решения находятся в `PROJECT.md`, `docs/architecture.md`, `docs/roadmap.md`, `docs/decisions/` и `docs/design/`.
 
-## Текущее состояние на 2026-09-13
+## Текущее состояние на 2026-09-14
 
-M0–M10 Core 0.1 функционально завершены. `Local Model Skill / Adapter v0.1`, `Codex Integration Packaging v0.1` и `Remote GitHub Actions Generation Adapter v0.1` реализованы и смержены.
+M0–M10 Core 0.1 функционально завершены. Integration track (`Local Model Adapter`, `Codex Integration Packaging`, `Remote GitHub Actions Generation Adapter`) реализован и проверен end-to-end.
 
-Следующий release gate — **M11 Acceptance Suite / Core 0.1 hardening**.
+Текущий release gate — **M11 Acceptance Suite v0.1**. Design принят; следующий шаг — отдельный implementation PR.
 
-## Remote GitHub Actions Generation Adapter v0.1 — complete
-
-Implementation merged through PR #52.
-
-Generation path:
+Normative design:
 
 ```text
-workflow_dispatch / PR remote-requests/**
-        ↓
-exact checkout revision
-        ↓
-safe path validation
-        ↓
-canonical domain-generator CLI exactly once
-        ↓
-domain-bundle + technical-preview + generation-diagnostics
+docs/design/m11-acceptance-suite-v0.1.md
 ```
 
-Generation workflow имеет `contents: read`. Cleanup write permission находится только в отдельном `pull_request: closed` workflow и применяется только к same-repository branches `remote-generation/*`.
+## Acceptance worlds
 
-Implementation suite на acceptance checkpoint: `341 passed`.
-
-## Real post-merge E2E
-
-Полный lifecycle проверен отдельным временным PR #54:
+Обязательные representative cases:
 
 ```text
-remote-generation/cleanup-e2e-20260913
-→ remote request files
-→ PR-triggered generate-domain success
-→ artifacts produced
-→ PR closed without merge
-→ cleanup-remote-generation success
-→ temporary branch deleted
+A01 minimal
+A02 terrain-ridge
+A03 hydrology-lake-river
+A04 surface
+A05 dependent-poi
+A06 constraints-ranking
+A07 complex-mixed
 ```
 
-Повторный branch lookup подтвердил, что temporary branch больше не существует.
-
-## Visual remote smoke
-
-PR #53 добавил отдельный `remote-requests/visual-example/` с real ridge preset, larger grid и preview=true.
-
-Полученное technical preview показывает уже не пустой мир, а инженерную абстракцию generated terrain: ridge/elevation, water, vegetation/surface overlay, scale/north and feature geometry. Это диагностическая карта, а не player-facing rendering.
-
-Presentation/ImageGen Guide Renderer остаётся отдельным downstream track.
-
-## Следующий bounded slice: M11 Acceptance Suite
-
-M11 должен не добавлять новые generation capabilities, а закрепить уже реализованный Core 0.1 representative acceptance cases.
-
-Ожидаемые категории из текущего roadmap/context:
+Каждый case использует fixed request/catalog/seed и проверяет два слоя:
 
 ```text
-minimal
-ridge / terrain
-hydrology / lake / river
-surface
-POI dependent placement
-constraints / ranking
-complex mixed domain
+exact replay / compact golden identity
++
+semantic correctness
 ```
 
-Acceptance checks должны быть semantic и deterministic: фиксированные specs/seeds, fingerprints, topology/feature properties, hard/soft validation outcomes и replay expectations. Большие binary golden files не являются обязательной стратегией.
+## Baseline strategy
 
-Согласно INV-006 сначала нужен отдельный M11 design gate; implementation suite после этого идёт отдельным PR и требует отдельного явного принятия до merge.
+Repository не хранит большие `.npy` goldens как обязательную основу M11.
 
-После M11:
+Для каждого case ожидается `expected.json` с compact metadata/digests и semantic expectations. Exact replay дополнительно сравнивает два независимых generation run внутри одной generator revision/version.
+
+Canonical checks включают:
+
+- accepted attempt index;
+- DomainData deterministic digest/equality;
+- four canonical field payloads;
+- fingerprints/provenance;
+- DomainBundle manifest/hashes;
+- case-specific semantic assertions.
+
+Technical PNG не является Core release-gating binary golden.
+
+## Special acceptance cases
+
+### A05 Dependent POI
+
+Final result обязан содержать materialized POI point, satisfying SiteProfile requirements. Test-only stage harness дополнительно проверяет:
+
+```text
+Layout → reservation exists, final point absent
+Placement → final point exists
+```
+
+Нового production API для этого не создаётся.
+
+### A06 Constraints / Ranking
+
+Case должен реально различать attempts/candidates и доказать canonical winner ordering:
+
+```text
+lower worst effective violation
+→ higher weighted mean score
+→ lower attempt index
+```
+
+Hard-invalid candidate никогда не принимается.
+
+### A07 Complex Mixed
+
+Главный representative world объединяет terrain, hydrology, surface bias, dependent POI, hard/soft constraints, validation/ranking, assembly and bundle export.
+
+## Bug policy
+
+Если acceptance implementation обнаруживает production defect:
+
+```text
+red acceptance case
+→ separate bugfix PR
+→ green acceptance case
+```
+
+Нельзя тихо менять Core behavior внутри M11 implementation только ради обновления baseline.
+
+`expected.json` также не переписывается автоматически при test failure.
+
+## Release gate
+
+До Core 0.1 release candidate должны быть green:
+
+```text
+full unit/integration suite
+A01..A07
+exact replay all cases
+canonical bundle checks
+engine/hard invariants
+provenance/fingerprints/digests
+```
+
+## Следующий implementation slice
+
+```text
+tests/acceptance/cases/a01-minimal/...
+tests/acceptance/cases/a02-terrain-ridge/...
+tests/acceptance/cases/a03-hydrology-lake-river/...
+tests/acceptance/cases/a04-surface/...
+tests/acceptance/cases/a05-dependent-poi/...
+tests/acceptance/cases/a06-constraints-ranking/...
+tests/acceptance/cases/a07-complex-mixed/...
+tests/acceptance/conftest.py
+tests/acceptance/support.py
+tests/acceptance/test_cases.py
+tests/acceptance/test_replay.py
+```
+
+Implementation PR требует отдельного явного принятия перед merge.
+
+После green/accepted M11:
 
 ```text
 Core 0.1 hardening
 → Core 0.1 release candidate
 ```
+
+Presentation/ImageGen Guide Renderer остаётся отдельным downstream track.
