@@ -1,4 +1,27 @@
 {
   "case_version": "0.1",
-  "baseline": "PENDING"
+  "baseline": {
+    "accepted_attempt_index": 1,
+    "attempts_executed": 2,
+    "domain_data_sha256": "sha256:b6f3ff60bd51c1d5cc75ec958d3d26ee5cb9d84d133239427c4c271b00b25a23",
+    "features": {
+      "basin-01": {"family": "terrain", "geometry_type": "area", "source_type": "specified"},
+      "lake-0001": {"family": "hydro", "geometry_type": "region_set", "source_type": "generated"},
+      "ridge-01": {"family": "terrain", "geometry_type": "band", "source_type": "specified"},
+      "settlement-01": {"family": "poi", "geometry_type": "point", "source_type": "specified"},
+      "wetland-01": {"family": "surface", "geometry_type": "area", "source_type": "specified"}
+    },
+    "fields": {
+      "elevation": {"dtype": "float32", "max": 298.6968994140625, "min": -65.0, "sha256": "sha256:e4df4aadc5c8361632599a96ce9f2fc987c7a5b0e0b1d2200322c812b8784bfa", "shape": [32, 48]},
+      "moisture": {"dtype": "float32", "max": 1.0, "min": 0.4027456045150757, "sha256": "sha256:7f6eebb021eea1296af190c9d7443258adc9476b894a8c50be867a8b35f96ebe", "shape": [32, 48]},
+      "vegetation_density": {"dtype": "float32", "max": 0.9567684531211853, "min": 0.0, "sha256": "sha256:fb3026dc4f2c35bdc08c8c0a473e9d7adb7eaeb4ef55818113ce716396e45f6e", "shape": [32, 48]},
+      "water_depth": {"dtype": "float32", "max": 65.0, "min": 0.0, "sha256": "sha256:891aea6954e7366a96b68c74b2c27851625ee1a688635a51b0854db46d6453ca", "shape": [32, 48]}
+    },
+    "generation_config_fingerprint": "sha256:f37bc443b7b7e96198395948543dee634cc3d5a259274c8ca5adb383996fa7d7",
+    "plan_fingerprint": "sha256:e99729b2c64ccc69efbb353b303f630938cce8dce357f8f77935dd4bafb4f6de",
+    "rivers": {"nodes": 38, "segments": 20},
+    "spec_fingerprint": "sha256:9b7cf83faa82404c8ca02207fe1b2e1740e1ddd951643993969dde6ff21d4375",
+    "valid_candidate_attempts": [1, 0],
+    "validation": {"engine_invariants_passed": true, "hard_constraints_passed": true, "soft": {"weighted_mean_score": 0.8456726938403673, "worst_effective_violation": 0.15432730615963275}}
+  }
 }
