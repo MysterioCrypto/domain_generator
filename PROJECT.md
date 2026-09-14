@@ -4,8 +4,8 @@ target_version: core-0.1
 phase: integration-and-hardening
 status: in-progress
 current_milestone: M11-acceptance-suite
-checkpoint: remote-github-actions-generation-adapter-v0.1-merged
-next_topic: m11-acceptance-suite-design
+checkpoint: m11-acceptance-suite-v0.1-design
+next_topic: m11-acceptance-suite-v0.1-implementation
 completed:
   - M0-project-foundation
   - M1-data-contracts
@@ -35,6 +35,7 @@ accepted_designs:
   - local-model-skill-adapter-v0.1
   - codex-integration-packaging-v0.1
   - remote-github-actions-generation-adapter-v0.1
+  - m11-acceptance-suite-v0.1
 implemented_infrastructure:
   - github-actions-pytest-ci-on-push-and-pull-request
   - github-actions-remote-domain-generation-v0.1
@@ -53,6 +54,7 @@ canonical_documents:
   local_model_adapter: docs/design/local-model-skill-adapter-v0.1.md
   codex_integration: docs/design/codex-integration-packaging-v0.1.md
   remote_github_actions_generation: docs/design/remote-github-actions-generation-adapter-v0.1.md
+  m11_acceptance_suite: docs/design/m11-acceptance-suite-v0.1.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
 ---
 
@@ -72,69 +74,62 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 [готово] remote-generation E2E + automatic branch cleanup
 [готово] visual remote smoke example
 
-[дальше] M11 Acceptance Suite — design gate
-[release gate] M11 Acceptance Suite / Core 0.1 hardening
+[принято] M11 Acceptance Suite v0.1 — design
+[дальше] M11 Acceptance Suite v0.1 — implementation
+[release gate] acceptance green → Core 0.1 hardening / release candidate
 [отдельно позже] Presentation / ImageGen Guide Renderer
 ```
 
-## Remote GitHub Actions Generation Adapter v0.1 — complete
+## M11 Acceptance Suite v0.1 — accepted design
 
-Normative design: `docs/design/remote-github-actions-generation-adapter-v0.1.md`.
+Normative design: `docs/design/m11-acceptance-suite-v0.1.md`.
 
-Implementation merged through PR #52. It provides:
-
-```text
-workflow_dispatch                 pull_request: remote-requests/**
-       │                                      │
-       └──────────────┬───────────────────────┘
-                      ↓
-             exact repository checkout
-                      ↓
-              safe path validation
-                      ↓
-           canonical CLI exactly once
-                      ↓
-        ┌─────────────┼─────────────┐
-        ↓             ↓             ↓
- domain-bundle  technical-preview  generation-diagnostics
-```
-
-Verified properties:
-
-- generation workflow is `contents: read`;
-- cleanup write permission is isolated in the closed-PR cleanup workflow;
-- cleanup only targets same-repository `remote-generation/*` branches;
-- exact checked-out revision is recorded as generator provenance;
-- request/preset paths reject absolute/traversal/out-of-workspace inputs;
-- canonical CLI runs at most once;
-- semantic failures do not trigger reroll/repair;
-- outputs are Actions artifacts, never repository commits.
-
-## Real E2E verification
-
-A real temporary `remote-generation/cleanup-e2e-20260913` flow was executed after merge:
+M11 не добавляет новые generation capabilities. Он закрепляет семь representative fixed worlds:
 
 ```text
-create temporary branch
-→ create remote request
-→ open PR #54
-→ generate-domain success
-→ close PR without merge
-→ cleanup-remote-generation success
-→ branch no longer exists
+A01 minimal
+A02 terrain-ridge
+A03 hydrology-lake-river
+A04 surface
+A05 dependent-poi
+A06 constraints-ranking
+A07 complex-mixed
 ```
 
-This verifies the complete branch lifecycle, not only static tests.
+Каждый case проверяет два независимых уровня:
 
-## Visual smoke example
+1. exact replay / compact golden identity;
+2. semantic correctness результата.
 
-PR #53 added `remote-requests/visual-example/` with a real ridge preset and a larger grid. The resulting technical preview visibly contains generated terrain, water/surface layers and feature geometry. This remains an engineering diagnostic representation, not a player-facing map.
+Baseline strategy:
 
-## Next gate: M11 Acceptance Suite
+- fixed `GenerationRequest` / `PresetCatalog` / seed;
+- `expected.json` вместо больших `.npy` goldens;
+- canonical DomainData digest + field/bundle hashes;
+- explicit semantic assertions для terrain/hydrology/surface/placement/ranking;
+- два независимых run для exact replay;
+- technical preview не является Core binary golden.
 
-The next bounded design slice is the Core 0.1 acceptance suite. It should define fixed representative specs/seeds and semantic assertions for the already implemented pipeline before any release-candidate declaration.
+Особые cases:
 
-Presentation/ImageGen Guide Renderer remains a separate downstream track and does not block M11.
+- A05 дополнительно проверяет reservation-before-placement и final point after placement через test-only stage harness;
+- A06 обязан реально задействовать attempts/ranking и фиксировать expected winning attempt;
+- A07 объединяет terrain + hydrology + surface + deferred POI + constraints + validation + assembly/export.
+
+Если M11 обнаруживает production bug, fix оформляется отдельным bugfix PR; acceptance implementation не должен тихо менять Core behavior.
+
+## Release gate
+
+Core 0.1 переходит к release candidate только когда green одновременно:
+
+```text
+full unit/integration suite
+A01..A07 acceptance worlds
+exact replay all cases
+canonical bundle acceptance
+engine/hard invariants
+provenance/fingerprints/digests
+```
 
 ## Invariants
 
