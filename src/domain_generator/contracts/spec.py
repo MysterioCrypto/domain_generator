@@ -34,6 +34,26 @@ class SimulationConfig(FrozenStrictModel):
     cell_size_km: Annotated[StrictFloat, Field(gt=0.0)]
 
 
+class TerrainNoiseLayerSpec(FrozenStrictModel):
+    id: Annotated[StrictStr, Field(min_length=1)]
+    scale_km: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
+    amplitude_m: Annotated[StrictFloat, Field(ge=0.0, allow_inf_nan=False)]
+
+
+class TerrainSpec(FrozenStrictModel):
+    base_elevation_m: Annotated[StrictFloat, Field(allow_inf_nan=False)]
+    noise_layers: tuple[TerrainNoiseLayerSpec, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_layers(self) -> "TerrainSpec":
+        ids = [layer.id for layer in self.noise_layers]
+        if len(ids) != len(set(ids)):
+            raise ValueError("terrain noise layer ids must be unique")
+        if not any(layer.amplitude_m > 0.0 for layer in self.noise_layers):
+            raise ValueError("terrain requires at least one noise layer with amplitude_m > 0")
+        return self
+
+
 class HydrologySpec(FrozenStrictModel):
     stream_threshold_km2: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
     lake_min_area_km2: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
@@ -182,11 +202,12 @@ class ConstraintSpec(FrozenStrictModel):
 
 
 class DomainSpec(StrictModel):
-    schema_version: Annotated[StrictStr, Field(pattern=r"^0\.1$")]
+    schema_version: Annotated[StrictStr, Field(pattern=r"^0\.[12]$")]
     id: Annotated[StrictStr, Field(min_length=1)]
     seed: StrictInt
     domain: DomainConfig
     simulation: SimulationConfig
+    terrain: TerrainSpec | None = None
     hydrology: HydrologySpec
     surface: SurfaceSpec
     features: tuple[FeatureSpec, ...] = ()
@@ -195,6 +216,10 @@ class DomainSpec(StrictModel):
 
     @model_validator(mode="after")
     def validate_contract(self) -> "DomainSpec":
+        if self.schema_version == "0.2" and self.terrain is None:
+            raise ValueError("DomainSpec 0.2 requires terrain configuration")
+        if self.schema_version == "0.1" and self.terrain is not None:
+            raise ValueError("terrain configuration is only valid for DomainSpec 0.2")
         self._validate_exact_grid_divisibility()
         self._validate_unique_ids()
         self._validate_literal_km_selectors()
