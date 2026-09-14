@@ -70,7 +70,7 @@ def _constraint_references_any(
 
 
 def _concrete_geometry_plan(plan: GenerationPlan) -> GenerationPlan:
-    """Internal plan view for the existing concrete-geometry generator/validator."""
+    """Internal plan view for concrete geometry generation and hard validation only."""
     reservation_ids = _reservation_feature_ids(plan)
     features = tuple(
         feature
@@ -80,7 +80,8 @@ def _concrete_geometry_plan(plan: GenerationPlan) -> GenerationPlan:
     constraints = tuple(
         constraint
         for constraint in plan.constraints
-        if not _constraint_references_any(constraint, reservation_ids)
+        if constraint.strength is ConstraintStrength.HARD
+        and not _constraint_references_any(constraint, reservation_ids)
     )
     return plan.model_copy(update={"features": features, "constraints": constraints})
 
