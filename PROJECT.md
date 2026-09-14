@@ -1,238 +1,126 @@
 ---
 project: domain_generator
-target_version: core-0.1
-phase: release-hardening
+target_version: core-0.2
+phase: terrain-redesign
 status: in-progress
-current_milestone: core-0.1-hardening
-checkpoint: m11-acceptance-suite-v0.1-merged
-next_topic: core-0.1-release-candidate-review
+historical_release_branch: release/0.1-prealpha
+historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
+development_branch: dev/0.2
+current_milestone: v0.2-batch-a-continuous-terrain-foundation
+checkpoint: v0.1-visual-audit-complete
+next_topic: implement-continuous-terrain-foundation-v0.2
 completed:
-  - M0-project-foundation
-  - M1-data-contracts
-  - M2-deterministic-pipeline
-  - M3-spatial-foundation
-  - M4-layout-and-constraints-core-0.1
-  - M5-elevation-v0.1
-  - M6-hydrology-v0.1
-  - M7-surface-v0.1
-  - M8-dependent-placement-v0.1
-  - M9-validation-ranking-v0.1
-  - M10-stable-outputs-v0.1
-  - M11-acceptance-suite-v0.1
+  - core-0.1-prealpha-infrastructure
+  - core-0.1-m11-acceptance-suite
+  - core-0.1-local-portability-hardening
+  - core-0.1-codex-and-remote-generation-integrations
+accepted_designs:
+  - continuous-terrain-foundation-v0.2
 implemented_integrations:
   - local-model-skill-adapter-v0.1
   - codex-integration-packaging-v0.1
   - remote-github-actions-generation-adapter-v0.1
-accepted_designs:
-  - dependent-placement-site-selection-v0.1
-  - end-to-end-runtime-bundle-v0.1
-  - final-validation-hard-v0.1
-  - soft-constraint-compilation-scoring-v0.1
-  - hydrofeature-lake-materialization-v0.1
-  - domain-data-assembler-v0.1
-  - domain-bundle-export-v0.1
-  - technical-renderer-v0.1
-  - canonical-cli-python-entrypoint-v0.1
-  - local-model-skill-adapter-v0.1
-  - codex-integration-packaging-v0.1
-  - remote-github-actions-generation-adapter-v0.1
-  - m11-acceptance-suite-v0.1
-implemented_infrastructure:
-  - github-actions-pytest-ci-on-push-and-pull-request
-  - github-actions-remote-domain-generation-v0.1
 canonical_documents:
   architecture: docs/architecture.md
   roadmap: docs/roadmap.md
   glossary: docs/glossary.md
   decisions: docs/decisions/
   contracts: docs/contracts/
-  design_baseline: docs/design/core-0.1-generation-baseline.md
-  runtime_bundle: docs/design/end-to-end-runtime-bundle-v0.1.md
-  domain_data_assembler: docs/design/domain-data-assembler-v0.1.md
-  domain_bundle_export: docs/design/domain-bundle-export-v0.1.md
-  technical_renderer: docs/design/technical-renderer-v0.1.md
-  canonical_entrypoint: docs/design/canonical-cli-python-entrypoint-v0.1.md
-  local_model_adapter: docs/design/local-model-skill-adapter-v0.1.md
-  codex_integration: docs/design/codex-integration-packaging-v0.1.md
-  remote_github_actions_generation: docs/design/remote-github-actions-generation-adapter-v0.1.md
-  m11_acceptance_suite: docs/design/m11-acceptance-suite-v0.1.md
+  continuous_terrain_v0_2: docs/design/continuous-terrain-foundation-v0.2.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
 ---
 
 # Состояние проекта
 
-`domain_generator` — независимое setting-agnostic procedural Core. M0–M11 завершены. Integration track для Core 0.1 также завершён. Release gate Core 0.1 закрыт зелёным M11 Acceptance Suite; проект перешёл в короткий hardening / release-candidate review.
+`domain_generator` — setting-agnostic procedural Core для генерации региональных/глобальных карт. Core 0.1 сохранён как pre-alpha snapshot в `release/0.1-prealpha`. Новая разработка идёт в `dev/0.2`.
 
-## Карта прогресса
+## Почему начат Core 0.2
 
-```text
-[готово] M0–M10 Core capabilities
-[готово] DomainData / DomainBundle / Technical Renderer
-[готово] canonical Python API + CLI
-[готово] Local Model Skill / Adapter v0.1
-[готово] Codex Integration Packaging v0.1
-[готово] Remote GitHub Actions Generation Adapter v0.1
-[готово] remote-generation E2E + automatic branch cleanup
-[готово] visual remote smoke example
-[готово] M11 Acceptance Suite v0.1
+Core 0.1 успешно проверил инфраструктуру: contracts, deterministic RNG, pipeline stages, constraints, attempts/ranking, DomainData/DomainBundle, CLI, Codex и remote GitHub execution. M11 доказал exact replay и стабильность реализации.
 
-[сейчас] Core 0.1 hardening / release-candidate review
-[следом] Core 0.1 release candidate declaration
-[отдельно позже] Presentation / ImageGen Guide Renderer
-```
-
-## M11 Acceptance Suite v0.1 — complete
-
-Normative design: `docs/design/m11-acceptance-suite-v0.1.md`.
-
-Implementation merged through PR #57. Accepted implementation head before merge:
+Первый полноценный visual diagnostic выявил ограничение самой модели мира:
 
 ```text
-6580046bcf13f38960ad75a8697e79a9594c881c
+flat elevation = 0
++ sparse terrain feature contributions
+→ visually sparse / line-like terrain
 ```
 
-Merge commit:
+`ridge` Core 0.1 фактически моделировался как размытая polyline, а downstream hydrology работала по такому elevation. Поэтому Core 0.1 не объявляется release candidate; он остаётся исторической pre-alpha точкой.
+
+## Версионная граница
 
 ```text
-cd0a79b337f5e16e6336e36d843e8cba42251ca7
+release/0.1-prealpha
+└─ 9699c3d8079b8b9710d65eed60ff975158af0ad3
+
+dev/0.2
+└─ начинается с того же snapshot
 ```
 
-Final PR CI:
+Exact 0.1 behavior хранится в release branch. 0.2 имеет право намеренно менять generated world semantics по INV-009.
+
+## Текущий пакет
+
+**v0.2 Batch A — Continuous Terrain Foundation**
+
+Normative design: `docs/design/continuous-terrain-foundation-v0.2.md`.
 
 ```text
-357 passed in 12.47s
+continuous base elevation
+→ smooth Band spine
+→ massif-scale ridge modifier
+→ blended Area raise/depress
+→ TerrainState base/final diagnostics
+→ 0.2 acceptance recalibration
+→ early terrain-only visual checkpoint
 ```
 
-M11 fixes seven representative worlds:
+Pipeline order остаётся прежним:
 
 ```text
-A01 minimal
-A02 terrain-ridge
-A03 hydrology-lake-river
-A04 surface
-A05 dependent-poi
-A06 constraints-ranking
-A07 complex-mixed
+Layout → Terrain → Hydrology → Surface → Placement → Final
 ```
 
-Каждый case проверяет одновременно:
+Batch A не переписывает Hydrology/Surface/Placement. Их качество будет переоценено после принятия нового terrain foundation.
 
-1. exact replay;
-2. compact deterministic baseline;
-3. semantic correctness.
-
-Baseline strategy:
-
-- fixed `GenerationRequest` / `PresetCatalog` / seed;
-- explicit `expected.json`, без auto-update;
-- canonical DomainData SHA-256;
-- field SHA-256 + dtype/shape/min/max;
-- fingerprints/provenance;
-- semantic assertions для соответствующего subsystem;
-- два независимых generation run для exact replay.
-
-## Acceptance coverage
-
-### A01 Minimal
-
-Проверяет пустой корректный world, canonical 4 fields, finite/range invariants, validation и bundle baseline.
-
-### A02 Terrain Ridge
-
-Проверяет materialized terrain `Band`, non-constant elevation, bounds и deterministic ridge field.
-
-### A03 Hydrology / Lake / River
-
-Фиксированный case реально материализует:
+## Что сохраняется из 0.1
 
 ```text
-lake-0001
-72 river nodes
-36 river segments
+contracts/compiler architecture
+deterministic semantic RNG namespaces
+attempt pipeline
+constraints + hard/soft validation
+ranking
+GridAdapter
+Shapely geometry foundation
+dependent placement
+DomainData / DomainBundle
+canonical API / CLI
+Codex integration
+GitHub remote generation
+exact replay infrastructure
 ```
 
-Проверяются water depth, generated hydro feature и internal river references.
-
-### A04 Surface
-
-Проверяет water forcing:
+## Что меняется первым
 
 ```text
-water cell → moisture = 1
-water cell → vegetation_density = 0
+DomainSpec 0.2 gains required TerrainSpec
+Terrain no longer starts from zeros
+Band centerline becomes smoothed semantic spine
+ridge modifies a continuous background as a massif
+raise/depress gain smooth transition zones
+TerrainState exposes base_elevation_m internally
 ```
 
-и material effect от deterministic surface moisture bias.
+## Quality gate
 
-### A05 Dependent POI
+После implementation Batch A работа останавливается на human visual review elevation. Hydrology Batch B не начинается, пока terrain не выглядит как связный непрерывный рельеф, а ridge — как 2D массив, а не размытая линия.
 
-Проверяет stage boundary:
+## Branch hygiene
 
-```text
-Layout → reservation exists, final point absent
-Placement → final point exists
-```
-
-Final POI обязан лежать в allowed region.
-
-### A06 Constraints / Ranking
-
-Проверяет реальный multi-attempt selection:
-
-```text
-16 attempts executed
-2 hard-valid candidates: attempts 8 and 7
-soft scores differ
-winner: attempt 8
-```
-
-Это доказывает hard rejection + soft ranking + deterministic winner ordering.
-
-### A07 Complex Mixed
-
-Representative mixed world объединяет terrain, basin/lake, river network, surface bias, dependent settlement POI, hard/soft constraints, ranking, assembly и export.
-
-Фиксированный baseline выбирает attempt 1 из двух valid candidates и содержит generated lake + river network.
-
-## Bug found by M11
-
-M11 обнаружил production defect: Layout concrete-geometry validation пытался обрабатывать structural soft constraint как hard predicate и бросал `LayoutCapabilityError`.
-
-Исправление было вынесено отдельно, согласно bug policy:
-
-```text
-PR #58
-→ regression test
-→ 342 tests green
-→ accepted separately
-→ merged as cd15b986e9a68f62fb7f8b80bd266e897125062b
-```
-
-После bugfix A06 прошёл и был зафиксирован baseline.
-
-## Core 0.1 release gate
-
-Сейчас green одновременно:
-
-```text
-[green] full unit/integration suite
-[green] A01..A07 acceptance worlds
-[green] exact replay all cases
-[green] compact deterministic baselines
-[green] canonical bundle acceptance
-[green] engine/hard invariants
-[green] provenance/fingerprints/digests
-[green] remote GitHub generation E2E
-```
-
-Таким образом функциональный release gate Core 0.1 закрыт.
-
-## Следующий bounded step
-
-Новые generation capabilities сейчас не требуются. Следующий этап — короткий Core 0.1 release-candidate review/hardening: проверить package/version/release metadata, документационную согласованность и отсутствие известных блокирующих дефектов, после чего отдельно объявить Core 0.1 RC.
-
-Presentation/ImageGen Guide Renderer остаётся downstream presentation track и не блокирует Core 0.1.
+После уборки repository держит только долгоживущие `main`, `release/0.1-prealpha`, `dev/0.2` плюс текущую короткоживущую PR branch. После merge/abandon рабочие branches удаляются сразу.
 
 ## Invariants
 
-INV-001..INV-011 remain unchanged. Architecture changes are discussed and documented before implementation; implementation PRs merge only after separate explicit acceptance.
+INV-001..INV-011 remain unchanged. Архитектурные изменения документируются до implementation; diagnostics не изменяют semantic result; cross-version world identity не обещается.
