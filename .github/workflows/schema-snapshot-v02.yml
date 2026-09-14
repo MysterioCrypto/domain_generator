@@ -27,7 +27,7 @@ jobs:
       - run: python -m domain_generator.schema_export
       - name: Commit generated snapshots when changed
         run: |
-          if git diff --quiet -- schemas/v0.2; then
+          if [ -z "$(git status --porcelain -- schemas/v0.2)" ]; then
             echo "schema snapshots already current"
             exit 0
           fi
