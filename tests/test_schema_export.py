@@ -18,13 +18,14 @@ from domain_generator.contracts import (
 )
 from domain_generator.presets import PresetCatalog
 from domain_generator.schema_export import (
+    CURRENT_SCHEMA_DIRECTORY,
     ROOT_CONTRACT_MODELS,
     generate_schema_documents,
     render_schema_document,
 )
 
 
-SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schemas" / "v0.1"
+SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schemas" / CURRENT_SCHEMA_DIRECTORY
 
 
 def sample_payloads() -> dict[type, dict]:
