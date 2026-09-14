@@ -34,7 +34,7 @@ class GeneratorIdentity(FrozenStrictModel):
 
 
 class DomainProvenance(FrozenStrictModel):
-    spec_schema_version: Literal["0.1"]
+    spec_schema_version: Literal["0.1", "0.2"]
     spec_fingerprint: Annotated[StrictStr, Field(min_length=1)]
     plan_fingerprint: Annotated[StrictStr, Field(min_length=1)]
     generation_config_fingerprint: Annotated[StrictStr, Field(min_length=1)]
