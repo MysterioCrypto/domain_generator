@@ -1,6 +1,7 @@
 # Remote generation через GitHub Actions
 
 Normative design: `docs/design/remote-github-actions-generation-adapter-v0.1.md`.
+Guide Renderer extension: `docs/design/guide-renderer-v0.1.md`.
 
 ## Что это такое
 
@@ -20,15 +21,10 @@ Inputs:
 
 - `request_path` — repository-relative путь к `GenerationRequest` JSON;
 - `presets_path` — optional repository-relative путь к `PresetCatalog` JSON;
-- `preview` — нужен ли `technical-map.png`.
+- `preview` — нужен ли diagnostic `technical-map.png`;
+- `guide_preview` — нужен ли человекочитаемый `guide-map.png`.
 
-Пример существующего request:
-
-```text
-remote-requests/example/request.json
-```
-
-Для него `presets_path` оставляется пустым.
+Оба preview-флага presentation-only и не меняют semantic generation result.
 
 ## Chat/agent запуск через PR
 
@@ -53,23 +49,27 @@ remote-requests/<request-id>/run.json
   "run_version": "0.1",
   "request_path": "remote-requests/example/request.json",
   "presets_path": null,
-  "preview": true
+  "preview": true,
+  "guide_preview": false
 }
 ```
+
+`guide_preview` optional и для старых manifests по умолчанию считается `false`.
 
 После открытия PR изменение под `remote-requests/**` запускает generation workflow. Для одного generation PR должен изменяться ровно один `remote-requests/**/run.json`.
 
 ## Artifacts
 
-Успешный run публикует:
+Успешный run может публиковать:
 
 ```text
 domain-bundle
-technical-preview        # если preview был создан
 generation-diagnostics
+technical-preview        # когда создан preview/technical-map.png
+guide-preview            # когда создан preview/guide-map.png
 ```
 
-`domain-bundle` содержит canonical DomainBundle. `technical-preview` — отдельная копия `preview/technical-map.png` для удобного скачивания. `generation-diagnostics` содержит snapshot входов, execution metadata, stdout и stderr.
+`domain-bundle` содержит canonical DomainBundle. Preview artifacts являются downstream copies для удобного скачивания и не входят в canonical manifest/world identity.
 
 При ошибке `generation-diagnostics` всё равно публикуется, а workflow остаётся failed.
 
@@ -79,11 +79,11 @@ Artifacts имеют retention 7 дней в v0.1.
 
 Для PR workflow явно checkout-ит `pull_request.head.sha`; для manual dispatch используется SHA/ref самого run. Secondary checkout `main` не выполняется.
 
-`remote-execution.json` записывает `GITHUB_SHA`, run id/attempt, event name, hashes input files и canonical CLI exit code.
+`remote-execution.json` записывает exact generator commit, raw `GITHUB_SHA`, run id/attempt, event name, hashes input files, preview flags и canonical CLI exit code.
 
 ## No hidden reroll
 
-Один workflow run вызывает canonical CLI максимум один раз. Workflow не меняет seed, constraints, `max_attempts`, features или request после semantic failure.
+Один workflow run вызывает canonical CLI максимум один раз. Workflow не меняет seed, constraints, `max_attempts`, features или request после semantic failure. Guide rendering не создаёт дополнительный semantic generation run.
 
 ## Temporary branch cleanup
 
@@ -102,13 +102,20 @@ Generation workflow имеет только `contents: read`.
 
 Удаление temporary branch не удаляет workflow run/artifacts. Artifact lifetime определяется Actions retention policy; удаление самого workflow run удаляет связанные artifacts.
 
-## Example
+## Examples
 
-Repository содержит non-semantic example transport request:
+Repository содержит transport examples:
 
 ```text
-remote-requests/example/request.json
-remote-requests/example/run.json
+remote-requests/example/
+remote-requests/visual-example/
 ```
 
-Он нужен как проверяемый reference format, а не как setting-specific preset.
+А representative map-like Guide Renderer world хранится отдельно как обычный example input:
+
+```text
+examples/guide-renderer/demo-region/request.json
+examples/guide-renderer/demo-region/presets.json
+```
+
+Generated PNG/bundle для demo не коммитятся в repository.
