@@ -1,10 +1,13 @@
+from dataclasses import replace
+
+from .channelization import normalize_semantic_confluences
 from .classification import classify_stream_mask, extract_lake_candidates
 from .continuous import (
-    build_continuous_river_network,
+    build_continuous_river_network as _build_continuous_river_network_raw,
     choose_lake_outlets,
     continuous_routing_field,
     distributed_flow_accumulation_km2,
-    generate_hydrology_v02,
+    generate_hydrology_v02 as _generate_hydrology_v02_raw,
     validate_hydrology_v02,
 )
 from .generate import (
@@ -25,6 +28,33 @@ from .routing import (
 )
 from .state import ContinuousRoutingField, HydrologyState, LakeCandidate, LakeOutlet
 from .water import accepted_lake_cell_map, build_water_depth_m, river_depth_proxy_m
+
+
+def build_continuous_river_network(
+    plan,
+    field,
+    accumulation,
+    channel_support,
+    lake_candidates,
+    lake_outlets,
+):
+    network, stream_mask = _build_continuous_river_network_raw(
+        plan,
+        field,
+        accumulation,
+        channel_support,
+        lake_candidates,
+        lake_outlets,
+    )
+    return normalize_semantic_confluences(network), stream_mask
+
+
+def generate_hydrology_v02(plan, terrain):
+    raw = _generate_hydrology_v02_raw(plan, terrain)
+    return replace(
+        raw,
+        river_network=normalize_semantic_confluences(raw.river_network),
+    )
 
 
 def generate_hydrology(plan, terrain):
@@ -90,6 +120,7 @@ __all__ = [
     "hydrology_stage",
     "lake_feature_id",
     "materialize_lake_features",
+    "normalize_semantic_confluences",
     "priority_flood_routing_surface",
     "priority_flood_surfaces",
     "river_depth_proxy_m",
