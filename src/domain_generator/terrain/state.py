@@ -10,3 +10,4 @@ class TerrainState:
     """Per-attempt runtime terrain state; not a serialized contract."""
 
     elevation_m: np.ndarray
+    base_elevation_m: np.ndarray | None = None
