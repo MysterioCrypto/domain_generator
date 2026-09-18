@@ -288,7 +288,7 @@ def _save_channel_skeleton(
     if confluence_x:
         ax.scatter(confluence_x, confluence_y, s=24.0, marker="D", color="magenta", zorder=9)
 
-    ax.set_title("H09-C — Raw MFD support (gray), dominant skeleton (black), final rivers (blue)")
+    ax.set_title("H09-D — Raw MFD support (gray), terrain-aware skeleton (black), final rivers (blue)")
     ax.set_xlabel("km east")
     ax.set_ylabel("km north")
     ax.set_xlim(0.0, width_km)
@@ -342,6 +342,118 @@ def _save_accumulation_overlay(
     plt.close(fig)
 
 
+def _source_points(hydrology) -> tuple[list[float], list[float]]:
+    xs: list[float] = []
+    ys: list[float] = []
+    for node in hydrology.river_network.nodes.values():
+        if node.kind.value == "source":
+            xs.append(float(node.position.x_km))
+            ys.append(float(node.position.y_km))
+    return xs, ys
+
+
+def _save_local_slope(
+    output: Path,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+) -> None:
+    field = hydrology.continuous_routing
+    assert field is not None and field.local_slope is not None
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    image = ax.imshow(
+        np.flipud(field.local_slope),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        cmap="viridis",
+    )
+    xs, ys = _source_points(hydrology)
+    if xs:
+        ax.scatter(xs, ys, s=28.0, marker="o", color="red", zorder=9)
+    colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.025)
+    colorbar.set_label("dimensionless slope (rise/run)")
+    ax.set_title("H09-D — Conditioned local slope with selected sources")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    fig.tight_layout()
+    fig.savefig(output / "06-local-slope-sources.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_convergence(
+    output: Path,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+) -> None:
+    convergence = hydrology.channel_convergence
+    assert convergence is not None
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    image = ax.imshow(
+        np.flipud(convergence),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        cmap="viridis",
+    )
+    xs, ys = _source_points(hydrology)
+    if xs:
+        ax.scatter(xs, ys, s=28.0, marker="o", color="red", zorder=9)
+    colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.025)
+    colorbar.set_label("incoming MFD fraction sum")
+    ax.set_title("H09-D — MFD flow convergence with selected sources")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    fig.tight_layout()
+    fig.savefig(output / "07-flow-convergence-sources.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_initiation_score(
+    output: Path,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    threshold_km2: float,
+) -> None:
+    score = hydrology.channel_initiation_score_km2
+    convergence = hydrology.channel_convergence
+    assert score is not None and convergence is not None
+    eligible = (score >= threshold_km2) & (convergence > 1.0 + 1e-9)
+
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    image = ax.imshow(
+        np.flipud(np.log1p(score)),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        cmap="viridis",
+    )
+    rows, columns = np.where(eligible)
+    if rows.size:
+        x = (columns.astype(np.float64) + 0.5) * (width_km / score.shape[1])
+        y = height_km - (rows.astype(np.float64) + 0.5) * (height_km / score.shape[0])
+        ax.scatter(x, y, s=8.0, marker=".", color="white", alpha=0.45, zorder=7)
+    xs, ys = _source_points(hydrology)
+    if xs:
+        ax.scatter(xs, ys, s=32.0, marker="o", color="red", zorder=9)
+    colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.025)
+    colorbar.set_label("log(1 + area–slope initiation score km²)")
+    ax.set_title("H09-D — Initiation score; white=eligible, red=selected source")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    fig.tight_layout()
+    fig.savefig(output / "08-initiation-score-sources.png", bbox_inches="tight")
+    plt.close(fig)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Render Core 0.2 hydrology H09 checkpoint")
     parser.add_argument("request", type=Path)
@@ -369,7 +481,7 @@ def main() -> None:
     if hydrology.channel_support_mask is None:
         raise RuntimeError("H09 checkpoint requires channel_support_mask")
     if hydrology.channel_skeleton_mask is None:
-        raise RuntimeError("H09-C checkpoint requires channel_skeleton_mask")
+        raise RuntimeError("H09-D checkpoint requires channel_skeleton_mask")
 
     validation = validate_hydrology(plan, terrain, hydrology, attempt_index=0)
 
@@ -416,12 +528,31 @@ def main() -> None:
         height_km=height_km,
         cell_size_km=cell_size_km,
     )
+    _save_local_slope(
+        args.output,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+    )
+    _save_convergence(
+        args.output,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+    )
+    _save_initiation_score(
+        args.output,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        threshold_km2=float(plan.hydrology.stream_threshold_km2),
+    )
 
     node_kinds = Counter(node.kind.value for node in hydrology.river_network.nodes.values())
     final_stats = _final_direction_stats(hydrology.river_network)
     routing_stats = _routing_direction_stats(hydrology.continuous_routing.flow_angle_rad)
     stats = {
-        "checkpoint": "H09-C",
+        "checkpoint": "H09-D",
         "generator_version": domain_generator.__version__,
         "plan_version": plan.plan_version,
         "routing_mode": hydrology.routing_mode,
@@ -442,6 +573,9 @@ def main() -> None:
             "canonical_lake_outlet_count": len(hydrology.lake_outlets),
             "channel_support_cells": int(np.count_nonzero(hydrology.channel_support_mask)),
             "channel_skeleton_cells": int(np.count_nonzero(hydrology.channel_skeleton_mask)),
+            "max_local_slope": float(np.max(hydrology.continuous_routing.local_slope)),
+            "max_channel_convergence": float(np.max(hydrology.channel_convergence)),
+            "max_initiation_score_km2": float(np.max(hydrology.channel_initiation_score_km2)),
             "final_stream_cells": int(np.count_nonzero(hydrology.stream_mask)),
             "river_node_count": len(hydrology.river_network.nodes),
             "river_segment_count": len(hydrology.river_network.segments),

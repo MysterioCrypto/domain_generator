@@ -44,6 +44,7 @@ class ContinuousRoutingField:
 
     flow_angle_rad: np.ndarray
     fractions: np.ndarray
+    local_slope: np.ndarray | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,4 +69,7 @@ class HydrologyState:
     continuous_routing: ContinuousRoutingField | None = None
     channel_support_mask: np.ndarray | None = None
     channel_skeleton_mask: np.ndarray | None = None
+    channel_unique_area_km2: np.ndarray | None = None
+    channel_convergence: np.ndarray | None = None
+    channel_initiation_score_km2: np.ndarray | None = None
     lake_outlets: tuple[LakeOutlet, ...] = ()

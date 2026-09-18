@@ -5,8 +5,10 @@ from math import atan2, cos, pi, sin
 import numpy as np
 
 from domain_generator.contracts.plan import GenerationPlan
-from domain_generator.hydrology import build_continuous_river_network
+from domain_generator.hydrology import ContinuousRoutingField, build_continuous_river_network
 from domain_generator.hydrology.continuous import (
+    _activate_channel_skeleton,
+    _terrain_aware_initiation,
     choose_lake_outlets,
     continuous_routing_field,
     distributed_flow_accumulation_km2,
@@ -234,3 +236,82 @@ def test_h08_branching_catchment_forms_confluence_without_downstream_split() -> 
     assert len(non_grid) / len(all_bearings) >= 0.20
     assert all(outdegree[node_id] <= 1 for node_id in network.nodes)
     assert all(indegree[node_id] >= 2 for node_id in confluences)
+
+
+
+def test_i01_area_slope_and_convergence_control_source_eligibility() -> None:
+    shape = (5, 5)
+    fractions = np.zeros((5, 5, 8), dtype=np.float64)
+
+    # Convergent centre: two upstream neighbours each send 0.7 into (2,2).
+    fractions[2, 1, 0] = 0.7  # east
+    fractions[1, 2, 6] = 0.7  # south
+
+    slope = np.full(shape, 0.02, dtype=np.float64)
+    slope[2, 2] = 0.10
+    field = ContinuousRoutingField(
+        flow_angle_rad=np.zeros(shape, dtype=np.float64),
+        fractions=fractions,
+        local_slope=slope,
+    )
+    channel_area = np.full(shape, 100.0, dtype=np.float64)
+
+    convergence, score, eligible = _terrain_aware_initiation(
+        field,
+        channel_area,
+        stream_threshold_km2=150.0,
+    )
+
+    assert convergence[2, 2] > 1.0
+    assert score[2, 2] == 200.0
+    assert bool(eligible[2, 2])
+    assert score[3, 3] == 40.0
+    assert not bool(eligible[3, 3])
+
+
+def test_i02_planar_transport_is_not_source_eligible_from_area_alone() -> None:
+    shape = (5, 5)
+    fractions = np.zeros((5, 5, 8), dtype=np.float64)
+    for row in range(1, 4):
+        for column in range(0, 4):
+            fractions[row, column, 0] = 1.0  # uniform east flow
+
+    field = ContinuousRoutingField(
+        flow_angle_rad=np.zeros(shape, dtype=np.float64),
+        fractions=fractions,
+        local_slope=np.full(shape, 0.20, dtype=np.float64),
+    )
+    channel_area = np.full(shape, 1000.0, dtype=np.float64)
+
+    convergence, score, eligible = _terrain_aware_initiation(
+        field,
+        channel_area,
+        stream_threshold_km2=150.0,
+    )
+
+    assert score[2, 2] > 150.0
+    assert abs(float(convergence[2, 2]) - 1.0) < 1e-12
+    assert not bool(eligible[2, 2])
+
+
+def test_i03_active_channel_does_not_restart_downstream() -> None:
+    shape = (3, 6)
+    receiver = np.full(shape, -1, dtype=np.int32)
+    columns = shape[1]
+    for column in range(1, 5):
+        receiver[1, column] = np.int32(1 * columns + column + 1)
+
+    eligible = np.zeros(shape, dtype=np.bool_)
+    eligible[1, 1] = True
+    eligible[1, 3] = True
+
+    skeleton, sources, confluences = _activate_channel_skeleton(
+        receiver,
+        eligible,
+        lake_candidates=(),
+        lake_outlets=(),
+    )
+
+    assert sources == {(1, 1)}
+    assert not confluences
+    assert all(bool(skeleton[1, column]) for column in range(1, 6))

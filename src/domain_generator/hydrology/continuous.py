@@ -100,6 +100,8 @@ class _TraceResult:
 class _ChannelSkeleton:
     receiver_index: np.ndarray
     channel_area_km2: np.ndarray
+    convergence: np.ndarray
+    initiation_score_km2: np.ndarray
     mask: np.ndarray
     sources: frozenset[Cell]
     confluences: frozenset[Cell]
@@ -278,6 +280,29 @@ def _best_facet_choice(
     return best
 
 
+def _local_slope_field(
+    routing_elevation_m: np.ndarray,
+    *,
+    cell_size_km: float,
+) -> np.ndarray:
+    """Return deterministic dimensionless terrain gradient magnitude."""
+    rows, columns = routing_elevation_m.shape
+    spacing_m = float(cell_size_km) * 1000.0
+    dz_dx = np.zeros((rows, columns), dtype=np.float64)
+    dz_dy = np.zeros((rows, columns), dtype=np.float64)
+
+    if columns > 1:
+        dz_dx[:, 1:-1] = (routing_elevation_m[:, 2:] - routing_elevation_m[:, :-2]) / (2.0 * spacing_m)
+        dz_dx[:, 0] = (routing_elevation_m[:, 1] - routing_elevation_m[:, 0]) / spacing_m
+        dz_dx[:, -1] = (routing_elevation_m[:, -1] - routing_elevation_m[:, -2]) / spacing_m
+    if rows > 1:
+        dz_dy[1:-1, :] = (routing_elevation_m[:-2, :] - routing_elevation_m[2:, :]) / (2.0 * spacing_m)
+        dz_dy[0, :] = (routing_elevation_m[0, :] - routing_elevation_m[1, :]) / spacing_m
+        dz_dy[-1, :] = (routing_elevation_m[-2, :] - routing_elevation_m[-1, :]) / spacing_m
+
+    return np.hypot(dz_dx, dz_dy)
+
+
 def continuous_routing_field(
     routing_elevation_m: np.ndarray,
     *,
@@ -345,6 +370,10 @@ def continuous_routing_field(
     return ContinuousRoutingField(
         flow_angle_rad=angle,
         fractions=fractions,
+        local_slope=_local_slope_field(
+            routing_elevation_m,
+            cell_size_km=cell_size_km,
+        ),
     )
 
 def _field_edges(field: ContinuousRoutingField, cell: Cell) -> tuple[tuple[Cell, float], ...]:
@@ -675,87 +704,145 @@ def _dominant_channel_area_km2(
     return area.reshape(shape)
 
 
-def _build_channel_skeleton(
-    plan: GenerationPlan,
-    field: ContinuousRoutingField,
-    accumulation: np.ndarray,
-    channel_support: np.ndarray,
-    lake_candidates: tuple[LakeCandidate, ...],
-    lake_outlets: tuple[LakeOutlet, ...],
-) -> _ChannelSkeleton:
-    """Extract one-cell-wide merge-only channel topology from diffuse MFD transport."""
-    shape = channel_support.shape
+def _mfd_incoming_fraction_sum(field: ContinuousRoutingField) -> np.ndarray:
+    """Measure local MFD convergence as total fractional inflow from neighbours."""
+    shape = field.flow_angle_rad.shape
     rows, columns = shape
-    lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
-    receiver_index = _dominant_channel_receiver_index(
-        field,
-        accumulation,
-        channel_support,
-        lake_candidates=lake_candidates,
-        lake_outlets=lake_outlets,
-    )
-    channel_area = _dominant_channel_area_km2(
-        receiver_index,
-        cell_size_km=plan.grid.cell_size_km,
-        lake_candidates=lake_candidates,
-    )
-
-    threshold = float(plan.hydrology.stream_threshold_km2)
-    eligible = channel_area >= threshold
-    for cell in lake_by_cell:
-        eligible[cell] = False
-
-    eligible_indegree = np.zeros(shape, dtype=np.int32)
+    incoming = np.zeros(shape, dtype=np.float64)
     for row in range(rows):
         for column in range(columns):
             cell = (row, column)
-            if not bool(eligible[cell]):
+            for target, fraction in _field_edges(field, cell):
+                incoming[target] += float(fraction)
+    return incoming
+
+
+def _terrain_aware_initiation(
+    field: ContinuousRoutingField,
+    channel_area_km2: np.ndarray,
+    *,
+    stream_threshold_km2: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Return convergence, area-slope score and normal-source eligibility."""
+    if field.local_slope is None:
+        raise HydrologyCapabilityError("terrain-aware initiation requires local_slope")
+    if field.local_slope.shape != channel_area_km2.shape:
+        raise HydrologyCapabilityError("local slope and channel area must share shape")
+
+    convergence = _mfd_incoming_fraction_sum(field)
+    slope = np.asarray(field.local_slope, dtype=np.float64)
+    reference_slope = 0.05
+    initiation_score = channel_area_km2 * (np.maximum(slope, 0.0) / reference_slope)
+    eligible = (
+        (initiation_score >= float(stream_threshold_km2))
+        & (convergence > 1.0 + 1e-9)
+    )
+    return convergence, initiation_score, eligible
+
+
+def _dominant_topological_order(
+    receiver_index: np.ndarray,
+    *,
+    lake_candidates: tuple[LakeCandidate, ...],
+) -> tuple[Cell, ...]:
+    """Stable topological order for the single-downstream dominant graph."""
+    shape = receiver_index.shape
+    rows, columns = shape
+    lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
+    indegree = np.zeros(shape, dtype=np.int32)
+    active_count = 0
+
+    for row in range(rows):
+        for column in range(columns):
+            cell = (row, column)
+            if cell in lake_by_cell:
                 continue
+            active_count += 1
             target_index = int(receiver_index[cell])
             if target_index < 0:
                 continue
             target = _cell_from_index(target_index, columns)
-            if target not in lake_by_cell and bool(eligible[target]):
-                eligible_indegree[target] += 1
+            if target in lake_by_cell:
+                continue
+            indegree[target] += 1
 
-    source_cells = {
+    queue = sorted(
         (row, column)
         for row in range(rows)
         for column in range(columns)
-        if bool(eligible[row, column])
-        and int(eligible_indegree[row, column]) == 0
-        and not _is_edge((row, column), shape)
-    }
+        if (row, column) not in lake_by_cell and int(indegree[row, column]) == 0
+    )
+    order: list[Cell] = []
+    while queue:
+        cell = queue.pop(0)
+        order.append(cell)
+        target_index = int(receiver_index[cell])
+        if target_index < 0:
+            continue
+        target = _cell_from_index(target_index, columns)
+        if target in lake_by_cell:
+            continue
+        indegree[target] -= 1
+        if indegree[target] == 0:
+            insertion = 0
+            while insertion < len(queue) and queue[insertion] < target:
+                insertion += 1
+            queue.insert(insertion, target)
 
+    if len(order) != active_count:
+        raise HydrologyCapabilityError("dominant channel projection contains a cycle")
+    return tuple(order)
+
+
+def _activate_channel_skeleton(
+    receiver_index: np.ndarray,
+    eligible: np.ndarray,
+    *,
+    lake_candidates: tuple[LakeCandidate, ...],
+    lake_outlets: tuple[LakeOutlet, ...],
+) -> tuple[np.ndarray, set[Cell], set[Cell]]:
+    """Activate eligible headwaters once, then propagate merge-only channels downstream."""
+    shape = receiver_index.shape
+    rows, columns = shape
+    if eligible.shape != shape:
+        raise HydrologyCapabilityError("source eligibility must match dominant graph shape")
+    lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
     outlet_receiver_cells = {outlet.receiver_cell for outlet in lake_outlets}
-    source_cells.difference_update(outlet_receiver_cells)
+    order = _dominant_topological_order(
+        receiver_index,
+        lake_candidates=lake_candidates,
+    )
 
     skeleton = np.zeros(shape, dtype=np.bool_)
-    starts = sorted(source_cells | outlet_receiver_cells)
-    max_steps = rows * columns + 1
+    active_upstream = np.zeros(shape, dtype=np.int32)
+    sources: set[Cell] = set()
 
-    for start in starts:
-        if start in lake_by_cell:
-            raise HydrologyCapabilityError("lake outlet receiver cannot be inside accepted lake")
-        cell = start
-        visited: set[Cell] = set()
-        for _ in range(max_steps):
-            if cell in visited:
-                raise HydrologyCapabilityError("dominant channel skeleton contains a cycle")
-            visited.add(cell)
-            skeleton[cell] = True
+    for cell in order:
+        if cell in lake_by_cell:
+            continue
+        is_outlet_start = cell in outlet_receiver_cells
+        has_active_upstream = int(active_upstream[cell]) > 0
+        starts_here = (
+            bool(eligible[cell])
+            and not has_active_upstream
+            and not is_outlet_start
+            and not _is_edge(cell, shape)
+        )
+        is_active = has_active_upstream or is_outlet_start or starts_here
+        if not is_active:
+            continue
 
-            if _is_edge(cell, shape):
-                break
-            target_index = int(receiver_index[cell])
-            if target_index < 0:
-                raise HydrologyCapabilityError("interior channel skeleton has no downstream receiver")
-            target = _cell_from_index(target_index, columns)
-            if target in lake_by_cell:
-                break
-            cell = target
-        else:
-            raise HydrologyCapabilityError("dominant channel skeleton exceeded deterministic step budget")
+        skeleton[cell] = True
+        if starts_here:
+            sources.add(cell)
+
+        target_index = int(receiver_index[cell])
+        if target_index < 0:
+            continue
+        target = _cell_from_index(target_index, columns)
+        if target in lake_by_cell:
+            continue
+        active_upstream[target] += 1
 
     skeleton_indegree = np.zeros(shape, dtype=np.int32)
     for row in range(rows):
@@ -774,7 +861,7 @@ def _build_channel_skeleton(
         if bool(skeleton[outlet.receiver_cell]):
             skeleton_indegree[outlet.receiver_cell] += 1
 
-    confluence_cells = {
+    confluences = {
         (row, column)
         for row in range(rows)
         for column in range(columns)
@@ -782,11 +869,55 @@ def _build_channel_skeleton(
         and int(skeleton_indegree[row, column]) >= 2
         and (row, column) not in lake_by_cell
     }
-    source_cells.difference_update(confluence_cells)
+    sources.difference_update(confluences)
+    return skeleton, sources, confluences
+
+
+def _build_channel_skeleton(
+    plan: GenerationPlan,
+    field: ContinuousRoutingField,
+    accumulation: np.ndarray,
+    channel_support: np.ndarray,
+    lake_candidates: tuple[LakeCandidate, ...],
+    lake_outlets: tuple[LakeOutlet, ...],
+) -> _ChannelSkeleton:
+    """Extract terrain-aware one-cell-wide channel topology from diffuse MFD transport."""
+    shape = channel_support.shape
+    lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
+    receiver_index = _dominant_channel_receiver_index(
+        field,
+        accumulation,
+        channel_support,
+        lake_candidates=lake_candidates,
+        lake_outlets=lake_outlets,
+    )
+    channel_area = _dominant_channel_area_km2(
+        receiver_index,
+        cell_size_km=plan.grid.cell_size_km,
+        lake_candidates=lake_candidates,
+    )
+
+    convergence, initiation_score, eligible = _terrain_aware_initiation(
+        field,
+        channel_area,
+        stream_threshold_km2=plan.hydrology.stream_threshold_km2,
+    )
+    eligible = eligible.copy()
+    for cell in lake_by_cell:
+        eligible[cell] = False
+
+    skeleton, source_cells, confluence_cells = _activate_channel_skeleton(
+        receiver_index,
+        eligible,
+        lake_candidates=lake_candidates,
+        lake_outlets=lake_outlets,
+    )
 
     return _ChannelSkeleton(
         receiver_index=receiver_index,
         channel_area_km2=channel_area,
+        convergence=convergence,
+        initiation_score_km2=initiation_score,
         mask=skeleton,
         sources=frozenset(source_cells),
         confluences=frozenset(confluence_cells),
@@ -1297,6 +1428,9 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         continuous_routing=field,
         channel_support_mask=support,
         channel_skeleton_mask=channel_skeleton.mask,
+        channel_unique_area_km2=channel_skeleton.channel_area_km2,
+        channel_convergence=channel_skeleton.convergence,
+        channel_initiation_score_km2=channel_skeleton.initiation_score_km2,
         lake_outlets=outlets,
     )
 
@@ -1372,6 +1506,8 @@ def validate_hydrology_v02(
             and field.flow_angle_rad.shape == shape
             and isinstance(field.fractions, np.ndarray)
             and field.fractions.shape == (shape[0], shape[1], len(_DIRS))
+            and isinstance(field.local_slope, np.ndarray)
+            and field.local_slope.shape == shape
         )
         if field_shapes:
             finite_fraction = bool(np.isfinite(field.fractions).all())
@@ -1424,10 +1560,22 @@ def validate_hydrology_v02(
                 expected_support[cell] = False
             support_ok = hydrology.channel_support_mask.dtype == np.dtype(np.bool_) and np.array_equal(hydrology.channel_support_mask, expected_support)
         if hydrology.channel_skeleton_mask is not None:
+            diagnostic_arrays_ok = (
+                hydrology.channel_unique_area_km2 is not None
+                and hydrology.channel_unique_area_km2.shape == shape
+                and np.isfinite(hydrology.channel_unique_area_km2).all()
+                and hydrology.channel_convergence is not None
+                and hydrology.channel_convergence.shape == shape
+                and np.isfinite(hydrology.channel_convergence).all()
+                and hydrology.channel_initiation_score_km2 is not None
+                and hydrology.channel_initiation_score_km2.shape == shape
+                and np.isfinite(hydrology.channel_initiation_score_km2).all()
+            )
             skeleton_ok = (
                 hydrology.channel_skeleton_mask.shape == shape
                 and hydrology.channel_skeleton_mask.dtype == np.dtype(np.bool_)
                 and all(not bool(hydrology.channel_skeleton_mask[cell]) for cell in lake_by_cell)
+                and diagnostic_arrays_ok
             )
         lakes_ok = (
             len(hydrology.lake_outlets) == len(hydrology.lake_candidates)
