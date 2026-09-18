@@ -551,6 +551,50 @@ def main() -> None:
     node_kinds = Counter(node.kind.value for node in hydrology.river_network.nodes.values())
     final_stats = _final_direction_stats(hydrology.river_network)
     routing_stats = _routing_direction_stats(hydrology.continuous_routing.flow_angle_rad)
+    unique_area = np.asarray(hydrology.channel_unique_area_km2, dtype=np.float64)
+    convergence = np.asarray(hydrology.channel_convergence, dtype=np.float64)
+    initiation_score = np.asarray(hydrology.channel_initiation_score_km2, dtype=np.float64)
+    local_slope = np.asarray(hydrology.continuous_routing.local_slope, dtype=np.float64)
+    threshold_km2 = float(plan.hydrology.stream_threshold_km2)
+    convergent_mask = convergence > 1.0 + 1e-9
+    score_mask = initiation_score >= threshold_km2
+    eligible_mask = convergent_mask & score_mask
+
+    def _percentiles(values: np.ndarray) -> dict[str, float]:
+        finite = values[np.isfinite(values)]
+        if finite.size == 0:
+            return {}
+        return {
+            "p50": float(np.percentile(finite, 50)),
+            "p75": float(np.percentile(finite, 75)),
+            "p90": float(np.percentile(finite, 90)),
+            "p95": float(np.percentile(finite, 95)),
+            "p99": float(np.percentile(finite, 99)),
+            "max": float(np.max(finite)),
+        }
+
+    candidate_cells = list(zip(*np.where(convergent_mask)))
+    candidate_cells.sort(
+        key=lambda cell: (
+            -float(initiation_score[cell]),
+            -float(unique_area[cell]),
+            -float(local_slope[cell]),
+            cell[0],
+            cell[1],
+        )
+    )
+    top_candidates = [
+        {
+            "row": int(row),
+            "column": int(column),
+            "unique_area_km2": float(unique_area[row, column]),
+            "local_slope": float(local_slope[row, column]),
+            "convergence": float(convergence[row, column]),
+            "score_km2": float(initiation_score[row, column]),
+        }
+        for row, column in candidate_cells[:20]
+    ]
+
     stats = {
         "checkpoint": "H09-D",
         "generator_version": domain_generator.__version__,
@@ -576,6 +620,19 @@ def main() -> None:
             "max_local_slope": float(np.max(hydrology.continuous_routing.local_slope)),
             "max_channel_convergence": float(np.max(hydrology.channel_convergence)),
             "max_initiation_score_km2": float(np.max(hydrology.channel_initiation_score_km2)),
+            "initiation_diagnostics": {
+                "threshold_km2": threshold_km2,
+                "convergent_cell_count": int(np.count_nonzero(convergent_mask)),
+                "score_at_or_above_threshold_count": int(np.count_nonzero(score_mask)),
+                "eligible_cell_count": int(np.count_nonzero(eligible_mask)),
+                "unique_area_all_km2": _percentiles(unique_area),
+                "unique_area_convergent_km2": _percentiles(unique_area[convergent_mask]),
+                "local_slope_all": _percentiles(local_slope),
+                "local_slope_convergent": _percentiles(local_slope[convergent_mask]),
+                "score_all_km2": _percentiles(initiation_score),
+                "score_convergent_km2": _percentiles(initiation_score[convergent_mask]),
+                "top_convergent_candidates": top_candidates,
+            },
             "final_stream_cells": int(np.count_nonzero(hydrology.stream_mask)),
             "river_node_count": len(hydrology.river_network.nodes),
             "river_segment_count": len(hydrology.river_network.segments),
