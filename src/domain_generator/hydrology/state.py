@@ -67,4 +67,5 @@ class HydrologyState:
     routing_mode: str = "d8"
     continuous_routing: ContinuousRoutingField | None = None
     channel_support_mask: np.ndarray | None = None
+    channel_skeleton_mask: np.ndarray | None = None
     lake_outlets: tuple[LakeOutlet, ...] = ()

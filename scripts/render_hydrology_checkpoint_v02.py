@@ -242,6 +242,62 @@ def _save_channel_support(
     plt.close(fig)
 
 
+def _save_channel_skeleton(
+    output: Path,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    support = hydrology.channel_support_mask
+    skeleton = hydrology.channel_skeleton_mask
+    assert support is not None
+    assert skeleton is not None
+
+    diagnostic = support.astype(np.float64) * 0.28
+    diagnostic[skeleton] = 1.0
+
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    image = ax.imshow(
+        np.flipud(diagnostic),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="nearest",
+        aspect="equal",
+        cmap="Greys",
+        vmin=0.0,
+        vmax=1.0,
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_river_network(ax, hydrology.river_network)
+
+    source_x = []
+    source_y = []
+    confluence_x = []
+    confluence_y = []
+    for node in hydrology.river_network.nodes.values():
+        if node.kind.value == "source":
+            source_x.append(node.position.x_km)
+            source_y.append(node.position.y_km)
+        elif node.kind.value == "confluence":
+            confluence_x.append(node.position.x_km)
+            confluence_y.append(node.position.y_km)
+    if source_x:
+        ax.scatter(source_x, source_y, s=18.0, marker="o", color="limegreen", zorder=9)
+    if confluence_x:
+        ax.scatter(confluence_x, confluence_y, s=24.0, marker="D", color="magenta", zorder=9)
+
+    ax.set_title("H09-C — Raw MFD support (gray), dominant skeleton (black), final rivers (blue)")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "05-channel-skeleton-vs-support.png", bbox_inches="tight")
+    plt.close(fig)
+
+
 def _save_accumulation_overlay(
     output: Path,
     terrain,
@@ -312,6 +368,8 @@ def main() -> None:
         raise RuntimeError("H09 checkpoint requires continuous Core 0.2 hydrology")
     if hydrology.channel_support_mask is None:
         raise RuntimeError("H09 checkpoint requires channel_support_mask")
+    if hydrology.channel_skeleton_mask is None:
+        raise RuntimeError("H09-C checkpoint requires channel_skeleton_mask")
 
     validation = validate_hydrology(plan, terrain, hydrology, attempt_index=0)
 
@@ -351,12 +409,19 @@ def main() -> None:
         height_km=height_km,
         cell_size_km=cell_size_km,
     )
+    _save_channel_skeleton(
+        args.output,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
 
     node_kinds = Counter(node.kind.value for node in hydrology.river_network.nodes.values())
     final_stats = _final_direction_stats(hydrology.river_network)
     routing_stats = _routing_direction_stats(hydrology.continuous_routing.flow_angle_rad)
     stats = {
-        "checkpoint": "H09",
+        "checkpoint": "H09-C",
         "generator_version": domain_generator.__version__,
         "plan_version": plan.plan_version,
         "routing_mode": hydrology.routing_mode,
@@ -376,6 +441,7 @@ def main() -> None:
             "accepted_lake_count": len(hydrology.lake_candidates),
             "canonical_lake_outlet_count": len(hydrology.lake_outlets),
             "channel_support_cells": int(np.count_nonzero(hydrology.channel_support_mask)),
+            "channel_skeleton_cells": int(np.count_nonzero(hydrology.channel_skeleton_mask)),
             "final_stream_cells": int(np.count_nonzero(hydrology.stream_mask)),
             "river_node_count": len(hydrology.river_network.nodes),
             "river_segment_count": len(hydrology.river_network.segments),

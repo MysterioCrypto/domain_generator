@@ -96,6 +96,15 @@ class _TraceResult:
     catchment_area_km2: float
 
 
+@dataclass(frozen=True, slots=True)
+class _ChannelSkeleton:
+    receiver_index: np.ndarray
+    channel_area_km2: np.ndarray
+    mask: np.ndarray
+    sources: frozenset[Cell]
+    confluences: frozenset[Cell]
+
+
 def _require_2d_finite(name: str, values: np.ndarray) -> None:
     if not isinstance(values, np.ndarray) or values.ndim != 2 or min(values.shape) < 1:
         raise HydrologyCapabilityError(f"{name} must be a non-empty 2D numpy array")
@@ -541,57 +550,247 @@ def distributed_flow_accumulation_km2(
     return result
 
 
-def _weighted_support_indegree(
+def _dominant_channel_receiver_index(
     field: ContinuousRoutingField,
-    support: np.ndarray,
     accumulation: np.ndarray,
+    channel_support: np.ndarray,
     *,
-    stream_threshold_km2: float,
     lake_candidates: tuple[LakeCandidate, ...],
     lake_outlets: tuple[LakeOutlet, ...],
 ) -> np.ndarray:
-    """Count channel-scale upstream contributors, not diffuse MFD leakage.
+    """Project diffuse MFD flux onto one deterministic receiver for channel topology."""
+    shape = field.flow_angle_rad.shape
+    if accumulation.shape != shape or channel_support.shape != shape:
+        raise HydrologyCapabilityError("dominant channel projection arrays must share shape")
 
-    MFD intentionally sends small positive fractions toward several neighbours.
-    Treating every positive fraction as a semantic tributary turns diffuse
-    hillslope transport into false confluences and many short parallel rivers.
-    A supported upstream cell counts as a channel-scale contributor only when
-    the catchment area it actually sends across that edge reaches the same
-    stream threshold that defines channel support.
-    """
-    shape = support.shape
-    if accumulation.shape != shape:
-        raise HydrologyCapabilityError("channel indegree accumulation must match support shape")
+    rows, columns = shape
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
-    indegree = np.zeros(shape, dtype=np.int32)
-    tolerance = max(1e-10, stream_threshold_km2 * 1e-12)
-
-    for row in range(shape[0]):
-        for column in range(shape[1]):
-            cell = (row, column)
-            if not bool(support[cell]) or cell in lake_by_cell:
-                continue
-            source_area = float(accumulation[cell])
-            for receiver, fraction in _field_edges(field, cell):
-                if fraction <= _EPS or receiver in lake_by_cell:
-                    continue
-                if not bool(support[receiver]):
-                    continue
-                transmitted_area = source_area * fraction
-                if transmitted_area + tolerance >= stream_threshold_km2:
-                    indegree[receiver] += 1
-
-    lake_area_by_id = {
-        lake_feature_id(index): float(accumulation[candidate.cells[0]])
-        for index, candidate in enumerate(lake_candidates)
+    outlet_receiver_to_lake = {
+        outlet.receiver_cell: outlet.lake_id for outlet in lake_outlets
     }
+    receiver_index = np.full(shape, -1, dtype=np.int32)
+
+    for row in range(rows):
+        for column in range(columns):
+            cell = (row, column)
+            if _is_edge(cell, shape) or cell in lake_by_cell:
+                continue
+
+            current_support = bool(channel_support[cell])
+            source_lake = outlet_receiver_to_lake.get(cell)
+            best_key: tuple[int, float, float, int] | None = None
+            best_target: Cell | None = None
+
+            for direction, fraction_value in enumerate(field.fractions[cell]):
+                fraction = float(fraction_value)
+                if fraction <= _EPS:
+                    continue
+                target = _neighbor(cell, direction, shape)
+                if target is None:
+                    continue
+                target_lake = lake_by_cell.get(target)
+                if source_lake is not None and target_lake == source_lake:
+                    continue
+
+                preferred = int(
+                    target_lake is not None
+                    or (current_support and bool(channel_support[target]))
+                )
+                transmitted_area = float(accumulation[cell]) * fraction
+                target_area = float(accumulation[target])
+                key = (preferred, transmitted_area, target_area, -direction)
+                if best_key is None or key > best_key:
+                    best_key = key
+                    best_target = target
+
+            if best_target is None:
+                raise HydrologyCapabilityError(
+                    f"ordinary interior cell ({row},{column}) lost dominant channel receiver"
+                )
+            receiver_index[cell] = np.int32(_flat_index(best_target, columns))
+
+    return receiver_index
+
+
+def _dominant_channel_area_km2(
+    receiver_index: np.ndarray,
+    *,
+    cell_size_km: float,
+    lake_candidates: tuple[LakeCandidate, ...],
+) -> np.ndarray:
+    """Accumulate unique upstream area on the single-receiver channel projection."""
+    if receiver_index.ndim != 2:
+        raise HydrologyCapabilityError("dominant receiver index must be a 2D array")
+    shape = receiver_index.shape
+    rows, columns = shape
+    lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
+    cell_count = rows * columns
+
+    active = np.ones(cell_count, dtype=np.bool_)
+    indegree = np.zeros(cell_count, dtype=np.int32)
+    area = np.zeros(cell_count, dtype=np.float64)
+    cell_area = float(cell_size_km) * float(cell_size_km)
+
+    for row in range(rows):
+        for column in range(columns):
+            cell = (row, column)
+            node = _flat_index(cell, columns)
+            if cell in lake_by_cell:
+                active[node] = False
+                continue
+            area[node] = cell_area
+            target_index = int(receiver_index[cell])
+            if target_index < 0:
+                continue
+            target = _cell_from_index(target_index, columns)
+            if target in lake_by_cell:
+                continue
+            indegree[target_index] += 1
+
+    queue = sorted(
+        node for node in range(cell_count) if bool(active[node]) and int(indegree[node]) == 0
+    )
+    processed = 0
+    while queue:
+        node = queue.pop(0)
+        processed += 1
+        cell = _cell_from_index(node, columns)
+        target_index = int(receiver_index[cell])
+        if target_index < 0:
+            continue
+        target = _cell_from_index(target_index, columns)
+        if target in lake_by_cell:
+            continue
+        area[target_index] += area[node]
+        indegree[target_index] -= 1
+        if indegree[target_index] == 0:
+            insertion = 0
+            while insertion < len(queue) and queue[insertion] < target_index:
+                insertion += 1
+            queue.insert(insertion, target_index)
+
+    if processed != int(np.count_nonzero(active)):
+        raise HydrologyCapabilityError("dominant channel projection contains a cycle")
+
+    return area.reshape(shape)
+
+
+def _build_channel_skeleton(
+    plan: GenerationPlan,
+    field: ContinuousRoutingField,
+    accumulation: np.ndarray,
+    channel_support: np.ndarray,
+    lake_candidates: tuple[LakeCandidate, ...],
+    lake_outlets: tuple[LakeOutlet, ...],
+) -> _ChannelSkeleton:
+    """Extract one-cell-wide merge-only channel topology from diffuse MFD transport."""
+    shape = channel_support.shape
+    rows, columns = shape
+    lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
+    receiver_index = _dominant_channel_receiver_index(
+        field,
+        accumulation,
+        channel_support,
+        lake_candidates=lake_candidates,
+        lake_outlets=lake_outlets,
+    )
+    channel_area = _dominant_channel_area_km2(
+        receiver_index,
+        cell_size_km=plan.grid.cell_size_km,
+        lake_candidates=lake_candidates,
+    )
+
+    threshold = float(plan.hydrology.stream_threshold_km2)
+    eligible = channel_area >= threshold
+    for cell in lake_by_cell:
+        eligible[cell] = False
+
+    eligible_indegree = np.zeros(shape, dtype=np.int32)
+    for row in range(rows):
+        for column in range(columns):
+            cell = (row, column)
+            if not bool(eligible[cell]):
+                continue
+            target_index = int(receiver_index[cell])
+            if target_index < 0:
+                continue
+            target = _cell_from_index(target_index, columns)
+            if target not in lake_by_cell and bool(eligible[target]):
+                eligible_indegree[target] += 1
+
+    source_cells = {
+        (row, column)
+        for row in range(rows)
+        for column in range(columns)
+        if bool(eligible[row, column])
+        and int(eligible_indegree[row, column]) == 0
+        and not _is_edge((row, column), shape)
+    }
+
+    outlet_receiver_cells = {outlet.receiver_cell for outlet in lake_outlets}
+    source_cells.difference_update(outlet_receiver_cells)
+
+    skeleton = np.zeros(shape, dtype=np.bool_)
+    starts = sorted(source_cells | outlet_receiver_cells)
+    max_steps = rows * columns + 1
+
+    for start in starts:
+        if start in lake_by_cell:
+            raise HydrologyCapabilityError("lake outlet receiver cannot be inside accepted lake")
+        cell = start
+        visited: set[Cell] = set()
+        for _ in range(max_steps):
+            if cell in visited:
+                raise HydrologyCapabilityError("dominant channel skeleton contains a cycle")
+            visited.add(cell)
+            skeleton[cell] = True
+
+            if _is_edge(cell, shape):
+                break
+            target_index = int(receiver_index[cell])
+            if target_index < 0:
+                raise HydrologyCapabilityError("interior channel skeleton has no downstream receiver")
+            target = _cell_from_index(target_index, columns)
+            if target in lake_by_cell:
+                break
+            cell = target
+        else:
+            raise HydrologyCapabilityError("dominant channel skeleton exceeded deterministic step budget")
+
+    skeleton_indegree = np.zeros(shape, dtype=np.int32)
+    for row in range(rows):
+        for column in range(columns):
+            cell = (row, column)
+            if not bool(skeleton[cell]):
+                continue
+            target_index = int(receiver_index[cell])
+            if target_index < 0:
+                continue
+            target = _cell_from_index(target_index, columns)
+            if bool(skeleton[target]):
+                skeleton_indegree[target] += 1
+
     for outlet in lake_outlets:
-        if (
-            bool(support[outlet.receiver_cell])
-            and lake_area_by_id[outlet.lake_id] + tolerance >= stream_threshold_km2
-        ):
-            indegree[outlet.receiver_cell] += 1
-    return indegree
+        if bool(skeleton[outlet.receiver_cell]):
+            skeleton_indegree[outlet.receiver_cell] += 1
+
+    confluence_cells = {
+        (row, column)
+        for row in range(rows)
+        for column in range(columns)
+        if bool(skeleton[row, column])
+        and int(skeleton_indegree[row, column]) >= 2
+        and (row, column) not in lake_by_cell
+    }
+    source_cells.difference_update(confluence_cells)
+
+    return _ChannelSkeleton(
+        receiver_index=receiver_index,
+        channel_area_km2=channel_area,
+        mask=skeleton,
+        sources=frozenset(source_cells),
+        confluences=frozenset(confluence_cells),
+    )
 
 
 def _sample_vector(
@@ -835,31 +1034,16 @@ def build_continuous_river_network(
 
     adapter = GridAdapter.from_plan(plan)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
-    indegree = _weighted_support_indegree(
+    skeleton = _build_channel_skeleton(
+        plan,
         field,
-        channel_support,
         accumulation,
-        stream_threshold_km2=plan.hydrology.stream_threshold_km2,
-        lake_candidates=lake_candidates,
-        lake_outlets=lake_outlets,
+        channel_support,
+        lake_candidates,
+        lake_outlets,
     )
-    source_cells = {
-        (row, column)
-        for row in range(shape[0])
-        for column in range(shape[1])
-        if bool(channel_support[row, column])
-        and (row, column) not in lake_by_cell
-        and int(indegree[row, column]) == 0
-        and not _is_edge((row, column), shape)
-    }
-    confluence_cells = {
-        (row, column)
-        for row in range(shape[0])
-        for column in range(shape[1])
-        if bool(channel_support[row, column])
-        and (row, column) not in lake_by_cell
-        and int(indegree[row, column]) >= 2
-    }
+    source_cells = set(skeleton.sources)
+    confluence_cells = set(skeleton.confluences)
 
     descriptors: dict[tuple[object, ...], _NodeDescriptor] = {}
     for cell in sorted(source_cells):
@@ -898,6 +1082,22 @@ def build_continuous_river_network(
 
     for start in starts:
         assert start.anchor_cell is not None
+
+        if start.kind is RiverNodeKind.LAKE_OUTLET and start.anchor_cell in confluence_cells:
+            key = ("confluence", start.anchor_cell[0], start.anchor_cell[1])
+            target = descriptors[key]
+            points = (start.position, target.position)
+            trace_records.append(
+                (
+                    start,
+                    target,
+                    points,
+                    float(accumulation[start.anchor_cell]),
+                    (start.anchor_cell,),
+                )
+            )
+            continue
+
         trace = _trace_continuous(
             adapter=adapter,
             field=field,
@@ -1056,6 +1256,14 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
             support[cell] = False
 
     lake_features = materialize_lake_features(plan, lakes)
+    channel_skeleton = _build_channel_skeleton(
+        plan,
+        field,
+        accumulation,
+        support,
+        lakes,
+        outlets,
+    )
     river_network, stream_mask = build_continuous_river_network(
         plan,
         field,
@@ -1088,6 +1296,7 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         routing_mode="continuous",
         continuous_routing=field,
         channel_support_mask=support,
+        channel_skeleton_mask=channel_skeleton.mask,
         lake_outlets=outlets,
     )
 
@@ -1197,6 +1406,7 @@ def validate_hydrology_v02(
 
     accumulation_ok = False
     support_ok = False
+    skeleton_ok = False
     lakes_ok = False
     network_ok = False
     water_ok = False
@@ -1213,6 +1423,12 @@ def validate_hydrology_v02(
             for cell in lake_by_cell:
                 expected_support[cell] = False
             support_ok = hydrology.channel_support_mask.dtype == np.dtype(np.bool_) and np.array_equal(hydrology.channel_support_mask, expected_support)
+        if hydrology.channel_skeleton_mask is not None:
+            skeleton_ok = (
+                hydrology.channel_skeleton_mask.shape == shape
+                and hydrology.channel_skeleton_mask.dtype == np.dtype(np.bool_)
+                and all(not bool(hydrology.channel_skeleton_mask[cell]) for cell in lake_by_cell)
+            )
         lakes_ok = (
             len(hydrology.lake_outlets) == len(hydrology.lake_candidates)
             and len({outlet.lake_id for outlet in hydrology.lake_outlets}) == len(hydrology.lake_candidates)
@@ -1234,6 +1450,7 @@ def validate_hydrology_v02(
         EngineInvariantResult(id="hydrology-v02-receivers-strictly-lower", passed=receivers_lower),
         EngineInvariantResult(id="hydrology-v02-distributed-accumulation-valid", passed=accumulation_ok),
         EngineInvariantResult(id="hydrology-v02-channel-support-threshold", passed=support_ok),
+        EngineInvariantResult(id="hydrology-v02-channel-skeleton-valid", passed=skeleton_ok),
         EngineInvariantResult(id="hydrology-v02-single-lake-outlet", passed=lakes_ok),
         EngineInvariantResult(id="hydrology-v02-river-network-invariants", passed=network_ok),
         EngineInvariantResult(id="hydrology-v02-water-depth-valid", passed=water_ok),
