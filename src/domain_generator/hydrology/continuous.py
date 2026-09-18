@@ -304,11 +304,11 @@ def continuous_routing_field(
                     continue
                 distance = cell_size_km * hypot(vx, vy)
                 slope = (current - target_elevation) / distance
-                if slope > _EPS:
+                if slope > 0.0:
                     weights[direction] = slope ** exponent
 
             total = float(np.sum(weights))
-            if not total > _EPS:
+            if not total > 0.0:
                 raise HydrologyCapabilityError(
                     f"conditioned interior cell ({row},{column}) has no MFD downslope receiver"
                 )
