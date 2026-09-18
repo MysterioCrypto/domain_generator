@@ -79,9 +79,10 @@ def test_h05_oblique_planar_slope_is_not_quantized_to_d8() -> None:
     assert float(np.max(_angle_error(interior, target))) < np.deg2rad(0.05)
     grid_distance = np.abs(interior / (pi / 4.0) - np.rint(interior / (pi / 4.0)))
     assert float(np.min(grid_distance)) > 0.20
-    fractions = field.fraction_a[4:-4, 4:-4] + field.fraction_b[4:-4, 4:-4]
+    fractions = np.sum(field.fractions[4:-4, 4:-4, :], axis=2)
     np.testing.assert_allclose(fractions, 1.0, rtol=0.0, atol=1e-12)
-    assert np.count_nonzero(field.fraction_b[4:-4, 4:-4] > 0.0) > 0
+    positive_receivers = np.count_nonzero(field.fractions[15, 15, :] > 0.0)
+    assert positive_receivers >= 3
 
 
 def _sloping_valley(rows: int, columns: int, angle_rad: float) -> np.ndarray:

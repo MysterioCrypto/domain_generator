@@ -32,19 +32,18 @@ class LakeOutlet:
 
 @dataclass(frozen=True, slots=True)
 class ContinuousRoutingField:
-    """Internal Core 0.2 weighted drainage field.
+    """Internal Core 0.2 low-bias multi-flow drainage field.
 
-    Receiver arrays contain flattened row-major cell indices or -1. Fractions are
-    float64 and sum to one for ordinary routable cells. ``flow_angle_rad`` is a
-    world-space angle measured counter-clockwise from +x/east in [0, 2π), with NaN
-    on cells that have no in-domain downstream direction.
+    ``fractions[row, column, direction]`` stores the mass-conserving outgoing
+    fraction for the fixed eight-neighbour direction order used by hydrology.
+    Fractions sum to one for ordinary interior cells and are zero on terminal
+    domain-edge cells. ``flow_angle_rad`` is the resultant world-space flux
+    direction measured counter-clockwise from +x/east in [0, 2π), with NaN on
+    terminal cells.
     """
 
     flow_angle_rad: np.ndarray
-    receiver_a: np.ndarray
-    receiver_b: np.ndarray
-    fraction_a: np.ndarray
-    fraction_b: np.ndarray
+    fractions: np.ndarray
 
 
 @dataclass(frozen=True, slots=True)

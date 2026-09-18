@@ -274,59 +274,86 @@ def continuous_routing_field(
     *,
     cell_size_km: float,
 ) -> ContinuousRoutingField:
-    """Build deterministic D∞-style two-receiver routing from triangular facets."""
+    """Build deterministic low-bias MFD routing over all downslope neighbours.
+
+    Core 0.2 Batch B2 uses Freeman-style slope-weighted multiple flow direction
+    with fixed exponent p=1.1. The same flux fractions define both contributing
+    area transport and the resultant continuous direction used by vector tracing.
+    """
     _require_2d_finite("routing_elevation_m", routing_elevation_m)
     if not isfinite(cell_size_km) or cell_size_km <= 0.0:
         raise HydrologyCapabilityError("cell_size_km must be finite and > 0")
 
+    exponent = 1.1
     rows, columns = routing_elevation_m.shape
+    fractions = np.zeros((rows, columns, len(_DIRS)), dtype=np.float64)
     angle = np.full((rows, columns), np.nan, dtype=np.float64)
-    receiver_a = np.full((rows, columns), -1, dtype=np.int32)
-    receiver_b = np.full((rows, columns), -1, dtype=np.int32)
-    fraction_a = np.zeros((rows, columns), dtype=np.float64)
-    fraction_b = np.zeros((rows, columns), dtype=np.float64)
 
     for row in range(rows):
         for column in range(columns):
             cell = (row, column)
             if _is_edge(cell, (rows, columns)):
                 continue
-            choice = _best_facet_choice(
-                routing_elevation_m,
-                cell,
-                cell_size_km=cell_size_km,
-            )
-            angle[cell] = choice.angle_rad
-            receiver_a[cell] = np.int32(_flat_index(choice.first, columns))
-            fraction_a[cell] = choice.first_fraction
-            if choice.second is not None:
-                receiver_b[cell] = np.int32(_flat_index(choice.second, columns))
-                fraction_b[cell] = choice.second_fraction
+
+            current = float(routing_elevation_m[cell])
+            weights = np.zeros(len(_DIRS), dtype=np.float64)
+            for direction, (delta_row, delta_column, vx, vy, _direction_angle) in enumerate(_DIRS):
+                target = (row + delta_row, column + delta_column)
+                target_elevation = float(routing_elevation_m[target])
+                if not target_elevation < current:
+                    continue
+                distance = cell_size_km * hypot(vx, vy)
+                slope = (current - target_elevation) / distance
+                if slope > _EPS:
+                    weights[direction] = slope ** exponent
+
+            total = float(np.sum(weights))
+            if not total > _EPS:
+                raise HydrologyCapabilityError(
+                    f"conditioned interior cell ({row},{column}) has no MFD downslope receiver"
+                )
+            fractions[cell] = weights / total
+
+            resultant_x = 0.0
+            resultant_y = 0.0
+            for direction, fraction in enumerate(fractions[cell]):
+                if fraction <= _EPS:
+                    continue
+                _, _, vx, vy, _direction_angle = _DIRS[direction]
+                length = hypot(vx, vy)
+                resultant_x += float(fraction) * vx / length
+                resultant_y += float(fraction) * vy / length
+
+            resultant_length = hypot(resultant_x, resultant_y)
+            if resultant_length <= _EPS:
+                # Deterministic fallback; np.argmax returns the first fixed-order
+                # direction on exact ties.
+                direction = int(np.argmax(fractions[cell]))
+                angle[cell] = _DIRS[direction][4]
+            else:
+                angle[cell] = atan2(resultant_y, resultant_x) % _TWO_PI
 
     return ContinuousRoutingField(
         flow_angle_rad=angle,
-        receiver_a=receiver_a,
-        receiver_b=receiver_b,
-        fraction_a=fraction_a,
-        fraction_b=fraction_b,
+        fractions=fractions,
     )
 
-
 def _field_edges(field: ContinuousRoutingField, cell: Cell) -> tuple[tuple[Cell, float], ...]:
-    rows, columns = field.receiver_a.shape
+    rows, columns, directions = field.fractions.shape
+    if directions != len(_DIRS):
+        raise HydrologyCapabilityError("continuous MFD fractions must use eight directions")
+    row, column = cell
     result: list[tuple[Cell, float]] = []
-    for receiver, fraction in (
-        (int(field.receiver_a[cell]), float(field.fraction_a[cell])),
-        (int(field.receiver_b[cell]), float(field.fraction_b[cell])),
-    ):
-        if receiver < 0 or fraction <= _EPS:
+    for direction, fraction_value in enumerate(field.fractions[cell]):
+        fraction = float(fraction_value)
+        if fraction <= _EPS:
             continue
-        target = _cell_from_index(receiver, columns)
+        delta_row, delta_column, *_ = _DIRS[direction]
+        target = (row + delta_row, column + delta_column)
         if not (0 <= target[0] < rows and 0 <= target[1] < columns):
-            raise HydrologyCapabilityError("continuous receiver index is outside domain")
+            raise HydrologyCapabilityError("continuous MFD fraction points outside domain")
         result.append((target, fraction))
     return tuple(result)
-
 
 def _reaches_component(
     field: ContinuousRoutingField,
@@ -408,10 +435,12 @@ def distributed_flow_accumulation_km2(
     lake_outlets: tuple[LakeOutlet, ...] = (),
 ) -> np.ndarray:
     """Accumulate contributing area on a weighted DAG with lakes as routing supernodes."""
-    shape = field.receiver_a.shape
+    if not isinstance(field.fractions, np.ndarray) or field.fractions.ndim != 3:
+        raise HydrologyCapabilityError("continuous MFD fractions must be a 3D array")
+    shape = field.flow_angle_rad.shape
     rows, columns = shape
-    if field.receiver_b.shape != shape or field.fraction_a.shape != shape or field.fraction_b.shape != shape:
-        raise HydrologyCapabilityError("continuous routing arrays must have identical shapes")
+    if field.fractions.shape != (rows, columns, len(_DIRS)):
+        raise HydrologyCapabilityError("continuous MFD fractions must match routing shape")
     if not isfinite(cell_size_km) or cell_size_km <= 0.0:
         raise HydrologyCapabilityError("cell_size_km must be finite and > 0")
 
@@ -934,27 +963,19 @@ def build_continuous_river_network(
 
 
 def _legacy_direction_projection(field: ContinuousRoutingField) -> np.ndarray:
-    """Compatibility-only diagnostic projection; never used as 0.2 routing authority."""
-    shape = field.receiver_a.shape
+    """Compatibility-only D8 projection; never used as 0.2 routing authority."""
+    shape = field.flow_angle_rad.shape
     rows, columns = shape
     result = np.full(shape, -1, dtype=np.int8)
-    lookup = {(dr, dc): code for code, (dr, dc, *_rest) in enumerate(_DIRS)}
     for row in range(rows):
         for column in range(columns):
             if _is_edge((row, column), shape):
                 continue
-            first = int(field.receiver_a[row, column])
-            second = int(field.receiver_b[row, column])
-            if first < 0:
+            fractions = field.fractions[row, column]
+            if float(np.sum(fractions)) <= _EPS:
                 continue
-            selected = first
-            if second >= 0 and float(field.fraction_b[row, column]) > float(field.fraction_a[row, column]):
-                selected = second
-            target = _cell_from_index(selected, columns)
-            delta = (target[0] - row, target[1] - column)
-            result[row, column] = np.int8(lookup[delta])
+            result[row, column] = np.int8(int(np.argmax(fractions)))
     return result
-
 
 def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> HydrologyState:
     if plan.plan_version != "0.2":
@@ -1102,23 +1123,29 @@ def validate_hydrology_v02(
     receivers_lower = False
     angles_valid = False
     if state_ok and field is not None:
-        arrays = (
-            field.flow_angle_rad,
-            field.receiver_a,
-            field.receiver_b,
-            field.fraction_a,
-            field.fraction_b,
+        field_shapes = (
+            isinstance(field.flow_angle_rad, np.ndarray)
+            and field.flow_angle_rad.shape == shape
+            and isinstance(field.fractions, np.ndarray)
+            and field.fractions.shape == (shape[0], shape[1], len(_DIRS))
         )
-        field_shapes = all(isinstance(array, np.ndarray) and array.shape == shape for array in arrays)
         if field_shapes:
-            finite_fraction = bool(np.isfinite(field.fraction_a).all() and np.isfinite(field.fraction_b).all())
-            nonnegative = bool(np.all(field.fraction_a >= 0.0) and np.all(field.fraction_b >= 0.0))
-            sums = field.fraction_a + field.fraction_b
+            finite_fraction = bool(np.isfinite(field.fractions).all())
+            nonnegative = bool(np.all(field.fractions >= 0.0))
+            sums = np.sum(field.fractions, axis=2)
             edge = np.zeros(shape, dtype=np.bool_)
             edge[0, :] = edge[-1, :] = True
             edge[:, 0] = edge[:, -1] = True
-            fractions_valid = finite_fraction and nonnegative and bool(np.allclose(sums[~edge], 1.0, atol=1e-12, rtol=0.0)) and bool(np.allclose(sums[edge], 0.0, atol=1e-12, rtol=0.0))
-            angles_valid = bool(np.all((field.flow_angle_rad[~edge] >= 0.0) & (field.flow_angle_rad[~edge] < _TWO_PI))) and bool(np.isnan(field.flow_angle_rad[edge]).all())
+            fractions_valid = (
+                finite_fraction
+                and nonnegative
+                and bool(np.allclose(sums[~edge], 1.0, atol=1e-12, rtol=0.0))
+                and bool(np.allclose(sums[edge], 0.0, atol=1e-12, rtol=0.0))
+            )
+            angles_valid = (
+                bool(np.all((field.flow_angle_rad[~edge] >= 0.0) & (field.flow_angle_rad[~edge] < _TWO_PI)))
+                and bool(np.isnan(field.flow_angle_rad[edge]).all())
+            )
             receivers_lower = True
             if hydrology is not None:
                 for row in range(shape[0]):
