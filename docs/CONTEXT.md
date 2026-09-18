@@ -9,179 +9,184 @@
 ## Текущая опорная точка
 
 ```text
-historical:
-  release/0.1-prealpha
-  status: archived; world-generation semantics rejected
-
 active:
   dev/0.2
   Terrain 0.2: ACCEPTED
   Hydrology 0.2: redesign in progress
 
-latest operator checkpoint:
-  H09-B / PR #72
-  MFD accumulation: KEEP as current experimental base
-  semantic river network: REJECTED
+kept hydrology base:
+  Priority-Flood
+  MFD p=1.1 contributing area
+  continuous MFD vector field
+  lake supernodes / single canonical outlet
+  dominant one-downstream thin channel skeleton
+
+latest experiment:
+  H09-D terrain-aware source initiation
+  first calibration: FAILED / over-strict
 ```
 
-Не выводить состояние проекта из `main`; active development line — `dev/0.2`.
+`main` не является active development truth.
 
-## Что сохраняется
+## Что уже отвергнуто
 
-### Terrain 0.2
+- D8 canonical routing: сильный lattice imprint.
+- Two-receiver D∞ accumulation: grid bias остался в accumulation.
+- Direct MFD threshold-mask channelization: 353 sources / 408 segments, множество параллельных дубликатов.
 
-Принят как минимально приемлемая база.
+## Что дал H09-C
 
-`docs/design/continuous-terrain-foundation-v0.2.md`
-
-### Hydrology foundation
-
-Сохраняем:
-
-- Priority-Flood conditioning;
-- MFD p=1.1 contributing-area transport;
-- MFD-derived continuous vector field;
-- accepted lakes as routing supernodes;
-- один canonical spill outlet на accepted lake;
-- continuous world-space river geometry как цель;
-- operator diagnostics: flow vectors, accumulation, raw support, final rivers.
-
-MFD был введён после отклонения two-receiver D∞ accumulation. На H09-B он заметно уменьшил directional grid-lock и сделал accumulation field визуально более плавным.
-
-## Что отвергнуто
-
-### D8 canonical routing
-
-Отвергнут: сильный 0°/45°/90° lattice imprint.
-
-### Two-receiver D∞ accumulation
-
-Отвергнут на первом H09: grid bias оставался уже в accumulation/channel skeleton.
-
-### Прямая channelization широкого MFD support
-
-H09-B показал новую ошибку:
+Thin dominant skeleton решил over-fragmentation:
 
 ```text
-MFD accumulation
-→ broad threshold support
-→ множество соседних threshold-crossing cells
-→ сотни semantic sources
-→ параллельные/дублирующие реки
+H09-C:
+  sources / confluences: 14 / 3
+  segments: 30
+  total river length: ~533 km
+  final grid-lock 1°: 9.66%
+  raw MFD support cells: 679
+  skeleton cells: 409
 ```
 
-Representative 180×120 км checkpoint:
+Операторская оценка: структура существенно лучше, но вероятно слишком редкая. Поэтому skeleton и MFD сохраняются; следующий вопрос — только channel initiation.
+
+## H09-D: terrain-aware initiation
+
+Accepted design:
+
+`docs/design/terrain-aware-channel-initiation-v0.2.md`
+
+Первый вариант заменил fixed-area source criterion на:
 
 ```text
-H09-B:
-  routing grid-lock within 1°: 8.70%
-  final vector grid-lock:       10.97%
-  nodes / segments:             636 / 408
-  sources / confluences:        353 / 42
+A = unique dominant-graph contributing area
+S = conditioned local slope
+convergence = incoming MFD fraction sum
+
+score = A * (S / 0.05)^1
+source ⇔ score >= 250 km² AND convergence > 1
 ```
 
-Операторская оценка: идея MFD была полезной, но итоговая сеть неприемлема. Проблема локализована в channel extraction, а не в renderer.
-
-## Принятый следующий design
-
-`docs/design/channel-skeleton-extraction-v0.2.md`
-
-Идея:
+Implementation и diagnostics работают; pytest/H09 workflow green. Но критерий семантически провалился на representative world:
 
 ```text
-MFD contributing area
-→ raw threshold support as diagnostic only
-→ deterministic dominant single-downstream channel projection
-→ unique source-initiation catchment area
-→ one-cell-wide merge-only semantic skeleton
-→ semantic sources / confluences
-→ continuous world-space tracing
-→ H09-C
+max initiation score: 146.93 km²
+required threshold:    250 km²
+eligible normal cells: 0
+
+result:
+  normal sources:      0
+  normal confluences:  0
+  river segments:      13
+  all starts are lake outlets
+  total river length:  ~277 km
 ```
 
-Ключевая граница:
+То есть H09-D в этой калибровке не является кандидатом на acceptance: он удалил нормальные headwaters вместо их восстановления.
+
+## Почему провалился первый H09-D
+
+Проблема не в convergence gate: H09-C fixed-area source cells в основном имеют convergence > 1.
+
+Проблема — absolute slope normalization `S_ref = 0.05`.
+
+На 1 км regional grid типичные slope values существенно ниже field-scale channel-head gradients:
 
 ```text
-diffuse hillslope transport != semantic channel graph
+all terrain slope:
+  p50 0.0067
+  p90 0.0596
+
+convergent cells:
+  p50 0.0065
+  p90 0.0502
+
+H09-C source examples:
+  many slopes ~0.0007–0.016
+  unique areas ~250–360 km²
 ```
 
-Для channel source threshold используется уникальная площадь бассейна на dominant projection, чтобы соседние MFD cells не считали один и тот же fractional catchment множеством независимых истоков.
+Поэтому multiplying the whole baseline criterion by `S / 0.05` уничтожило уже существующие H09-C branches.
 
-MFD accumulation остаётся canonical hydrology diagnostic и источником catchment-area magnitude для итоговых river segments.
+## Диагностический вывод: terrain-aware rule должен быть additive
+
+Не следует снова заменять fixed-area baseline.
+
+Следующая конструкция должна быть:
+
+```text
+base source eligibility:
+  unique_area >= 250 km²
+
+OR terrain-aware promotion:
+  unique_area < 250
+  AND convergent
+  AND steep enough
+  AND area-slope promotion reaches threshold
+```
+
+То есть H09-C branches не удаляются. Terrain-aware rule может только продвинуть начало существующей/новой ветви выше по крутому convergent headwater.
+
+Это соответствует цели итерации: H09-C был слишком sparse, а не fundamentally wrong.
+
+## Calibration sweep (diagnostic only)
+
+Без изменения production semantics прогнана матрица additive promotion на том же мире.
+
+```text
+S_ref   alpha   promoted cells   sources   confluences   skeleton cells
+0.005   1.00          218            39         21            853
+0.005   1.65         1465           373        278           3225
+0.005   2.00         2015           505        368           4100
+
+0.010   1.00           62            17          6            609
+0.010   1.65          305            65         42           1231
+0.010   2.00          782           227        172           2376
+
+0.020   1.00            7            11          4            432
+0.020   1.65           37            16          6            610
+0.020   2.00           74            25         12            760
+
+0.050   any             0            10          4            409
+```
+
+Эти числа — не acceptance и не выбор победителя. Они только сужают разумную область следующего experiment.
+
+Наиболее bounded кандидаты для visual A/B сейчас:
+
+```text
+A: S_ref=0.010, alpha=1.00  → 17 sources / 6 confluences
+B: S_ref=0.020, alpha=1.65  → 16 sources / 6 confluences
+```
+
+Оба дают умеренное расширение сети вместо возврата к H09-B explosion.
+
+## Научная оговорка
+
+Field literature подтверждает inverse drainage-area / local-slope relation, но абсолютная calibration зависит от process, climate, substrate и measurement scale. Montgomery & Dietrich field relations измерялись на существенно меньшем spatial scale и не могут напрямую задавать `S_ref` для нашего 1 км procedural raster.
+
+Поэтому literature определяет форму зависимости, а Core calibration всё равно должна пройти representative operator checkpoints.
 
 ## Acceptance principle
 
-Для spatial-generation слоёв:
-
 ```text
-implementation
-→ automated guardrails
-→ representative operator-visible render
-→ explicit ACCEPT / REJECT
+semantic implementation
+→ automated guards
+→ representative diagnostics/render
+→ explicit operator ACCEPT / REJECT
 ```
 
-Green CI не заменяет operator acceptance.
-
-## Заблокировано
-
-До принятия Hydrology 0.2:
-
-- Surface redesign;
-- Placement continuation;
-- merge PR #72;
-- cosmetic smoothing вместо исправления upstream semantics.
-
-## Текущий implementation checkpoint
-
-Accepted channel-skeleton design реализован в активной ветке PR #72.
-
-```text
-MFD accumulation
-→ dominant single-downstream channel projection
-→ unique source-initiation catchment area
-→ one-cell-wide merge-only skeleton
-→ continuous world-space tracing
-```
-
-Representative H09-C на том же мире 180×120 км сгенерирован.
-
-Автоматический статус:
-
-```text
-pytest: green
-H09-C workflow: green
-engine invariants: green
-```
-
-Диагностические числа до operator verdict:
-
-```text
-H09-B direct MFD support:
-  nodes / segments:       636 / 408
-  sources / confluences:  353 / 42
-  final river length:     ~3320 km
-  final grid-lock 1°:     10.97%
-
-H09-C thin skeleton:
-  nodes / segments:       52 / 30
-  sources / confluences:  14 / 3
-  final river length:     ~533 km
-  final grid-lock 1°:     9.66%
-  raw support cells:      679
-  skeleton cells:         409
-```
-
-Эти числа не являются ACCEPT. Они показывают, что over-fragmentation резко подавлена, но оператор должен решить, не перешли ли мы в противоположную крайность — слишком редкую/обрезанную сеть.
+Surface/Placement заблокированы до Hydrology ACCEPT.
 
 ## Следующий bounded task
 
 ```text
-1. Показать H09-C оператору.
-2. Сравнить H09-B vs H09-C: final rivers, accumulation, raw support/skeleton.
-3. Получить explicit ACCEPT / REJECT.
-4. Если REJECT:
-   - при слишком редкой сети → разбирать source initiation / threshold topology;
-   - при grid-like skeleton → переходить к continuous ridge/flow-tube extraction;
-   - при trace/skeleton mismatch → чинить их согласование.
-5. Не переходить к Surface / Placement до Hydrology ACCEPT.
+1. Не принимать первый H09-D.
+2. Зафиксировать additive source-promotion amendment:
+   fixed-area H09-C baseline OR terrain-aware promotion.
+3. Выбрать одну bounded calibration для следующего visual experiment,
+   не sweep-тюнить картинку до красивого результата.
+4. Render same 180×120 km world.
+5. Compare H09-C vs revised H09-D.
+6. Show operator and obtain ACCEPT / REJECT.
 ```
