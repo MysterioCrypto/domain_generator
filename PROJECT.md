@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-b2-low-bias-contributing-area
-checkpoint: h09-two-receiver-continuous-hydrology-rejected
-next_topic: implement-low-bias-contributing-area
+checkpoint: h09-b-low-bias-mfd-ready-for-operator-review
+next_topic: operator-review-h09-b
 working_context: docs/CONTEXT.md
 accepted_designs:
   - continuous-terrain-foundation-v0.2
