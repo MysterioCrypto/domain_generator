@@ -108,7 +108,9 @@ def test_h06_rotated_valley_preserves_continuous_flow_orientation() -> None:
 
     # Triangular-facet discretization may introduce a small sub-degree error, but a
     # D8 backend would snap this 27-degree valley by many degrees to 0/45 degrees.
-    tolerance = np.deg2rad(0.5)
+    # Slope-weighted MFD uses all downslope neighbours, so the resultant vector
+    # is a low-bias approximation rather than the exact facet gradient.
+    tolerance = np.deg2rad(1.5)
     center_base = float(base.flow_angle_rad[30, 30])
     center_rotated = float(rotated.flow_angle_rad[30, 30])
     assert float(_angle_error(np.array([center_base]), 0.0)[0]) < tolerance

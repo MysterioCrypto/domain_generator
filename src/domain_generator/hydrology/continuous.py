@@ -544,24 +544,52 @@ def distributed_flow_accumulation_km2(
 def _weighted_support_indegree(
     field: ContinuousRoutingField,
     support: np.ndarray,
+    accumulation: np.ndarray,
+    *,
+    stream_threshold_km2: float,
     lake_candidates: tuple[LakeCandidate, ...],
     lake_outlets: tuple[LakeOutlet, ...],
 ) -> np.ndarray:
+    """Count channel-scale upstream contributors, not diffuse MFD leakage.
+
+    MFD intentionally sends small positive fractions toward several neighbours.
+    Treating every positive fraction as a semantic tributary turns diffuse
+    hillslope transport into false confluences and many short parallel rivers.
+    A supported upstream cell counts as a channel-scale contributor only when
+    the catchment area it actually sends across that edge reaches the same
+    stream threshold that defines channel support.
+    """
     shape = support.shape
+    if accumulation.shape != shape:
+        raise HydrologyCapabilityError("channel indegree accumulation must match support shape")
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
     indegree = np.zeros(shape, dtype=np.int32)
+    tolerance = max(1e-10, stream_threshold_km2 * 1e-12)
+
     for row in range(shape[0]):
         for column in range(shape[1]):
             cell = (row, column)
             if not bool(support[cell]) or cell in lake_by_cell:
                 continue
+            source_area = float(accumulation[cell])
             for receiver, fraction in _field_edges(field, cell):
                 if fraction <= _EPS or receiver in lake_by_cell:
                     continue
-                if bool(support[receiver]):
+                if not bool(support[receiver]):
+                    continue
+                transmitted_area = source_area * fraction
+                if transmitted_area + tolerance >= stream_threshold_km2:
                     indegree[receiver] += 1
+
+    lake_area_by_id = {
+        lake_feature_id(index): float(accumulation[candidate.cells[0]])
+        for index, candidate in enumerate(lake_candidates)
+    }
     for outlet in lake_outlets:
-        if bool(support[outlet.receiver_cell]):
+        if (
+            bool(support[outlet.receiver_cell])
+            and lake_area_by_id[outlet.lake_id] + tolerance >= stream_threshold_km2
+        ):
             indegree[outlet.receiver_cell] += 1
     return indegree
 
@@ -807,7 +835,14 @@ def build_continuous_river_network(
 
     adapter = GridAdapter.from_plan(plan)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
-    indegree = _weighted_support_indegree(field, channel_support, lake_candidates, lake_outlets)
+    indegree = _weighted_support_indegree(
+        field,
+        channel_support,
+        accumulation,
+        stream_threshold_km2=plan.hydrology.stream_threshold_km2,
+        lake_candidates=lake_candidates,
+        lake_outlets=lake_outlets,
+    )
     source_cells = {
         (row, column)
         for row in range(shape[0])
