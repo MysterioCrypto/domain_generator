@@ -589,10 +589,12 @@ def main() -> None:
             "hard_constraints_passed": bool(validation.hard_constraints.passed),
         },
     }
+    serialized_stats = json.dumps(stats, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     (args.output / "statistics.json").write_text(
-        json.dumps(stats, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        serialized_stats,
         encoding="utf-8",
     )
+    print(serialized_stats, end="")
 
 
 if __name__ == "__main__":
