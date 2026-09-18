@@ -100,11 +100,11 @@ smooth/continuous-looking local direction
 
 Это **аргумент для следующего design gate**, а не автоматически принятая реализация.
 
-## Активный design question
+## Принятый следующий design
 
-Нужно заменить two-receiver accumulation/channel-support backend на менее grid-biased transport, сохранив полезные части Continuous Hydrology.
+Оператор принял docs-only design gate `docs/design/low-bias-contributing-area-v0.2.md`.
 
-Первый кандидат для bounded следующей итерации:
+Следующая bounded implementation:
 
 ```text
 conditioned elevation
@@ -116,7 +116,7 @@ conditioned elevation
 → same H09 operator checkpoint
 ```
 
-Конкретная semantics должна быть зафиксирована design doc и явно принята до implementation по INV-006.
+Design gate принят. Implementation теперь разрешена по INV-006, но сама Hydrology 0.2 остаётся непринятой до нового H09-B operator checkpoint.
 
 ## Acceptance principle
 
@@ -144,9 +144,9 @@ Green CI не является human acceptance. Красивый render так�
 ## Следующий bounded task
 
 ```text
-1. Зафиксировать low-bias accumulation design gate.
-2. Получить explicit acceptance design.
-3. Реализовать только этот transport/accumulation slice.
+1. Слить accepted low-bias design в dev/0.2.
+2. Синхронизировать implementation branch.
+3. Реализовать только transport/accumulation slice.
 4. Сохранить lake semantics и H09 diagnostics.
 5. Перерендерить тот же 180×120 км representative world.
 6. Сравнить side-by-side с rejected H09.
