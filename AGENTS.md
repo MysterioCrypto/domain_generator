@@ -10,9 +10,7 @@ For requests that create, revise, validate, troubleshoot, or generate a procedur
 
 Do not bypass the canonical application boundary. Domain authoring should produce or revise `GenerationRequest` / `PresetCatalog` inputs and use the public application API or `domain-generator generate`. Do not directly call internal generation stages to satisfy an end-user authoring request, and do not edit canonical generated `.npy`/`domain.json` outputs as a substitute for changing the request.
 
-Follow INV-006: substantial architecture changes are discussed and documented before implementation. Accepted design documentation is merged before runtime implementation.
-
-For spatial/procedural generation semantics, automated tests are necessary guards but are not acceptance by themselves. When a design defines an operator-visible checkpoint, render a representative world and show the relevant intermediate/final layers to the operator. Do not merge or advance to the next semantic layer until the operator gives explicit ACCEPT. A visually plausible result also does not override failed invariants.
+Follow INV-006: substantial architecture changes are discussed and documented before implementation. Accepted design documentation is merged before runtime implementation. Implementation pull requests are not merged until the user explicitly accepts the implementation checkpoint.
 
 When changing code, run the relevant tests; the default full verification is:
 
