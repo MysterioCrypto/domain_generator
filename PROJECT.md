@@ -6,15 +6,16 @@ status: in-progress
 historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
-current_milestone: v0.2-batch-b3-channel-skeleton-extraction
-checkpoint: h09-c-channel-skeleton-ready-for-operator-review
-next_topic: operator-review-h09-c
+current_milestone: v0.2-batch-b4-terrain-aware-channel-initiation
+checkpoint: h09-d-initial-area-slope-calibration-rejected-by-diagnostics
+next_topic: design-additive-terrain-aware-source-promotion
 working_context: docs/CONTEXT.md
 accepted_designs:
   - continuous-terrain-foundation-v0.2
   - continuous-drainage-routing-v0.2
   - low-bias-contributing-area-v0.2
   - channel-skeleton-extraction-v0.2
+  - terrain-aware-channel-initiation-v0.2
 completed:
   - core-0.1-prealpha-infrastructure
   - core-0.1-m11-acceptance-suite
@@ -41,6 +42,7 @@ canonical_documents:
   continuous_drainage_v0_2: docs/design/continuous-drainage-routing-v0.2.md
   low_bias_contributing_area_v0_2: docs/design/low-bias-contributing-area-v0.2.md
   channel_skeleton_extraction_v0_2: docs/design/channel-skeleton-extraction-v0.2.md
+  terrain_aware_channel_initiation_v0_2: docs/design/terrain-aware-channel-initiation-v0.2.md
 historical_documents:
   core_0_1_roadmap: docs/roadmap.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
