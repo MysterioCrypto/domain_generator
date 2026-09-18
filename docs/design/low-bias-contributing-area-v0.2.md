@@ -1,6 +1,6 @@
 # Low-Bias Contributing Area v0.2
 
-Status: **proposed design gate**  
+Status: **accepted design gate**  
 Target branch: `dev/0.2`  
 Supersedes the accumulation/channel-support backend of: `docs/design/continuous-drainage-routing-v0.2.md`  
 Operator evidence: rejected H09 checkpoint from PR #72
@@ -381,4 +381,4 @@ Only explicit operator `ACCEPT` allows implementation merge.
 6. render H09-B same world;
 7. stop for operator review.
 
-До explicit acceptance production implementation не начинается.
+Design explicitly accepted by operator on 2026-09-18. Production implementation may proceed in the implementation branch, but final Hydrology 0.2 acceptance still requires H09-B operator review.
