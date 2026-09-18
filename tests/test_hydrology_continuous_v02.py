@@ -178,7 +178,9 @@ def _merging_valleys(rows: int, columns: int) -> np.ndarray:
             valley_a = (y - (center - separation)) ** 2
             valley_b = (y - (center + separation)) ** 2
             cross = min(valley_a, valley_b)
-            result[row, column] = 900.0 - 2.0 * x + 0.09 * cross
+            # Preserve the branching geometry while scaling relief into the
+            # terrain-aware initiation regime (~5% longitudinal grade).
+            result[row, column] = 900.0 - 50.0 * x + 2.25 * cross
     return result
 
 
