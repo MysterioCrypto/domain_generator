@@ -1,0 +1,48 @@
+name: hydrology-v02-h09-checkpoint
+
+on:
+  pull_request:
+    paths:
+      - "src/domain_generator/hydrology/**"
+      - "tests/test_hydrology_continuous_v02.py"
+      - "examples/terrain-v02/checkpoint/**"
+      - "scripts/render_hydrology_checkpoint_v02.py"
+      - ".github/workflows/hydrology-v02-h09-checkpoint.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  render-h09:
+    if: github.event.pull_request.head.ref == 'impl/v0.2-hydrology-river-geometry'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact implementation revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install checked-out generator with render dependencies
+        run: python -m pip install -e ".[render]"
+
+      - name: Render H09 hydrology checkpoint
+        run: |
+          python scripts/render_hydrology_checkpoint_v02.py \
+            examples/terrain-v02/checkpoint/request.json \
+            examples/terrain-v02/checkpoint/presets.json \
+            "$RUNNER_TEMP/hydrology-v02-h09"
+
+      - name: Upload H09 operator checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: hydrology-v02-h09
+          path: ${{ runner.temp }}/hydrology-v02-h09
+          if-no-files-found: error
+          retention-days: 14
