@@ -1563,13 +1563,13 @@ def validate_hydrology_v02(
             diagnostic_arrays_ok = (
                 hydrology.channel_unique_area_km2 is not None
                 and hydrology.channel_unique_area_km2.shape == shape
-                and np.isfinite(hydrology.channel_unique_area_km2).all()
+                and bool(np.isfinite(hydrology.channel_unique_area_km2).all())
                 and hydrology.channel_convergence is not None
                 and hydrology.channel_convergence.shape == shape
-                and np.isfinite(hydrology.channel_convergence).all()
+                and bool(np.isfinite(hydrology.channel_convergence).all())
                 and hydrology.channel_initiation_score_km2 is not None
                 and hydrology.channel_initiation_score_km2.shape == shape
-                and np.isfinite(hydrology.channel_initiation_score_km2).all()
+                and bool(np.isfinite(hydrology.channel_initiation_score_km2).all())
             )
             skeleton_ok = (
                 hydrology.channel_skeleton_mask.shape == shape
