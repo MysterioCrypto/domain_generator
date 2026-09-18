@@ -2,193 +2,153 @@
 
 Этот файл — сжатая рабочая память проекта, а не журнал событий.
 
-Он отвечает только на пять вопросов:
-
-1. где сейчас находится разработка;
-2. что уже принято;
-3. что было отвергнуто и почему это всё ещё важно;
-4. какой checkpoint активен;
-5. что делать следующим шагом.
+Он должен позволить продолжить разработку без восстановления всей переписки: где мы находимся, что принято, что отвергнуто, почему это важно и какой следующий bounded task.
 
 ## Правило ведения
 
 Файл **переписывается**, а не бесконечно дополняется.
 
-Обновлять его нужно только когда меняется смысловая точка проекта, например:
+Обновлять только когда меняется смысловая точка: принят/отклонён human checkpoint, принят design gate, завершён implementation slice, изменена active line или следующий bounded task. Не вести здесь commit-by-commit/CI историю.
 
-- принят или отвергнут human checkpoint;
-- завершён/отклонён implementation, меняющий активную базу;
-- принят новый design gate;
-- изменена development line или следующий bounded task.
-
-Не обновлять ради каждого коммита, CI run, мелкого bugfix или refactor, если смысловая точка не изменилась.
-
-При обновлении:
-
-- удалять детали, которые больше не нужны для правильного продолжения работы;
-- оставлять старое решение только если оно ограничивает текущую работу или объясняет, почему нельзя повторять прежний путь;
-- не копировать сюда историю commits/PR целиком;
-- для археологии давать короткий anchor на design/PR, а историю оставлять Git;
-- не дублировать normative contracts и алгоритмы, если достаточно ссылки на design doc;
-- если файл начинает превращаться в хронику, сжать его заново.
-
-Цель — размер порядка нескольких экранов, а не зеркало разговора.
+Оставлять прошлое только если оно:
+- ограничивает текущие решения;
+- объясняет, почему нельзя повторять уже отвергнутый путь;
+- нужно для корректного восстановления следующего шага.
 
 ## Текущая опорная точка
 
 ```text
-historical line:
+historical:
   release/0.1-prealpha
-  9699c3d8079b8b9710d65eed60ff975158af0ad3
-  status: archived / world-generation semantics rejected
+  status: archived; world-generation semantics rejected
 
-active integration line:
+active:
   dev/0.2
-  status: terrain accepted, hydrology redesign in progress
+  Terrain 0.2: ACCEPTED
+  Hydrology 0.2: redesign in progress
 
-active implementation:
-  PR #72 — Implement Core 0.2 Continuous Drainage Routing
-  branch: impl/v0.2-hydrology-river-geometry
-  observed head during context recovery: fe0f43eba1bd8fd4273d9bff9c96546c2b7183a2
-  status: draft, unmerged, implementation not yet human-accepted
+latest operator checkpoint:
+  PR #72 H09 on representative 180×120 km world
+  status: REJECTED as final hydrology base
 ```
 
-Не выводить текущее состояние разработки из `main`: на этой стадии `main` сохраняет 0.1 baseline и не отражает активную 0.2 работу.
+Не выводить состояние проекта из `main`; active development line — `dev/0.2`.
 
-## Что принято
+## Что принято и сохраняется
 
 ### Terrain 0.2
 
-Terrain 0.2 принят как минимально приемлемая основа для дальнейшей разработки.
-
-Причина перехода с 0.1: visual diagnostic показал upstream world-state problem, который нельзя исправить presentation layer.
-
-Принятая смена semantics:
-
-```text
-0.1:
-flat elevation
-+ sparse feature contributions
-+ raw Band polyline ridge
-
-0.2:
-continuous multi-scale base elevation
-+ smooth Band semantic spine
-+ ridge as broad 2D massif modifier
-+ blended natural Area modifiers
-```
-
-Normative design:
+Принят как минимально приемлемая база. Не возвращаться к его redesign без нового конкретного дефекта.
 
 `docs/design/continuous-terrain-foundation-v0.2.md`
 
-Terrain checkpoint пройден; возвращаться к его redesign без нового конкретного дефекта не нужно.
+### Hydrology concepts, которые прошли текущую итерацию
 
-### Continuous drainage design
+Сохраняем:
 
-После terrain checkpoint старая hydrology была проверена поверх Terrain 0.2.
+- continuous direction-field concept и flow-vector diagnostic;
+- Priority-Flood conditioning;
+- accepted lakes as routing supernodes;
+- один canonical spill outlet на accepted lake;
+- continuous world-space river geometry как цель;
+- H09 diagnostic views:
+  - terrain + final rivers;
+  - continuous flow vectors;
+  - accumulation field;
+  - channel support vs final rivers;
+  - lake outlets.
 
-Попытка сохранить D8 routing и реконструировать только финальную river geometry была отвергнута. Эксперимент PR #70 улучшил lake semantics, но сохранил выраженный grid bias:
+Оператор отдельно отметил, что flow-vector и "призрачное" accumulation отображение полезны именно как симуляционный diagnostic: по ним видно, на каком слое появляется артефакт.
+
+## Что отвергнуто
+
+### D8 canonical routing
+
+Отвергнут ранее: выраженный 0°/45°/90° grid-lock. Не возвращаться к D8 + decorative reconstruction.
+
+### PR #72, первый H09 Continuous Drainage checkpoint
+
+Реализация была значительно лучше D8, но оператор её **не принял**.
+
+Наблюдаемые проблемы:
+
+- длинные прямые участки без читаемой физической причины;
+- прямоугольно-ломаные/ступенчатые траектории;
+- странные короткие ветви/сегменты;
+- несколько рек, идущих подозрительно параллельно там, где terrain не даёт очевидного структурного объяснения;
+- lattice pattern виден уже в accumulation field, то есть проблема возникает upstream от final renderer.
+
+Важный вывод:
 
 ```text
-raw D8 grid-locked direction fraction      = 1.000
-reconstructed vector grid-locked fraction ~= 0.593
+smooth/continuous-looking local direction
+→ two-neighbour raster transport
+→ grid-imprinted accumulation ridges
+→ thresholded channel support
+→ vector tracing поверх уже дискретного skeleton
 ```
 
-Из эксперимента сохранена полезная идея: accepted lake должен иметь один canonical spill outlet и агрегировать lake catchment.
+Поэтому следующий шаг — не smoothing финальных рек.
 
-D8 как canonical backend для Core 0.2 отвергнут.
+## Внешнее исследование, поддерживающее redesign
 
-Принят design:
+После REJECT был проверен literature/reference context.
+
+- D∞ действительно распределяет поток между двумя соседними cells по continuous angle.
+- Современная сравнительная работа (Earth Surface Dynamics, 2025) отдельно показывает, что D∞ accumulation может сохранять значимую cardinal/ordinal orientation bias.
+- В той же работе классический slope-weighted MFD с exponent около 1.1 показывает существенно лучшую rotational invariance на ряде analytic/real-terrain tests.
+
+Это **аргумент для следующего design gate**, а не автоматически принятая реализация.
+
+## Активный design question
+
+Нужно заменить two-receiver accumulation/channel-support backend на менее grid-biased transport, сохранив полезные части Continuous Hydrology.
+
+Первый кандидат для bounded следующей итерации:
 
 ```text
 conditioned elevation
-→ D∞-style continuous drainage
-→ distributed accumulation
-→ lake supernodes
-→ channelization
-→ single-downstream semantic river topology
-→ continuous world-space river traces
+→ low-bias multi-flow flux (all downslope neighbours; slope-weighted)
+→ mass-conserving contributing area
+→ lake supernodes / single outlet
+→ channel support
+→ continuous vector tracing consistent with flux
+→ same H09 operator checkpoint
 ```
 
-Normative design:
+Конкретная semantics должна быть зафиксирована design doc и явно принята до implementation по INV-006.
 
-`docs/design/continuous-drainage-routing-v0.2.md`
+## Acceptance principle
 
-## Что сейчас реализовано, но ещё не принято
-
-PR #72 содержит текущую реализацию continuous drainage:
-
-- continuous two-receiver routing field;
-- distributed accumulation;
-- Core 0.2 hydrology dispatch;
-- channel support / semantic channelization;
-- confluence/channel graph normalization;
-- anti-grid-bias tests.
-
-На восстановленном head CI был green. Это означает только то, что автоматическая проверка проходит; это **не заменяет** обязательный human visual checkpoint и не делает PR принятой базой.
-
-Часть разговора между принятием design #71 и последними implementation commits #72 была потеряна при переполнении старого чата. Не восстанавливать отсутствующие мотивы свободными выводами: опираться на design, code/tests и новые явные решения пользователя.
-
-## Активный checkpoint
-
-Следующая задача — не Terrain и не Surface.
-
-Нужно завершить Hydrology 0.2 checkpoint, предусмотренный design:
+Для генеративных spatial layers:
 
 ```text
-H05–H08 automated invariants
-+ exact replay
-+ single-outlet lake semantics
-+ no ordinary downstream bifurcation/dead-end
-+ H09 representative 180×120 km visual checkpoint
-→ human review
+implementation
+→ минимально необходимые automated guards
+→ representative render / diagnostics
+→ показать оператору
+→ explicit ACCEPT / REJECT
 ```
 
-H09 должен показать минимум:
+Green CI не является human acceptance. Красивый render также не заменяет invariants. Нужны оба слоя проверки.
 
-```text
-continuous drainage field diagnostic
-channel support
-final vector rivers
-raw/support vs final overlay
-lake outlets
-statistics.json
-```
+## Заблокировано
 
-После просмотра возможны только две ветки:
+До принятия Hydrology 0.2:
 
-```text
-checkpoint accepted
-→ merge implementation into dev/0.2
-→ update this file to the next bounded task
-
-checkpoint rejected
-→ redesign/fix routing or channelization
-→ do not hide defect renderer smoothing
-```
-
-Surface/Placement остаются заблокированы до этого решения.
-
-## Ложные точки продолжения, которых нужно избегать
-
-Не делать автоматически следующее:
-
-- не продолжать Core 0.1 release-candidate review;
-- не считать `main` активной 0.2 линией;
-- не начинать заново Terrain 0.2 — его checkpoint уже принят;
-- не считать PR #72 принятой только из-за green CI;
-- не переходить к Surface/Placement до hydrology visual gate;
-- не возвращаться к D8 + decorative reconstruction как к canonical 0.2 решению;
-- не лечить upstream grid bias только renderer/post-smoothing.
+- не переходить к Surface redesign;
+- не продолжать Placement;
+- не считать PR #72 accepted base;
+- не лечить lattice imprint renderer/post-smoothing.
 
 ## Следующий bounded task
 
 ```text
-1. Проверить фактическое состояние PR #72 относительно accepted design.
-2. Доделать недостающий H09 checkpoint tooling/artifacts.
-3. Запустить representative Terrain 0.2 hydrology world.
-4. Показать diagnostic + final river structure пользователю.
-5. Зафиксировать явное ACCEPT / REJECT.
-6. Только после этого обновить PROJECT.md при необходимости и переписать этот CONTEXT.md.
+1. Зафиксировать low-bias accumulation design gate.
+2. Получить explicit acceptance design.
+3. Реализовать только этот transport/accumulation slice.
+4. Сохранить lake semantics и H09 diagnostics.
+5. Перерендерить тот же 180×120 км representative world.
+6. Сравнить side-by-side с rejected H09.
+7. Получить operator ACCEPT / REJECT.
 ```
