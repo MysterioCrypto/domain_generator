@@ -141,14 +141,51 @@ Green CI не является human acceptance. Красивый render так�
 - не считать PR #72 accepted base;
 - не лечить lattice imprint renderer/post-smoothing.
 
+## Текущий implementation checkpoint
+
+Accepted low-bias design реализован в активной implementation branch PR #72:
+
+```text
+slope-weighted MFD flux, p = 1.1
+→ mass-conserving contributing area
+→ lake supernodes / single outlet
+→ threshold channel support
+→ continuous vector tracing from the same flux-derived direction field
+```
+
+После первого implementation pass обнаружено, что diffuse MFD fractions нельзя напрямую трактовать как semantic tributaries. Это породило большое число ложных confluence candidates. Implementation скорректирован: upstream cell считается channel-scale contributor только если передаваемая по edge catchment area сама достигает stream threshold.
+
+На current head:
+
+- full pytest: green;
+- H09-B workflow: green;
+- representative 180×120 км checkpoint сгенерирован;
+- human acceptance: **PENDING**.
+
+Observed diagnostics до operator decision:
+
+```text
+rejected H09:
+  direction grid-lock within 1°: 16.36%
+  final vector grid-lock:        27.39%
+  nodes / segments:              78 / 57
+  sources / confluences:         26 / 18
+
+H09-B MFD:
+  direction grid-lock within 1°: 8.70%
+  final vector grid-lock:        10.97%
+  nodes / segments:              636 / 408
+  sources / confluences:         353 / 42
+```
+
+Это не verdict. Числа показывают одновременно уменьшение directional grid-lock и резкий рост semantic fragmentation; решение принимает оператор по side-by-side render.
+
 ## Следующий bounded task
 
 ```text
-1. Слить accepted low-bias design в dev/0.2.
-2. Синхронизировать implementation branch.
-3. Реализовать только transport/accumulation slice.
-4. Сохранить lake semantics и H09 diagnostics.
-5. Перерендерить тот же 180×120 км representative world.
-6. Сравнить side-by-side с rejected H09.
-7. Получить operator ACCEPT / REJECT.
+1. Показать оператору rejected H09 vs H09-B side-by-side.
+2. Проверить accumulation field отдельно от semantic river network.
+3. Получить explicit ACCEPT / REJECT.
+4. При REJECT локализовать следующий redesign: accumulation vs channel extraction/tracing.
+5. Не переходить к Surface / Placement до Hydrology ACCEPT.
 ```
