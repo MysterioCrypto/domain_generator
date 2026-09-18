@@ -131,14 +131,57 @@ Green CI не заменяет operator acceptance.
 - merge PR #72;
 - cosmetic smoothing вместо исправления upstream semantics.
 
+## Текущий implementation checkpoint
+
+Accepted channel-skeleton design реализован в активной ветке PR #72.
+
+```text
+MFD accumulation
+→ dominant single-downstream channel projection
+→ unique source-initiation catchment area
+→ one-cell-wide merge-only skeleton
+→ continuous world-space tracing
+```
+
+Representative H09-C на том же мире 180×120 км сгенерирован.
+
+Автоматический статус:
+
+```text
+pytest: green
+H09-C workflow: green
+engine invariants: green
+```
+
+Диагностические числа до operator verdict:
+
+```text
+H09-B direct MFD support:
+  nodes / segments:       636 / 408
+  sources / confluences:  353 / 42
+  final river length:     ~3320 km
+  final grid-lock 1°:     10.97%
+
+H09-C thin skeleton:
+  nodes / segments:       52 / 30
+  sources / confluences:  14 / 3
+  final river length:     ~533 km
+  final grid-lock 1°:     9.66%
+  raw support cells:      679
+  skeleton cells:         409
+```
+
+Эти числа не являются ACCEPT. Они показывают, что over-fragmentation резко подавлена, но оператор должен решить, не перешли ли мы в противоположную крайность — слишком редкую/обрезанную сеть.
+
 ## Следующий bounded task
 
 ```text
-1. Синхронизировать PR #72 с accepted channel-skeleton design.
-2. Реализовать dominant channel graph + unique source initiation + thin skeleton.
-3. Сохранить MFD accumulation и lake semantics.
-4. Добавить skeleton diagnostic к H09.
-5. Перерендерить тот же 180×120 км world как H09-C.
-6. Сравнить H09 / H09-B / H09-C.
-7. Получить explicit operator ACCEPT / REJECT.
+1. Показать H09-C оператору.
+2. Сравнить H09-B vs H09-C: final rivers, accumulation, raw support/skeleton.
+3. Получить explicit ACCEPT / REJECT.
+4. Если REJECT:
+   - при слишком редкой сети → разбирать source initiation / threshold topology;
+   - при grid-like skeleton → переходить к continuous ridge/flow-tube extraction;
+   - при trace/skeleton mismatch → чинить их согласование.
+5. Не переходить к Surface / Placement до Hydrology ACCEPT.
 ```
