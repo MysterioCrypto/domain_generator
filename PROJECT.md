@@ -6,14 +6,15 @@ status: in-progress
 historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
-current_milestone: v0.2-batch-b2-low-bias-contributing-area
-checkpoint: h09-b-low-bias-mfd-ready-for-operator-review
-next_topic: operator-review-h09-b
+current_milestone: v0.2-batch-b3-channel-skeleton-extraction
+checkpoint: h09-b-mfd-accumulation-kept-semantic-network-rejected
+next_topic: implement-channel-skeleton-extraction
 working_context: docs/CONTEXT.md
 accepted_designs:
   - continuous-terrain-foundation-v0.2
   - continuous-drainage-routing-v0.2
   - low-bias-contributing-area-v0.2
+  - channel-skeleton-extraction-v0.2
 completed:
   - core-0.1-prealpha-infrastructure
   - core-0.1-m11-acceptance-suite
@@ -39,6 +40,7 @@ canonical_documents:
   continuous_terrain_v0_2: docs/design/continuous-terrain-foundation-v0.2.md
   continuous_drainage_v0_2: docs/design/continuous-drainage-routing-v0.2.md
   low_bias_contributing_area_v0_2: docs/design/low-bias-contributing-area-v0.2.md
+  channel_skeleton_extraction_v0_2: docs/design/channel-skeleton-extraction-v0.2.md
 historical_documents:
   core_0_1_roadmap: docs/roadmap.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
