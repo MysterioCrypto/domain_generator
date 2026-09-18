@@ -18,6 +18,7 @@ from domain_generator.application import (
 )
 from domain_generator.compiler import compile_domain_spec
 from domain_generator.hydrology import generate_hydrology, validate_hydrology
+from domain_generator.hydrology.continuous import _dominant_channel_receiver_index
 from domain_generator.layout import generate_layout
 from domain_generator.pipeline.rng import RngFactory
 from domain_generator.terrain import generate_terrain
@@ -573,6 +574,60 @@ def main() -> None:
             "max": float(np.max(finite)),
         }
 
+    # Reconstruct the previous H09-C fixed-area source set on the exact same
+    # routing state. This is diagnostic only and lets us see what the new
+    # terrain-aware rule suppressed instead of tuning constants blindly.
+    receiver_index = _dominant_channel_receiver_index(
+        hydrology.continuous_routing,
+        hydrology.flow_accumulation_km2,
+        hydrology.channel_support_mask,
+        lake_candidates=hydrology.lake_candidates,
+        lake_outlets=hydrology.lake_outlets,
+    )
+    old_eligible = unique_area >= threshold_km2
+    lake_cells = {
+        cell
+        for lake in hydrology.lake_candidates
+        for cell in lake.cells
+    }
+    for cell in lake_cells:
+        old_eligible[cell] = False
+    old_indegree = np.zeros(old_eligible.shape, dtype=np.int32)
+    rows, columns = old_eligible.shape
+    for row in range(rows):
+        for column in range(columns):
+            if not bool(old_eligible[row, column]):
+                continue
+            target_index = int(receiver_index[row, column])
+            if target_index < 0:
+                continue
+            target = divmod(target_index, columns)
+            if target not in lake_cells and bool(old_eligible[target]):
+                old_indegree[target] += 1
+    outlet_receivers = {item.receiver_cell for item in hydrology.lake_outlets}
+    old_sources = [
+        (row, column)
+        for row in range(rows)
+        for column in range(columns)
+        if bool(old_eligible[row, column])
+        and int(old_indegree[row, column]) == 0
+        and row not in {0, rows - 1}
+        and column not in {0, columns - 1}
+        and (row, column) not in outlet_receivers
+    ]
+    old_source_diagnostics = [
+        {
+            "row": int(row),
+            "column": int(column),
+            "unique_area_km2": float(unique_area[row, column]),
+            "local_slope": float(local_slope[row, column]),
+            "convergence": float(convergence[row, column]),
+            "score_km2": float(initiation_score[row, column]),
+            "passes_convergence": bool(convergent_mask[row, column]),
+        }
+        for row, column in sorted(old_sources)
+    ]
+
     candidate_cells = list(zip(*np.where(convergent_mask)))
     candidate_cells.sort(
         key=lambda cell: (
@@ -632,6 +687,8 @@ def main() -> None:
                 "score_all_km2": _percentiles(initiation_score),
                 "score_convergent_km2": _percentiles(initiation_score[convergent_mask]),
                 "top_convergent_candidates": top_candidates,
+                "h09c_fixed_area_source_count": len(old_source_diagnostics),
+                "h09c_fixed_area_sources_under_new_rule": old_source_diagnostics,
             },
             "final_stream_cells": int(np.count_nonzero(hydrology.stream_mask)),
             "river_node_count": len(hydrology.river_network.nodes),
