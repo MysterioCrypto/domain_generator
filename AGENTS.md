@@ -1,17 +1,20 @@
 # Repository instructions for Codex
 
-Read `PROJECT.md` first for the current checkpoint, accepted designs, and next bounded task. Use `docs/HANDOFF.md` only as an operational summary; normative architecture and semantics live under `docs/design/`, `docs/contracts/`, and `docs/decisions/`.
+Start with the root `PROJECT.md`. If it declares an `active_development_branch`, switch your state inspection to that branch before deciding what the current project task is.
 
-For requests that create, revise, validate, troubleshoot, or generate a procedural domain/region, use the `domain-generator-authoring` skill in `.codex/skills/domain-generator-authoring/SKILL.md` when available.
+On the active development branch, read:
 
-Do not bypass the canonical application boundary. Domain authoring should produce or revise `GenerationRequest` / `PresetCatalog` inputs and use the public application API or `domain-generator generate`. Do not directly call internal generation stages to satisfy an end-user authoring request, and do not edit canonical generated `.npy`/`domain.json` outputs as a substitute for changing the request.
-
-Follow INV-006: substantial architecture changes are discussed and documented before implementation. Accepted design documentation is merged before runtime implementation. Implementation pull requests are not merged until the user explicitly accepts the implementation checkpoint.
-
-When changing code, run the relevant tests; the default full verification is:
-
-```bash
-python -m pytest
+```text
+PROJECT.md
+→ docs/CONTEXT.md
+→ relevant accepted design under docs/design/
+→ code/tests
 ```
 
-Keep the repository setting-agnostic. Setting/campaign content, provider-specific LLM integrations, and presentation/image-generation layers stay outside procedural Core unless an accepted design explicitly changes that boundary.
+Do not infer current work from `main` code, historical Core 0.1 roadmap text, or PR ordering alone. `main` may intentionally remain an administrative entry point over an older code baseline.
+
+The active branch `docs/CONTEXT.md` is a rolling semantic compression, not an append-only log. It is rewritten only at meaningful checkpoints and should not accumulate ordinary commit/CI history.
+
+Normative architecture and semantics live under `docs/design/`, `docs/contracts/`, and `docs/decisions/` on the active development branch. Follow INV-006 there: substantial architecture changes are documented before implementation and implementation checkpoints require explicit user acceptance where the design specifies it.
+
+For procedural domain authoring, use the repository's `domain-generator-authoring` skill when available and do not bypass the canonical application boundary.
