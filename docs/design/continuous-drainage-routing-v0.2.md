@@ -1,6 +1,6 @@
 # Continuous Drainage Routing v0.2
 
-Status: **proposed design gate**  
+Status: **accepted design gate**  
 Target branch: `dev/0.2`  
 Supersedes routing/geometry parts of: `docs/design/hydrology-river-geometry-v0.2.md`  
 Experimental evidence: rejected implementation PR #70, preserved head `943efa776aed8190ba1e777e7465796bb00a3fe0`

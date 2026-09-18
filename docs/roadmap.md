@@ -1,12 +1,14 @@
 ---
-id: ROADMAP-CORE-0.1
+id: ROADMAP-CORE-0.1-HISTORICAL
 kind: roadmap
-status: active
-normative: true
-target: core-0.1
+status: historical
+normative: false
+target: core-0.1-prealpha
 ---
 
-# План развития Core 0.1
+# Исторический план развития Core 0.1
+
+> Этот документ сохраняет план и критерии линии 0.1. Он **не является текущим планом разработки**. После visual audit 0.1 была заморожена как rejected pre-alpha baseline, а активная работа перешла в `dev/0.2`. Текущую точку читать в `PROJECT.md` и `docs/CONTEXT.md`.
 
 `domain_generator` развивается как процедурное ядро, не зависящее от конкретного сеттинга. Конкретные миры, кампании, игровые системы, каталоги пресетов сеттингов и пакеты контента не являются частью Core и подключаются внешними слоями-потребителями.
 
@@ -117,9 +119,11 @@ Presentation / ImageGen Guide Renderer
 
 Этот слой не изменяет semantic world state и не блокирует Core 0.1.
 
-# После M11
+# После M11 — исторический план, отменённый после visual audit
 
-Следующий bounded step:
+Ниже сохранён первоначально запланированный release-candidate step. Он не выполняется: visual diagnostic перенаправил разработку в Core 0.2.
+
+Первоначально планировался:
 
 ```text
 Core 0.1 release-candidate review / hardening
