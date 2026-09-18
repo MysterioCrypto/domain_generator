@@ -18,7 +18,10 @@ from domain_generator.application import (
 )
 from domain_generator.compiler import compile_domain_spec
 from domain_generator.hydrology import generate_hydrology, validate_hydrology
-from domain_generator.hydrology.continuous import _dominant_channel_receiver_index
+from domain_generator.hydrology.continuous import (
+    _activate_channel_skeleton,
+    _dominant_channel_receiver_index,
+)
 from domain_generator.layout import generate_layout
 from domain_generator.pipeline.rng import RngFactory
 from domain_generator.terrain import generate_terrain
@@ -628,6 +631,40 @@ def main() -> None:
         for row, column in sorted(old_sources)
     ]
 
+    # Hypothetical additive promotion diagnostics. H09-C's fixed-area rule
+    # remains the baseline; terrain awareness may only promote a headwater
+    # upstream, never delete an existing branch. This is diagnostics only.
+    additive_scenarios = {}
+    base_eligible = unique_area >= threshold_km2
+    for cell in lake_cells:
+        base_eligible[cell] = False
+    for alpha in (1.0, 1.5, 1.65, 2.0):
+        slope_ratio = np.maximum(local_slope / 0.05, 0.0)
+        promotion_score = unique_area * np.power(slope_ratio, alpha)
+        promoted = (
+            (unique_area < threshold_km2)
+            & convergent_mask
+            & (local_slope > 0.05)
+            & (promotion_score >= threshold_km2)
+        )
+        scenario_eligible = base_eligible | promoted
+        scenario_skeleton, scenario_sources, scenario_confluences = _activate_channel_skeleton(
+            receiver_index,
+            scenario_eligible,
+            lake_candidates=hydrology.lake_candidates,
+            lake_outlets=hydrology.lake_outlets,
+        )
+        additive_scenarios[str(alpha)] = {
+            "promoted_candidate_cell_count": int(np.count_nonzero(promoted)),
+            "source_count_after_propagation": len(scenario_sources),
+            "confluence_count_after_propagation": len(scenario_confluences),
+            "skeleton_cell_count": int(np.count_nonzero(scenario_skeleton)),
+            "source_cells": [
+                {"row": int(row), "column": int(column)}
+                for row, column in sorted(scenario_sources)
+            ],
+        }
+
     candidate_cells = list(zip(*np.where(convergent_mask)))
     candidate_cells.sort(
         key=lambda cell: (
@@ -689,6 +726,7 @@ def main() -> None:
                 "top_convergent_candidates": top_candidates,
                 "h09c_fixed_area_source_count": len(old_source_diagnostics),
                 "h09c_fixed_area_sources_under_new_rule": old_source_diagnostics,
+                "additive_promotion_scenarios_sref_0_05": additive_scenarios,
             },
             "final_stream_cells": int(np.count_nonzero(hydrology.stream_mask)),
             "river_node_count": len(hydrology.river_network.nodes),
