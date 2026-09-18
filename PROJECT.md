@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-b3-channel-skeleton-extraction
-checkpoint: h09-b-mfd-accumulation-kept-semantic-network-rejected
-next_topic: implement-channel-skeleton-extraction
+checkpoint: h09-c-channel-skeleton-ready-for-operator-review
+next_topic: operator-review-h09-c
 working_context: docs/CONTEXT.md
 accepted_designs:
   - continuous-terrain-foundation-v0.2
