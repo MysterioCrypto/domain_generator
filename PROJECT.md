@@ -10,6 +10,7 @@ current_milestone: v0.2-batch-b6-multiscale-drainage-hierarchy
 checkpoint: h09-e-multiscale-hierarchy-ready-for-operator-review
 next_topic: operator-review-h09-e
 working_context: docs/CONTEXT.md
+progress_tree: docs/PROGRESS.md
 accepted_designs:
   - continuous-terrain-foundation-v0.2
   - continuous-drainage-routing-v0.2
@@ -36,6 +37,7 @@ implemented_integrations:
   - remote-github-actions-generation-adapter-v0.1
 canonical_documents:
   working_context: docs/CONTEXT.md
+  progress_tree: docs/PROGRESS.md
   architecture: docs/architecture.md
   glossary: docs/glossary.md
   decisions: docs/decisions/
@@ -56,29 +58,39 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 
 `domain_generator` — setting-agnostic procedural Core для генерации региональных/глобальных карт.
 
-Для восстановления текущей работы читать этот файл вместе с `docs/CONTEXT.md`:
+## Как восстанавливать рабочий контекст
 
-- `PROJECT.md` хранит устойчивые границы проекта и текущую линию разработки;
-- `docs/CONTEXT.md` — короткое rolling-сжатие активного смыслового контекста;
-- normative semantics живут в `docs/design/`, `docs/contracts/` и `docs/decisions/`.
+Читать в таком порядке:
 
-`docs/CONTEXT.md` переписывается на значимых checkpoint'ах и не является changelog.
+```text
+PROJECT.md
+→ docs/CONTEXT.md
+→ docs/PROGRESS.md
+→ relevant accepted docs/design/*
+→ code/tests
+```
+
+- `PROJECT.md` — устойчивая версия, архитектурная граница и активная линия разработки.
+- `docs/CONTEXT.md` — rolling semantic context: что принято, что отвергнуто, почему и какой checkpoint сейчас активен.
+- `docs/PROGRESS.md` — простое дерево `DONE / IN PROGRESS / NEXT`, чтобы новый чат не реконструировал план из истории PR.
+- `docs/design/`, `docs/contracts/`, `docs/decisions/` — нормативные semantics.
+- Git/PR history — только для археологии.
 
 ## Версионная граница
 
 ```text
 release/0.1-prealpha
-└─ historical / rejected as world-generation baseline
+└─ historical; infrastructure proved, world-generation semantics rejected
 
 dev/0.2
 └─ active development line
 ```
 
-Core 0.1 доказал инфраструктуру и exact replay, но visual diagnostic показал неприемлемые world-generation semantics. Он не является release candidate.
+Не выводить текущее состояние проекта из `main`.
 
-## Принятая основа Core 0.2
+## Core 0.2: принятая база
 
-Terrain 0.2 принят как минимально приемлемая база:
+### Terrain 0.2 — ACCEPTED
 
 ```text
 continuous multi-scale base elevation
@@ -89,35 +101,66 @@ continuous multi-scale base elevation
 
 Normative design: `docs/design/continuous-terrain-foundation-v0.2.md`.
 
-## Hydrology 0.2: текущая граница
+### Hydrology 0.2 — in progress
 
-D8 canonical routing был отвергнут ранее. Следующий Continuous Drainage design ввёл continuous direction field, distributed accumulation, lake supernodes и vector river tracing.
-
-Первый операторский H09 checkpoint этой реализации также **отклонён как финальная hydrology base**. Причина: несмотря на заметное улучшение относительно D8, accumulation/channel skeleton сохраняет выраженный lattice imprint — длинные прямые или ступенчатые cardinal/ordinal участки, необоснованные параллельные каналы и искусственная мелкая фрагментация.
-
-При этом сохраняются как полезные:
+После отклонённых D8 / two-receiver D∞ / direct MFD-support вариантов текущая сохранённая линия:
 
 ```text
-Terrain 0.2
-continuous direction-field concept / diagnostics
-single canonical lake outlet semantics
-operator diagnostic views (flow vectors, accumulation, channel support, final rivers)
+Priority-Flood conditioning
+→ MFD p=1.1 contributing area
+→ continuous MFD vector field
+→ dominant one-downstream channel skeleton
+→ H09-D2 regional river network
+→ H09-E denser potential drainage hierarchy
+→ Strahler ordering
 ```
 
-Не принимается как финальная форма:
+Текущий H09-E implementation checkpoint:
+- regional H09-D2 network сохранён без изменений;
+- potential network использует threshold `0.40 × regional T`;
+- potential hierarchy: 43 sources, 10 realized confluences, 66 segments;
+- max Strahler order 3;
+- final potential vector grid-lock ~8.66%;
+- regional skeleton coverage by potential scaffold: 100%;
+- engine invariants / hard constraints / full pytest: green.
+
+H09-E визуально существенно лучше предыдущих вариантов и рекомендован ассистентом к ACCEPT для **river-hierarchy slice**, но формальный operator ACCEPT ещё не записан.
+
+PR #72 остаётся draft/open до operator decision и последующего lake pass.
+
+## Что ещё не завершено в Hydrology
+
+Следующий bounded слой после принятия H09-E — отдельный lake pass:
 
 ```text
-two-receiver D∞-style raster accumulation
-→ current thresholded channel support
-→ current H09 final river network
+lake count / size distribution
+lake shape following terrain/depression
+lake size vs catchment
+lake placement inside drainage hierarchy
 ```
 
-Следующий bounded design должен исправлять accumulation/channel skeleton, а не маскировать результат smoothing/renderer.
+Отдельно от lake pass отложен вопрос **визуально/геоморфологически завершённых концов речной системы**:
 
-Точная оперативная точка — в `docs/CONTEXT.md`.
+- размытые/мелкие headwater roots;
+- seasonal/minor tributary fan-out;
+- estuary/delta/fan semantics там, где известен реальный receiving water;
+- cartographic fading/visibility low-order channels.
+
+Это не повод снова менять тело основной реки. Эти детали требуют следующего контекста — climate/biomes/surface и типа receiving water — и поэтому не должны преждевременно встраиваться в текущий regional river skeleton.
+
+Если река просто выходит за границу regional domain, Core не должен рисовать фиктивную дельту: это `domain_outlet`. Delta/estuary имеет смысл только при известном водоёме/побережье-приёмнике.
 
 ## Process invariants
 
 INV-001..INV-011 остаются в силе.
 
-Для пространственно-генеративных изменений автоматические проверки являются необходимыми предохранителями, но не заменяют operator-visible checkpoint. Если design требует human visual review, слой считается принятым только после явного ACCEPT оператора.
+Для spatial/procedural semantics:
+
+```text
+implementation
+→ automated guardrails
+→ representative operator-visible render
+→ explicit ACCEPT / REJECT
+```
+
+Green CI не заменяет human visual acceptance. Визуально удачный render также не отменяет failed invariants.
