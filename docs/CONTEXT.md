@@ -435,3 +435,58 @@ GitHub Actions compact previews are configured to emit the H10-A lake views into
 The first H10-A visual workflow run reached rendering successfully but failed in statistics post-processing because the diagnostic sort still referenced the pre-H10 field name `area_km2`. The code now sorts by `routing_basin_area_km2`.
 
 No semantic hydrology/lake behavior changed in this fix. Next step remains rerun CI/checkpoint and inspect only logs/compact previews unless a full artifact is explicitly requested.
+
+
+## H10-A same-world checkpoint
+
+Implementation commit checkpoint:
+`34d33ae8d58af31023b00a17758c32aefb1665fb`
+
+GitHub Actions:
+- H10-A checkpoint workflow: GREEN;
+- full pytest: GREEN;
+- engine invariants: GREEN;
+- hard constraints: GREEN.
+
+No full artifact was downloaded into the chat/container. Review used workflow logs + compact previews only.
+
+Representative lake metrics:
+
+```text
+accepted routing lakes:        13
+routing-basin total area:      890.0 km²
+refined visible total area:    836.5625 km²
+refined/domain area:           ~3.873%
+refined/routing total ratio:   ~0.940
+
+per-lake refined/routing ratio:
+  min:                         0.859
+  median:                      0.902
+  max:                         0.965
+```
+
+Largest lakes:
+
+```text
+routing → refined
+222 → 214.125 km²
+156 → 149.000 km²
+114 → 108.625 km²
+103 →  96.938 km²
+ 70 →  65.438 km²
+```
+
+Visual checkpoint:
+- exact 1 km raster-cell shoreline is gone from semantic HydroFeature geometry;
+- lake inflow/outlet nodes now lie on refined shoreline and validation passes;
+- 250 m sub-cell reconstruction reduces edge coarseness and area by ~6% overall;
+- however large lakes retain broadly rounded / basin-fill silhouettes and remain visually prominent;
+- contact-sheet close-ups still show noticeable 250 m stair-step geometry;
+- therefore H10-A fixes a confirmed geometry defect but does **not** obviously solve the larger question of whether full-spill basins are too broad/compound.
+
+Assistant assessment:
+- KEEP refined shoreline semantics and exact endpoint alignment;
+- H10-A alone is not yet a convincing final lake-slice acceptance;
+- if operator agrees, next bounded design should investigate nested-depression / partial-fill semantics rather than globally clipping lake area or reopening accepted river hierarchy.
+
+Heavy Actions artifacts remain remote unless explicitly requested.
