@@ -18,6 +18,7 @@ from domain_generator.application import (
 )
 from domain_generator.compiler import compile_domain_spec
 from domain_generator.hydrology import generate_hydrology, validate_hydrology
+from domain_generator.hydrology.ids import lake_feature_id
 from domain_generator.hydrology.continuous import (
     _activate_channel_skeleton,
     _dominant_channel_receiver_index,
@@ -954,7 +955,7 @@ def main() -> None:
     cell_area_km2 = cell_size_km * cell_size_km
     outlet_by_id = {outlet.lake_id: outlet for outlet in hydrology.lake_outlets}
     for lake_index, candidate in enumerate(hydrology.lake_candidates):
-        lake_id = f"lake:{lake_index:04d}"
+        lake_id = lake_feature_id(lake_index)
         cells = tuple(candidate.cells)
         rows_lake = [cell[0] for cell in cells]
         cols_lake = [cell[1] for cell in cells]
