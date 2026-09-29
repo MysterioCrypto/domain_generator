@@ -56,7 +56,7 @@ renderer/smoothing as an upstream-fix substitute
 
 ```text
 Hydrology 0.2
-└─ H10-A lake shoreline morphology — IMPLEMENTATION
+└─ H10-A lake shoreline morphology — OPERATOR REVIEW
    ├─ river hierarchy frozen
    ├─ diagnostics complete
    │  ├─ 13 routing lakes
@@ -67,7 +67,8 @@ Hydrology 0.2
    ├─ exact lake inflow/outlet shoreline alignment — IMPLEMENTED
    ├─ L01/L03/L05/L06/L08 guards — IMPLEMENTED
    ├─ H10-A visual diagnostics — IMPLEMENTED
-   └─ CI + same-world checkpoint review — IN PROGRESS
+   ├─ CI + same-world checkpoint — GREEN
+   └─ operator ACCEPT / REJECT — PENDING
 ```
 
 PR #72 remains draft/open until the Hydrology lake slice and final review are complete.
