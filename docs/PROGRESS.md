@@ -56,12 +56,14 @@ renderer/smoothing as an upstream-fix substitute
 
 ```text
 Hydrology 0.2
-└─ bounded lake pass — DESIGN
+└─ H10-A lake shoreline morphology — DESIGN GATE
    ├─ river hierarchy frozen
-   ├─ investigate lake count / scale distribution
-   ├─ terrain-following lake morphology
-   ├─ catchment ↔ lake relation
-   └─ preserve one canonical outlet
+   ├─ diagnostics complete
+   │  ├─ 13 routing lakes
+   │  ├─ 890 km² total raster lake area
+   │  └─ catchment/lake ratios ~5.6...136
+   ├─ PR #78 proposed
+   └─ awaiting operator ACCEPT / REJECT
 ```
 
 PR #72 remains draft/open until the Hydrology lake slice and final review are complete.
@@ -69,8 +71,8 @@ PR #72 remains draft/open until the Hydrology lake slice and final review are co
 ## NEXT
 
 ```text
-1. INV-006 lake design gate
-2. Bounded lake pass
+1. Operator ACCEPT / REJECT PR #78 lake design
+2. If ACCEPT: implement H10-A shoreline refinement
    ├─ lake count
    ├─ size distribution
    ├─ terrain-following shape

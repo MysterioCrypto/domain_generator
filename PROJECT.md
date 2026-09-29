@@ -6,9 +6,9 @@ status: in-progress
 historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
-current_milestone: v0.2-batch-b6-multiscale-drainage-hierarchy
-checkpoint: h09-e-river-hierarchy-accepted
-next_topic: design-lake-morphology-catchment-pass
+current_milestone: v0.2-batch-b7-lake-shoreline-morphology
+checkpoint: h10-a-lake-shoreline-design-proposed
+next_topic: accept-lake-shoreline-morphology-design
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
