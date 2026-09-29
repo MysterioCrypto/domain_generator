@@ -12,6 +12,7 @@ from ..contracts.plan import GenerationPlan
 from ..geometry import (
     BooleanGeometry,
     backend_area,
+    backend_region_set,
     geometry_area_km2,
     is_canonical_region_set,
     to_region_set,

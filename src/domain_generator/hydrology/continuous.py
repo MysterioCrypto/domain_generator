@@ -9,6 +9,7 @@ import numpy as np
 
 from ..contracts.data import (
     BoundarySide,
+    HydroFeature,
     RiverNetwork,
     RiverNode,
     RiverNodeKind,
@@ -25,6 +26,7 @@ from ..contracts.validation import (
     ValidationResult,
     ValidationStage,
 )
+from ..geometry import region_set_boundary_distance_km, region_set_nearest_boundary_point
 from ..grid import GridAdapter
 from ..terrain.state import TerrainState
 from .classification import classify_stream_mask, extract_lake_candidates
@@ -1210,6 +1212,8 @@ def _lake_boundary_point(
     start: tuple[float, float],
     end: tuple[float, float],
     lake_by_cell: dict[Cell, str],
+    *,
+    lake_features: dict[str, HydroFeature] | None = None,
 ) -> WorldPoint:
     ax, ay = start
     bx, by = end
@@ -1224,7 +1228,21 @@ def _lake_boundary_point(
             bx, by = mx, my
         else:
             ax, ay = mx, my
-    return WorldPoint(x_km=(ax + bx) / 2.0, y_km=(ay + by) / 2.0)
+    raster_boundary = WorldPoint(x_km=(ax + bx) / 2.0, y_km=(ay + by) / 2.0)
+    if lake_features is None:
+        return raster_boundary
+    lake_id = lake_by_cell.get(
+        adapter.containing_cell(
+            min(adapter.width_km, max(0.0, bx)),
+            min(adapter.height_km, max(0.0, by)),
+        )
+    )
+    if lake_id is None or lake_id not in lake_features:
+        return raster_boundary
+    return region_set_nearest_boundary_point(
+        lake_features[lake_id].geometry,
+        raster_boundary,
+    )
 
 
 def _trace_continuous(
@@ -1236,6 +1254,7 @@ def _trace_continuous(
     start_cell: Cell,
     confluence_cells: set[Cell],
     lake_by_cell: dict[Cell, str],
+    lake_features: dict[str, HydroFeature] | None = None,
 ) -> _TraceResult:
     step = adapter.cell_size_km * 0.22
     max_steps = max(200, (adapter.rows + adapter.columns) * 40)
@@ -1300,7 +1319,13 @@ def _trace_continuous(
         next_cell = adapter.containing_cell(nx, ny)
         target_lake = lake_by_cell.get(next_cell)
         if target_lake is not None and next_cell != start_cell:
-            boundary = _lake_boundary_point(adapter, (x, y), (nx, ny), lake_by_cell)
+            boundary = _lake_boundary_point(
+                adapter,
+                (x, y),
+                (nx, ny),
+                lake_by_cell,
+                lake_features=lake_features,
+            )
             points.append(boundary)
             return _TraceResult(
                 points=tuple(points),
@@ -1454,12 +1479,22 @@ def _node_sort_key(node: _NodeDescriptor) -> tuple[object, ...]:
     )
 
 
-def _outlet_position(adapter: GridAdapter, outlet: LakeOutlet) -> WorldPoint:
+def _outlet_position(
+    adapter: GridAdapter,
+    outlet: LakeOutlet,
+    lake_features: dict[str, HydroFeature] | None = None,
+) -> WorldPoint:
     lake_center = adapter.cell_center(*outlet.lake_cell)
     receiver_center = adapter.cell_center(*outlet.receiver_cell)
-    return WorldPoint(
+    raster_boundary = WorldPoint(
         x_km=(lake_center.x_km + receiver_center.x_km) / 2.0,
         y_km=(lake_center.y_km + receiver_center.y_km) / 2.0,
+    )
+    if lake_features is None or outlet.lake_id not in lake_features:
+        return raster_boundary
+    return region_set_nearest_boundary_point(
+        lake_features[outlet.lake_id].geometry,
+        raster_boundary,
     )
 
 
@@ -1473,6 +1508,7 @@ def build_continuous_river_network(
     *,
     skeleton: _ChannelSkeleton | None = None,
     normalize_false_confluences: bool = False,
+    lake_features: dict[str, HydroFeature] | None = None,
 ) -> tuple[RiverNetwork, np.ndarray]:
     shape = (plan.grid.rows, plan.grid.columns)
     if accumulation.shape != shape or channel_support.shape != shape:
@@ -1519,7 +1555,7 @@ def build_continuous_river_network(
         descriptor = _NodeDescriptor(
             key=("lake_outlet", outlet.lake_id),
             kind=RiverNodeKind.LAKE_OUTLET,
-            position=_outlet_position(adapter, outlet),
+            position=_outlet_position(adapter, outlet, lake_features),
             feature_id=outlet.lake_id,
             anchor_cell=outlet.receiver_cell,
         )
@@ -1557,6 +1593,7 @@ def build_continuous_river_network(
             start_cell=start.anchor_cell,
             confluence_cells=confluence_cells - {start.anchor_cell},
             lake_by_cell=lake_by_cell,
+            lake_features=lake_features,
         )
         terminal = trace.terminal
         if terminal.kind == "confluence":
@@ -1709,7 +1746,12 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         for cell in lake_by_cell:
             support[cell] = False
 
-    lake_features = materialize_lake_features(plan, lakes)
+    lake_features = materialize_lake_features(
+        plan,
+        lakes,
+        terrain_elevation_m=elevation,
+        shoreline_subdivision=4,
+    )
     channel_skeleton = _build_channel_skeleton(
         plan,
         field,
@@ -1739,6 +1781,7 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         lakes,
         outlets,
         skeleton=channel_skeleton,
+        lake_features=lake_features,
     )
     potential_river_network, _ = build_continuous_river_network(
         plan,
@@ -1749,6 +1792,7 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         outlets,
         skeleton=potential_skeleton,
         normalize_false_confluences=True,
+        lake_features=lake_features,
     )
     potential_segment_orders = _segment_strahler_orders(
         plan,
