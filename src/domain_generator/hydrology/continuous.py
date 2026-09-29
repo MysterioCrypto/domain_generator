@@ -723,7 +723,12 @@ def _terrain_aware_initiation(
     *,
     stream_threshold_km2: float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return convergence, area-slope score and normal-source eligibility."""
+    """Return convergence, area-slope score and additive source eligibility.
+
+    H09-D2 preserves the H09-C fixed-area baseline. Terrain awareness may only
+    promote additional sub-threshold cells when they are both steep and
+    convergent.
+    """
     if field.local_slope is None:
         raise HydrologyCapabilityError("terrain-aware initiation requires local_slope")
     if field.local_slope.shape != channel_area_km2.shape:
@@ -731,12 +736,21 @@ def _terrain_aware_initiation(
 
     convergence = _mfd_incoming_fraction_sum(field)
     slope = np.asarray(field.local_slope, dtype=np.float64)
-    reference_slope = 0.05
-    initiation_score = channel_area_km2 * (np.maximum(slope, 0.0) / reference_slope)
-    eligible = (
-        (initiation_score >= float(stream_threshold_km2))
+    threshold = float(stream_threshold_km2)
+
+    reference_slope = 0.02
+    exponent = 1.65
+    slope_ratio = np.maximum(slope / reference_slope, 0.0)
+    initiation_score = channel_area_km2 * np.power(slope_ratio, exponent)
+
+    baseline = channel_area_km2 >= threshold
+    promoted = (
+        (channel_area_km2 < threshold)
         & (convergence > 1.0 + 1e-9)
+        & (slope > reference_slope)
+        & (initiation_score >= threshold)
     )
+    eligible = baseline | promoted
     return convergence, initiation_score, eligible
 
 

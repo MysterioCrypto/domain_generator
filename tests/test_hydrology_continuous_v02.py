@@ -265,13 +265,12 @@ def test_i01_area_slope_and_convergence_control_source_eligibility() -> None:
     )
 
     assert convergence[2, 2] > 1.0
-    assert score[2, 2] == 200.0
+    assert score[2, 2] > 150.0
     assert bool(eligible[2, 2])
-    assert score[3, 3] == 40.0
     assert not bool(eligible[3, 3])
 
 
-def test_i02_planar_transport_is_not_source_eligible_from_area_alone() -> None:
+def test_i02_fixed_area_baseline_is_preserved_on_planar_terrain() -> None:
     shape = (5, 5)
     fractions = np.zeros((5, 5, 8), dtype=np.float64)
     for row in range(1, 4):
@@ -281,9 +280,34 @@ def test_i02_planar_transport_is_not_source_eligible_from_area_alone() -> None:
     field = ContinuousRoutingField(
         flow_angle_rad=np.zeros(shape, dtype=np.float64),
         fractions=fractions,
+        local_slope=np.full(shape, 0.005, dtype=np.float64),
+    )
+    channel_area = np.full(shape, 200.0, dtype=np.float64)
+
+    convergence, score, eligible = _terrain_aware_initiation(
+        field,
+        channel_area,
+        stream_threshold_km2=150.0,
+    )
+
+    assert abs(float(convergence[2, 2]) - 1.0) < 1e-12
+    assert score[2, 2] < 150.0
+    assert bool(eligible[2, 2])
+
+
+def test_i02b_subthreshold_planar_cell_is_not_promoted_by_slope_alone() -> None:
+    shape = (5, 5)
+    fractions = np.zeros((5, 5, 8), dtype=np.float64)
+    for row in range(1, 4):
+        for column in range(0, 4):
+            fractions[row, column, 0] = 1.0
+
+    field = ContinuousRoutingField(
+        flow_angle_rad=np.zeros(shape, dtype=np.float64),
+        fractions=fractions,
         local_slope=np.full(shape, 0.20, dtype=np.float64),
     )
-    channel_area = np.full(shape, 1000.0, dtype=np.float64)
+    channel_area = np.full(shape, 100.0, dtype=np.float64)
 
     convergence, score, eligible = _terrain_aware_initiation(
         field,

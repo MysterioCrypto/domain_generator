@@ -292,7 +292,7 @@ def _save_channel_skeleton(
     if confluence_x:
         ax.scatter(confluence_x, confluence_y, s=24.0, marker="D", color="magenta", zorder=9)
 
-    ax.set_title("H09-D — Raw MFD support (gray), terrain-aware skeleton (black), final rivers (blue)")
+    ax.set_title("H09-D2 — Raw MFD support (gray), terrain-aware skeleton (black), final rivers (blue)")
     ax.set_xlabel("km east")
     ax.set_ylabel("km north")
     ax.set_xlim(0.0, width_km)
@@ -379,7 +379,7 @@ def _save_local_slope(
         ax.scatter(xs, ys, s=28.0, marker="o", color="red", zorder=9)
     colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.025)
     colorbar.set_label("dimensionless slope (rise/run)")
-    ax.set_title("H09-D — Conditioned local slope with selected sources")
+    ax.set_title("H09-D2 — Conditioned local slope with selected sources")
     ax.set_xlabel("km east")
     ax.set_ylabel("km north")
     fig.tight_layout()
@@ -410,7 +410,7 @@ def _save_convergence(
         ax.scatter(xs, ys, s=28.0, marker="o", color="red", zorder=9)
     colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.025)
     colorbar.set_label("incoming MFD fraction sum")
-    ax.set_title("H09-D — MFD flow convergence with selected sources")
+    ax.set_title("H09-D2 — MFD flow convergence with selected sources")
     ax.set_xlabel("km east")
     ax.set_ylabel("km north")
     fig.tight_layout()
@@ -428,8 +428,20 @@ def _save_initiation_score(
 ) -> None:
     score = hydrology.channel_initiation_score_km2
     convergence = hydrology.channel_convergence
-    assert score is not None and convergence is not None
-    eligible = (score >= threshold_km2) & (convergence > 1.0 + 1e-9)
+    unique_area = hydrology.channel_unique_area_km2
+    field = hydrology.continuous_routing
+    assert score is not None and convergence is not None and unique_area is not None
+    assert field is not None and field.local_slope is not None
+
+    slope = np.asarray(field.local_slope, dtype=np.float64)
+    reference_slope = 0.02
+    baseline = unique_area >= threshold_km2
+    promoted = (
+        (unique_area < threshold_km2)
+        & (convergence > 1.0 + 1e-9)
+        & (slope > reference_slope)
+        & (score >= threshold_km2)
+    )
 
     fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
     image = ax.imshow(
@@ -440,17 +452,28 @@ def _save_initiation_score(
         aspect="equal",
         cmap="viridis",
     )
-    rows, columns = np.where(eligible)
+
+    rows, columns = np.where(baseline)
     if rows.size:
         x = (columns.astype(np.float64) + 0.5) * (width_km / score.shape[1])
         y = height_km - (rows.astype(np.float64) + 0.5) * (height_km / score.shape[0])
-        ax.scatter(x, y, s=8.0, marker=".", color="white", alpha=0.45, zorder=7)
+        ax.scatter(x, y, s=10.0, marker="s", facecolors="none", edgecolors="cyan", alpha=0.55, zorder=7)
+
+    rows, columns = np.where(promoted)
+    if rows.size:
+        x = (columns.astype(np.float64) + 0.5) * (width_km / score.shape[1])
+        y = height_km - (rows.astype(np.float64) + 0.5) * (height_km / score.shape[0])
+        ax.scatter(x, y, s=10.0, marker=".", color="white", alpha=0.75, zorder=8)
+
     xs, ys = _source_points(hydrology)
     if xs:
-        ax.scatter(xs, ys, s=32.0, marker="o", color="red", zorder=9)
+        ax.scatter(xs, ys, s=34.0, marker="o", color="red", zorder=9)
+
     colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.025)
-    colorbar.set_label("log(1 + area–slope initiation score km²)")
-    ax.set_title("H09-D — Initiation score; white=eligible, red=selected source")
+    colorbar.set_label("log(1 + area–slope promotion score km²)")
+    ax.set_title(
+        "H09-D2 — Source eligibility: cyan=H09-C baseline, white=terrain promotion, red=selected source"
+    )
     ax.set_xlabel("km east")
     ax.set_ylabel("km north")
     fig.tight_layout()
@@ -485,7 +508,7 @@ def main() -> None:
     if hydrology.channel_support_mask is None:
         raise RuntimeError("H09 checkpoint requires channel_support_mask")
     if hydrology.channel_skeleton_mask is None:
-        raise RuntimeError("H09-D checkpoint requires channel_skeleton_mask")
+        raise RuntimeError("H09-D2 checkpoint requires channel_skeleton_mask")
 
     validation = validate_hydrology(plan, terrain, hydrology, attempt_index=0)
 
@@ -561,8 +584,17 @@ def main() -> None:
     local_slope = np.asarray(hydrology.continuous_routing.local_slope, dtype=np.float64)
     threshold_km2 = float(plan.hydrology.stream_threshold_km2)
     convergent_mask = convergence > 1.0 + 1e-9
+    reference_slope = 0.02
+    promotion_exponent = 1.65
     score_mask = initiation_score >= threshold_km2
-    eligible_mask = convergent_mask & score_mask
+    base_eligible_mask = unique_area >= threshold_km2
+    promoted_mask = (
+        (unique_area < threshold_km2)
+        & convergent_mask
+        & (local_slope > reference_slope)
+        & score_mask
+    )
+    eligible_mask = base_eligible_mask | promoted_mask
 
     def _percentiles(values: np.ndarray) -> dict[str, float]:
         finite = values[np.isfinite(values)]
@@ -587,7 +619,7 @@ def main() -> None:
         lake_candidates=hydrology.lake_candidates,
         lake_outlets=hydrology.lake_outlets,
     )
-    old_eligible = unique_area >= threshold_km2
+    old_eligible = base_eligible_mask.copy()
     lake_cells = {
         cell
         for lake in hydrology.lake_candidates
@@ -631,42 +663,6 @@ def main() -> None:
         for row, column in sorted(old_sources)
     ]
 
-    # Hypothetical additive promotion diagnostics. H09-C's fixed-area rule
-    # remains the baseline; terrain awareness may only promote a headwater
-    # upstream, never delete an existing branch. This is diagnostics only.
-    additive_scenarios = {}
-    base_eligible = unique_area >= threshold_km2
-    for cell in lake_cells:
-        base_eligible[cell] = False
-    for reference_slope in (0.005, 0.01, 0.02, 0.05):
-        for alpha in (1.0, 1.65, 2.0):
-            slope_ratio = np.maximum(local_slope / reference_slope, 0.0)
-            promotion_score = unique_area * np.power(slope_ratio, alpha)
-            promoted = (
-                (unique_area < threshold_km2)
-                & convergent_mask
-                & (local_slope > reference_slope)
-                & (promotion_score >= threshold_km2)
-            )
-            scenario_eligible = base_eligible | promoted
-            scenario_skeleton, scenario_sources, scenario_confluences = _activate_channel_skeleton(
-                receiver_index,
-                scenario_eligible,
-                lake_candidates=hydrology.lake_candidates,
-                lake_outlets=hydrology.lake_outlets,
-            )
-            scenario_key = f"sref={reference_slope:.3f},alpha={alpha:.2f}"
-            additive_scenarios[scenario_key] = {
-                "promoted_candidate_cell_count": int(np.count_nonzero(promoted)),
-                "source_count_after_propagation": len(scenario_sources),
-                "confluence_count_after_propagation": len(scenario_confluences),
-                "skeleton_cell_count": int(np.count_nonzero(scenario_skeleton)),
-                "source_cells": [
-                    {"row": int(row), "column": int(column)}
-                    for row, column in sorted(scenario_sources)
-                ],
-            }
-
     candidate_cells = list(zip(*np.where(convergent_mask)))
     candidate_cells.sort(
         key=lambda cell: (
@@ -690,7 +686,7 @@ def main() -> None:
     ]
 
     stats = {
-        "checkpoint": "H09-D",
+        "checkpoint": "H09-D2",
         "generator_version": domain_generator.__version__,
         "plan_version": plan.plan_version,
         "routing_mode": hydrology.routing_mode,
@@ -716,8 +712,12 @@ def main() -> None:
             "max_initiation_score_km2": float(np.max(hydrology.channel_initiation_score_km2)),
             "initiation_diagnostics": {
                 "threshold_km2": threshold_km2,
+                "reference_slope": reference_slope,
+                "promotion_exponent": promotion_exponent,
                 "convergent_cell_count": int(np.count_nonzero(convergent_mask)),
-                "score_at_or_above_threshold_count": int(np.count_nonzero(score_mask)),
+                "baseline_eligible_cell_count": int(np.count_nonzero(base_eligible_mask)),
+                "promotion_score_at_or_above_threshold_count": int(np.count_nonzero(score_mask)),
+                "promoted_cell_count": int(np.count_nonzero(promoted_mask)),
                 "eligible_cell_count": int(np.count_nonzero(eligible_mask)),
                 "unique_area_all_km2": _percentiles(unique_area),
                 "unique_area_convergent_km2": _percentiles(unique_area[convergent_mask]),
@@ -727,8 +727,7 @@ def main() -> None:
                 "score_convergent_km2": _percentiles(initiation_score[convergent_mask]),
                 "top_convergent_candidates": top_candidates,
                 "h09c_fixed_area_source_count": len(old_source_diagnostics),
-                "h09c_fixed_area_sources_under_new_rule": old_source_diagnostics,
-                "additive_promotion_scenario_matrix": additive_scenarios,
+                "h09c_fixed_area_sources_preserved": old_source_diagnostics,
             },
             "final_stream_cells": int(np.count_nonzero(hydrology.stream_mask)),
             "river_node_count": len(hydrology.river_network.nodes),
