@@ -64,7 +64,8 @@ Hydrology 0.2
    │  └─ catchment/lake ratios ~5.6...136
    ├─ PR #78 ACCEPTED / merged
    ├─ refined sub-cell shoreline reconstruction — IMPLEMENTED
-   └─ exact lake inflow/outlet endpoints + guards — IN PROGRESS
+   ├─ exact lake inflow/outlet shoreline alignment — IMPLEMENTED
+   └─ L01–L08 guards + H10-A diagnostics — IN PROGRESS
 ```
 
 PR #72 remains draft/open until the Hydrology lake slice and final review are complete.
