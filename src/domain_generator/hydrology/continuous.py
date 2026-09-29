@@ -90,13 +90,6 @@ class _TraceTerminal:
 
 
 @dataclass(frozen=True, slots=True)
-class _SkeletonTerminal:
-    kind: Literal["confluence", "lake_inflow", "domain_outlet"]
-    anchor_cell: Cell | None = None
-    feature_id: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
 class _TraceResult:
     points: tuple[WorldPoint, ...]
     terminal: _TraceTerminal
@@ -1116,74 +1109,30 @@ def _segment_strahler_orders(
     hierarchy: _StrahlerHierarchy,
     lake_outlets: tuple[LakeOutlet, ...],
 ) -> dict[str, int]:
+    """Assign each continuous segment the highest hierarchy order it traverses."""
     adapter = GridAdapter.from_plan(plan)
-    outlet_cell_by_lake = {outlet.lake_id: outlet.receiver_cell for outlet in lake_outlets}
     result: dict[str, int] = {}
 
     for segment_id, segment in network.segments.items():
         source = network.nodes[segment.from_node]
+        orders: list[int] = []
         if source.kind is RiverNodeKind.LAKE_OUTLET and source.feature_id is not None:
-            order = int(hierarchy.lake_order.get(source.feature_id, 1))
-        else:
-            x = min(adapter.width_km, max(0.0, float(source.position.x_km)))
-            y = min(adapter.height_km, max(0.0, float(source.position.y_km)))
+            orders.append(int(hierarchy.lake_order.get(source.feature_id, 1)))
+
+        for point in segment.centerline:
+            x = min(adapter.width_km - _EPS, max(0.0, float(point.x_km)))
+            y = min(adapter.height_km - _EPS, max(0.0, float(point.y_km)))
             cell = adapter.containing_cell(x, y)
-            order = int(hierarchy.cell_order[cell])
-            if order < 1 and source.feature_id in outlet_cell_by_lake:
-                order = int(hierarchy.cell_order[outlet_cell_by_lake[source.feature_id]])
-        if order < 1:
+            value = int(hierarchy.cell_order[cell])
+            if value >= 1:
+                orders.append(value)
+
+        if not orders:
             raise HydrologyCapabilityError(
                 f"potential river segment {segment_id!r} has no Strahler order"
             )
-        result[segment_id] = order
+        result[segment_id] = max(orders)
     return result
-
-
-def _declared_skeleton_terminal(
-    start_cell: Cell,
-    skeleton: _ChannelSkeleton,
-    *,
-    lake_candidates: tuple[LakeCandidate, ...],
-) -> _SkeletonTerminal:
-    """Follow dominant skeleton topology to the next semantic terminal."""
-    shape = skeleton.mask.shape
-    columns = shape[1]
-    lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
-    cell = start_cell
-    visited: set[Cell] = set()
-    max_steps = shape[0] * shape[1] + 1
-
-    for _ in range(max_steps):
-        if cell in visited:
-            raise HydrologyCapabilityError("declared channel skeleton contains a cycle")
-        visited.add(cell)
-
-        if _is_edge(cell, shape):
-            return _SkeletonTerminal(kind="domain_outlet", anchor_cell=cell)
-
-        target_index = int(skeleton.receiver_index[cell])
-        if target_index < 0:
-            return _SkeletonTerminal(kind="domain_outlet", anchor_cell=cell)
-
-        target = _cell_from_index(target_index, columns)
-        target_lake = lake_by_cell.get(target)
-        if target_lake is not None:
-            return _SkeletonTerminal(
-                kind="lake_inflow",
-                anchor_cell=target,
-                feature_id=target_lake,
-            )
-
-        if target in skeleton.confluences and target != start_cell:
-            return _SkeletonTerminal(kind="confluence", anchor_cell=target)
-
-        if not bool(skeleton.mask[target]):
-            raise HydrologyCapabilityError(
-                "declared channel skeleton has an interior downstream discontinuity"
-            )
-        cell = target
-
-    raise HydrologyCapabilityError("declared channel skeleton exceeded deterministic step budget")
 
 
 def _sample_vector(
@@ -1287,7 +1236,6 @@ def _trace_continuous(
     start_cell: Cell,
     confluence_cells: set[Cell],
     lake_by_cell: dict[Cell, str],
-    expected_terminal: _SkeletonTerminal | None = None,
 ) -> _TraceResult:
     step = adapter.cell_size_km * 0.22
     max_steps = max(200, (adapter.rows + adapter.columns) * 40)
@@ -1307,10 +1255,6 @@ def _trace_continuous(
 
     for _ in range(max_steps):
         if _is_edge(cell, (adapter.rows, adapter.columns)):
-            if expected_terminal is not None and expected_terminal.kind != "domain_outlet":
-                raise HydrologyCapabilityError(
-                    "continuous trace reached domain edge before declared skeleton terminal"
-                )
             vector = _sample_vector(field, adapter, x, y)
             if vector is None:
                 center_point = adapter.cell_center(*cell)
@@ -1344,10 +1288,6 @@ def _trace_continuous(
         nx = x + dx * step
         ny = y + dy * step
         if nx < 0.0 or nx > adapter.width_km or ny < 0.0 or ny > adapter.height_km:
-            if expected_terminal is not None and expected_terminal.kind != "domain_outlet":
-                raise HydrologyCapabilityError(
-                    "continuous trace exited domain before declared skeleton terminal"
-                )
             boundary, side = _boundary_intersection(x, y, dx, dy, adapter)
             points.append(boundary)
             return _TraceResult(
@@ -1360,16 +1300,6 @@ def _trace_continuous(
         next_cell = adapter.containing_cell(nx, ny)
         target_lake = lake_by_cell.get(next_cell)
         if target_lake is not None and next_cell != start_cell:
-            if (
-                expected_terminal is not None
-                and (
-                    expected_terminal.kind != "lake_inflow"
-                    or expected_terminal.feature_id != target_lake
-                )
-            ):
-                raise HydrologyCapabilityError(
-                    "continuous trace entered a lake outside its declared skeleton terminal"
-                )
             boundary = _lake_boundary_point(adapter, (x, y), (nx, ny), lake_by_cell)
             points.append(boundary)
             return _TraceResult(
@@ -1383,20 +1313,7 @@ def _trace_continuous(
                 catchment_area_km2=max_catchment,
             )
 
-        target_confluence = (
-            expected_terminal.anchor_cell
-            if expected_terminal is not None and expected_terminal.kind == "confluence"
-            else None
-        )
-        reached_confluence = (
-            next_cell != start_cell
-            and (
-                next_cell == target_confluence
-                if expected_terminal is not None
-                else next_cell in confluence_cells
-            )
-        )
-        if reached_confluence:
+        if next_cell != start_cell and next_cell in confluence_cells:
             center_point = adapter.cell_center(*next_cell)
             target = WorldPoint(x_km=center_point.x_km, y_km=center_point.y_km)
             points.append(target)
@@ -1422,6 +1339,109 @@ def _trace_continuous(
             max_catchment = max(max_catchment, float(accumulation[cell]))
 
     raise HydrologyCapabilityError("continuous river trace exceeded deterministic step budget")
+
+
+def _normalize_false_confluences(
+    descriptors: dict[tuple[object, ...], _NodeDescriptor],
+    trace_records: list[
+        tuple[
+            _NodeDescriptor,
+            _NodeDescriptor,
+            tuple[WorldPoint, ...],
+            float,
+            tuple[Cell, ...],
+        ]
+    ],
+) -> list[
+    tuple[
+        _NodeDescriptor,
+        _NodeDescriptor,
+        tuple[WorldPoint, ...],
+        float,
+        tuple[Cell, ...],
+    ]
+]:
+    """Collapse skeleton confluence markers not realized by continuous traces.
+
+    The raster skeleton proposes semantic merge locations, while the final
+    geometry follows the continuous MFD vector field. At the denser potential
+    scale a streamline can bypass a proposed raster confluence. Such a marker
+    must not survive as a serialized confluence with indegree 0 or 1.
+    """
+    records = list(trace_records)
+
+    while True:
+        indegree: dict[tuple[object, ...], int] = defaultdict(int)
+        outgoing: dict[tuple[object, ...], list[int]] = defaultdict(list)
+        incoming: dict[tuple[object, ...], list[int]] = defaultdict(list)
+        for index, (start, target, _points, _catchment, _cells) in enumerate(records):
+            indegree[target.key] += 1
+            outgoing[start.key].append(index)
+            incoming[target.key].append(index)
+
+        invalid = sorted(
+            (
+                descriptor
+                for descriptor in descriptors.values()
+                if descriptor.kind is RiverNodeKind.CONFLUENCE
+                and indegree[descriptor.key] < 2
+            ),
+            key=_node_sort_key,
+        )
+        if not invalid:
+            return records
+
+        descriptor = invalid[0]
+        key = descriptor.key
+        in_indices = incoming.get(key, [])
+        out_indices = outgoing.get(key, [])
+        if len(out_indices) != 1:
+            raise HydrologyCapabilityError(
+                "false-confluence normalization requires one downstream segment"
+            )
+        out_index = out_indices[0]
+        outgoing_record = records[out_index]
+
+        if len(in_indices) == 0:
+            records = [
+                record
+                for index, record in enumerate(records)
+                if index != out_index
+            ]
+            descriptors.pop(key, None)
+            continue
+
+        if len(in_indices) != 1:
+            raise HydrologyCapabilityError(
+                "false-confluence normalization received inconsistent indegree"
+            )
+
+        in_index = in_indices[0]
+        incoming_record = records[in_index]
+        in_start, _in_target, in_points, in_catchment, in_cells = incoming_record
+        _out_start, out_target, out_points, out_catchment, out_cells = outgoing_record
+
+        if in_points[-1] != out_points[0]:
+            raise HydrologyCapabilityError(
+                "false-confluence normalization requires touching segment geometry"
+            )
+        merged_points = in_points + out_points[1:]
+        merged_cells = tuple(dict.fromkeys(in_cells + out_cells))
+        merged_record = (
+            in_start,
+            out_target,
+            merged_points,
+            max(in_catchment, out_catchment),
+            merged_cells,
+        )
+        remove = {in_index, out_index}
+        records = [
+            record
+            for index, record in enumerate(records)
+            if index not in remove
+        ]
+        records.append(merged_record)
+        descriptors.pop(key, None)
 
 
 def _node_sort_key(node: _NodeDescriptor) -> tuple[object, ...]:
@@ -1452,7 +1472,7 @@ def build_continuous_river_network(
     lake_outlets: tuple[LakeOutlet, ...],
     *,
     skeleton: _ChannelSkeleton | None = None,
-    enforce_skeleton_topology: bool = False,
+    normalize_false_confluences: bool = False,
 ) -> tuple[RiverNetwork, np.ndarray]:
     shape = (plan.grid.rows, plan.grid.columns)
     if accumulation.shape != shape or channel_support.shape != shape:
@@ -1529,15 +1549,6 @@ def build_continuous_river_network(
             )
             continue
 
-        expected_terminal = (
-            _declared_skeleton_terminal(
-                start.anchor_cell,
-                skeleton,
-                lake_candidates=lake_candidates,
-            )
-            if enforce_skeleton_topology
-            else None
-        )
         trace = _trace_continuous(
             adapter=adapter,
             field=field,
@@ -1546,27 +1557,7 @@ def build_continuous_river_network(
             start_cell=start.anchor_cell,
             confluence_cells=confluence_cells - {start.anchor_cell},
             lake_by_cell=lake_by_cell,
-            expected_terminal=expected_terminal,
         )
-        if expected_terminal is not None:
-            if trace.terminal.kind != expected_terminal.kind:
-                raise HydrologyCapabilityError(
-                    "continuous trace terminal kind disagrees with declared skeleton topology"
-                )
-            if (
-                expected_terminal.kind == "confluence"
-                and trace.terminal.anchor_cell != expected_terminal.anchor_cell
-            ):
-                raise HydrologyCapabilityError(
-                    "continuous trace reached wrong declared confluence"
-                )
-            if (
-                expected_terminal.kind == "lake_inflow"
-                and trace.terminal.feature_id != expected_terminal.feature_id
-            ):
-                raise HydrologyCapabilityError(
-                    "continuous trace reached wrong declared lake"
-                )
         terminal = trace.terminal
         if terminal.kind == "confluence":
             assert terminal.anchor_cell is not None
@@ -1609,6 +1600,9 @@ def build_continuous_river_network(
         if start.key == target.key:
             raise HydrologyCapabilityError("continuous river segment cannot terminate at its start node")
         trace_records.append((start, target, trace.points, trace.catchment_area_km2, trace.traversed_cells))
+
+    if normalize_false_confluences:
+        trace_records = _normalize_false_confluences(descriptors, trace_records)
 
     ordered_descriptors = sorted(descriptors.values(), key=_node_sort_key)
     node_id_by_key = {
@@ -1754,7 +1748,7 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         lakes,
         outlets,
         skeleton=potential_skeleton,
-        enforce_skeleton_topology=True,
+        normalize_false_confluences=True,
     )
     potential_segment_orders = _segment_strahler_orders(
         plan,
