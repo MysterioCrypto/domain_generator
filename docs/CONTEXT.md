@@ -428,3 +428,10 @@ Checkpoint statistics now report:
 - catchment relation using refined visible lake area.
 
 GitHub Actions compact previews are configured to emit the H10-A lake views into workflow logs. Full artifacts remain remote and must not be downloaded into the chat/container unless explicitly requested.
+
+
+## H10-A checkpoint render fix
+
+The first H10-A visual workflow run reached rendering successfully but failed in statistics post-processing because the diagnostic sort still referenced the pre-H10 field name `area_km2`. The code now sorts by `routing_basin_area_km2`.
+
+No semantic hydrology/lake behavior changed in this fix. Next step remains rerun CI/checkpoint and inspect only logs/compact previews unless a full artifact is explicitly requested.
