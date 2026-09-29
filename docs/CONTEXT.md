@@ -125,14 +125,110 @@ Need show:
 
 Primary acceptance question: does the potential network read as a plausible dendritic hierarchy without returning to H09-B parallel noise?
 
+## H09-E implementation checkpoint
+
+Accepted multiscale design is implemented in PR #72.
+
+Representative same-world result:
+
+```text
+regional H09-D2 (unchanged):
+  sources / confluences: 16 / 4
+  segments:               33
+  skeleton cells:         610
+  total length:           ~648.75 km
+  final grid-lock 1°:     ~9.08%
+
+potential hierarchy:
+  threshold:              100 km² = 0.40 × regional T
+  sources:                43
+  realized confluences:   10
+  segments:               66
+  skeleton cells:         783
+  total vector length:    ~877.03 km
+  final grid-lock 1°:     ~8.66%
+  max Strahler order:     3
+  regional coverage:      610 / 610 = 100%
+```
+
+Strahler skeleton-cell distribution:
+
+```text
+order 1: 483 cells
+order 2: 266 cells
+order 3:  34 cells
+```
+
+### Trace/skeleton consistency defect found and fixed
+
+Initial H09-E exposed six raster-proposed confluence markers that were not realized as true merges by continuous MFD vector traces:
+
+```text
+initial vector confluence indegrees:
+  indegree 0: 1
+  indegree 1: 5
+  indegree 2: 9
+  indegree 4: 1
+```
+
+A strict attempt to force free streamlines to declared raster terminals was rejected during implementation because a continuous trace could physically enter a different accepted lake than the dominant raster projection declared.
+
+Final correction keeps continuous routing authoritative for final vector topology and normalizes only false semantic confluence markers after tracing:
+
+- indegree 0 confluence marker and its unused downstream stub are removed;
+- indegree 1 marker is collapsed by concatenating its upstream/downstream continuous segments;
+- indegree >= 2 merge remains a semantic confluence;
+- no downstream bifurcation is introduced.
+
+Final topology:
+
+```text
+confluence indegrees:
+  2: 9
+  4: 1
+
+confluences with indegree < 2: 0
+nodes with outdegree > 1:      0
+```
+
+This reduced the potential network from 72 to 66 semantic segments without deleting source traces or changing regional H09-D2 semantics.
+
+Automated status:
+- representative H09-E: engine invariants green;
+- hard constraints green;
+- full pytest push run green;
+- regional network and water-depth authority unchanged.
+
+## Assessment against real-network references
+
+The H09-E potential scaffold is intentionally scale-dependent. This is consistent with USGS guidance that Strahler order changes with cartographic source density, and with HydroSHEDS comparisons showing that finer DEM/network extraction produces denser river networks.
+
+The potential raster hierarchy is:
+
+```text
+order-1 cells / all hierarchy cells ≈ 61.7%
+```
+
+As a loose external plausibility check, USGS reports that order-1 streams account for 57% of Potomac network length. This is not a calibration target—the basin and extraction scale differ—but it supports that H09-E is no longer obviously deficient in first-order hierarchy.
+
+Visual assessment:
+- substantially more dendritic than regional H09-D2 alone;
+- far below H09-B's parallel-channel explosion;
+- higher-order trunks align with strong accumulation corridors;
+- remaining raster stair-step structure is primarily an internal skeleton diagnostic, while final vector geometry stays low-bias;
+- lakes now stand out more clearly as the next likely source of procedural/artificial appearance.
+
+Assistant technical recommendation: **ACCEPT the river-hierarchy slice of H09-E and freeze it for now; proceed next to the bounded lake pass.** This is not recorded as operator ACCEPT until explicitly confirmed by the user.
+
 ## Next
 
 ```text
-1. Implement H09-E internal potential skeleton + Strahler hierarchy.
-2. Preserve regional network/water depth unchanged.
-3. Add M01–M06 guards.
-4. Render same-world H09-E.
-5. Operator ACCEPT / REJECT.
-6. If hierarchy is acceptable, freeze river hierarchy and do the separate bounded lake pass.
-7. Surface / Placement remain blocked until Hydrology ACCEPT.
+1. Operator review H09-E and explicit ACCEPT / REJECT.
+2. If ACCEPT:
+   - freeze MFD + regional H09-D2 + potential hierarchy semantics;
+   - design bounded lake size / shape / catchment pass.
+3. If REJECT:
+   - identify whether defect is hierarchy density, source placement, or geometry;
+   - do not reopen MFD without evidence.
+4. Surface / Placement remain blocked until Hydrology ACCEPT.
 ```
