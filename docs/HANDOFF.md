@@ -7,12 +7,14 @@
 ```text
 PROJECT.md
 → docs/CONTEXT.md
+→ docs/PROGRESS.md
 → relevant accepted design under docs/design/
 → code/tests
 ```
 
 - `PROJECT.md` — устойчивая версия/архитектурная граница и active development line.
 - `docs/CONTEXT.md` — rolling semantic context/backlog: что принято, что отвергнуто, почему и какой checkpoint следующий.
+- `docs/PROGRESS.md` — короткое дерево `DONE / IN PROGRESS / NEXT` для быстрого восстановления работы новым чатом.
 - `docs/CONTEXT.md` намеренно переписывается на значимых checkpoint'ах и не ведёт commit-by-commit историю.
 - `docs/design/`, `docs/contracts/`, `docs/decisions/` остаются нормативными источниками semantics.
 - Git/PR history используется для археологии, а не как основной handoff.
