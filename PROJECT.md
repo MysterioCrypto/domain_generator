@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-b6-multiscale-drainage-hierarchy
-checkpoint: h09-d2-regional-base-kept-h09-e-design-accepted
-next_topic: implement-h09-e-multiscale-drainage-hierarchy
+checkpoint: h09-e-multiscale-hierarchy-ready-for-operator-review
+next_topic: operator-review-h09-e
 working_context: docs/CONTEXT.md
 accepted_designs:
   - continuous-terrain-foundation-v0.2
