@@ -332,3 +332,26 @@ Stop rule:
 if refined shorelines still leave obviously oversized/compound lakes, the next bounded design is nested-depression hierarchy / partial-fill semantics, not arbitrary area clipping.
 
 Operator explicitly accepted PR #78 / H10-A design. Production implementation may proceed. Heavy GitHub Actions artifacts should not be downloaded into the chat/container unless the operator explicitly asks; inspect workflow logs, compact previews, and statistics first.
+
+
+## H10-A implementation slice 1
+
+Implemented on PR #72 implementation branch:
+
+```text
+accepted routing lake basin
+→ deterministic 4× sub-cell sampling
+→ terrain-aware wet sub-cells at 250 m scale
+→ canonical refined RegionSet shoreline
+```
+
+Legacy materialization remains unchanged when no terrain is supplied; Core 0.2 can now request refined shoreline geometry and use refined vector area in LakeProperties.
+
+This is only the first implementation slice. Still pending before H10-A checkpoint:
+
+- bind Core 0.2 generation to refined lake features;
+- project lake inflow/outlet nodes to refined shoreline;
+- add L01–L08 validation/tests;
+- render H10-A diagnostics.
+
+Heavy GitHub Actions artifacts are not to be downloaded into the chat/container unless explicitly requested by the operator.
