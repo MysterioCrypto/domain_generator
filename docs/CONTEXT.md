@@ -2,10 +2,6 @@
 
 Этот файл — сжатая рабочая память проекта, а не журнал событий.
 
-## Правило ведения
-
-Переписывать только при смене смысловой точки проекта. Не вести commit-by-commit/CI историю. Оставлять прошлое только если оно ограничивает текущие решения или нужно для правильного следующего шага.
-
 ## Текущая опорная точка
 
 ```text
@@ -14,245 +10,129 @@ active:
   Terrain 0.2: ACCEPTED
   Hydrology 0.2: redesign in progress
 
-kept hydrology base:
+kept river base:
   Priority-Flood
   MFD p=1.1 contributing area
   continuous MFD vector field
-  lake supernodes / single canonical outlet
-  dominant one-downstream thin channel skeleton
+  dominant one-downstream skeleton
+  H09-D2 additive source promotion
+  lake supernodes / one canonical outlet
 
-latest experiment:
-  H09-D terrain-aware source initiation
-  first calibration: FAILED / over-strict
+latest accepted direction:
+  H09-D2 regional network = KEEP, not final Hydrology ACCEPT
+  next = H09-E multiscale potential drainage hierarchy
 ```
 
 `main` не является active development truth.
 
-## Что уже отвергнуто
+## Rejected / constrained history
 
-- D8 canonical routing: сильный lattice imprint.
-- Two-receiver D∞ accumulation: grid bias остался в accumulation.
-- Direct MFD threshold-mask channelization: 353 sources / 408 segments, множество параллельных дубликатов.
+- D8 canonical routing: rejected for lattice imprint.
+- Two-receiver D∞ accumulation: rejected; grid bias remained in accumulation.
+- Direct broad MFD threshold-mask channelization: rejected; 353 sources / 408 segments.
+- H09-C thin skeleton: coherent but too sparse as sole drainage view.
+- First H09-D multiplicative area-slope replacement: rejected; removed all normal headwaters.
 
-## Что дал H09-C
+These failures constrain the next work: do not reopen MFD, do not return to broad support as semantic channels, and do not replace the fixed-area baseline with a slope multiplier.
 
-Thin dominant skeleton решил over-fragmentation:
-
-```text
-H09-C:
-  sources / confluences: 14 / 3
-  segments: 30
-  total river length: ~533 km
-  final grid-lock 1°: 9.66%
-  raw MFD support cells: 679
-  skeleton cells: 409
-```
-
-Операторская оценка: структура существенно лучше, но вероятно слишком редкая. Поэтому skeleton и MFD сохраняются; следующий вопрос — только channel initiation.
-
-## H09-D: terrain-aware initiation
+## H09-D2 regional base
 
 Accepted design:
-
-`docs/design/terrain-aware-channel-initiation-v0.2.md`
-
-Первый вариант заменил fixed-area source criterion на:
-
-```text
-A = unique dominant-graph contributing area
-S = conditioned local slope
-convergence = incoming MFD fraction sum
-
-score = A * (S / 0.05)^1
-source ⇔ score >= 250 km² AND convergence > 1
-```
-
-Implementation и diagnostics работают; pytest/H09 workflow green. Но критерий семантически провалился на representative world:
-
-```text
-max initiation score: 146.93 km²
-required threshold:    250 km²
-eligible normal cells: 0
-
-result:
-  normal sources:      0
-  normal confluences:  0
-  river segments:      13
-  all starts are lake outlets
-  total river length:  ~277 km
-```
-
-То есть H09-D в этой калибровке не является кандидатом на acceptance: он удалил нормальные headwaters вместо их восстановления.
-
-## Почему провалился первый H09-D
-
-Проблема не в convergence gate: H09-C fixed-area source cells в основном имеют convergence > 1.
-
-Проблема — absolute slope normalization `S_ref = 0.05`.
-
-На 1 км regional grid типичные slope values существенно ниже field-scale channel-head gradients:
-
-```text
-all terrain slope:
-  p50 0.0067
-  p90 0.0596
-
-convergent cells:
-  p50 0.0065
-  p90 0.0502
-
-H09-C source examples:
-  many slopes ~0.0007–0.016
-  unique areas ~250–360 km²
-```
-
-Поэтому multiplying the whole baseline criterion by `S / 0.05` уничтожило уже существующие H09-C branches.
-
-## Диагностический вывод: terrain-aware rule должен быть additive
-
-Не следует снова заменять fixed-area baseline.
-
-Следующая конструкция должна быть:
-
-```text
-base source eligibility:
-  unique_area >= 250 km²
-
-OR terrain-aware promotion:
-  unique_area < 250
-  AND convergent
-  AND steep enough
-  AND area-slope promotion reaches threshold
-```
-
-То есть H09-C branches не удаляются. Terrain-aware rule может только продвинуть начало существующей/новой ветви выше по крутому convergent headwater.
-
-Это соответствует цели итерации: H09-C был слишком sparse, а не fundamentally wrong.
-
-## Calibration sweep (diagnostic only)
-
-Без изменения production semantics прогнана матрица additive promotion на том же мире.
-
-```text
-S_ref   alpha   promoted cells   sources   confluences   skeleton cells
-0.005   1.00          218            39         21            853
-0.005   1.65         1465           373        278           3225
-0.005   2.00         2015           505        368           4100
-
-0.010   1.00           62            17          6            609
-0.010   1.65          305            65         42           1231
-0.010   2.00          782           227        172           2376
-
-0.020   1.00            7            11          4            432
-0.020   1.65           37            16          6            610
-0.020   2.00           74            25         12            760
-
-0.050   any             0            10          4            409
-```
-
-Эти числа — не acceptance и не выбор победителя. Они только сужают разумную область следующего experiment.
-
-Наиболее bounded кандидаты для visual A/B сейчас:
-
-```text
-A: S_ref=0.010, alpha=1.00  → 17 sources / 6 confluences
-B: S_ref=0.020, alpha=1.65  → 16 sources / 6 confluences
-```
-
-Оба дают умеренное расширение сети вместо возврата к H09-B explosion.
-
-## Научная оговорка
-
-Field literature подтверждает inverse drainage-area / local-slope relation, но абсолютная calibration зависит от process, climate, substrate и measurement scale. Montgomery & Dietrich field relations измерялись на существенно меньшем spatial scale и не могут напрямую задавать `S_ref` для нашего 1 км procedural raster.
-
-Поэтому literature определяет форму зависимости, а Core calibration всё равно должна пройти representative operator checkpoints.
-
-## Acceptance principle
-
-```text
-semantic implementation
-→ automated guards
-→ representative diagnostics/render
-→ explicit operator ACCEPT / REJECT
-```
-
-Surface/Placement заблокированы до Hydrology ACCEPT.
-
-## Принятый следующий design
-
 `docs/design/additive-terrain-aware-source-promotion-v0.2.md`
 
-Оператор принял bounded H09-D2:
+Same-world checkpoint:
 
 ```text
-base source:
-  unique_area >= 250 km²
-
-OR terrain-aware promotion:
-  unique_area < 250 km²
-  AND convergence > 1
-  AND local_slope > 0.02
-  AND unique_area * (local_slope / 0.02)^1.65 >= 250 km²
+sources / semantic confluences: 16 / 4
+segments:                        33
+skeleton cells:                  610
+river length:                    ~648.75 km
+final grid-lock within 1°:       9.08%
+baseline eligible cells:         283
+terrain-promoted cells:          37
 ```
 
-Ключевая гарантия: terrain-aware rule может только добавить/поднять headwater; H09-C fixed-area branch не удаляется.
+Automated state was green. Operator did not freeze Hydrology because the cumulative layout still looked somewhat procedural / under-branched, and exact sufficiency is better judged against real DEM + hydrography than fantasy map conventions.
 
-## Текущий implementation checkpoint
+Interpretation: H09-D2 is a good **regional river baseline**, but Hydrology should expose a denser potential drainage scaffold before climate/biomes decide what is perennial, seasonal, dry, or cartographically omitted.
 
-H09-D2 additive source promotion реализован в PR #72.
+## Accepted H09-E design
 
-Production semantics:
+`docs/design/multiscale-drainage-hierarchy-v0.2.md`
+
+Two nested scales:
 
 ```text
-baseline:
-  unique_area >= 250 km²
+regional:
+  current H09-D2 semantics, threshold T
 
-OR promotion:
-  unique_area < 250 km²
-  AND convergence > 1
-  AND local_slope > 0.02
-  AND unique_area * (local_slope / 0.02)^1.65 >= 250 km²
+potential:
+  T_potential = 0.40 * T
+  potential eligibility =
+      unique_area >= T_potential
+      OR regional eligibility
 ```
 
-Representative same-world checkpoint:
+Potential channels use the same dominant one-downstream graph and continuous tracing. No new broad MFD semantic mask.
+
+Compute Strahler order on the potential skeleton:
 
 ```text
-H09-C:
-  sources / semantic confluences: 14 / 3
-  segments:                        30
-  skeleton cells:                  409
-  total river length:              ~533 km
-  final grid-lock 1°:              9.66%
-
-H09-D2:
-  sources / semantic confluences: 16 / 4
-  segments:                        33
-  skeleton cells:                  610
-  total river length:              ~648.75 km
-  final grid-lock 1°:              9.08%
-  baseline eligible cells:         283
-  promoted cells:                  37
+headwater = order 1
+equal-order merge m+m -> m+1
+unequal merge -> max order
 ```
 
-All 14 H09-C fixed-area source candidates remain preserved by the eligibility rule. H09-D2 adds terrain-aware promotion rather than deleting low-gradient large-basin branches.
+Lakes are transparent hierarchy supernodes: inflow orders aggregate through the accepted lake and continue at its one canonical outlet; no channel cells are drawn through lake interiors.
 
-Automated status on implementation commit:
-- full pytest: green;
-- H09-D2 workflow: green;
-- engine invariants: green;
-- hard constraints: green.
+## Runtime boundary for H09-E
 
-This is not acceptance. Operator-visible checkpoint is ready.
+No public DomainData contract change yet.
 
-## Следующий bounded task
+Internal HydrologyState should gain:
 
 ```text
-1. Review H09-D2 maps and source-eligibility diagnostic.
-2. Compare against H09-C:
-   - did useful tributaries return?
-   - did duplicate/parallel H09-B behaviour stay suppressed?
-   - are promoted sources topographically credible?
-   - is skeleton/trace alignment acceptable?
-3. Obtain explicit operator ACCEPT / REJECT.
-4. Do not move to Surface / Placement before Hydrology ACCEPT.
+potential_channel_skeleton_mask
+channel_strahler_order
+potential_river_network
+potential_segment_strahler_order
+```
+
+Current `river_network`, `stream_mask`, and water-depth semantics remain H09-D2 regional semantics. Potential hierarchy is a scaffold for later climate/biome classification and operator diagnostics.
+
+## H09-E operator checkpoint
+
+Exact same world:
+
+```text
+180 × 120 km
+seed 2026091402
+cell 1 km
+regional threshold 250 km²
+potential threshold 100 km²
+same Terrain 0.2
+same MFD
+same accepted lakes
+```
+
+Need show:
+1. regional H09-D2 rivers;
+2. full potential drainage hierarchy;
+3. regional over potential;
+4. Strahler-order skeleton diagnostic;
+5. accumulation + potential hierarchy;
+6. regional/potential counts, lengths, order histogram, max order, grid-lock and regional coverage.
+
+Primary acceptance question: does the potential network read as a plausible dendritic hierarchy without returning to H09-B parallel noise?
+
+## Next
+
+```text
+1. Implement H09-E internal potential skeleton + Strahler hierarchy.
+2. Preserve regional network/water depth unchanged.
+3. Add M01–M06 guards.
+4. Render same-world H09-E.
+5. Operator ACCEPT / REJECT.
+6. If hierarchy is acceptable, freeze river hierarchy and do the separate bounded lake pass.
+7. Surface / Placement remain blocked until Hydrology ACCEPT.
 ```
