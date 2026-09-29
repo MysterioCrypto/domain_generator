@@ -17,6 +17,7 @@ from domain_generator.application import (
     registry_for_request,
 )
 from domain_generator.compiler import compile_domain_spec
+from domain_generator.geometry import backend_region_set
 from domain_generator.hydrology import generate_hydrology, validate_hydrology
 from domain_generator.hydrology.ids import lake_feature_id
 from domain_generator.hydrology.continuous import (
@@ -111,18 +112,40 @@ def _plot_potential_nodes(ax, hydrology) -> None:
         ax.scatter(confluence_x, confluence_y, s=20.0, marker="D", color="magenta", zorder=9)
 
 
-def _plot_lakes_and_outlets(ax, hydrology, *, cell_size_km: float, height_km: float) -> None:
-    lake_mask = _lake_mask(hydrology.routing_elevation_m.shape, hydrology.lake_candidates)
-    rows, columns = np.where(lake_mask)
-    if rows.size:
-        x, y = _world_xy(rows, columns, cell_size_km=cell_size_km, height_km=height_km)
-        ax.scatter(x, y, s=9.0, marker="s", color="deepskyblue", alpha=0.48, linewidths=0, zorder=5)
+def _plot_refined_lakes(ax, hydrology, *, alpha: float = 0.58, outline_only: bool = False) -> None:
+    for lake_id, feature in sorted(hydrology.lake_features.items()):
+        for polygon in feature.geometry.polygons:
+            xs = [float(point.x_km) for point in polygon.outer]
+            ys = [float(point.y_km) for point in polygon.outer]
+            if outline_only:
+                ax.plot(xs + [xs[0]], ys + [ys[0]], color="deepskyblue", linewidth=1.2, alpha=0.95, zorder=6)
+            else:
+                ax.fill(xs, ys, color="deepskyblue", alpha=alpha, linewidth=0.0, zorder=5)
+                ax.plot(xs + [xs[0]], ys + [ys[0]], color="dodgerblue", linewidth=0.8, alpha=0.95, zorder=6)
 
-    if hydrology.lake_outlets:
-        rows = np.array([item.lake_cell[0] for item in hydrology.lake_outlets], dtype=np.int64)
-        columns = np.array([item.lake_cell[1] for item in hydrology.lake_outlets], dtype=np.int64)
-        x, y = _world_xy(rows, columns, cell_size_km=cell_size_km, height_km=height_km)
-        ax.scatter(x, y, s=45.0, marker="x", color="red", linewidths=1.2, zorder=9)
+
+def _lake_network_points(hydrology):
+    inflow_x: list[float] = []
+    inflow_y: list[float] = []
+    outlet_x: list[float] = []
+    outlet_y: list[float] = []
+    for node in hydrology.river_network.nodes.values():
+        if node.kind.value == "lake_inflow":
+            inflow_x.append(float(node.position.x_km))
+            inflow_y.append(float(node.position.y_km))
+        elif node.kind.value == "lake_outlet":
+            outlet_x.append(float(node.position.x_km))
+            outlet_y.append(float(node.position.y_km))
+    return inflow_x, inflow_y, outlet_x, outlet_y
+
+
+def _plot_lakes_and_outlets(ax, hydrology, *, cell_size_km: float, height_km: float) -> None:
+    _plot_refined_lakes(ax, hydrology)
+    inflow_x, inflow_y, outlet_x, outlet_y = _lake_network_points(hydrology)
+    if inflow_x:
+        ax.scatter(inflow_x, inflow_y, s=26.0, marker="v", color="gold", edgecolors="black", linewidths=0.4, zorder=9)
+    if outlet_x:
+        ax.scatter(outlet_x, outlet_y, s=45.0, marker="x", color="red", linewidths=1.2, zorder=10)
 
 
 def _final_direction_stats(network) -> dict[str, float | int]:
@@ -682,6 +705,199 @@ def _save_accumulation_potential(
     plt.close(fig)
 
 
+def _save_lake_footprint_comparison(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        alpha=0.72,
+    )
+    lake_mask = _lake_mask(hydrology.routing_elevation_m.shape, hydrology.lake_candidates)
+    rows, columns = np.where(lake_mask)
+    if rows.size:
+        x, y = _world_xy(rows, columns, cell_size_km=cell_size_km, height_km=height_km)
+        ax.scatter(x, y, s=17.0, marker="s", color="gray", alpha=0.40, linewidths=0, zorder=4)
+    _plot_refined_lakes(ax, hydrology, alpha=0.34, outline_only=False)
+    ax.set_title("H10-A — Routing lake cells (gray) vs refined shorelines (blue)")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "13-lake-raster-vs-refined.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_refined_lakes_regional(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_river_network(ax, hydrology.river_network)
+    ax.set_title("H10-A — Refined lakes with regional rivers")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "14-refined-lakes-regional-rivers.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_refined_lakes_potential(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_potential_hierarchy(ax, hydrology, width_scale=0.78)
+    ax.set_title("H10-A — Refined lakes with potential drainage hierarchy")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "15-refined-lakes-potential-hierarchy.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_lake_contact_sheet(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    cell_size_km: float,
+    height_km: float,
+) -> None:
+    items = []
+    for index, candidate in enumerate(hydrology.lake_candidates):
+        feature = hydrology.lake_features[lake_feature_id(index)]
+        items.append((float(candidate.area_km2), index, candidate, feature))
+    items.sort(key=lambda item: (-item[0], item[1]))
+
+    fig, axes = plt.subplots(4, 4, figsize=(16.0, 16.0), dpi=150)
+    flat = list(axes.flat)
+    for ax in flat:
+        ax.axis("off")
+
+    for ax, (_area, index, candidate, feature) in zip(flat, items):
+        rows = [cell[0] for cell in candidate.cells]
+        columns = [cell[1] for cell in candidate.cells]
+        x0 = max(0.0, min(columns) * cell_size_km - 2.0)
+        x1 = min(terrain.elevation_m.shape[1] * cell_size_km, (max(columns) + 1) * cell_size_km + 2.0)
+        y0 = max(0.0, height_km - (max(rows) + 1) * cell_size_km - 2.0)
+        y1 = min(height_km, height_km - min(rows) * cell_size_km + 2.0)
+
+        ax.axis("on")
+        ax.imshow(
+            _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+            origin="lower",
+            extent=(0.0, terrain.elevation_m.shape[1] * cell_size_km, 0.0, height_km),
+            interpolation="bilinear",
+            aspect="equal",
+        )
+        rr = np.array(rows, dtype=np.int64)
+        cc = np.array(columns, dtype=np.int64)
+        rx, ry = _world_xy(rr, cc, cell_size_km=cell_size_km, height_km=height_km)
+        ax.scatter(rx, ry, s=26.0, marker="s", color="gray", alpha=0.30, linewidths=0, zorder=4)
+        for polygon in feature.geometry.polygons:
+            xs = [float(point.x_km) for point in polygon.outer]
+            ys = [float(point.y_km) for point in polygon.outer]
+            ax.fill(xs, ys, color="deepskyblue", alpha=0.56, linewidth=0.0, zorder=5)
+            ax.plot(xs + [xs[0]], ys + [ys[0]], color="dodgerblue", linewidth=1.0, zorder=6)
+
+        lake_id = lake_feature_id(index)
+        for node in hydrology.river_network.nodes.values():
+            if node.feature_id != lake_id:
+                continue
+            marker = "x" if node.kind.value == "lake_outlet" else "v"
+            color = "red" if node.kind.value == "lake_outlet" else "gold"
+            ax.scatter([node.position.x_km], [node.position.y_km], s=35.0, marker=marker, color=color, zorder=9)
+
+        ax.set_xlim(x0, x1)
+        ax.set_ylim(y0, y1)
+        ax.set_title(
+            f"{lake_id}: routing {candidate.area_km2:.0f} km² / refined {feature.properties.area_km2:.1f} km²",
+            fontsize=8,
+        )
+        ax.tick_params(labelsize=6)
+
+    fig.suptitle("H10-A — All accepted lakes: routing cells vs refined shoreline", fontsize=14)
+    fig.tight_layout()
+    fig.savefig(output / "16-lake-contact-sheet.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_lake_endpoints(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+    )
+    _plot_refined_lakes(ax, hydrology, alpha=0.52)
+    _plot_river_network(ax, hydrology.river_network)
+    inflow_x, inflow_y, outlet_x, outlet_y = _lake_network_points(hydrology)
+    if inflow_x:
+        ax.scatter(inflow_x, inflow_y, s=35.0, marker="v", color="gold", edgecolors="black", linewidths=0.5, zorder=10)
+    if outlet_x:
+        ax.scatter(outlet_x, outlet_y, s=55.0, marker="x", color="red", linewidths=1.4, zorder=11)
+    ax.set_title("H10-A — Refined shoreline contacts: inflow (gold) / outlet (red)")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "17-lake-endpoints.png", bbox_inches="tight")
+    plt.close(fig)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Render Core 0.2 hydrology H09 checkpoint")
     parser.add_argument("request", type=Path)
@@ -806,6 +1022,45 @@ def main() -> None:
         cell_size_km=cell_size_km,
     )
     _save_accumulation_potential(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_lake_footprint_comparison(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_refined_lakes_regional(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_refined_lakes_potential(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_lake_contact_sheet(
+        args.output,
+        terrain,
+        hydrology,
+        cell_size_km=cell_size_km,
+        height_km=height_km,
+    )
+    _save_lake_endpoints(
         args.output,
         terrain,
         hydrology,
@@ -956,6 +1211,10 @@ def main() -> None:
     outlet_by_id = {outlet.lake_id: outlet for outlet in hydrology.lake_outlets}
     for lake_index, candidate in enumerate(hydrology.lake_candidates):
         lake_id = lake_feature_id(lake_index)
+        feature = hydrology.lake_features[lake_id]
+        refined_backend = backend_region_set(feature.geometry)
+        refined_area_km2 = float(feature.properties.area_km2)
+        refined_perimeter_km = float(refined_backend._value.length)
         cells = tuple(candidate.cells)
         rows_lake = [cell[0] for cell in cells]
         cols_lake = [cell[1] for cell in cells]
@@ -984,7 +1243,10 @@ def main() -> None:
         lake_diagnostics.append(
             {
                 "lake_id": lake_id,
-                "area_km2": float(candidate.area_km2),
+                "routing_basin_area_km2": float(candidate.area_km2),
+                "refined_shoreline_area_km2": refined_area_km2,
+                "refined_to_routing_area_ratio": refined_area_km2 / float(candidate.area_km2),
+                "refined_perimeter_km": refined_perimeter_km,
                 "max_depth_m": float(candidate.max_depth_m),
                 "mean_fill_depth_m": float(np.mean(depth_values_m)),
                 "storage_proxy_km3": storage_proxy_km3,
@@ -996,7 +1258,7 @@ def main() -> None:
                     else None
                 ),
                 "lake_area_fraction_of_catchment": (
-                    float(candidate.area_km2) / lake_catchment_km2
+                    refined_area_km2 / lake_catchment_km2
                     if lake_catchment_km2 > 0.0
                     else None
                 ),
@@ -1004,6 +1266,10 @@ def main() -> None:
                 "bbox_columns": int(max(cols_lake) - min(cols_lake) + 1),
                 "grid_perimeter_km": perimeter_km,
                 "shoreline_development_index_grid": float(shoreline_development),
+                "shoreline_development_index_refined": (
+                    refined_perimeter_km / (2.0 * np.sqrt(np.pi * refined_area_km2))
+                    if refined_area_km2 > 0.0 else 0.0
+                ),
                 "outlet_lake_cell": (
                     [int(outlet.lake_cell[0]), int(outlet.lake_cell[1])]
                     if outlet is not None else None
@@ -1017,7 +1283,7 @@ def main() -> None:
     lake_diagnostics.sort(key=lambda item: (-item["area_km2"], item["lake_id"]))
 
     stats = {
-        "checkpoint": "H09-E",
+        "checkpoint": "H10-A",
         "generator_version": domain_generator.__version__,
         "plan_version": plan.plan_version,
         "routing_mode": hydrology.routing_mode,
