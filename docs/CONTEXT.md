@@ -332,3 +332,161 @@ Stop rule:
 if refined shorelines still leave obviously oversized/compound lakes, the next bounded design is nested-depression hierarchy / partial-fill semantics, not arbitrary area clipping.
 
 Operator explicitly accepted PR #78 / H10-A design. Production implementation may proceed. Heavy GitHub Actions artifacts should not be downloaded into the chat/container unless the operator explicitly asks; inspect workflow logs, compact previews, and statistics first.
+
+
+## H10-A implementation slice 1
+
+Implemented on PR #72 implementation branch:
+
+```text
+accepted routing lake basin
+→ deterministic 4× sub-cell sampling
+→ terrain-aware wet sub-cells at 250 m scale
+→ canonical refined RegionSet shoreline
+```
+
+Legacy materialization remains unchanged when no terrain is supplied; Core 0.2 can now request refined shoreline geometry and use refined vector area in LakeProperties.
+
+This is only the first implementation slice. Still pending before H10-A checkpoint:
+
+- bind Core 0.2 generation to refined lake features;
+- project lake inflow/outlet nodes to refined shoreline;
+- add L01–L08 validation/tests;
+- render H10-A diagnostics.
+
+Heavy GitHub Actions artifacts are not to be downloaded into the chat/container unless explicitly requested by the operator.
+
+
+## H10-A implementation slice 2
+
+Implemented on PR #72 implementation branch:
+
+```text
+refined lake RegionSet
+→ canonical HydroFeature area
+→ lake_inflow endpoint projected to refined shoreline
+→ lake_outlet endpoint projected to refined shoreline
+→ regional + potential networks use the same refined lake geometry
+```
+
+Core 0.2 now requests 4× shoreline refinement during lake materialization. Legacy materialization without terrain remains unchanged.
+
+Still pending before H10-A checkpoint:
+
+- automated L01–L08 guards / regression tests;
+- validate all v0.2 lake endpoints against refined boundaries;
+- H10-A old-vs-refined lake diagnostics and close-ups;
+- same-world Actions checkpoint and operator review.
+
+Heavy Actions artifacts remain remote unless the operator explicitly requests a download.
+
+
+## H10-A implementation slice 3
+
+Added automated guards on the implementation branch:
+
+```text
+L01/L03:
+  refined shoreline deterministic
+  refined area > 0
+  refined area <= routing-basin area
+
+L05/L06:
+  lake_inflow and lake_outlet semantic nodes lie on refined shoreline
+
+L08:
+  raster lake water-depth ownership remains unchanged
+```
+
+Core v0.2 validation now includes:
+- refined lake feature ids/areas valid;
+- lake inflow/outlet endpoints on referenced refined shorelines.
+
+Pending:
+- CI result for these guards;
+- H10-A visual diagnostics / same-world checkpoint;
+- operator review.
+
+
+## H10-A implementation slice 4
+
+Added the operator-visible H10-A checkpoint diagnostics on the implementation branch:
+
+```text
+13-lake-raster-vs-refined.png
+14-refined-lakes-regional-rivers.png
+15-refined-lakes-potential-hierarchy.png
+16-lake-contact-sheet.png
+17-lake-endpoints.png
+```
+
+Checkpoint statistics now report:
+- routing-basin area vs refined shoreline area;
+- refined/routing area ratio;
+- refined perimeter;
+- refined shoreline-development index;
+- catchment relation using refined visible lake area.
+
+GitHub Actions compact previews are configured to emit the H10-A lake views into workflow logs. Full artifacts remain remote and must not be downloaded into the chat/container unless explicitly requested.
+
+
+## H10-A checkpoint render fix
+
+The first H10-A visual workflow run reached rendering successfully but failed in statistics post-processing because the diagnostic sort still referenced the pre-H10 field name `area_km2`. The code now sorts by `routing_basin_area_km2`.
+
+No semantic hydrology/lake behavior changed in this fix. Next step remains rerun CI/checkpoint and inspect only logs/compact previews unless a full artifact is explicitly requested.
+
+
+## H10-A same-world checkpoint
+
+Implementation commit checkpoint:
+`34d33ae8d58af31023b00a17758c32aefb1665fb`
+
+GitHub Actions:
+- H10-A checkpoint workflow: GREEN;
+- full pytest: GREEN;
+- engine invariants: GREEN;
+- hard constraints: GREEN.
+
+No full artifact was downloaded into the chat/container. Review used workflow logs + compact previews only.
+
+Representative lake metrics:
+
+```text
+accepted routing lakes:        13
+routing-basin total area:      890.0 km²
+refined visible total area:    836.5625 km²
+refined/domain area:           ~3.873%
+refined/routing total ratio:   ~0.940
+
+per-lake refined/routing ratio:
+  min:                         0.859
+  median:                      0.902
+  max:                         0.965
+```
+
+Largest lakes:
+
+```text
+routing → refined
+222 → 214.125 km²
+156 → 149.000 km²
+114 → 108.625 km²
+103 →  96.938 km²
+ 70 →  65.438 km²
+```
+
+Visual checkpoint:
+- exact 1 km raster-cell shoreline is gone from semantic HydroFeature geometry;
+- lake inflow/outlet nodes now lie on refined shoreline and validation passes;
+- 250 m sub-cell reconstruction reduces edge coarseness and area by ~6% overall;
+- however large lakes retain broadly rounded / basin-fill silhouettes and remain visually prominent;
+- contact-sheet close-ups still show noticeable 250 m stair-step geometry;
+- therefore H10-A fixes a confirmed geometry defect but does **not** obviously solve the larger question of whether full-spill basins are too broad/compound.
+
+Assistant assessment:
+- KEEP refined shoreline semantics and exact endpoint alignment;
+- H10-A alone is not yet a convincing final lake-slice acceptance;
+- if operator agrees, next bounded design should investigate nested-depression / partial-fill semantics rather than globally clipping lake area or reopening accepted river hierarchy.
+
+Heavy Actions artifacts remain remote unless explicitly requested.

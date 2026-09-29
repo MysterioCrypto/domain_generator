@@ -56,14 +56,19 @@ renderer/smoothing as an upstream-fix substitute
 
 ```text
 Hydrology 0.2
-└─ H10-A lake shoreline morphology — IMPLEMENTATION
+└─ H10-A lake shoreline morphology — OPERATOR REVIEW
    ├─ river hierarchy frozen
    ├─ diagnostics complete
    │  ├─ 13 routing lakes
    │  ├─ 890 km² total raster lake area
    │  └─ catchment/lake ratios ~5.6...136
    ├─ PR #78 ACCEPTED / merged
-   └─ implement refined shorelines + exact lake endpoints
+   ├─ refined sub-cell shoreline reconstruction — IMPLEMENTED
+   ├─ exact lake inflow/outlet shoreline alignment — IMPLEMENTED
+   ├─ L01/L03/L05/L06/L08 guards — IMPLEMENTED
+   ├─ H10-A visual diagnostics — IMPLEMENTED
+   ├─ CI + same-world checkpoint — GREEN
+   └─ operator ACCEPT / REJECT — PENDING
 ```
 
 PR #72 remains draft/open until the Hydrology lake slice and final review are complete.
