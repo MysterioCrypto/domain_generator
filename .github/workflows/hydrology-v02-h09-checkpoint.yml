@@ -50,10 +50,10 @@ jobs:
 
           root = Path(os.environ["RUNNER_TEMP"]) / "hydrology-v02-h09"
           selected = (
-              "01-terrain-final-rivers.png",
-              "04-accumulation-final-overlay.png",
-              "05-channel-skeleton-vs-support.png",
-              "08-initiation-score-sources.png",
+              "09-terrain-potential-hierarchy.png",
+              "10-regional-over-potential.png",
+              "11-strahler-skeleton.png",
+              "12-accumulation-potential-hierarchy.png",
           )
           for name in selected:
               image = Image.open(root / name).convert("RGB")

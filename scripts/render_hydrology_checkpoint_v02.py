@@ -68,6 +68,48 @@ def _plot_river_network(ax, network) -> None:
         ax.plot(xs, ys, linewidth=width, color="tab:blue", alpha=0.95, zorder=7)
 
 
+def _plot_potential_hierarchy(
+    ax,
+    hydrology,
+    *,
+    color: str = "tab:cyan",
+    alpha: float = 0.88,
+    width_scale: float = 1.0,
+    zorder: int = 6,
+) -> None:
+    network = hydrology.potential_river_network
+    orders = hydrology.potential_segment_strahler_order
+    if network is None:
+        return
+    for segment_id, segment in network.segments.items():
+        order = int(orders.get(segment_id, 1))
+        xs = [point.x_km for point in segment.centerline]
+        ys = [point.y_km for point in segment.centerline]
+        width = width_scale * (0.45 + 0.55 * float(order))
+        ax.plot(xs, ys, linewidth=width, color=color, alpha=alpha, zorder=zorder)
+
+
+def _plot_potential_nodes(ax, hydrology) -> None:
+    network = hydrology.potential_river_network
+    if network is None:
+        return
+    source_x: list[float] = []
+    source_y: list[float] = []
+    confluence_x: list[float] = []
+    confluence_y: list[float] = []
+    for node in network.nodes.values():
+        if node.kind.value == "source":
+            source_x.append(float(node.position.x_km))
+            source_y.append(float(node.position.y_km))
+        elif node.kind.value == "confluence":
+            confluence_x.append(float(node.position.x_km))
+            confluence_y.append(float(node.position.y_km))
+    if source_x:
+        ax.scatter(source_x, source_y, s=15.0, marker="o", color="limegreen", zorder=9)
+    if confluence_x:
+        ax.scatter(confluence_x, confluence_y, s=20.0, marker="D", color="magenta", zorder=9)
+
+
 def _plot_lakes_and_outlets(ax, hydrology, *, cell_size_km: float, height_km: float) -> None:
     lake_mask = _lake_mask(hydrology.routing_elevation_m.shape, hydrology.lake_candidates)
     rows, columns = np.where(lake_mask)
@@ -481,6 +523,164 @@ def _save_initiation_score(
     plt.close(fig)
 
 
+def _save_potential_hierarchy(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    assert hydrology.potential_river_network is not None
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_potential_hierarchy(ax, hydrology, width_scale=1.0)
+    _plot_potential_nodes(ax, hydrology)
+    ax.set_title("H09-E — Potential drainage hierarchy; line weight = Strahler order")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "09-terrain-potential-hierarchy.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_regional_over_potential(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_potential_hierarchy(
+        ax,
+        hydrology,
+        color="lightslategray",
+        alpha=0.64,
+        width_scale=0.72,
+        zorder=6,
+    )
+    _plot_river_network(ax, hydrology.river_network)
+    ax.set_title("H09-E — Regional H09-D2 rivers (blue) over potential hierarchy (gray)")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "10-regional-over-potential.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_strahler_skeleton(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    order = hydrology.channel_strahler_order
+    assert order is not None
+    maximum = max(1, int(np.max(order)))
+    masked = np.ma.masked_where(order <= 0, order.astype(np.float64))
+
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        alpha=0.38,
+    )
+    image = ax.imshow(
+        np.flipud(masked),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="nearest",
+        aspect="equal",
+        cmap="viridis",
+        vmin=1.0,
+        vmax=float(maximum),
+        alpha=0.88,
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_potential_hierarchy(ax, hydrology, color="black", alpha=0.58, width_scale=0.42, zorder=7)
+    colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.025)
+    colorbar.set_label("Strahler order on potential skeleton")
+    ax.set_title("H09-E — Potential skeleton Strahler hierarchy")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "11-strahler-skeleton.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_accumulation_potential(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    accumulation = np.asarray(hydrology.flow_accumulation_km2, dtype=np.float64)
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        alpha=0.40,
+    )
+    image = ax.imshow(
+        np.flipud(np.log1p(accumulation)),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        cmap="viridis",
+        alpha=0.58,
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_potential_hierarchy(ax, hydrology, color="black", alpha=0.76, width_scale=0.62, zorder=8)
+    colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.025)
+    colorbar.set_label("log(1 + contributing area km²)")
+    ax.set_title("H09-E — MFD accumulation with potential drainage hierarchy")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "12-accumulation-potential-hierarchy.png", bbox_inches="tight")
+    plt.close(fig)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Render Core 0.2 hydrology H09 checkpoint")
     parser.add_argument("request", type=Path)
@@ -508,7 +708,13 @@ def main() -> None:
     if hydrology.channel_support_mask is None:
         raise RuntimeError("H09 checkpoint requires channel_support_mask")
     if hydrology.channel_skeleton_mask is None:
-        raise RuntimeError("H09-D2 checkpoint requires channel_skeleton_mask")
+        raise RuntimeError("H09-E checkpoint requires regional channel_skeleton_mask")
+    if (
+        hydrology.potential_channel_skeleton_mask is None
+        or hydrology.channel_strahler_order is None
+        or hydrology.potential_river_network is None
+    ):
+        raise RuntimeError("H09-E checkpoint requires potential drainage hierarchy")
 
     validation = validate_hydrology(plan, terrain, hydrology, attempt_index=0)
 
@@ -574,9 +780,45 @@ def main() -> None:
         height_km=height_km,
         threshold_km2=float(plan.hydrology.stream_threshold_km2),
     )
+    _save_potential_hierarchy(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_regional_over_potential(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_strahler_skeleton(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_accumulation_potential(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
 
     node_kinds = Counter(node.kind.value for node in hydrology.river_network.nodes.values())
+    potential_node_kinds = Counter(
+        node.kind.value for node in hydrology.potential_river_network.nodes.values()
+    )
     final_stats = _final_direction_stats(hydrology.river_network)
+    potential_final_stats = _final_direction_stats(hydrology.potential_river_network)
     routing_stats = _routing_direction_stats(hydrology.continuous_routing.flow_angle_rad)
     unique_area = np.asarray(hydrology.channel_unique_area_km2, dtype=np.float64)
     convergence = np.asarray(hydrology.channel_convergence, dtype=np.float64)
@@ -595,6 +837,15 @@ def main() -> None:
         & score_mask
     )
     eligible_mask = base_eligible_mask | promoted_mask
+    potential_mask = np.asarray(hydrology.potential_channel_skeleton_mask, dtype=np.bool_)
+    regional_mask = np.asarray(hydrology.channel_skeleton_mask, dtype=np.bool_)
+    strahler_order = np.asarray(hydrology.channel_strahler_order)
+    segment_order_counts = Counter(hydrology.potential_segment_strahler_order.values())
+    cell_order_counts = Counter(
+        int(value) for value in strahler_order[strahler_order > 0].tolist()
+    )
+    regional_cells = int(np.count_nonzero(regional_mask))
+    regional_covered = int(np.count_nonzero(regional_mask & potential_mask))
 
     def _percentiles(values: np.ndarray) -> dict[str, float]:
         finite = values[np.isfinite(values)]
@@ -686,7 +937,7 @@ def main() -> None:
     ]
 
     stats = {
-        "checkpoint": "H09-D2",
+        "checkpoint": "H09-E",
         "generator_version": domain_generator.__version__,
         "plan_version": plan.plan_version,
         "routing_mode": hydrology.routing_mode,
@@ -733,6 +984,27 @@ def main() -> None:
             "river_node_count": len(hydrology.river_network.nodes),
             "river_segment_count": len(hydrology.river_network.segments),
             "river_node_kinds": dict(sorted(node_kinds.items())),
+            "potential_hierarchy": {
+                "threshold_factor": 0.40,
+                "threshold_km2": threshold_km2 * 0.40,
+                "skeleton_cells": int(np.count_nonzero(potential_mask)),
+                "regional_skeleton_cells": regional_cells,
+                "regional_cells_covered": regional_covered,
+                "regional_coverage_fraction": (
+                    float(regional_covered / regional_cells) if regional_cells else 1.0
+                ),
+                "river_node_count": len(hydrology.potential_river_network.nodes),
+                "river_segment_count": len(hydrology.potential_river_network.segments),
+                "river_node_kinds": dict(sorted(potential_node_kinds.items())),
+                "maximum_strahler_order": int(np.max(strahler_order)),
+                "strahler_cell_histogram": {
+                    str(key): int(value) for key, value in sorted(cell_order_counts.items())
+                },
+                "strahler_segment_histogram": {
+                    str(key): int(value) for key, value in sorted(segment_order_counts.items())
+                },
+                "final_vector_geometry": potential_final_stats,
+            },
             "max_accumulation_km2": float(np.max(hydrology.flow_accumulation_km2)),
             "continuous_routing_direction": routing_stats,
             "final_vector_geometry": final_stats,
