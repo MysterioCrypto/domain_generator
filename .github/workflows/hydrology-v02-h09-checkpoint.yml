@@ -44,10 +44,11 @@ jobs:
           python - <<'PY'
           import base64
           import io
+          import os
           from pathlib import Path
           from PIL import Image
 
-          root = Path("$RUNNER_TEMP/hydrology-v02-h09")
+          root = Path(os.environ["RUNNER_TEMP"]) / "hydrology-v02-h09"
           selected = (
               "01-terrain-final-rivers.png",
               "04-accumulation-final-overlay.png",
