@@ -63,7 +63,8 @@ Hydrology 0.2
    │  ├─ 890 km² total raster lake area
    │  └─ catchment/lake ratios ~5.6...136
    ├─ PR #78 ACCEPTED / merged
-   └─ implement refined shorelines + exact lake endpoints
+   ├─ refined sub-cell shoreline reconstruction — IMPLEMENTED
+   └─ exact lake inflow/outlet endpoints + guards — IN PROGRESS
 ```
 
 PR #72 remains draft/open until the Hydrology lake slice and final review are complete.
