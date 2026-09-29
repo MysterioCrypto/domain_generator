@@ -197,14 +197,62 @@ OR terrain-aware promotion:
 
 Ключевая гарантия: terrain-aware rule может только добавить/поднять headwater; H09-C fixed-area branch не удаляется.
 
+## Текущий implementation checkpoint
+
+H09-D2 additive source promotion реализован в PR #72.
+
+Production semantics:
+
+```text
+baseline:
+  unique_area >= 250 km²
+
+OR promotion:
+  unique_area < 250 km²
+  AND convergence > 1
+  AND local_slope > 0.02
+  AND unique_area * (local_slope / 0.02)^1.65 >= 250 km²
+```
+
+Representative same-world checkpoint:
+
+```text
+H09-C:
+  sources / semantic confluences: 14 / 3
+  segments:                        30
+  skeleton cells:                  409
+  total river length:              ~533 km
+  final grid-lock 1°:              9.66%
+
+H09-D2:
+  sources / semantic confluences: 16 / 4
+  segments:                        33
+  skeleton cells:                  610
+  total river length:              ~648.75 km
+  final grid-lock 1°:              9.08%
+  baseline eligible cells:         283
+  promoted cells:                  37
+```
+
+All 14 H09-C fixed-area source candidates remain preserved by the eligibility rule. H09-D2 adds terrain-aware promotion rather than deleting low-gradient large-basin branches.
+
+Automated status on implementation commit:
+- full pytest: green;
+- H09-D2 workflow: green;
+- engine invariants: green;
+- hard constraints: green.
+
+This is not acceptance. Operator-visible checkpoint is ready.
+
 ## Следующий bounded task
 
 ```text
-1. Синхронизировать PR #72 с accepted H09-D2 design.
-2. Реализовать additive eligibility с S_ref=0.02, alpha=1.65.
-3. Обновить guards: baseline preservation + promotion gates.
-4. Добавить diagnostic baseline vs promoted eligibility.
-5. Render same 180×120 km world as H09-D2.
-6. Compare H09-C vs H09-D2.
-7. Show operator and obtain ACCEPT / REJECT.
+1. Review H09-D2 maps and source-eligibility diagnostic.
+2. Compare against H09-C:
+   - did useful tributaries return?
+   - did duplicate/parallel H09-B behaviour stay suppressed?
+   - are promoted sources topographically credible?
+   - is skeleton/trace alignment acceptable?
+3. Obtain explicit operator ACCEPT / REJECT.
+4. Do not move to Surface / Placement before Hydrology ACCEPT.
 ```
