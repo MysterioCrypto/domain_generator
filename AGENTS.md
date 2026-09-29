@@ -1,6 +1,6 @@
 # Repository instructions for Codex
 
-Read `PROJECT.md` first for the stable version boundary and active development line, then read `docs/CONTEXT.md` for the current semantic checkpoint, rejected paths that still constrain the work, and the next bounded task. Do this before inferring current state from `main`, PR chronology, or historical roadmap documents.
+Read `PROJECT.md` first for the stable version boundary and active development line, then read `docs/CONTEXT.md` for the current semantic checkpoint and rejected-path constraints, then read `docs/PROGRESS.md` for the compact DONE / IN PROGRESS / NEXT tree. Do this before inferring current state from `main`, PR chronology, or historical roadmap documents.
 
 `docs/CONTEXT.md` is intentionally a rolling context compression, not an append-only log. Rewrite it when a meaningful project checkpoint changes (accepted/rejected human checkpoint, accepted design gate, active-line change, or completed implementation that changes what comes next). Do not update it for ordinary commits, CI runs, small bugfixes, or refactors that do not change the semantic checkpoint. Remove stale details instead of accumulating history.
 
