@@ -13,11 +13,15 @@ from domain_generator.hydrology.continuous import (
     choose_lake_outlets,
     continuous_routing_field,
     distributed_flow_accumulation_km2,
+    generate_hydrology_v02,
 )
 from domain_generator.hydrology.classification import classify_stream_mask, extract_lake_candidates
 from domain_generator.hydrology.ids import lake_feature_id
+from domain_generator.geometry import region_set_boundary_distance_km
+from domain_generator.hydrology.materialize import materialize_lake_features, refined_lake_region_set
 from domain_generator.hydrology.routing import priority_flood_surfaces
 from domain_generator.hydrology.state import LakeCandidate, LakeOutlet
+from domain_generator.terrain.state import TerrainState
 
 
 def _plan(rows: int, columns: int, *, threshold: float = 8.0) -> GenerationPlan:
@@ -445,3 +449,73 @@ def test_m05_strahler_order_passes_through_lake_supernode() -> None:
     assert hierarchy.lake_order[lake_feature_id(0)] == 2
     assert hierarchy.cell_order[outlet_receiver] == 2
     assert hierarchy.cell_order[5, 2] == 2
+
+
+
+def test_l01_l03_refined_lake_shoreline_is_deterministic_and_contained() -> None:
+    plan = _plan(7, 7)
+    terrain = np.full((7, 7), 120.0, dtype=np.float64)
+    cells = tuple(
+        (row, column)
+        for row in range(2, 5)
+        for column in range(2, 5)
+    )
+    for cell in cells:
+        terrain[cell] = 90.0
+    candidate = LakeCandidate(
+        cells=cells,
+        area_km2=9.0,
+        max_depth_m=10.0,
+        surface_elevation_m=100.0,
+    )
+
+    first = refined_lake_region_set(plan, candidate, terrain, subdivision=4)
+    second = refined_lake_region_set(plan, candidate, terrain, subdivision=4)
+    assert first == second
+
+    features = materialize_lake_features(
+        plan,
+        (candidate,),
+        terrain_elevation_m=terrain,
+        shoreline_subdivision=4,
+    )
+    feature = features[lake_feature_id(0)]
+    assert feature.geometry == first
+    assert 0.0 < float(feature.properties.area_km2) <= 9.0
+    assert float(feature.properties.area_km2) < 9.0
+
+
+def test_l05_l08_generated_lake_nodes_lie_on_refined_shoreline() -> None:
+    rows = columns = 21
+    plan = _plan(rows, columns, threshold=7.0)
+    terrain = np.empty((rows, columns), dtype=np.float64)
+    for row in range(rows):
+        y = rows - row - 0.5
+        for column in range(columns):
+            x = column + 0.5
+            terrain[row, column] = 200.0 - 0.8 * x + 0.03 * (y - 10.5) ** 2
+    terrain[8:13, 8:13] -= 18.0
+
+    hydrology = generate_hydrology_v02(
+        plan,
+        TerrainState(elevation_m=terrain),
+    )
+    assert len(hydrology.lake_candidates) == 1
+    lake_id = lake_feature_id(0)
+    feature = hydrology.lake_features[lake_id]
+    assert 0.0 < float(feature.properties.area_km2) <= hydrology.lake_candidates[0].area_km2
+
+    networks = [hydrology.river_network]
+    assert hydrology.potential_river_network is not None
+    networks.append(hydrology.potential_river_network)
+    seen_lake_node = False
+    for network in networks:
+        for node in network.nodes.values():
+            if node.feature_id != lake_id:
+                continue
+            seen_lake_node = True
+            assert region_set_boundary_distance_km(feature.geometry, node.position) <= 1e-8
+
+    assert seen_lake_node
+    for cell in hydrology.lake_candidates[0].cells:
+        assert float(hydrology.water_depth_m[cell]) > 0.0

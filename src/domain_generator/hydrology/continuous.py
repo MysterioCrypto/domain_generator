@@ -1946,6 +1946,8 @@ def validate_hydrology_v02(
     support_ok = False
     skeleton_ok = False
     lakes_ok = False
+    lake_geometry_ok = False
+    lake_endpoint_ok = False
     network_ok = False
     potential_hierarchy_ok = False
     water_ok = False
@@ -1984,6 +1986,43 @@ def validate_hydrology_v02(
             len(hydrology.lake_outlets) == len(hydrology.lake_candidates)
             and len({outlet.lake_id for outlet in hydrology.lake_outlets}) == len(hydrology.lake_candidates)
         )
+        expected_lake_ids = {
+            lake_feature_id(index) for index in range(len(hydrology.lake_candidates))
+        }
+        lake_geometry_ok = set(hydrology.lake_features) == expected_lake_ids
+        if lake_geometry_ok:
+            for index, candidate in enumerate(hydrology.lake_candidates):
+                feature = hydrology.lake_features[lake_feature_id(index)]
+                refined_area = float(feature.properties.area_km2)
+                if not (
+                    refined_area > 0.0
+                    and refined_area <= float(candidate.area_km2) + 1e-10
+                ):
+                    lake_geometry_ok = False
+                    break
+
+        lake_endpoint_ok = lake_geometry_ok
+        if lake_endpoint_ok:
+            networks = [hydrology.river_network]
+            if hydrology.potential_river_network is not None:
+                networks.append(hydrology.potential_river_network)
+            for network in networks:
+                for node in network.nodes.values():
+                    if node.kind not in {RiverNodeKind.LAKE_INFLOW, RiverNodeKind.LAKE_OUTLET}:
+                        continue
+                    if node.feature_id is None or node.feature_id not in hydrology.lake_features:
+                        lake_endpoint_ok = False
+                        break
+                    distance = region_set_boundary_distance_km(
+                        hydrology.lake_features[node.feature_id].geometry,
+                        node.position,
+                    )
+                    if distance > 1e-8:
+                        lake_endpoint_ok = False
+                        break
+                if not lake_endpoint_ok:
+                    break
+
         network_ok = _network_invariants(hydrology.river_network)
         if (
             hydrology.potential_channel_skeleton_mask is not None
@@ -2027,6 +2066,8 @@ def validate_hydrology_v02(
         EngineInvariantResult(id="hydrology-v02-channel-support-threshold", passed=support_ok),
         EngineInvariantResult(id="hydrology-v02-channel-skeleton-valid", passed=skeleton_ok),
         EngineInvariantResult(id="hydrology-v02-single-lake-outlet", passed=lakes_ok),
+        EngineInvariantResult(id="hydrology-v02-refined-lake-geometry-valid", passed=lake_geometry_ok),
+        EngineInvariantResult(id="hydrology-v02-lake-endpoints-on-shoreline", passed=lake_endpoint_ok),
         EngineInvariantResult(id="hydrology-v02-river-network-invariants", passed=network_ok),
         EngineInvariantResult(id="hydrology-v02-potential-hierarchy-valid", passed=potential_hierarchy_ok),
         EngineInvariantResult(id="hydrology-v02-water-depth-valid", passed=water_ok),
