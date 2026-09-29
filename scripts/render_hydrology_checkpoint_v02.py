@@ -819,6 +819,20 @@ def main() -> None:
     )
     final_stats = _final_direction_stats(hydrology.river_network)
     potential_final_stats = _final_direction_stats(hydrology.potential_river_network)
+    potential_indegree = {
+        node_id: 0 for node_id in hydrology.potential_river_network.nodes
+    }
+    potential_outdegree = {
+        node_id: 0 for node_id in hydrology.potential_river_network.nodes
+    }
+    for segment in hydrology.potential_river_network.segments.values():
+        potential_outdegree[segment.from_node] += 1
+        potential_indegree[segment.to_node] += 1
+    potential_confluence_indegrees = {
+        node_id: int(potential_indegree[node_id])
+        for node_id, node in hydrology.potential_river_network.nodes.items()
+        if node.kind.value == "confluence"
+    }
     routing_stats = _routing_direction_stats(hydrology.continuous_routing.flow_angle_rad)
     unique_area = np.asarray(hydrology.channel_unique_area_km2, dtype=np.float64)
     convergence = np.asarray(hydrology.channel_convergence, dtype=np.float64)
@@ -996,6 +1010,19 @@ def main() -> None:
                 "river_node_count": len(hydrology.potential_river_network.nodes),
                 "river_segment_count": len(hydrology.potential_river_network.segments),
                 "river_node_kinds": dict(sorted(potential_node_kinds.items())),
+                "confluence_indegree_histogram": dict(
+                    sorted(Counter(potential_confluence_indegrees.values()).items())
+                ),
+                "confluences_with_indegree_lt_2": [
+                    node_id
+                    for node_id, value in sorted(potential_confluence_indegrees.items())
+                    if value < 2
+                ],
+                "nodes_with_outdegree_gt_1": [
+                    node_id
+                    for node_id, value in sorted(potential_outdegree.items())
+                    if value > 1
+                ],
                 "maximum_strahler_order": int(np.max(strahler_order)),
                 "strahler_cell_histogram": {
                     str(key): int(value) for key, value in sorted(cell_order_counts.items())
