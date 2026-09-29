@@ -65,7 +65,8 @@ Hydrology 0.2
    ├─ PR #78 ACCEPTED / merged
    ├─ refined sub-cell shoreline reconstruction — IMPLEMENTED
    ├─ exact lake inflow/outlet shoreline alignment — IMPLEMENTED
-   └─ L01–L08 guards + H10-A diagnostics — IN PROGRESS
+   ├─ L01/L03/L05/L06/L08 guards — IMPLEMENTED
+   └─ H10-A visual diagnostics / checkpoint — IN PROGRESS
 ```
 
 PR #72 remains draft/open until the Hydrology lake slice and final review are complete.
