@@ -178,15 +178,33 @@ semantic implementation
 
 Surface/Placement заблокированы до Hydrology ACCEPT.
 
+## Принятый следующий design
+
+`docs/design/additive-terrain-aware-source-promotion-v0.2.md`
+
+Оператор принял bounded H09-D2:
+
+```text
+base source:
+  unique_area >= 250 km²
+
+OR terrain-aware promotion:
+  unique_area < 250 km²
+  AND convergence > 1
+  AND local_slope > 0.02
+  AND unique_area * (local_slope / 0.02)^1.65 >= 250 km²
+```
+
+Ключевая гарантия: terrain-aware rule может только добавить/поднять headwater; H09-C fixed-area branch не удаляется.
+
 ## Следующий bounded task
 
 ```text
-1. Не принимать первый H09-D.
-2. Зафиксировать additive source-promotion amendment:
-   fixed-area H09-C baseline OR terrain-aware promotion.
-3. Выбрать одну bounded calibration для следующего visual experiment,
-   не sweep-тюнить картинку до красивого результата.
-4. Render same 180×120 km world.
-5. Compare H09-C vs revised H09-D.
-6. Show operator and obtain ACCEPT / REJECT.
+1. Синхронизировать PR #72 с accepted H09-D2 design.
+2. Реализовать additive eligibility с S_ref=0.02, alpha=1.65.
+3. Обновить guards: baseline preservation + promotion gates.
+4. Добавить diagnostic baseline vs promoted eligibility.
+5. Render same 180×120 km world as H09-D2.
+6. Compare H09-C vs H09-D2.
+7. Show operator and obtain ACCEPT / REJECT.
 ```
