@@ -8,13 +8,16 @@ from domain_generator.contracts.plan import GenerationPlan
 from domain_generator.hydrology import ContinuousRoutingField, build_continuous_river_network
 from domain_generator.hydrology.continuous import (
     _activate_channel_skeleton,
+    _strahler_order_field,
     _terrain_aware_initiation,
     choose_lake_outlets,
     continuous_routing_field,
     distributed_flow_accumulation_km2,
 )
 from domain_generator.hydrology.classification import classify_stream_mask, extract_lake_candidates
+from domain_generator.hydrology.ids import lake_feature_id
 from domain_generator.hydrology.routing import priority_flood_surfaces
+from domain_generator.hydrology.state import LakeCandidate, LakeOutlet
 
 
 def _plan(rows: int, columns: int, *, threshold: float = 8.0) -> GenerationPlan:
@@ -341,3 +344,104 @@ def test_i03_active_channel_does_not_restart_downstream() -> None:
     assert sources == {(1, 1)}
     assert not confluences
     assert all(bool(skeleton[1, column]) for column in range(1, 6))
+
+
+
+def test_m02_strahler_equal_order_merge_increments() -> None:
+    shape = (5, 5)
+    receiver = np.full(shape, -1, dtype=np.int32)
+    columns = shape[1]
+    receiver[1, 1] = np.int32(2 * columns + 2)
+    receiver[1, 3] = np.int32(2 * columns + 2)
+    receiver[2, 2] = np.int32(3 * columns + 2)
+    receiver[3, 2] = np.int32(4 * columns + 2)
+
+    skeleton = np.zeros(shape, dtype=np.bool_)
+    for cell in ((1, 1), (1, 3), (2, 2), (3, 2), (4, 2)):
+        skeleton[cell] = True
+
+    hierarchy = _strahler_order_field(
+        receiver,
+        skeleton,
+        lake_candidates=(),
+        lake_outlets=(),
+    )
+
+    assert hierarchy.cell_order[1, 1] == 1
+    assert hierarchy.cell_order[1, 3] == 1
+    assert hierarchy.cell_order[2, 2] == 2
+    assert hierarchy.cell_order[4, 2] == 2
+
+
+def test_m03_strahler_unequal_merge_keeps_higher_order() -> None:
+    shape = (7, 7)
+    receiver = np.full(shape, -1, dtype=np.int32)
+    columns = shape[1]
+
+    # Two order-1 branches form order 2 at (2,3).
+    receiver[1, 2] = np.int32(2 * columns + 3)
+    receiver[1, 4] = np.int32(2 * columns + 3)
+    receiver[2, 3] = np.int32(3 * columns + 3)
+
+    # A separate order-1 tributary joins the order-2 trunk at (4,3).
+    receiver[3, 1] = np.int32(4 * columns + 3)
+    receiver[3, 3] = np.int32(4 * columns + 3)
+    receiver[4, 3] = np.int32(5 * columns + 3)
+    receiver[5, 3] = np.int32(6 * columns + 3)
+
+    skeleton = np.zeros(shape, dtype=np.bool_)
+    for cell in ((1, 2), (1, 4), (2, 3), (3, 3), (3, 1), (4, 3), (5, 3), (6, 3)):
+        skeleton[cell] = True
+
+    hierarchy = _strahler_order_field(
+        receiver,
+        skeleton,
+        lake_candidates=(),
+        lake_outlets=(),
+    )
+
+    assert hierarchy.cell_order[2, 3] == 2
+    assert hierarchy.cell_order[3, 1] == 1
+    assert hierarchy.cell_order[4, 3] == 2
+    assert hierarchy.cell_order[6, 3] == 2
+
+
+def test_m05_strahler_order_passes_through_lake_supernode() -> None:
+    shape = (6, 5)
+    columns = shape[1]
+    receiver = np.full(shape, -1, dtype=np.int32)
+    lake_cell = (2, 2)
+    outlet_receiver = (3, 2)
+
+    receiver[1, 1] = np.int32(lake_cell[0] * columns + lake_cell[1])
+    receiver[1, 3] = np.int32(lake_cell[0] * columns + lake_cell[1])
+    receiver[3, 2] = np.int32(4 * columns + 2)
+    receiver[4, 2] = np.int32(5 * columns + 2)
+
+    skeleton = np.zeros(shape, dtype=np.bool_)
+    for cell in ((1, 1), (1, 3), (3, 2), (4, 2), (5, 2)):
+        skeleton[cell] = True
+
+    lake = LakeCandidate(
+        cells=(lake_cell,),
+        area_km2=1.0,
+        max_depth_m=2.0,
+        surface_elevation_m=100.0,
+    )
+    outlet = LakeOutlet(
+        lake_id=lake_feature_id(0),
+        lake_cell=lake_cell,
+        receiver_cell=outlet_receiver,
+        saddle_elevation_m=100.0,
+    )
+
+    hierarchy = _strahler_order_field(
+        receiver,
+        skeleton,
+        lake_candidates=(lake,),
+        lake_outlets=(outlet,),
+    )
+
+    assert hierarchy.lake_order[lake_feature_id(0)] == 2
+    assert hierarchy.cell_order[outlet_receiver] == 2
+    assert hierarchy.cell_order[5, 2] == 2

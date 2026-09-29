@@ -72,4 +72,8 @@ class HydrologyState:
     channel_unique_area_km2: np.ndarray | None = None
     channel_convergence: np.ndarray | None = None
     channel_initiation_score_km2: np.ndarray | None = None
+    potential_channel_skeleton_mask: np.ndarray | None = None
+    channel_strahler_order: np.ndarray | None = None
+    potential_river_network: RiverNetwork | None = None
+    potential_segment_strahler_order: dict[str, int] = field(default_factory=dict)
     lake_outlets: tuple[LakeOutlet, ...] = ()

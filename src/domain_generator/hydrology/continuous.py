@@ -44,6 +44,7 @@ from .water import accepted_lake_cell_map, build_water_depth_m
 _TWO_PI = 2.0 * pi
 _EIGHTH_TURN = pi / 4.0
 _EPS = 1e-12
+_POTENTIAL_STREAM_THRESHOLD_FACTOR = 0.40
 
 # Counter-clockwise world-space order from +x/east. row 0 is north, therefore
 # negative raster row is positive world y.
@@ -102,9 +103,16 @@ class _ChannelSkeleton:
     channel_area_km2: np.ndarray
     convergence: np.ndarray
     initiation_score_km2: np.ndarray
+    eligible_mask: np.ndarray
     mask: np.ndarray
     sources: frozenset[Cell]
     confluences: frozenset[Cell]
+
+
+@dataclass(frozen=True, slots=True)
+class _StrahlerHierarchy:
+    cell_order: np.ndarray
+    lake_order: dict[str, int]
 
 
 def _require_2d_finite(name: str, values: np.ndarray) -> None:
@@ -932,10 +940,196 @@ def _build_channel_skeleton(
         channel_area_km2=channel_area,
         convergence=convergence,
         initiation_score_km2=initiation_score,
+        eligible_mask=eligible,
         mask=skeleton,
         sources=frozenset(source_cells),
         confluences=frozenset(confluence_cells),
     )
+
+
+def _build_potential_channel_skeleton(
+    plan: GenerationPlan,
+    regional: _ChannelSkeleton,
+    lake_candidates: tuple[LakeCandidate, ...],
+    lake_outlets: tuple[LakeOutlet, ...],
+) -> _ChannelSkeleton:
+    """Build a denser potential drainage scaffold without changing regional rivers."""
+    shape = regional.mask.shape
+    lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
+    potential_threshold = (
+        float(plan.hydrology.stream_threshold_km2) * _POTENTIAL_STREAM_THRESHOLD_FACTOR
+    )
+    eligible = (
+        (regional.channel_area_km2 >= potential_threshold)
+        | regional.eligible_mask
+    )
+    eligible = eligible.copy()
+    for cell in lake_by_cell:
+        eligible[cell] = False
+
+    skeleton, source_cells, confluence_cells = _activate_channel_skeleton(
+        regional.receiver_index,
+        eligible,
+        lake_candidates=lake_candidates,
+        lake_outlets=lake_outlets,
+    )
+    if not bool(np.all(~regional.mask | skeleton)):
+        raise HydrologyCapabilityError(
+            "potential channel scaffold must preserve every regional skeleton cell"
+        )
+
+    return _ChannelSkeleton(
+        receiver_index=regional.receiver_index,
+        channel_area_km2=regional.channel_area_km2,
+        convergence=regional.convergence,
+        initiation_score_km2=regional.initiation_score_km2,
+        eligible_mask=eligible,
+        mask=skeleton,
+        sources=frozenset(source_cells),
+        confluences=frozenset(confluence_cells),
+    )
+
+
+def _strahler_merge_order(upstream_orders: list[int]) -> int:
+    if not upstream_orders:
+        return 1
+    maximum = max(upstream_orders)
+    return maximum + 1 if upstream_orders.count(maximum) >= 2 else maximum
+
+
+def _strahler_order_field(
+    receiver_index: np.ndarray,
+    skeleton_mask: np.ndarray,
+    *,
+    lake_candidates: tuple[LakeCandidate, ...],
+    lake_outlets: tuple[LakeOutlet, ...],
+) -> _StrahlerHierarchy:
+    """Compute Strahler order on a merge-only skeleton with lakes as supernodes."""
+    if receiver_index.shape != skeleton_mask.shape:
+        raise HydrologyCapabilityError("Strahler receiver and skeleton shapes must match")
+    if skeleton_mask.dtype != np.dtype(np.bool_):
+        raise HydrologyCapabilityError("Strahler skeleton must use bool dtype")
+
+    shape = skeleton_mask.shape
+    rows, columns = shape
+    lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
+
+    # Mixed graph keys keep accepted lakes as transparent topology supernodes.
+    # Cell nodes are ("cell", row, column); lake nodes are ("lake", lake_id).
+    nodes: set[tuple[object, ...]] = set()
+    adjacency: dict[tuple[object, ...], set[tuple[object, ...]]] = defaultdict(set)
+    indegree: dict[tuple[object, ...], int] = {}
+    incoming_orders: dict[tuple[object, ...], list[int]] = defaultdict(list)
+
+    def cell_node(cell: Cell) -> tuple[object, ...]:
+        return ("cell", cell[0], cell[1])
+
+    def lake_node(lake_id: str) -> tuple[object, ...]:
+        return ("lake", lake_id)
+
+    def add_node(node: tuple[object, ...]) -> None:
+        if node not in nodes:
+            nodes.add(node)
+            indegree[node] = 0
+
+    def add_edge(source: tuple[object, ...], target: tuple[object, ...]) -> None:
+        add_node(source)
+        add_node(target)
+        if target not in adjacency[source]:
+            adjacency[source].add(target)
+            indegree[target] += 1
+
+    for row in range(rows):
+        for column in range(columns):
+            cell = (row, column)
+            if not bool(skeleton_mask[cell]):
+                continue
+            source = cell_node(cell)
+            add_node(source)
+            target_index = int(receiver_index[cell])
+            if target_index < 0:
+                continue
+            target = _cell_from_index(target_index, columns)
+            target_lake = lake_by_cell.get(target)
+            if target_lake is not None:
+                add_edge(source, lake_node(target_lake))
+            elif bool(skeleton_mask[target]):
+                add_edge(source, cell_node(target))
+            elif not _is_edge(cell, shape):
+                raise HydrologyCapabilityError(
+                    "potential skeleton has an interior downstream discontinuity"
+                )
+
+    for outlet in lake_outlets:
+        lake = lake_node(outlet.lake_id)
+        add_node(lake)
+        if bool(skeleton_mask[outlet.receiver_cell]):
+            add_edge(lake, cell_node(outlet.receiver_cell))
+
+    def node_sort_key(node: tuple[object, ...]) -> tuple[object, ...]:
+        if node[0] == "cell":
+            return (0, int(node[1]), int(node[2]))
+        return (1, str(node[1]))
+
+    queue = sorted((node for node in nodes if indegree[node] == 0), key=node_sort_key)
+    order_by_node: dict[tuple[object, ...], int] = {}
+    processed = 0
+
+    while queue:
+        node = queue.pop(0)
+        processed += 1
+        node_order = _strahler_merge_order(incoming_orders[node])
+        order_by_node[node] = node_order
+        for target in sorted(adjacency[node], key=node_sort_key):
+            incoming_orders[target].append(node_order)
+            indegree[target] -= 1
+            if indegree[target] == 0:
+                queue.append(target)
+                queue.sort(key=node_sort_key)
+
+    if processed != len(nodes):
+        raise HydrologyCapabilityError("potential Strahler hierarchy contains a cycle")
+
+    cell_order = np.zeros(shape, dtype=np.int16)
+    for row in range(rows):
+        for column in range(columns):
+            if bool(skeleton_mask[row, column]):
+                cell_order[row, column] = np.int16(order_by_node[cell_node((row, column))])
+
+    lake_order = {
+        outlet.lake_id: int(order_by_node.get(lake_node(outlet.lake_id), 1))
+        for outlet in lake_outlets
+    }
+    return _StrahlerHierarchy(cell_order=cell_order, lake_order=lake_order)
+
+
+def _segment_strahler_orders(
+    plan: GenerationPlan,
+    network: RiverNetwork,
+    hierarchy: _StrahlerHierarchy,
+    lake_outlets: tuple[LakeOutlet, ...],
+) -> dict[str, int]:
+    adapter = GridAdapter.from_plan(plan)
+    outlet_cell_by_lake = {outlet.lake_id: outlet.receiver_cell for outlet in lake_outlets}
+    result: dict[str, int] = {}
+
+    for segment_id, segment in network.segments.items():
+        source = network.nodes[segment.from_node]
+        if source.kind is RiverNodeKind.LAKE_OUTLET and source.feature_id is not None:
+            order = int(hierarchy.lake_order.get(source.feature_id, 1))
+        else:
+            x = min(adapter.width_km, max(0.0, float(source.position.x_km)))
+            y = min(adapter.height_km, max(0.0, float(source.position.y_km)))
+            cell = adapter.containing_cell(x, y)
+            order = int(hierarchy.cell_order[cell])
+            if order < 1 and source.feature_id in outlet_cell_by_lake:
+                order = int(hierarchy.cell_order[outlet_cell_by_lake[source.feature_id]])
+        if order < 1:
+            raise HydrologyCapabilityError(
+                f"potential river segment {segment_id!r} has no Strahler order"
+            )
+        result[segment_id] = order
+    return result
 
 
 def _sample_vector(
@@ -1170,6 +1364,8 @@ def build_continuous_river_network(
     channel_support: np.ndarray,
     lake_candidates: tuple[LakeCandidate, ...],
     lake_outlets: tuple[LakeOutlet, ...],
+    *,
+    skeleton: _ChannelSkeleton | None = None,
 ) -> tuple[RiverNetwork, np.ndarray]:
     shape = (plan.grid.rows, plan.grid.columns)
     if accumulation.shape != shape or channel_support.shape != shape:
@@ -1179,14 +1375,17 @@ def build_continuous_river_network(
 
     adapter = GridAdapter.from_plan(plan)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
-    skeleton = _build_channel_skeleton(
-        plan,
-        field,
-        accumulation,
-        channel_support,
-        lake_candidates,
-        lake_outlets,
-    )
+    if skeleton is None:
+        skeleton = _build_channel_skeleton(
+            plan,
+            field,
+            accumulation,
+            channel_support,
+            lake_candidates,
+            lake_outlets,
+        )
+    elif skeleton.mask.shape != shape:
+        raise HydrologyCapabilityError("provided channel skeleton must match plan grid")
     source_cells = set(skeleton.sources)
     confluence_cells = set(skeleton.confluences)
 
@@ -1409,6 +1608,19 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         lakes,
         outlets,
     )
+    potential_skeleton = _build_potential_channel_skeleton(
+        plan,
+        channel_skeleton,
+        lakes,
+        outlets,
+    )
+    strahler = _strahler_order_field(
+        potential_skeleton.receiver_index,
+        potential_skeleton.mask,
+        lake_candidates=lakes,
+        lake_outlets=outlets,
+    )
+
     river_network, stream_mask = build_continuous_river_network(
         plan,
         field,
@@ -1416,8 +1628,25 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         support,
         lakes,
         outlets,
+        skeleton=channel_skeleton,
+    )
+    potential_river_network, _ = build_continuous_river_network(
+        plan,
+        field,
+        accumulation,
+        support,
+        lakes,
+        outlets,
+        skeleton=potential_skeleton,
+    )
+    potential_segment_orders = _segment_strahler_orders(
+        plan,
+        potential_river_network,
+        strahler,
+        outlets,
     )
     validate_river_lake_references(river_network, lake_features)
+    validate_river_lake_references(potential_river_network, lake_features)
     water_depth = build_water_depth_m(
         elevation,
         surfaces.fill_elevation_m,
@@ -1445,6 +1674,10 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         channel_unique_area_km2=channel_skeleton.channel_area_km2,
         channel_convergence=channel_skeleton.convergence,
         channel_initiation_score_km2=channel_skeleton.initiation_score_km2,
+        potential_channel_skeleton_mask=potential_skeleton.mask,
+        channel_strahler_order=strahler.cell_order,
+        potential_river_network=potential_river_network,
+        potential_segment_strahler_order=potential_segment_orders,
         lake_outlets=outlets,
     )
 
@@ -1559,6 +1792,7 @@ def validate_hydrology_v02(
     skeleton_ok = False
     lakes_ok = False
     network_ok = False
+    potential_hierarchy_ok = False
     water_ok = False
     if state_ok and hydrology is not None:
         accumulation_ok = (
@@ -1596,6 +1830,30 @@ def validate_hydrology_v02(
             and len({outlet.lake_id for outlet in hydrology.lake_outlets}) == len(hydrology.lake_candidates)
         )
         network_ok = _network_invariants(hydrology.river_network)
+        if (
+            hydrology.potential_channel_skeleton_mask is not None
+            and hydrology.channel_strahler_order is not None
+            and hydrology.potential_river_network is not None
+        ):
+            potential_mask = hydrology.potential_channel_skeleton_mask
+            order_field = hydrology.channel_strahler_order
+            potential_hierarchy_ok = (
+                potential_mask.shape == shape
+                and potential_mask.dtype == np.dtype(np.bool_)
+                and order_field.shape == shape
+                and np.issubdtype(order_field.dtype, np.integer)
+                and bool(np.all(order_field[potential_mask] >= 1))
+                and bool(np.all(order_field[~potential_mask] == 0))
+                and bool(np.all(~hydrology.channel_skeleton_mask | potential_mask))
+                and all(not bool(potential_mask[cell]) for cell in lake_by_cell)
+                and _network_invariants(hydrology.potential_river_network)
+                and set(hydrology.potential_segment_strahler_order)
+                    == set(hydrology.potential_river_network.segments)
+                and all(
+                    isinstance(value, int) and value >= 1
+                    for value in hydrology.potential_segment_strahler_order.values()
+                )
+            )
         water_ok = (
             hydrology.water_depth_m.shape == shape
             and hydrology.water_depth_m.dtype == np.dtype(np.float32)
@@ -1615,6 +1873,7 @@ def validate_hydrology_v02(
         EngineInvariantResult(id="hydrology-v02-channel-skeleton-valid", passed=skeleton_ok),
         EngineInvariantResult(id="hydrology-v02-single-lake-outlet", passed=lakes_ok),
         EngineInvariantResult(id="hydrology-v02-river-network-invariants", passed=network_ok),
+        EngineInvariantResult(id="hydrology-v02-potential-hierarchy-valid", passed=potential_hierarchy_ok),
         EngineInvariantResult(id="hydrology-v02-water-depth-valid", passed=water_ok),
     )
     passed = all(result.passed for result in results)
