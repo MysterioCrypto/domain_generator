@@ -355,3 +355,27 @@ This is only the first implementation slice. Still pending before H10-A checkpoi
 - render H10-A diagnostics.
 
 Heavy GitHub Actions artifacts are not to be downloaded into the chat/container unless explicitly requested by the operator.
+
+
+## H10-A implementation slice 2
+
+Implemented on PR #72 implementation branch:
+
+```text
+refined lake RegionSet
+→ canonical HydroFeature area
+→ lake_inflow endpoint projected to refined shoreline
+→ lake_outlet endpoint projected to refined shoreline
+→ regional + potential networks use the same refined lake geometry
+```
+
+Core 0.2 now requests 4× shoreline refinement during lake materialization. Legacy materialization without terrain remains unchanged.
+
+Still pending before H10-A checkpoint:
+
+- automated L01–L08 guards / regression tests;
+- validate all v0.2 lake endpoints against refined boundaries;
+- H10-A old-vs-refined lake diagnostics and close-ups;
+- same-world Actions checkpoint and operator review.
+
+Heavy Actions artifacts remain remote unless the operator explicitly requests a download.
