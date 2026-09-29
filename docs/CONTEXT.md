@@ -265,3 +265,68 @@ Do not retune these during the lake pass.
 5. Then Hydrology 0.2 final review.
 6. Later climate/biomes may finish low-order headwaters and receiving-end morphology.
 ```
+
+
+## Lake diagnostic checkpoint before semantic changes
+
+Diagnostic-only instrumentation was added on the implementation branch before changing lake semantics.
+
+Same H09-E world:
+
+```text
+domain area:              21,600 km²
+accepted routing lakes:   13
+lake raster areas:
+  8, 13, 21, 25, 32, 36, 38, 52, 70, 103, 114, 156, 222 km²
+total raster lake area:   890 km²
+limnicity:                ~4.12%
+median lake area:         38 km²
+lakes >100 km²:           4
+catchment/lake area:      ~5.6 ... 136
+```
+
+The four largest lakes have catchment/lake ratios ~7.6, 8.9, 13.5, 27.8. This is not enough evidence to arbitrarily shrink/delete them.
+
+Important implementation fact:
+
+```text
+current visible lake geometry
+= exact union of accepted 1 km raster-cell squares
+```
+
+So raster/blocky shoreline is a confirmed upstream semantic geometry limitation, not merely renderer style.
+
+## Proposed H10-A design gate
+
+PR #78:
+`docs/design/lake-shoreline-morphology-v0.2.md`
+
+Status: **PROPOSED / awaiting explicit operator acceptance**.
+
+Bounded idea:
+
+```text
+accepted routing lake basin
+→ deterministic 4× sub-cell terrain-aware shoreline
+→ refined vector HydroFeature geometry
+→ exact river inflow/outlet positions on refined shoreline
+```
+
+Keep in H10-A:
+
+- same accepted routing lakes;
+- same canonical outlet receiver cells;
+- same MFD / accumulation;
+- same H09-D2 regional network semantics;
+- same H09-E potential hierarchy semantics;
+- no global lake-count or size-distribution fitting.
+
+Reason for not shrinking/count-tuning yet:
+- global lake density varies strongly by geomorphic history;
+- current catchment ratios are not obviously pathological;
+- first isolate the confirmed raster shoreline defect.
+
+H10-A must report raster area vs refined area, catchment ratio, shoreline development, and all lake/river endpoint consistency.
+
+Stop rule:
+if refined shorelines still leave obviously oversized/compound lakes, the next bounded design is nested-depression hierarchy / partial-fill semantics, not arbitrary area clipping.
