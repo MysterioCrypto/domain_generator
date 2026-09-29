@@ -406,3 +406,25 @@ Pending:
 - CI result for these guards;
 - H10-A visual diagnostics / same-world checkpoint;
 - operator review.
+
+
+## H10-A implementation slice 4
+
+Added the operator-visible H10-A checkpoint diagnostics on the implementation branch:
+
+```text
+13-lake-raster-vs-refined.png
+14-refined-lakes-regional-rivers.png
+15-refined-lakes-potential-hierarchy.png
+16-lake-contact-sheet.png
+17-lake-endpoints.png
+```
+
+Checkpoint statistics now report:
+- routing-basin area vs refined shoreline area;
+- refined/routing area ratio;
+- refined perimeter;
+- refined shoreline-development index;
+- catchment relation using refined visible lake area.
+
+GitHub Actions compact previews are configured to emit the H10-A lake views into workflow logs. Full artifacts remain remote and must not be downloaded into the chat/container unless explicitly requested.
