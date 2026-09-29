@@ -56,14 +56,14 @@ renderer/smoothing as an upstream-fix substitute
 
 ```text
 Hydrology 0.2
-└─ H10-A lake shoreline morphology — DESIGN GATE
+└─ H10-A lake shoreline morphology — IMPLEMENTATION
    ├─ river hierarchy frozen
    ├─ diagnostics complete
    │  ├─ 13 routing lakes
    │  ├─ 890 km² total raster lake area
    │  └─ catchment/lake ratios ~5.6...136
-   ├─ PR #78 proposed
-   └─ awaiting operator ACCEPT / REJECT
+   ├─ PR #78 ACCEPTED / merged
+   └─ implement refined shorelines + exact lake endpoints
 ```
 
 PR #72 remains draft/open until the Hydrology lake slice and final review are complete.
@@ -71,8 +71,8 @@ PR #72 remains draft/open until the Hydrology lake slice and final review are co
 ## NEXT
 
 ```text
-1. Operator ACCEPT / REJECT PR #78 lake design
-2. If ACCEPT: implement H10-A shoreline refinement
+1. Implement H10-A shoreline refinement
+2. Run automated guards and same-world checkpoint
    ├─ lake count
    ├─ size distribution
    ├─ terrain-following shape

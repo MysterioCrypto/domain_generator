@@ -301,7 +301,7 @@ So raster/blocky shoreline is a confirmed upstream semantic geometry limitation,
 PR #78:
 `docs/design/lake-shoreline-morphology-v0.2.md`
 
-Status: **PROPOSED / awaiting explicit operator acceptance**.
+Status: **ACCEPTED by operator**.
 
 Bounded idea:
 
@@ -330,3 +330,5 @@ H10-A must report raster area vs refined area, catchment ratio, shoreline develo
 
 Stop rule:
 if refined shorelines still leave obviously oversized/compound lakes, the next bounded design is nested-depression hierarchy / partial-fill semantics, not arbitrary area clipping.
+
+Operator explicitly accepted PR #78 / H10-A design. Production implementation may proceed. Heavy GitHub Actions artifacts should not be downloaded into the chat/container unless the operator explicitly asks; inspect workflow logs, compact previews, and statistics first.
