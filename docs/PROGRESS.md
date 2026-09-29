@@ -33,7 +33,7 @@ Core 0.2
 │  ├─ lake supernodes
 │  └─ one canonical lake outlet
 ├─ H09-D2 regional river network — KEEP
-└─ H09-E potential hierarchy — IMPLEMENTED
+├─ H09-E potential hierarchy — ACCEPTED
    ├─ 0.40 × regional extraction scale
    ├─ potential drainage scaffold
    ├─ Strahler hierarchy
@@ -56,21 +56,20 @@ renderer/smoothing as an upstream-fix substitute
 
 ```text
 Hydrology 0.2
-└─ H09-E operator checkpoint
-   ├─ Actions artifact reviewed
-   ├─ operator: visually better
-   ├─ assistant recommendation: ACCEPT river-hierarchy slice
-   └─ formal operator ACCEPT / REJECT still pending
+└─ bounded lake pass — DESIGN
+   ├─ river hierarchy frozen
+   ├─ investigate lake count / scale distribution
+   ├─ terrain-following lake morphology
+   ├─ catchment ↔ lake relation
+   └─ preserve one canonical outlet
 ```
 
-PR #72 remains draft/open.
+PR #72 remains draft/open until the Hydrology lake slice and final review are complete.
 
 ## NEXT
 
-If H09-E = ACCEPT:
-
 ```text
-1. Freeze river hierarchy semantics
+1. INV-006 lake design gate
 2. Bounded lake pass
    ├─ lake count
    ├─ size distribution
@@ -87,18 +86,7 @@ If H09-E = ACCEPT:
 6. Placement continuation
 ```
 
-If H09-E = REJECT:
-
-```text
-identify one concrete defect:
-  hierarchy density
-  source placement
-  trace geometry
-  lake interaction
-
-then make one bounded redesign;
-do not reopen MFD without evidence.
-```
+River hierarchy is frozen. Reopen it only for a new concrete defect, not while tuning lakes.
 
 ## Acceptance boundary
 

@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-b6-multiscale-drainage-hierarchy
-checkpoint: h09-e-multiscale-hierarchy-ready-for-operator-review
-next_topic: operator-review-h09-e
+checkpoint: h09-e-river-hierarchy-accepted
+next_topic: design-lake-morphology-catchment-pass
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -124,9 +124,9 @@ Priority-Flood conditioning
 - regional skeleton coverage by potential scaffold: 100%;
 - engine invariants / hard constraints / full pytest: green.
 
-H09-E визуально существенно лучше предыдущих вариантов и рекомендован ассистентом к ACCEPT для **river-hierarchy slice**, но формальный operator ACCEPT ещё не записан.
+H09-E **ACCEPTED by operator for the river-hierarchy slice**. MFD + H09-D2 regional network + H09-E potential hierarchy are frozen unless a new concrete defect requires reopening them.
 
-PR #72 остаётся draft/open до operator decision и последующего lake pass.
+PR #72 остаётся draft/open, пока Hydrology 0.2 не завершит отдельный lake pass и финальный operator checkpoint.
 
 ## Что ещё не завершено в Hydrology
 

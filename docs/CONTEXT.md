@@ -218,7 +218,7 @@ Visual assessment:
 - remaining raster stair-step structure is primarily an internal skeleton diagnostic, while final vector geometry stays low-bias;
 - lakes now stand out more clearly as the next likely source of procedural/artificial appearance.
 
-Assistant technical recommendation: **ACCEPT the river-hierarchy slice of H09-E and freeze it for now; proceed next to the bounded lake pass.** The operator reviewed the Actions artifact and reported that H09-E is indeed better, but has not yet issued the formal word ACCEPT, so the checkpoint remains pending formal acceptance.
+H09-E river-hierarchy slice is **formally ACCEPTED by the operator**. Freeze MFD + H09-D2 regional rivers + H09-E potential hierarchy unless a later concrete defect directly implicates them.
 
 ## New operator observation: rivers feel unfinished at the ends
 
@@ -236,15 +236,32 @@ Interpretation:
 
 This is therefore a **deferred completion layer**, likely after climate/biome/surface semantics are available, not part of the current river-hierarchy acceptance criterion.
 
+## Operator decision: H09-E ACCEPT
+
+The operator explicitly accepted the H09-E river-hierarchy slice.
+
+Frozen for the next bounded task:
+
+```text
+Priority-Flood
+MFD p=1.1 accumulation
+continuous MFD vector field
+H09-D2 regional rivers
+H09-E potential hierarchy
+Strahler ordering
+continuous vector geometry
+false-confluence normalization
+```
+
+Do not retune these during the lake pass.
+
 ## Next
 
 ```text
-1. Formal operator ACCEPT / REJECT for H09-E river-hierarchy slice.
-2. If ACCEPT:
-   - freeze MFD + regional H09-D2 + potential hierarchy semantics;
-   - design bounded lake count / size / shape / catchment pass.
-3. After lakes and later climate/biomes:
-   - classify potential low-order drainage as perennial / seasonal / dry / omitted;
-   - add headwater-root visibility and receiving-end morphology where semantically justified.
-4. Surface / Placement remain blocked until Hydrology ACCEPT.
+1. Design bounded lake count / size / shape / catchment pass.
+2. INV-006 design gate before production implementation.
+3. Representative same-world lake checkpoint.
+4. Operator ACCEPT / REJECT for lake slice.
+5. Then Hydrology 0.2 final review.
+6. Later climate/biomes may finish low-order headwaters and receiving-end morphology.
 ```
