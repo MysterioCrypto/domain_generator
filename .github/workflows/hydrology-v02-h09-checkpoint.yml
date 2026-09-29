@@ -39,6 +39,32 @@ jobs:
             examples/terrain-v02/checkpoint/presets.json \
             "$RUNNER_TEMP/hydrology-v02-h09"
 
+      - name: Emit compact operator previews
+        run: |
+          python - <<'PY'
+          import base64
+          import io
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path("$RUNNER_TEMP/hydrology-v02-h09")
+          selected = (
+              "01-terrain-final-rivers.png",
+              "04-accumulation-final-overlay.png",
+              "05-channel-skeleton-vs-support.png",
+              "08-initiation-score-sources.png",
+          )
+          for name in selected:
+              image = Image.open(root / name).convert("RGB")
+              image.thumbnail((1200, 800))
+              buffer = io.BytesIO()
+              image.save(buffer, format="JPEG", quality=76, optimize=True)
+              payload = base64.b64encode(buffer.getvalue()).decode("ascii")
+              print(f"OPERATOR_PREVIEW_BEGIN:{name}")
+              print(payload)
+              print(f"OPERATOR_PREVIEW_END:{name}")
+          PY
+
       - name: Upload H09 operator checkpoint
         uses: actions/upload-artifact@v4
         with:
