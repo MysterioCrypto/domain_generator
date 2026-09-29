@@ -950,6 +950,71 @@ def main() -> None:
         for row, column in candidate_cells[:20]
     ]
 
+    lake_diagnostics = []
+    cell_area_km2 = cell_size_km * cell_size_km
+    outlet_by_id = {outlet.lake_id: outlet for outlet in hydrology.lake_outlets}
+    for lake_index, candidate in enumerate(hydrology.lake_candidates):
+        lake_id = f"lake:{lake_index:04d}"
+        cells = tuple(candidate.cells)
+        rows_lake = [cell[0] for cell in cells]
+        cols_lake = [cell[1] for cell in cells]
+        cell_set = set(cells)
+        perimeter_edges = 0
+        for row, column in cells:
+            for delta_row, delta_column in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                if (row + delta_row, column + delta_column) not in cell_set:
+                    perimeter_edges += 1
+        perimeter_km = float(perimeter_edges) * cell_size_km
+        shoreline_development = (
+            perimeter_km / (2.0 * np.sqrt(np.pi * float(candidate.area_km2)))
+            if candidate.area_km2 > 0.0
+            else 0.0
+        )
+        lake_catchment_km2 = float(hydrology.flow_accumulation_km2[cells[0]])
+        depth_values_m = np.array(
+            [
+                float(hydrology.fill_elevation_m[cell] - terrain.elevation_m[cell])
+                for cell in cells
+            ],
+            dtype=np.float64,
+        )
+        storage_proxy_km3 = float(np.sum(depth_values_m) * cell_area_km2 / 1000.0)
+        outlet = outlet_by_id.get(lake_id)
+        lake_diagnostics.append(
+            {
+                "lake_id": lake_id,
+                "area_km2": float(candidate.area_km2),
+                "max_depth_m": float(candidate.max_depth_m),
+                "mean_fill_depth_m": float(np.mean(depth_values_m)),
+                "storage_proxy_km3": storage_proxy_km3,
+                "surface_elevation_m": float(candidate.surface_elevation_m),
+                "catchment_km2": lake_catchment_km2,
+                "catchment_to_lake_area_ratio": (
+                    lake_catchment_km2 / float(candidate.area_km2)
+                    if candidate.area_km2 > 0.0
+                    else None
+                ),
+                "lake_area_fraction_of_catchment": (
+                    float(candidate.area_km2) / lake_catchment_km2
+                    if lake_catchment_km2 > 0.0
+                    else None
+                ),
+                "bbox_rows": int(max(rows_lake) - min(rows_lake) + 1),
+                "bbox_columns": int(max(cols_lake) - min(cols_lake) + 1),
+                "grid_perimeter_km": perimeter_km,
+                "shoreline_development_index_grid": float(shoreline_development),
+                "outlet_lake_cell": (
+                    [int(outlet.lake_cell[0]), int(outlet.lake_cell[1])]
+                    if outlet is not None else None
+                ),
+                "outlet_receiver_cell": (
+                    [int(outlet.receiver_cell[0]), int(outlet.receiver_cell[1])]
+                    if outlet is not None else None
+                ),
+            }
+        )
+    lake_diagnostics.sort(key=lambda item: (-item["area_km2"], item["lake_id"]))
+
     stats = {
         "checkpoint": "H09-E",
         "generator_version": domain_generator.__version__,
@@ -970,6 +1035,7 @@ def main() -> None:
         "hydrology": {
             "accepted_lake_count": len(hydrology.lake_candidates),
             "canonical_lake_outlet_count": len(hydrology.lake_outlets),
+            "lake_diagnostics": lake_diagnostics,
             "channel_support_cells": int(np.count_nonzero(hydrology.channel_support_mask)),
             "channel_skeleton_cells": int(np.count_nonzero(hydrology.channel_skeleton_mask)),
             "max_local_slope": float(np.max(hydrology.continuous_routing.local_slope)),
