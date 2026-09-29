@@ -1,6 +1,6 @@
 # Repository instructions for Codex
 
-Read `PROJECT.md` first for the stable version boundary and active development line, then read `docs/CONTEXT.md` for the current semantic checkpoint, rejected paths that still constrain the work, and the next bounded task. Do this before inferring current state from `main`, PR chronology, or historical roadmap documents.
+Read `PROJECT.md` first for the stable version boundary and active development line, then read `docs/CONTEXT.md` for the current semantic checkpoint and rejected-path constraints, then read `docs/PROGRESS.md` for the compact DONE / IN PROGRESS / NEXT tree. Do this before inferring current state from `main`, PR chronology, or historical roadmap documents.
 
 `docs/CONTEXT.md` is intentionally a rolling context compression, not an append-only log. Rewrite it when a meaningful project checkpoint changes (accepted/rejected human checkpoint, accepted design gate, active-line change, or completed implementation that changes what comes next). Do not update it for ordinary commits, CI runs, small bugfixes, or refactors that do not change the semantic checkpoint. Remove stale details instead of accumulating history.
 
@@ -10,7 +10,9 @@ For requests that create, revise, validate, troubleshoot, or generate a procedur
 
 Do not bypass the canonical application boundary. Domain authoring should produce or revise `GenerationRequest` / `PresetCatalog` inputs and use the public application API or `domain-generator generate`. Do not directly call internal generation stages to satisfy an end-user authoring request, and do not edit canonical generated `.npy`/`domain.json` outputs as a substitute for changing the request.
 
-Follow INV-006: substantial architecture changes are discussed and documented before implementation. Accepted design documentation is merged before runtime implementation. Implementation pull requests are not merged until the user explicitly accepts the implementation checkpoint.
+Follow INV-006: substantial architecture changes are discussed and documented before implementation. Accepted design documentation is merged before runtime implementation.
+
+For spatial/procedural generation semantics, automated tests are necessary guards but are not acceptance by themselves. When a design defines an operator-visible checkpoint, render a representative world and show the relevant intermediate/final layers to the operator. Do not merge or advance to the next semantic layer until the operator gives explicit ACCEPT. A visually plausible result also does not override failed invariants.
 
 When changing code, run the relevant tests; the default full verification is:
 
