@@ -379,3 +379,30 @@ Still pending before H10-A checkpoint:
 - same-world Actions checkpoint and operator review.
 
 Heavy Actions artifacts remain remote unless the operator explicitly requests a download.
+
+
+## H10-A implementation slice 3
+
+Added automated guards on the implementation branch:
+
+```text
+L01/L03:
+  refined shoreline deterministic
+  refined area > 0
+  refined area <= routing-basin area
+
+L05/L06:
+  lake_inflow and lake_outlet semantic nodes lie on refined shoreline
+
+L08:
+  raster lake water-depth ownership remains unchanged
+```
+
+Core v0.2 validation now includes:
+- refined lake feature ids/areas valid;
+- lake inflow/outlet endpoints on referenced refined shorelines.
+
+Pending:
+- CI result for these guards;
+- H10-A visual diagnostics / same-world checkpoint;
+- operator review.
