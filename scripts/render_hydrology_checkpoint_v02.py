@@ -1280,7 +1280,9 @@ def main() -> None:
                 ),
             }
         )
-    lake_diagnostics.sort(key=lambda item: (-item["area_km2"], item["lake_id"]))
+    lake_diagnostics.sort(
+        key=lambda item: (-item["routing_basin_area_km2"], item["lake_id"])
+    )
 
     stats = {
         "checkpoint": "H10-A",
