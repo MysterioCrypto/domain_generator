@@ -218,17 +218,33 @@ Visual assessment:
 - remaining raster stair-step structure is primarily an internal skeleton diagnostic, while final vector geometry stays low-bias;
 - lakes now stand out more clearly as the next likely source of procedural/artificial appearance.
 
-Assistant technical recommendation: **ACCEPT the river-hierarchy slice of H09-E and freeze it for now; proceed next to the bounded lake pass.** This is not recorded as operator ACCEPT until explicitly confirmed by the user.
+Assistant technical recommendation: **ACCEPT the river-hierarchy slice of H09-E and freeze it for now; proceed next to the bounded lake pass.** The operator reviewed the Actions artifact and reported that H09-E is indeed better, but has not yet issued the formal word ACCEPT, so the checkpoint remains pending formal acceptance.
+
+## New operator observation: rivers feel unfinished at the ends
+
+After reviewing H09-E from GitHub Actions, the operator identified a more precise residual visual issue:
+
+> the body of the river is no longer the main problem; a smooth segment can feel unfinished because it has neither diffuse headwater roots nor a developed receiving end/delta where such a receiver is actually present on the map.
+
+Interpretation:
+
+- do **not** reopen the main continuous river body because of this;
+- diffuse headwater roots / minor tributaries depend on potential low-order drainage plus later climate/biome visibility;
+- delta / estuary / alluvial-fan semantics require knowing the receiving environment;
+- a river leaving the current domain remains a `domain_outlet`, not a fake delta;
+- if a real lake/coast/other receiving water exists, endpoint morphology can be added in a later hydro-surface finishing pass.
+
+This is therefore a **deferred completion layer**, likely after climate/biome/surface semantics are available, not part of the current river-hierarchy acceptance criterion.
 
 ## Next
 
 ```text
-1. Operator review H09-E and explicit ACCEPT / REJECT.
+1. Formal operator ACCEPT / REJECT for H09-E river-hierarchy slice.
 2. If ACCEPT:
    - freeze MFD + regional H09-D2 + potential hierarchy semantics;
-   - design bounded lake size / shape / catchment pass.
-3. If REJECT:
-   - identify whether defect is hierarchy density, source placement, or geometry;
-   - do not reopen MFD without evidence.
+   - design bounded lake count / size / shape / catchment pass.
+3. After lakes and later climate/biomes:
+   - classify potential low-order drainage as perennial / seasonal / dry / omitted;
+   - add headwater-root visibility and receiving-end morphology where semantically justified.
 4. Surface / Placement remain blocked until Hydrology ACCEPT.
 ```
