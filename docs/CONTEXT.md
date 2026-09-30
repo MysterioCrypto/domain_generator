@@ -520,3 +520,29 @@ Frozen during H10-B:
 - raster water-depth semantics.
 
 Heavy Actions artifacts remain remote unless explicitly requested.
+
+
+## H10-B implementation slice 1
+
+Implemented on PR #72 implementation branch:
+
+- new internal module hydrology/depression_hierarchy.py;
+- deterministic level-set sweep inside each accepted routing lake;
+- equal-elevation cells are activated as one batch before merge interpretation;
+- leaf depressions and merge/meta-depressions are recorded as an acyclic tree;
+- each node stores minimum, birth level, spill level, area-at-spill and storage proxy;
+- significance uses only the existing lake_min_area / lake_min_depth thresholds;
+- no lake/routing/river semantics changed.
+
+Added synthetic guards for:
+- deterministic two-leaf merge;
+- equal-elevation plateau stability;
+- single-bowl one-root hierarchy.
+
+Pending:
+- CI;
+- same-world hierarchy statistics;
+- H10-B contact sheet / large-lake close-ups;
+- operator interpretation.
+
+Heavy Actions artifacts remain remote unless explicitly requested.
