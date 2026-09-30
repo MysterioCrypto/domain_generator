@@ -573,3 +573,63 @@ Pending:
 - CI/checkpoint result;
 - inspect H10-B statistics and compact previews;
 - decide whether the broad lakes are compound or single-basin.
+
+
+## H10-B same-world result
+
+Implementation checkpoint:
+`1e572096f7d67aacbae37c10c0380533397754d7`
+
+CI:
+- H10-B checkpoint workflow: GREEN;
+- pull-request pytest: GREEN;
+- push pytest: GREEN;
+- engine invariants: GREEN;
+- hard constraints: GREEN.
+
+No full Actions artifact was downloaded into the chat/container. Review used workflow logs + compact previews only.
+
+### Structural result
+
+All 13 accepted routing lakes produced the same hierarchy pattern:
+
+```text
+node_count:                    1
+leaf_count:                    1
+threshold_significant leaves:  1
+merge_node_count:              0
+multiple significant children: false
+largest leaf area fraction:    1.0
+largest leaf storage fraction: 1.0
+```
+
+This includes all four largest lakes:
+
+```text
+222 km² → one basin, no internal merge
+156 km² → one basin, no internal merge
+114 km² → one basin, no internal merge
+103 km² → one basin, no internal merge
+```
+
+Therefore the H10-B hypothesis is falsified for this representative world:
+
+> the broad lake shapes are NOT caused by Priority-Flood merging multiple meaningful nested sub-basins.
+
+The broadness is already present in the underlying Terrain 0.2 basin geometry and/or in the hydrology-only assumption that every threshold-qualified depression is represented at full spill.
+
+### Consequence
+
+Do not implement nested-depression splitting or partial-fill cascades for Core 0.2 on the basis of this checkpoint. There is no structural evidence for it.
+
+Keep:
+- H10-A refined 250 m shoreline geometry;
+- exact lake inflow/outlet contact;
+- current one-supernode / one-outlet routing semantics;
+- accepted H09-E river hierarchy.
+
+Remaining questions such as whether a basin is a perennial lake, seasonal lake, wetland, playa or dry depression require climate/surface/water-balance context and are deferred.
+
+Assistant recommendation: treat H10-A + current full-spill routing basins as the **Hydrology 0.2 base**, stop lake algorithm tuning here, and move to final Hydrology operator review. Reopen Terrain 0.2 only if a later layer provides a concrete cross-layer defect, not because a neutral lake-rich representative world looks unusual.
+
+Heavy Actions artifacts remain remote unless explicitly requested.
