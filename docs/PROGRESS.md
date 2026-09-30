@@ -57,7 +57,7 @@ renderer/smoothing as an upstream-fix substitute
 ```text
 Hydrology 0.2
 ├─ H10-A shoreline refinement — KEEP
-└─ H10-B nested depression hierarchy — IMPLEMENTATION
+└─ H10-B nested depression hierarchy — COMPLETE
    ├─ river hierarchy frozen
    ├─ diagnostics complete
    │  ├─ 13 routing lakes
@@ -73,10 +73,10 @@ Hydrology 0.2
 
 H10-B
    ├─ design PR #79 ACCEPTED / merged
-   ├─ semantics frozen; diagnostic only
-   ├─ hierarchy core + synthetic guards — IMPLEMENTED
-   ├─ same-world diagnostics / rendering — IMPLEMENTED
-   └─ CI + structural interpretation — IN PROGRESS
+   ├─ hierarchy core + diagnostics — GREEN
+   ├─ all 13 lakes: single-basin hierarchy
+   ├─ nested-split hypothesis — REJECTED by evidence
+   └─ production nested/partial-fill semantics — DO NOT IMPLEMENT
 ```
 
 PR #72 remains draft/open until the Hydrology lake slice and final review are complete.
@@ -114,3 +114,21 @@ explicit operator ACCEPT
 =
 accepted spatial semantic layer
 ```
+
+
+## CURRENT DECISION GATE
+
+```text
+Hydrology 0.2 final operator review
+├─ Terrain 0.2                 ACCEPTED
+├─ river hierarchy H09-E       ACCEPTED
+├─ H10-A refined shorelines    KEEP
+├─ H10-B diagnostic            COMPLETE
+└─ recommendation              ACCEPT Hydrology 0.2 base
+```
+
+Deferred to climate/surface/biomes:
+- perennial vs seasonal low-order drainage;
+- standing lake vs wetland/playa/dry basin classification;
+- headwater visual roots;
+- delta/estuary/fan endpoint morphology.
