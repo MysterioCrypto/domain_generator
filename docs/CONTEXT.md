@@ -490,3 +490,33 @@ Assistant assessment:
 - if operator agrees, next bounded design should investigate nested-depression / partial-fill semantics rather than globally clipping lake area or reopening accepted river hierarchy.
 
 Heavy Actions artifacts remain remote unless explicitly requested.
+
+
+## Operator decision after H10-A
+
+Operator accepted the proposed next step: try nested-depression analysis.
+
+Recorded decision:
+
+```text
+H10-A refined shoreline semantics: KEEP
+H10-A as final lake solution: REJECT
+H10-B nested-depression diagnostic: ACCEPTED design
+```
+
+PR #79 merged to dev/0.2.
+
+Important semantic correction before implementation:
+a partial lake with a maintained downstream surface outlet is not physically self-consistent without a water-balance/loss model. Therefore H10-B is diagnostic first, not an immediate partial-fill implementation.
+
+H10-B will determine whether the suspicious broad lakes are:
+- genuinely compound nested depressions with multiple significant child basins; or
+- single broad basins implied by Terrain 0.2.
+
+Frozen during H10-B:
+- all accepted river routing/hierarchy semantics;
+- lake ids and canonical outlets;
+- H10-A refined shorelines;
+- raster water-depth semantics.
+
+Heavy Actions artifacts remain remote unless explicitly requested.
