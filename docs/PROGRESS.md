@@ -75,7 +75,8 @@ H10-B
    ├─ design PR #79 ACCEPTED / merged
    ├─ semantics frozen; diagnostic only
    ├─ hierarchy core + synthetic guards — IMPLEMENTED
-   └─ same-world diagnostics / rendering — IN PROGRESS
+   ├─ same-world diagnostics / rendering — IMPLEMENTED
+   └─ CI + structural interpretation — IN PROGRESS
 ```
 
 PR #72 remains draft/open until the Hydrology lake slice and final review are complete.
