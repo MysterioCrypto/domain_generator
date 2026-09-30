@@ -50,9 +50,9 @@ jobs:
 
           root = Path(os.environ["RUNNER_TEMP"]) / "hydrology-v02-h09"
           selected = (
-              "13-lake-raster-vs-refined.png",
               "14-refined-lakes-regional-rivers.png",
-              "16-lake-contact-sheet.png",
+              "18-nested-depression-contact-sheet.png",
+              "19-largest-lake-hierarchies.png",
               "17-lake-endpoints.png",
           )
           for name in selected:

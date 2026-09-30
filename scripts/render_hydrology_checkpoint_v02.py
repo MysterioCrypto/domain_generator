@@ -19,6 +19,7 @@ from domain_generator.application import (
 from domain_generator.compiler import compile_domain_spec
 from domain_generator.geometry import backend_region_set
 from domain_generator.hydrology import generate_hydrology, validate_hydrology
+from domain_generator.hydrology.depression_hierarchy import build_nested_depression_hierarchy
 from domain_generator.hydrology.ids import lake_feature_id
 from domain_generator.hydrology.continuous import (
     _activate_channel_skeleton,
@@ -898,6 +899,271 @@ def _save_lake_endpoints(
     plt.close(fig)
 
 
+def _build_nested_hierarchies(plan, terrain, hydrology):
+    result = {}
+    for index, candidate in enumerate(hydrology.lake_candidates):
+        lake_id = lake_feature_id(index)
+        result[lake_id] = build_nested_depression_hierarchy(
+            terrain.elevation_m,
+            candidate,
+            cell_size_km=float(plan.grid.cell_size_km),
+            lake_min_area_km2=float(plan.hydrology.lake_min_area_km2),
+            lake_min_depth_m=float(plan.hydrology.lake_min_depth_m),
+        )
+    return result
+
+
+def _hierarchy_summary(lake_id, hierarchy):
+    nodes = hierarchy.node_map()
+    root = nodes[hierarchy.root_id]
+    leaves = list(hierarchy.leaf_nodes())
+    significant = [node for node in leaves if node.threshold_significant]
+    significant.sort(
+        key=lambda node: (
+            -float(node.area_at_spill_km2),
+            -float(node.storage_to_spill_proxy_km3),
+            node.id,
+        )
+    )
+    root_area = float(root.area_at_spill_km2)
+    root_storage = float(root.storage_to_spill_proxy_km3)
+
+    def _node_record(node):
+        return {
+            "id": node.id,
+            "parent_id": node.parent_id,
+            "child_ids": list(node.child_ids),
+            "minimum_cell": [int(node.minimum_cell[0]), int(node.minimum_cell[1])],
+            "minimum_elevation_m": float(node.minimum_elevation_m),
+            "birth_elevation_m": float(node.birth_elevation_m),
+            "birth_cells": [[int(r), int(c)] for r, c in node.birth_cells],
+            "spill_elevation_m": float(node.spill_elevation_m),
+            "relief_to_spill_m": float(node.relief_to_spill_m),
+            "area_at_spill_km2": float(node.area_at_spill_km2),
+            "storage_to_spill_proxy_km3": float(node.storage_to_spill_proxy_km3),
+            "area_fraction_of_root": (
+                float(node.area_at_spill_km2) / root_area if root_area > 0.0 else 0.0
+            ),
+            "storage_fraction_of_root": (
+                float(node.storage_to_spill_proxy_km3) / root_storage
+                if root_storage > 0.0 else 0.0
+            ),
+            "threshold_significant": bool(node.threshold_significant),
+        }
+
+    area_fractions = [
+        float(node.area_at_spill_km2) / root_area
+        for node in significant
+        if root_area > 0.0
+    ]
+    storage_fractions = [
+        float(node.storage_to_spill_proxy_km3) / root_storage
+        for node in significant
+        if root_storage > 0.0
+    ]
+    return {
+        "lake_id": lake_id,
+        "root_id": hierarchy.root_id,
+        "node_count": len(hierarchy.nodes),
+        "merge_node_count": sum(1 for node in hierarchy.nodes if node.child_ids),
+        "leaf_count": len(leaves),
+        "threshold_significant_leaf_count": len(significant),
+        "has_multiple_significant_children": len(significant) >= 2,
+        "root_area_km2": root_area,
+        "root_storage_proxy_km3": root_storage,
+        "largest_significant_leaf_area_fraction": (
+            max(area_fractions) if area_fractions else None
+        ),
+        "second_significant_leaf_area_fraction": (
+            sorted(area_fractions, reverse=True)[1] if len(area_fractions) >= 2 else None
+        ),
+        "largest_significant_leaf_storage_fraction": (
+            max(storage_fractions) if storage_fractions else None
+        ),
+        "second_significant_leaf_storage_fraction": (
+            sorted(storage_fractions, reverse=True)[1] if len(storage_fractions) >= 2 else None
+        ),
+        "significant_leaves": [_node_record(node) for node in significant],
+        "nodes": [_node_record(node) for node in hierarchy.nodes],
+    }
+
+
+def _plot_hierarchy_on_lake(
+    ax,
+    terrain,
+    hydrology,
+    lake_index,
+    hierarchy,
+    *,
+    cell_size_km: float,
+    height_km: float,
+    padding_km: float = 2.0,
+) -> None:
+    candidate = hydrology.lake_candidates[lake_index]
+    lake_id = lake_feature_id(lake_index)
+    feature = hydrology.lake_features[lake_id]
+
+    rows = [cell[0] for cell in candidate.cells]
+    columns = [cell[1] for cell in candidate.cells]
+    width_km = terrain.elevation_m.shape[1] * cell_size_km
+    x0 = max(0.0, min(columns) * cell_size_km - padding_km)
+    x1 = min(width_km, (max(columns) + 1) * cell_size_km + padding_km)
+    y0 = max(0.0, height_km - (max(rows) + 1) * cell_size_km - padding_km)
+    y1 = min(height_km, height_km - min(rows) * cell_size_km + padding_km)
+
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+    )
+    for polygon in feature.geometry.polygons:
+        xs = [float(point.x_km) for point in polygon.outer]
+        ys = [float(point.y_km) for point in polygon.outer]
+        ax.fill(xs, ys, color="deepskyblue", alpha=0.32, linewidth=0.0, zorder=4)
+        ax.plot(xs + [xs[0]], ys + [ys[0]], color="dodgerblue", linewidth=1.0, zorder=5)
+
+    leaves = [
+        node for node in hierarchy.leaf_nodes()
+        if node.threshold_significant
+    ]
+    leaves.sort(key=lambda node: (-node.area_at_spill_km2, node.id))
+    cmap = plt.get_cmap("tab10")
+    for leaf_index, node in enumerate(leaves):
+        rr = np.array([cell[0] for cell in node.cells_at_spill], dtype=np.int64)
+        cc = np.array([cell[1] for cell in node.cells_at_spill], dtype=np.int64)
+        xx, yy = _world_xy(rr, cc, cell_size_km=cell_size_km, height_km=height_km)
+        ax.scatter(
+            xx,
+            yy,
+            s=34.0,
+            marker="s",
+            facecolors="none",
+            edgecolors=[cmap(leaf_index % 10)],
+            linewidths=0.9,
+            zorder=7,
+        )
+        min_x, min_y = _world_xy(
+            np.array([node.minimum_cell[0]], dtype=np.int64),
+            np.array([node.minimum_cell[1]], dtype=np.int64),
+            cell_size_km=cell_size_km,
+            height_km=height_km,
+        )
+        ax.scatter(min_x, min_y, s=28.0, marker="o", color=[cmap(leaf_index % 10)], zorder=9)
+
+    merge_nodes = [node for node in hierarchy.nodes if node.child_ids]
+    for node in merge_nodes:
+        if not node.birth_cells:
+            continue
+        rr = np.array([cell[0] for cell in node.birth_cells], dtype=np.int64)
+        cc = np.array([cell[1] for cell in node.birth_cells], dtype=np.int64)
+        xx, yy = _world_xy(rr, cc, cell_size_km=cell_size_km, height_km=height_km)
+        ax.scatter(xx, yy, s=32.0, marker="x", color="magenta", linewidths=1.0, zorder=10)
+
+    ax.set_xlim(x0, x1)
+    ax.set_ylim(y0, y1)
+    ax.set_aspect("equal")
+    ax.set_title(
+        f"{lake_id}: leaves={len(hierarchy.leaf_nodes())}, significant={len(leaves)}, merges={len(merge_nodes)}",
+        fontsize=8,
+    )
+    ax.tick_params(labelsize=6)
+
+
+def _save_nested_depression_contact_sheet(
+    output: Path,
+    terrain,
+    hydrology,
+    hierarchies,
+    *,
+    cell_size_km: float,
+    height_km: float,
+) -> None:
+    items = [
+        (float(candidate.area_km2), index)
+        for index, candidate in enumerate(hydrology.lake_candidates)
+    ]
+    items.sort(key=lambda item: (-item[0], item[1]))
+    fig, axes = plt.subplots(4, 4, figsize=(16.0, 16.0), dpi=150)
+    flat = list(axes.flat)
+    for ax in flat:
+        ax.axis("off")
+    for ax, (_area, index) in zip(flat, items):
+        ax.axis("on")
+        lake_id = lake_feature_id(index)
+        _plot_hierarchy_on_lake(
+            ax,
+            terrain,
+            hydrology,
+            index,
+            hierarchies[lake_id],
+            cell_size_km=cell_size_km,
+            height_km=height_km,
+        )
+    fig.suptitle(
+        "H10-B — Nested depression diagnostic: significant leaf basins, minima and merge saddles",
+        fontsize=14,
+    )
+    fig.tight_layout()
+    fig.savefig(output / "18-nested-depression-contact-sheet.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_largest_nested_depressions(
+    output: Path,
+    terrain,
+    hydrology,
+    hierarchies,
+    *,
+    cell_size_km: float,
+    height_km: float,
+) -> None:
+    largest = sorted(
+        range(len(hydrology.lake_candidates)),
+        key=lambda index: (
+            -float(hydrology.lake_candidates[index].area_km2),
+            index,
+        ),
+    )[:4]
+    fig, axes = plt.subplots(2, 2, figsize=(16.0, 12.0), dpi=160)
+    for ax, index in zip(axes.flat, largest):
+        lake_id = lake_feature_id(index)
+        _plot_hierarchy_on_lake(
+            ax,
+            terrain,
+            hydrology,
+            index,
+            hierarchies[lake_id],
+            cell_size_km=cell_size_km,
+            height_km=height_km,
+            padding_km=3.0,
+        )
+        summary = _hierarchy_summary(lake_id, hierarchies[lake_id])
+        first = summary["largest_significant_leaf_area_fraction"]
+        second = summary["second_significant_leaf_area_fraction"]
+        subtitle = (
+            f"largest/second significant leaf area fraction: "
+            f"{first:.2f}/{second:.2f}"
+            if first is not None and second is not None
+            else f"largest significant leaf area fraction: {first:.2f}"
+            if first is not None else "no significant leaf"
+        )
+        ax.text(
+            0.02,
+            0.02,
+            subtitle,
+            transform=ax.transAxes,
+            fontsize=8,
+            bbox={"facecolor": "white", "alpha": 0.72, "edgecolor": "none"},
+            zorder=12,
+        )
+    fig.suptitle("H10-B — Four largest routing lakes: internal depression structure", fontsize=14)
+    fig.tight_layout()
+    fig.savefig(output / "19-largest-lake-hierarchies.png", bbox_inches="tight")
+    plt.close(fig)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Render Core 0.2 hydrology H09 checkpoint")
     parser.add_argument("request", type=Path)
@@ -1067,6 +1333,24 @@ def main() -> None:
         width_km=width_km,
         height_km=height_km,
         cell_size_km=cell_size_km,
+    )
+
+    nested_hierarchies = _build_nested_hierarchies(plan, terrain, hydrology)
+    _save_nested_depression_contact_sheet(
+        args.output,
+        terrain,
+        hydrology,
+        nested_hierarchies,
+        cell_size_km=cell_size_km,
+        height_km=height_km,
+    )
+    _save_largest_nested_depressions(
+        args.output,
+        terrain,
+        hydrology,
+        nested_hierarchies,
+        cell_size_km=cell_size_km,
+        height_km=height_km,
     )
 
     node_kinds = Counter(node.kind.value for node in hydrology.river_network.nodes.values())
@@ -1283,9 +1567,16 @@ def main() -> None:
     lake_diagnostics.sort(
         key=lambda item: (-item["routing_basin_area_km2"], item["lake_id"])
     )
+    nested_depression_diagnostics = [
+        _hierarchy_summary(lake_id, hierarchy)
+        for lake_id, hierarchy in sorted(nested_hierarchies.items())
+    ]
+    nested_depression_diagnostics.sort(
+        key=lambda item: (-item["root_area_km2"], item["lake_id"])
+    )
 
     stats = {
-        "checkpoint": "H10-A",
+        "checkpoint": "H10-B",
         "generator_version": domain_generator.__version__,
         "plan_version": plan.plan_version,
         "routing_mode": hydrology.routing_mode,
@@ -1305,6 +1596,7 @@ def main() -> None:
             "accepted_lake_count": len(hydrology.lake_candidates),
             "canonical_lake_outlet_count": len(hydrology.lake_outlets),
             "lake_diagnostics": lake_diagnostics,
+            "nested_depression_diagnostics": nested_depression_diagnostics,
             "channel_support_cells": int(np.count_nonzero(hydrology.channel_support_mask)),
             "channel_skeleton_cells": int(np.count_nonzero(hydrology.channel_skeleton_mask)),
             "max_local_slope": float(np.max(hydrology.continuous_routing.local_slope)),
