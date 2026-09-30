@@ -553,3 +553,23 @@ Heavy Actions artifacts remain remote unless explicitly requested.
 Nested-depression diagnostic nodes now retain deterministic birth/saddle cell sets in addition to birth elevation. This supports the accepted H10-B checkpoint requirement to show internal merge locations, including equal-elevation saddle plateaus.
 
 No production hydrology semantics changed.
+
+
+## H10-B implementation slice 2
+
+Added same-world operator diagnostics on the implementation branch:
+
+- nested hierarchy summary for every accepted lake;
+- significant leaf basin area/storage fractions;
+- contact sheet for all 13 lakes;
+- dedicated close-ups for the four largest lakes;
+- leaf minima and internal merge/saddle cell markers;
+- H10-B JSON diagnostics embedded in statistics.json;
+- compact Actions previews updated to H10-B views.
+
+No full Actions artifact is to be downloaded into the chat/container without explicit operator request.
+
+Pending:
+- CI/checkpoint result;
+- inspect H10-B statistics and compact previews;
+- decide whether the broad lakes are compound or single-basin.
