@@ -16,6 +16,7 @@ from domain_generator.hydrology.continuous import (
     generate_hydrology_v02,
 )
 from domain_generator.hydrology.classification import classify_stream_mask, extract_lake_candidates
+from domain_generator.hydrology.depression_hierarchy import build_nested_depression_hierarchy
 from domain_generator.hydrology.ids import lake_feature_id
 from domain_generator.geometry import region_set_boundary_distance_km
 from domain_generator.hydrology.materialize import materialize_lake_features, refined_lake_region_set
@@ -519,3 +520,98 @@ def test_l05_l08_generated_lake_nodes_lie_on_refined_shoreline() -> None:
     assert seen_lake_node
     for cell in hydrology.lake_candidates[0].cells:
         assert float(hydrology.water_depth_m[cell]) > 0.0
+
+
+def test_n01_n04_nested_depression_two_leaf_merge_is_deterministic() -> None:
+    terrain = np.full((5, 7), 50.0, dtype=np.float64)
+    cells = tuple((2, column) for column in range(1, 6))
+    terrain[2, 1] = 0.0
+    terrain[2, 2] = 2.0
+    terrain[2, 3] = 5.0
+    terrain[2, 4] = 2.0
+    terrain[2, 5] = 0.0
+    candidate = LakeCandidate(
+        cells=cells,
+        area_km2=5.0,
+        max_depth_m=10.0,
+        surface_elevation_m=10.0,
+    )
+
+    first = build_nested_depression_hierarchy(
+        terrain,
+        candidate,
+        cell_size_km=1.0,
+        lake_min_area_km2=1.0,
+        lake_min_depth_m=1.0,
+    )
+    second = build_nested_depression_hierarchy(
+        terrain,
+        candidate,
+        cell_size_km=1.0,
+        lake_min_area_km2=1.0,
+        lake_min_depth_m=1.0,
+    )
+
+    assert first == second
+    nodes = first.node_map()
+    root = nodes[first.root_id]
+    assert len(root.child_ids) == 2
+    assert root.spill_elevation_m == 10.0
+    assert root.area_at_spill_km2 == 5.0
+    leaves = first.leaf_nodes()
+    assert len(leaves) == 2
+    assert all(node.spill_elevation_m == 5.0 for node in leaves)
+    assert all(node.threshold_significant for node in leaves)
+    assert all(nodes[child_id].parent_id == root.id for child_id in root.child_ids)
+
+
+def test_n01_equal_elevation_plateau_merge_is_batch_stable() -> None:
+    terrain = np.full((5, 8), 50.0, dtype=np.float64)
+    cells = tuple((2, column) for column in range(1, 7))
+    values = (0.0, 2.0, 5.0, 5.0, 2.0, 0.0)
+    for column, value in zip(range(1, 7), values):
+        terrain[2, column] = value
+    candidate = LakeCandidate(
+        cells=cells,
+        area_km2=6.0,
+        max_depth_m=10.0,
+        surface_elevation_m=10.0,
+    )
+
+    hierarchy = build_nested_depression_hierarchy(
+        terrain,
+        candidate,
+        cell_size_km=1.0,
+        lake_min_area_km2=1.0,
+        lake_min_depth_m=1.0,
+    )
+    root = hierarchy.node_map()[hierarchy.root_id]
+    assert len(root.child_ids) == 2
+    assert len(hierarchy.leaf_nodes()) == 2
+    assert {node.spill_elevation_m for node in hierarchy.leaf_nodes()} == {5.0}
+
+
+def test_n02_single_bowl_has_one_root_leaf() -> None:
+    terrain = np.full((5, 7), 50.0, dtype=np.float64)
+    cells = tuple((2, column) for column in range(1, 6))
+    for column, value in zip(range(1, 6), (0.0, 1.0, 2.0, 3.0, 4.0)):
+        terrain[2, column] = value
+    candidate = LakeCandidate(
+        cells=cells,
+        area_km2=5.0,
+        max_depth_m=10.0,
+        surface_elevation_m=10.0,
+    )
+    hierarchy = build_nested_depression_hierarchy(
+        terrain,
+        candidate,
+        cell_size_km=1.0,
+        lake_min_area_km2=1.0,
+        lake_min_depth_m=1.0,
+    )
+    assert len(hierarchy.nodes) == 1
+    root = hierarchy.nodes[0]
+    assert root.id == hierarchy.root_id
+    assert root.child_ids == ()
+    assert root.cells_at_spill == cells
+    assert root.area_at_spill_km2 == 5.0
