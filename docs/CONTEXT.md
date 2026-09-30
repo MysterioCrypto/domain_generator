@@ -546,3 +546,10 @@ Pending:
 - operator interpretation.
 
 Heavy Actions artifacts remain remote unless explicitly requested.
+
+
+## H10-B implementation slice 1b
+
+Nested-depression diagnostic nodes now retain deterministic birth/saddle cell sets in addition to birth elevation. This supports the accepted H10-B checkpoint requirement to show internal merge locations, including equal-elevation saddle plateaus.
+
+No production hydrology semantics changed.
