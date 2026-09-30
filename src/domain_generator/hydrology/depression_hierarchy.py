@@ -17,6 +17,7 @@ class DepressionHierarchyNode:
     minimum_cell: Cell
     minimum_elevation_m: float
     birth_elevation_m: float
+    birth_cells: tuple[Cell, ...]
     spill_elevation_m: float
     relief_to_spill_m: float
     cells_at_spill: tuple[Cell, ...]
@@ -129,6 +130,7 @@ def build_nested_depression_hierarchy(
         minimum_cell: Cell,
         minimum_elevation_m: float,
         birth_elevation_m: float,
+        birth_cells: tuple[Cell, ...],
     ) -> str:
         nonlocal next_id
         node_id = f"depression-node-{next_id:04d}"
@@ -140,6 +142,7 @@ def build_nested_depression_hierarchy(
             "minimum_cell": minimum_cell,
             "minimum_elevation_m": float(minimum_elevation_m),
             "birth_elevation_m": float(birth_elevation_m),
+            "birth_cells": tuple(sorted(birth_cells)),
             "spill_elevation_m": None,
             "cells_at_spill": None,
         }
@@ -184,6 +187,12 @@ def build_nested_depression_hierarchy(
                     minimum_cell=minimum_cell,
                     minimum_elevation_m=float(terrain_elevation_m[minimum_cell]),
                     birth_elevation_m=float(terrain_elevation_m[minimum_cell]),
+                    birth_cells=tuple(
+                        cell
+                        for cell in component
+                        if float(terrain_elevation_m[cell])
+                        == float(terrain_elevation_m[minimum_cell])
+                    ),
                 )
             elif len(previous_sorted) == 1:
                 node_id = previous_node_by_component[previous_sorted[0]]
@@ -206,6 +215,12 @@ def build_nested_depression_hierarchy(
                     minimum_cell=minimum_cell,
                     minimum_elevation_m=float(terrain_elevation_m[minimum_cell]),
                     birth_elevation_m=float(level),
+                    birth_cells=tuple(
+                        cell
+                        for cell in component
+                        if cell not in previous_owner
+                        and float(terrain_elevation_m[cell]) == float(level)
+                    ),
                 )
             current_node_by_component[component] = node_id
 
@@ -246,6 +261,7 @@ def build_nested_depression_hierarchy(
                 minimum_cell=builder["minimum_cell"],
                 minimum_elevation_m=minimum_elevation,
                 birth_elevation_m=float(builder["birth_elevation_m"]),
+                birth_cells=tuple(builder["birth_cells"]),
                 spill_elevation_m=float(spill),
                 relief_to_spill_m=relief,
                 cells_at_spill=cells_tuple,
