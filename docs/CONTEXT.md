@@ -520,3 +520,116 @@ Frozen during H10-B:
 - raster water-depth semantics.
 
 Heavy Actions artifacts remain remote unless explicitly requested.
+
+
+## H10-B implementation slice 1
+
+Implemented on PR #72 implementation branch:
+
+- new internal module hydrology/depression_hierarchy.py;
+- deterministic level-set sweep inside each accepted routing lake;
+- equal-elevation cells are activated as one batch before merge interpretation;
+- leaf depressions and merge/meta-depressions are recorded as an acyclic tree;
+- each node stores minimum, birth level, spill level, area-at-spill and storage proxy;
+- significance uses only the existing lake_min_area / lake_min_depth thresholds;
+- no lake/routing/river semantics changed.
+
+Added synthetic guards for:
+- deterministic two-leaf merge;
+- equal-elevation plateau stability;
+- single-bowl one-root hierarchy.
+
+Pending:
+- CI;
+- same-world hierarchy statistics;
+- H10-B contact sheet / large-lake close-ups;
+- operator interpretation.
+
+Heavy Actions artifacts remain remote unless explicitly requested.
+
+
+## H10-B implementation slice 1b
+
+Nested-depression diagnostic nodes now retain deterministic birth/saddle cell sets in addition to birth elevation. This supports the accepted H10-B checkpoint requirement to show internal merge locations, including equal-elevation saddle plateaus.
+
+No production hydrology semantics changed.
+
+
+## H10-B implementation slice 2
+
+Added same-world operator diagnostics on the implementation branch:
+
+- nested hierarchy summary for every accepted lake;
+- significant leaf basin area/storage fractions;
+- contact sheet for all 13 lakes;
+- dedicated close-ups for the four largest lakes;
+- leaf minima and internal merge/saddle cell markers;
+- H10-B JSON diagnostics embedded in statistics.json;
+- compact Actions previews updated to H10-B views.
+
+No full Actions artifact is to be downloaded into the chat/container without explicit operator request.
+
+Pending:
+- CI/checkpoint result;
+- inspect H10-B statistics and compact previews;
+- decide whether the broad lakes are compound or single-basin.
+
+
+## H10-B same-world result
+
+Implementation checkpoint:
+`1e572096f7d67aacbae37c10c0380533397754d7`
+
+CI:
+- H10-B checkpoint workflow: GREEN;
+- pull-request pytest: GREEN;
+- push pytest: GREEN;
+- engine invariants: GREEN;
+- hard constraints: GREEN.
+
+No full Actions artifact was downloaded into the chat/container. Review used workflow logs + compact previews only.
+
+### Structural result
+
+All 13 accepted routing lakes produced the same hierarchy pattern:
+
+```text
+node_count:                    1
+leaf_count:                    1
+threshold_significant leaves:  1
+merge_node_count:              0
+multiple significant children: false
+largest leaf area fraction:    1.0
+largest leaf storage fraction: 1.0
+```
+
+This includes all four largest lakes:
+
+```text
+222 km² → one basin, no internal merge
+156 km² → one basin, no internal merge
+114 km² → one basin, no internal merge
+103 km² → one basin, no internal merge
+```
+
+Therefore the H10-B hypothesis is falsified for this representative world:
+
+> the broad lake shapes are NOT caused by Priority-Flood merging multiple meaningful nested sub-basins.
+
+The broadness is already present in the underlying Terrain 0.2 basin geometry and/or in the hydrology-only assumption that every threshold-qualified depression is represented at full spill.
+
+### Consequence
+
+Do not implement nested-depression splitting or partial-fill cascades for Core 0.2 on the basis of this checkpoint. There is no structural evidence for it.
+
+Keep:
+- H10-A refined 250 m shoreline geometry;
+- exact lake inflow/outlet contact;
+- current one-supernode / one-outlet routing semantics;
+- accepted H09-E river hierarchy.
+
+Remaining questions such as whether a basin is a perennial lake, seasonal lake, wetland, playa or dry depression require climate/surface/water-balance context and are deferred.
+
+Assistant recommendation: treat H10-A + current full-spill routing basins as the **Hydrology 0.2 base**, stop lake algorithm tuning here, and move to final Hydrology operator review. Reopen Terrain 0.2 only if a later layer provides a concrete cross-layer defect, not because a neutral lake-rich representative world looks unusual.
+
+Heavy Actions artifacts remain remote unless explicitly requested.

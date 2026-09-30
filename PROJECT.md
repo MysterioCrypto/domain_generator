@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-b8-nested-depression-diagnostic
-checkpoint: h10-a-shoreline-keep-h10-b-design-accepted
-next_topic: implement-h10-b-nested-depression-diagnostic
+checkpoint: h10-b-diagnostic-complete-no-nested-compound-lakes
+next_topic: hydrology-v0.2-final-operator-review
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
