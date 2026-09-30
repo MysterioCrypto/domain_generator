@@ -6,9 +6,9 @@ status: in-progress
 historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
-current_milestone: v0.2-batch-b7-lake-shoreline-morphology
-checkpoint: h10-a-refined-shorelines-ready-for-operator-review
-next_topic: operator-review-h10-a
+current_milestone: v0.2-batch-b8-nested-depression-diagnostic
+checkpoint: h10-a-shoreline-keep-h10-b-design-accepted
+next_topic: implement-h10-b-nested-depression-diagnostic
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -20,6 +20,7 @@ accepted_designs:
   - additive-terrain-aware-source-promotion-v0.2
   - multiscale-drainage-hierarchy-v0.2
   - lake-shoreline-morphology-v0.2
+  - nested-depression-hierarchy-diagnostic-v0.2
 completed:
   - core-0.1-prealpha-infrastructure
   - core-0.1-m11-acceptance-suite
