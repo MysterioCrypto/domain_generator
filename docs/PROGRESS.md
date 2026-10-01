@@ -22,52 +22,47 @@ Core 0.2
 │  ├─ H09-E potential hierarchy + Strahler
 │  ├─ H10-A refined lake shorelines
 │  └─ H10-B nested split hypothesis rejected by evidence
-└─ C1 annual climate forcing — ACCEPTED / MERGED
-   ├─ annual temperature
-   ├─ annual precipitation
-   ├─ windward/lee forcing
-   └─ C01–C09 guards
+├─ C1 annual climate forcing — ACCEPTED / MERGED
+│  ├─ annual temperature
+│  ├─ annual precipitation
+│  ├─ windward/lee forcing
+│  └─ C01–C09 guards
+└─ C2 effective surface moisture — ACCEPTED / MERGED
+   ├─ PR #83
+   ├─ M01–M10 guards GREEN
+   ├─ C2-A 8 km proximity scale REJECTED
+   └─ C2-B 2 km representative proximity scale ACCEPTED
 ```
+
+Accepted C2-B workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36837227248`
+
+PR #83 merge:
+`de5646a1af9c9057fe13cf1e7eb92bb1a3728e46`
 
 ## IN PROGRESS
 
 ```text
-C2 effective surface moisture — C2-B RETUNE
-├─ design PR #82 — ACCEPTED / merged
-├─ implementation PR #83 — draft/open
-├─ effective-moisture core — IMPLEMENTED
-├─ M01–M10 guards — GREEN
-├─ push/PR pytest — GREEN
-├─ C2-A workflow — GREEN
-├─ C2-A operator decision — REJECT
-│  └─ culprit: actual-water proximity scale (8 km decay halo)
-└─ C2-B bounded water-proximity correction — IN PROGRESS
+C3 vegetation / biome readiness — DESIGN GATE
+└─ INV-006: document and accept semantics before runtime implementation
 ```
 
-Latest workflow:
-`https://github.com/MysterioCrypto/domain_generator/actions/runs/36831586933`
-
-Artifact:
-`surface-v02-c2`
-
-C2-A decision:
-`water_moisture_decay_km = 8` is rejected as the representative generic actual-water scale because it creates broad artificial-looking halos around rivers/lakes.
-
-Keep unchanged:
-climatic wetness, catchment contribution, slope retention, Terrain, Hydrology and C1.
+No C3 runtime implementation has started.
 
 ## NEXT
 
 ```text
-1. sync PR #83 implementation branch with current dev/0.2
-2. retune only representative water_moisture_decay_km
-3. rerun same-world C2 checkpoint
-4. model/operator review of corrected proximity scale
-5. ACCEPT → freeze C2 and merge PR #83
-6. INV-006 design C3 vegetation / biome readiness
+1. create C3 vegetation / biome-readiness design
+2. explicit design ACCEPT / REJECT
+3. ACCEPT → implementation branch
+4. automated C3 guardrails
+5. representative operator-visible C3 checkpoint
+6. explicit implementation ACCEPT / REJECT
+7. later revisit deferred hydro-surface finishing with environmental context
+8. then continue Placement
 ```
 
-Do not reopen Terrain/Hydrology/C1 without new concrete evidence.
+Do not reopen Terrain/Hydrology/C1/C2 without new concrete evidence.
 
 ## Deferred
 
@@ -83,7 +78,8 @@ Placement continuation
 ## Acceptance boundary
 
 ```text
-green automation
+accepted design
++ green automation
 + operator-visible output
 + explicit operator ACCEPT
 = accepted spatial semantic layer
