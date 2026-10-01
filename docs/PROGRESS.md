@@ -40,10 +40,13 @@ PR #85 merge:
 ## IN PROGRESS
 
 ```text
-Hydro-surface finishing — H11-A IMPLEMENTATION NEXT
+Hydro-surface finishing — H11-A OPERATOR REVIEW
 ├─ readiness audit — DONE
 ├─ design PR #86 — ACCEPTED / MERGED
-└─ runtime implementation — NOT STARTED
+├─ implementation PR #87 — draft/open
+├─ X01–X08 — GREEN
+├─ push/PR pytest — GREEN
+└─ H11-A contract checkpoint — GREEN
 ```
 
 Accepted hydrology routing/network remains frozen.
@@ -51,14 +54,11 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. create H11-A implementation branch
-2. export accepted potential_drainage network only
-3. X01–X08 guardrails
-4. full pytest
-5. operator-visible network key/count/equality evidence
-6. explicit implementation ACCEPT / REJECT
-7. close unsupported hydro classifications as still deferred
-8. then continue Placement
+1. explicit H11-A implementation ACCEPT / REJECT
+2. ACCEPT → freeze/merge PR #87
+3. keep unsupported physical hydro classifications deferred
+4. then continue Placement
+5. later add additional environment/process models only when required by a concrete feature
 ```
 
 Do not bundle all deferred hydrology finishing into one change.
@@ -87,3 +87,7 @@ accepted design
 
 H11-A design PR:
 `https://github.com/MysterioCrypto/domain_generator/pull/86`
+
+
+H11-A checkpoint:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36845608659`
