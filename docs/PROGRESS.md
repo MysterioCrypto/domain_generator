@@ -56,10 +56,11 @@ renderer/smoothing as an upstream-fix substitute
 
 ```text
 Surface / climate / biome 0.2
-└─ C1 foundation — DESIGN
-   ├─ Hydrology 0.2 frozen / ACCEPTED
-   ├─ inspect Surface 0.1 baseline
-   └─ define first bounded environmental semantics
+└─ C1 annual climate forcing — DESIGN GATE
+   ├─ Hydrology 0.2 merged / frozen
+   ├─ Surface 0.1 baseline inspected
+   ├─ PR #80 proposed
+   └─ awaiting operator ACCEPT / REJECT
 
 Hydrology 0.2 — ACCEPTED
 ├─ H10-A shoreline refinement — KEEP
@@ -90,9 +91,9 @@ PR #72 is approved for merge into dev/0.2 after formal Hydrology ACCEPT.
 ## NEXT
 
 ```text
-1. Merge accepted Hydrology 0.2 implementation
-2. C1 Surface / climate / biome design gate
-3. First environmental-field implementation + diagnostics
+1. Operator ACCEPT / REJECT PR #80
+2. If ACCEPT: implement C1 annual temperature + precipitation
+3. C1 diagnostics / operator checkpoint
 4. Later hydro-surface finishing
    ├─ low-order headwater-root visibility
    ├─ perennial / seasonal / dry classification
