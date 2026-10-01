@@ -416,17 +416,22 @@ Potential-drainage distance is explicitly geometric proximity to the accepted H0
 
 No candidate lattice, requirement evaluator, scoring, near-best or final selection changes.
 
-Current gate:
+P08-A design status:
 ```text
-P08-A design          OPERATOR REVIEW
-runtime implementation NOT STARTED
+design PR #88           ACCEPTED / MERGED
+runtime implementation  NEXT
 ```
 
+Design merge commit:
+`66003288e528fc340663d92f84ed14cbee88744b`
+
 Immediate next action:
-1. explicit P08-A design ACCEPT / REJECT;
-2. ACCEPT → merge design;
-3. only then implement version-aware site metric registry + P01–P11;
-4. produce a representative metric/diagnostic-placement checkpoint before implementation acceptance.
+1. create a separate P08-A implementation branch from current `dev/0.2`;
+2. implement version-aware site metric registry only;
+3. add P01–P11 guardrails;
+4. run full pytest;
+5. generate the representative metric/diagnostic-placement checkpoint;
+6. do not merge implementation before explicit ACCEPT / REJECT.
 
 ## Rejected / constrained paths that must not silently return
 
