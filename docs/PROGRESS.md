@@ -61,7 +61,9 @@ Surface / climate / biome 0.2
    ├─ Surface 0.1 baseline inspected
    ├─ PR #80 ACCEPTED / merged
    ├─ climate contracts / compiler boundary — IMPLEMENTED
-   └─ temperature + precipitation fields — IN PROGRESS
+   ├─ temperature + precipitation fields — IMPLEMENTED
+   ├─ climate DomainData export — IMPLEMENTED
+   └─ C01–C09 guards / compatibility fixes — IN PROGRESS
 
 Hydrology 0.2 — ACCEPTED
 ├─ H10-A shoreline refinement — KEEP
