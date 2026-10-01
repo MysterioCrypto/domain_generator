@@ -62,7 +62,8 @@ Surface / climate / biome 0.2
    ├─ PR #82 ACCEPTED / merged
    ├─ effective moisture core — IMPLEMENTED
    ├─ PR #83 opened
-   └─ M01–M10 guardrails / diagnostics — IN PROGRESS
+   ├─ M01–M10 guardrails — IMPLEMENTED
+   └─ CI stabilization / C2-A diagnostics — IN PROGRESS
    ├─ Hydrology 0.2 merged / frozen
    ├─ Surface 0.1 baseline inspected
    ├─ PR #80 ACCEPTED / merged
