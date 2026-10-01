@@ -237,6 +237,13 @@ class DomainData(FrozenStrictModel):
             "moisture": "normalized",
             "vegetation_density": "normalized",
         }
+        if self.provenance.spec_schema_version == "0.2":
+            canonical.update(
+                {
+                    "temperature": "degC",
+                    "annual_precipitation": "mm/year",
+                }
+            )
         missing = set(canonical) - set(self.fields)
         if missing:
             raise ValueError(f"missing canonical fields: {sorted(missing)}")
