@@ -538,12 +538,40 @@ DomainSpec 0.2
 
 This is test/integration hardening only. It does not introduce new world semantics and therefore does not require a new INV-006 semantic design gate.
 
+A08 status:
+```text
+hardening PR #90        MERGED
+merge commit            568eeff9676ee387d5837cfb1fca1a8ff087e99b
+full pytest             GREEN
+exact replay            GREEN
+bundle checks           GREEN
+```
+
+Frozen representative A08:
+- accepted attempt 0;
+- 6 canonical Core 0.2 fields;
+- 4 generated lakes;
+- regional network 49 nodes / 31 segments;
+- potential drainage 104 nodes / 73 segments;
+- P08-A metrics used through a normal preset/site_profile;
+- DomainData deterministic baseline pinned.
+
+## Current checkpoint — Core 0.2 release hardening
+
+Release-readiness audit found documentation/version consistency debt, not a procedural world-state defect:
+- package version still says `0.1.0.dev0`;
+- README still presents Core 0.1 as current;
+- canonical architecture document frontmatter/title still targets Core 0.1;
+- Core 0.2 runtime/schema/acceptance state is otherwise integrated.
+
+Independent contract versions such as DomainData 0.1, GenerationConfig 0.1 and PresetCatalog 0.1 are not automatically release blockers. Their versions are intentionally independent from DomainSpec/generator versions.
+
 Immediate next action:
-1. run A08 with baseline=PENDING;
-2. inspect any real integration failures first;
-3. if the run is semantically correct, pin the exact deterministic baseline;
-4. rerun full pytest/replay/bundle acceptance;
-5. merge hardening PR #90 after green evidence.
+1. align package/generator development version with Core 0.2;
+2. refresh README current-state guidance;
+3. update canonical architecture to document the accepted Core 0.2 delta while preserving historical 0.1 architecture rules that remain valid;
+4. add consistency guardrails where useful;
+5. run full pytest/A08 again before any release-branch decision.
 
 ## Rejected / constrained paths that must not silently return
 
