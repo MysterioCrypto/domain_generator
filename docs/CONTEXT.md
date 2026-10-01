@@ -845,3 +845,70 @@ The workflow uploads a GitHub Actions artifact named `surface-v02-c1` and emits 
 Operator artifact policy:
 - do not materialize/download the full artifact into chat unless explicitly requested;
 - once the run is green, provide the direct workflow-run URL so the operator can download the artifact from GitHub.
+
+
+## C1-A same-world checkpoint
+
+Implementation checkpoint:
+`c3bd467acab0365a0ba75afd9d1d6b723a5d0e14`
+
+GitHub Actions:
+- C1 checkpoint workflow: GREEN;
+- pull-request pytest: GREEN;
+- push pytest: GREEN.
+
+Direct operator workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36827241394`
+
+Artifact:
+`surface-v02-c1`
+
+The full artifact was NOT downloaded into chat/container. Assistant inspection used workflow statistics and compact previews only.
+
+Representative recipe:
+
+```text
+mean temperature:                 8 °C
+north-minus-south delta:         -4 °C
+temperature noise amplitude:      1.5 °C
+mean land precipitation:        900 mm/year
+moisture transport:              90° / eastward
+orographic scale:                45 km
+orographic strength:              2.0
+precipitation log-noise:          0.22
+climate noise scale:             60 km
+```
+
+Representative statistics:
+
+```text
+temperature:
+  min / p05 / median / p95 / max
+  1.64 / 4.41 / 8.19 / 10.52 / 11.50 °C
+  mean ~7.91 °C
+  elevation correlation ~-0.774
+
+precipitation:
+  land mean exactly 900 mm/year
+  min / p05 / median / p95 / max
+  259 / 473 / 796 / 1647 / 3954 mm/year
+  whole-domain mean ~883 mm/year
+  std ~363 mm/year
+
+synthetic ridge:
+  windward ~2352 mm/year
+  lee       ~730 mm/year
+  ratio     ~3.22
+  C04       PASS
+```
+
+Visual assessment from compact previews:
+- temperature forms a smooth cool mountain belt plus regional gradient/noise, with no obvious lattice imprint;
+- precipitation responds coherently to the massif and produces visible rain-shadow structure;
+- the along-wind cross-section confirms precipitation rises on approaches/crests and falls sharply into lee terrain;
+- precipitation hotspots near major crests are visually strong and reach ~4,000 mm/year. This is not automatically wrong, but it is the main C1-A sufficiency question for a setting-agnostic regional baseline.
+
+Assistant recommendation:
+**review C1-A visually before any retuning.** The mechanism is coherent enough to keep; whether the representative orographic contrast is too strong is an operator-facing calibration judgment.
+
+Do not merge PR #81 until explicit operator ACCEPT / REJECT.
