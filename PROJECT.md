@@ -1,14 +1,14 @@
 ---
 project: domain_generator
 target_version: core-0.2
-phase: surface-climate-redesign
+phase: release-hardening
 status: in-progress
 historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
-current_milestone: v0.2-release-hardening
-checkpoint: core-v0.2-release-metadata-hardening
-next_topic: verify-version-bump-baseline-delta
+current_milestone: v0.2-release-candidate
+checkpoint: core-v0.2-release-candidate-ready-for-operator-review
+next_topic: operator-decision-core-v0.2-release-candidate
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -39,6 +39,8 @@ completed:
   - core-0.2-climate-aware-vegetation
   - core-0.2-potential-drainage-public-export
   - core-0.2-placement-environmental-site-metrics
+  - core-0.2-integrated-acceptance
+  - core-0.2-release-metadata-hardening
 rejected_or_superseded:
   - core-0.1-world-generation-semantics
   - guide-renderer-as-fix-for-upstream-world-state
@@ -608,3 +610,45 @@ Expected acceptance impact:
 - numerical world fields and semantic geometry must remain unchanged.
 
 A01–A08 are temporarily PENDING on the hardening branch only to emit exact post-bump snapshots.
+
+
+## Core 0.2 release-candidate readiness
+
+Release metadata hardening PR #91 merged:
+`5cafb8119050f19765447d65dcef022ebebe052b`
+
+Generator development identity:
+`0.2.0.dev0`
+
+Merge-head full pytest:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36853774759`
+— GREEN.
+
+Release-readiness evidence:
+- Terrain 0.2 ACCEPTED;
+- Hydrology 0.2 ACCEPTED;
+- C1 annual climate ACCEPTED;
+- C2 effective moisture ACCEPTED;
+- C3 climate-aware vegetation ACCEPTED;
+- H11-A public potential drainage ACCEPTED;
+- P08-A environmental Placement metrics ACCEPTED;
+- A08 integrated spec→bundle exact-replay acceptance GREEN;
+- A01–A08 baselines GREEN after provenance-only version re-sign;
+- package/module version aligned at `0.2.0.dev0`;
+- README and canonical architecture identify Core 0.2 as active;
+- no known world-state or contract blocker remains inside the accepted Core 0.2 scope.
+
+Explicitly deferred beyond this release scope:
+- perennial / seasonal / dry channel classification;
+- lake vs wetland/playa/dry-basin classification;
+- delta/estuary/fan process morphology;
+- true biome labels / seasonality model;
+- roads, human geography and deferred-to-deferred POI graphs.
+
+Current gate: **CORE 0.2 RELEASE CANDIDATE — OPERATOR REVIEW**.
+
+If ACCEPTED:
+1. freeze current `dev/0.2` semantic state;
+2. create `release/0.2-prealpha` from the accepted head;
+3. record the exact release commit in canonical context;
+4. do not fold deferred new semantics into that release line.
