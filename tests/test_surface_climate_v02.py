@@ -335,7 +335,7 @@ def test_c08_surface_climate_does_not_mutate_terrain_or_hydrology() -> None:
     np.testing.assert_array_equal(hydrology.water_depth_m, before_water)
 
 
-def test_c09_c2_supersedes_moisture_but_keeps_legacy_vegetation_semantics() -> None:
+def test_c09_c2_and_c3_supersede_legacy_surface_semantics() -> None:
     plan_v01 = _plan(version="0.1", rows=7, columns=7)
     plan_v02 = _plan(version="0.2", rows=7, columns=7)
     elevation = np.linspace(0.0, 500.0, 49, dtype=np.float64).reshape(7, 7)
@@ -362,6 +362,6 @@ def test_c09_c2_supersedes_moisture_but_keeps_legacy_vegetation_semantics() -> N
     )
 
     assert not np.array_equal(climate.moisture, legacy.moisture)
-    np.testing.assert_array_equal(climate.vegetation_density, legacy.vegetation_density)
+    assert not np.array_equal(climate.vegetation_density, legacy.vegetation_density)
     assert climate.annual_mean_temperature_c is not None
     assert climate.annual_precipitation_mm is not None
