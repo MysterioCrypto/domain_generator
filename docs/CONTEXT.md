@@ -91,7 +91,7 @@ Representative C1-A:
 
 Operator accepted C1 because the maps were coherent enough and no concrete climate-domain blocker was identified. This is not a claim of expert climatological validation.
 
-## Current checkpoint — C2-A Effective Surface Moisture
+## Current checkpoint — C2-B Water-Proximity Retune
 
 Normative design: `docs/design/effective-surface-moisture-v0.2.md`.
 
@@ -214,7 +214,30 @@ Interpretation:
 - the representative climate is deliberately cool/wet, so absence of very dry cells is not itself a defect;
 - the main unresolved visual question is **actual-water proximity**: inherited `water_moisture_decay_km = 8` creates broad riparian wet halos around canonical rivers/lakes.
 
-Do not retune this before operator judgment.
+### C2-A operator decision — REJECT
+
+C2-A is rejected on one bounded visual/physical defect only:
+
+`water_moisture_decay_km = 8` makes actual-water influence extend as a broad, nearly uniform-width halo around canonical rivers and lakes.
+
+Culprit assignment:
+- **actual-water proximity scale: REJECTED / retune required**;
+- climatic wetness: KEEP;
+- catchment contribution: KEEP;
+- slope retention: KEEP;
+- effective-moisture combination semantics: KEEP.
+
+This does not reopen Terrain 0.2, Hydrology 0.2 or C1.
+
+The rejection is a calibration/spatial-scale correction inside the already accepted C2 design, not a return to legacy distance-to-water + noise moisture.
+
+Repository-state audit before C2-B:
+- PR #83 branch is 6 implementation commits ahead of its merge base;
+- `dev/0.2` is 1 documentation-only commit ahead of that same merge base;
+- therefore the implementation branch must be synchronized with current `dev/0.2` before further C2-B work;
+- the C2 code/test/workflow slice itself is intact and green.
+
+Next bounded experiment: reduce only the representative actual-water decay scale and rerun the same world. No other C2 component is to be retuned in the same slice.
 
 ## Current decision gate
 
@@ -222,14 +245,15 @@ Do not retune this before operator judgment.
 Terrain 0.2                 ACCEPTED
 Hydrology 0.2               ACCEPTED
 C1 annual climate           ACCEPTED
-C2 effective moisture       OPERATOR REVIEW
+C2 effective moisture       C2-A REJECTED / C2-B RETUNE
 ```
 
 Immediate next action:
-1. operator reviews C2-A artifact / maps;
-2. if ACCEPT: freeze C2 moisture and merge PR #83;
-3. then open INV-006 design for C3 vegetation / biome readiness;
-4. if REJECT: identify whether the concrete defect is water-proximity scale, catchment contribution, climatic wetness or slope retention before changing parameters.
+1. synchronize PR #83 implementation branch with current `dev/0.2`;
+2. retune only `water_moisture_decay_km` on the representative same-world checkpoint;
+3. rerun automated guards + operator-visible C2 checkpoint;
+4. if the corrected scale is accepted, freeze C2 and merge PR #83;
+5. only then open INV-006 design for C3 vegetation / biome readiness.
 
 ## Rejected / constrained paths that must not silently return
 
