@@ -32,6 +32,7 @@ from .derive import (
     SurfaceCapabilityError,
     annual_mean_temperature_field,
     annual_precipitation_field,
+    effective_surface_moisture_components,
     moisture_potential_field,
     slope_degrees,
     vegetation_potential_field,
@@ -256,15 +257,40 @@ def _build_surface(
         )
 
     water_mask = water_depth > 0.0
-    moisture64 = np.clip(moisture_potential + moisture_bias, 0.0, 1.0)
-    moisture64[water_mask] = 1.0
+    legacy_moisture64 = np.clip(moisture_potential + moisture_bias, 0.0, 1.0)
+    legacy_moisture64[water_mask] = 1.0
 
     slope64 = slope_degrees(
         elevation,
         cell_size_km=plan.grid.cell_size_km,
     )
+
+    if plan.plan_version == "0.2":
+        if temperature64 is None or precipitation64 is None:
+            raise SurfaceCapabilityError("Core 0.2 climate fields were not generated")
+        effective = effective_surface_moisture_components(
+            adapter=adapter,
+            annual_mean_temperature_c=temperature64,
+            annual_precipitation_mm=precipitation64,
+            flow_accumulation_km2=hydrology.flow_accumulation_km2,
+            water_depth_m=water_depth,
+            slope_deg=slope64,
+            stream_threshold_km2=plan.hydrology.stream_threshold_km2,
+            water_moisture_boost=plan.surface.water_moisture_boost,
+            water_moisture_decay_km=plan.surface.water_moisture_decay_km,
+        )
+        moisture64 = np.clip(
+            effective.effective_moisture + moisture_bias,
+            0.0,
+            1.0,
+        )
+        moisture64[water_mask] = 1.0
+    else:
+        moisture64 = legacy_moisture64
+
+    # C2-A intentionally freezes vegetation on the pre-C2 moisture path.
     vegetation_potential = vegetation_potential_field(
-        moisture=moisture64,
+        moisture=legacy_moisture64,
         slope_deg=slope64,
         vegetation_slope_zero_deg=plan.surface.vegetation_slope_zero_deg,
     )
