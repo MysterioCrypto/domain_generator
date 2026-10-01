@@ -598,3 +598,14 @@ accepted design
 ```
 
 Green CI is necessary but not sufficient. Operator-visible output is necessary for visual/semantic acceptance.
+
+
+### Release metadata hardening PR #91
+
+`https://github.com/MysterioCrypto/domain_generator/pull/91`
+
+The generator development identity is being aligned from `0.1.0.dev0` to `0.2.0.dev0`.
+
+Because generator version is semantic provenance and participates in `plan_fingerprint`, A01–A08 baselines must be re-signed. Allowed delta is limited to provenance/fingerprint-derived values; world arrays, features, networks, placement and validation semantics must remain unchanged.
+
+First CI intentionally uses PENDING baselines to emit exact snapshots before pinning.
