@@ -743,3 +743,172 @@ C1 implementation target:
 - operator-visible climate checkpoint.
 
 Heavy Actions artifacts remain remote; provide direct workflow-run links for operator download instead of copying large artifacts into chat.
+
+
+## C1 implementation slice 1 — contracts
+
+PR #81 opened on branch `impl/v0.2-surface-climate`.
+
+Implemented:
+- explicit `ClimateSpec` / `PlanClimate`;
+- schema/plan 0.2 requires a climate recipe;
+- schema/plan 0.1 forbids climate recipe;
+- Core 0.1 semantic fingerprints explicitly omit the new optional climate field, preserving legacy fingerprint semantics;
+- v0.2 compiler injects the accepted climate recipe after compiling the legacy-compatible shadow;
+- representative Terrain/Hydrology request now carries an explicit C1 climate recipe.
+
+No climate fields are generated yet in this slice. Terrain/Hydrology and existing moisture/vegetation remain unchanged.
+
+
+## C1 implementation slice 2 — climate fields
+
+Implemented on PR #81:
+
+- deterministic annual mean temperature field;
+- fixed experimental lapse rate 6.5 C/km around domain mean elevation;
+- explicit north/south thermal macro-gradient;
+- independent coherent temperature noise;
+- deterministic annual precipitation field;
+- explicit moisture-transport bearing;
+- continuous bilinear upwind terrain sampling;
+- exponential upwind kernel over 4 orographic scales;
+- windward/lee log-weight contrast;
+- land-mean precipitation normalization;
+- independent coherent precipitation noise;
+- SurfaceState carries climate fields for Core 0.2 while Core 0.1 remains climate-free;
+- Core 0.2 DomainData exports canonical `temperature` and `annual_precipitation`;
+- existing moisture and vegetation computation remains unchanged in C1.
+
+Implementation detail:
+if a domain contains no dry land cells, precipitation normalization falls back to the whole domain rather than failing. Normal mixed land/water domains normalize on land only as designed.
+
+Pending:
+- C01–C09 tests / regression guards;
+- schema snapshots / any contract fixture updates revealed by CI;
+- operator-visible C1 checkpoint.
+
+Heavy Actions artifacts remain remote; future checkpoint response must include direct workflow-run link.
+
+
+## C1 implementation slice 3 — guardrails
+
+Added dedicated C01–C09 climate tests on PR #81:
+
+- C01 flat/no-noise uniform climate baseline;
+- C02 6.5 C/km elevation lapse;
+- C03 north/south world-space macro-gradient;
+- C04 windward > lee precipitation on a synthetic ridge;
+- C05 rotational consistency when terrain + moisture transport rotate together;
+- C06 requested land-mean precipitation conservation;
+- C07 deterministic replay / attempt-noise variation;
+- C08 Terrain/Hydrology upstream immutability;
+- C09 C1 compatibility: existing moisture and vegetation are unchanged.
+
+Existing Core 0.2 terrain/hydrology test fixtures were updated with explicit neutral climate recipes. Application-boundary test now expects climate field files in the canonical bundle.
+
+Known remaining maintenance item:
+schema snapshots must be regenerated/updated for the new ClimateSpec / PlanClimate contract structure.
+
+
+## C1 implementation slice 4 — schema snapshots
+
+Updated Core v0.2 schema snapshots for:
+- DomainSpec / ClimateSpec;
+- GenerationPlan / PlanClimate;
+- GenerationRequest transitive DomainSpec structure.
+
+The schema change is structural only; conditional requirements (0.2 requires climate, 0.1 forbids it) remain enforced by model validators rather than JSON Schema conditionals.
+
+Pending:
+- CI stabilization;
+- any C01–C09 implementation defects revealed by tests;
+- C1 operator checkpoint.
+
+
+## C1 implementation slice 5 — operator checkpoint
+
+Added C1-A operator checkpoint tooling on PR #81:
+
+Artifacts:
+- 01-terrain-temperature.png
+- 02-terrain-precipitation.png
+- 03-precipitation-wind.png
+- 04-along-wind-cross-section.png
+- 05-temperature-elevation.png
+- statistics.json
+
+Workflow:
+`.github/workflows/surface-v02-c1-checkpoint.yml`
+
+The workflow uploads a GitHub Actions artifact named `surface-v02-c1` and emits compact previews into logs.
+
+Operator artifact policy:
+- do not materialize/download the full artifact into chat unless explicitly requested;
+- once the run is green, provide the direct workflow-run URL so the operator can download the artifact from GitHub.
+
+
+## C1-A same-world checkpoint
+
+Implementation checkpoint:
+`c3bd467acab0365a0ba75afd9d1d6b723a5d0e14`
+
+GitHub Actions:
+- C1 checkpoint workflow: GREEN;
+- pull-request pytest: GREEN;
+- push pytest: GREEN.
+
+Direct operator workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36827241394`
+
+Artifact:
+`surface-v02-c1`
+
+The full artifact was NOT downloaded into chat/container. Assistant inspection used workflow statistics and compact previews only.
+
+Representative recipe:
+
+```text
+mean temperature:                 8 °C
+north-minus-south delta:         -4 °C
+temperature noise amplitude:      1.5 °C
+mean land precipitation:        900 mm/year
+moisture transport:              90° / eastward
+orographic scale:                45 km
+orographic strength:              2.0
+precipitation log-noise:          0.22
+climate noise scale:             60 km
+```
+
+Representative statistics:
+
+```text
+temperature:
+  min / p05 / median / p95 / max
+  1.64 / 4.41 / 8.19 / 10.52 / 11.50 °C
+  mean ~7.91 °C
+  elevation correlation ~-0.774
+
+precipitation:
+  land mean exactly 900 mm/year
+  min / p05 / median / p95 / max
+  259 / 473 / 796 / 1647 / 3954 mm/year
+  whole-domain mean ~883 mm/year
+  std ~363 mm/year
+
+synthetic ridge:
+  windward ~2352 mm/year
+  lee       ~730 mm/year
+  ratio     ~3.22
+  C04       PASS
+```
+
+Visual assessment from compact previews:
+- temperature forms a smooth cool mountain belt plus regional gradient/noise, with no obvious lattice imprint;
+- precipitation responds coherently to the massif and produces visible rain-shadow structure;
+- the along-wind cross-section confirms precipitation rises on approaches/crests and falls sharply into lee terrain;
+- precipitation hotspots near major crests are visually strong and reach ~4,000 mm/year. This is not automatically wrong, but it is the main C1-A sufficiency question for a setting-agnostic regional baseline.
+
+Assistant recommendation:
+**review C1-A visually before any retuning.** The mechanism is coherent enough to keep; whether the representative orographic contrast is too strong is an operator-facing calibration judgment.
+
+Do not merge PR #81 until explicit operator ACCEPT / REJECT.
