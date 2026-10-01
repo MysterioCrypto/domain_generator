@@ -1,6 +1,6 @@
 """Core package for deterministic procedural domain generation."""
 
-__version__ = "0.1.0.dev0"
+__version__ = "0.2.0.dev0"
 
 from .application import (  # noqa: E402
     GenerateApplicationResult,
