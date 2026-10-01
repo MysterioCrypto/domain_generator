@@ -953,3 +953,46 @@ The next bounded design must distinguish:
 - effective surface moisture.
 
 Vegetation / biome classification should remain a later step unless the moisture field itself is accepted first.
+
+
+## C2-A proposed design gate
+
+PR #82:
+`docs/design/effective-surface-moisture-v0.2.md`
+
+Status: **PROPOSED / awaiting explicit operator ACCEPT / REJECT**.
+
+C2-A proposal replaces only Core 0.2 canonical moisture semantics:
+
+```text
+C1 precipitation + temperature
+        ↓
+Holdridge-inspired annual PET proxy
+        ↓
+climatic wetness
+        +
+canonical-water proximity
+        +
+climate-gated contributing-area concentration
+        ↓
+slope retention
+        ↓
+effective surface moisture [0,1]
+```
+
+Key bounded choices:
+- no new arbitrary moisture noise in Core 0.2;
+- existing water_moisture_boost / decay retain meaning for actual-water proximity;
+- accepted stream threshold scales the contributing-area signal;
+- slope retention uses a fixed cos²(slope) curve rather than a new tuning parameter;
+- canonical water remains moisture = 1;
+- Core 0.1 moisture remains unchanged;
+- vegetation_density is intentionally kept bit-identical during C2-A using the temporary legacy-moisture path internally.
+
+External rationale used for the design:
+- Holdridge annual PET approximation ~58.93 × biotemperature;
+- FAO water-balance separation of precipitation, evapotranspiration, runoff/drainage and storage.
+
+C2-A is intentionally an annual effective-moisture index, not literal soil volumetric water content and not a monthly soil-water simulation.
+
+Do not implement production C2 until operator accepts PR #82.
