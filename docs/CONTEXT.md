@@ -632,13 +632,38 @@ Deferred work is explicitly outside this candidate:
 - receiving-environment delta/estuary/fan morphology;
 - roads / human geography / interdependent POI graph.
 
-Current gate:
+Operator decision: **CORE 0.2 RELEASE CANDIDATE ACCEPTED**.
+
+Frozen release:
 ```text
-Core 0.2 release candidate   OPERATOR REVIEW
-release/0.2-prealpha         NOT CREATED
+branch        release/0.2-prealpha
+freeze commit c69c1af010a085fb80d248af703a77471fc6c9d7
+generator     0.2.0.dev0
 ```
 
+The release branch was created exactly from the accepted `dev/0.2` head. Subsequent canonical-document updates on `dev/0.2` are post-release bookkeeping and are not part of the frozen release snapshot.
+
+Release scope remains exactly the accepted Core 0.2 scope:
+- Terrain 0.2;
+- Hydrology 0.2;
+- C1 annual climate;
+- C2 effective moisture;
+- C3 climate-aware vegetation;
+- H11-A public potential drainage;
+- P08-A environmental Placement metrics;
+- A08 integrated acceptance;
+- release metadata/provenance hardening.
+
+Deferred work stays outside `release/0.2-prealpha`:
+- seasonality / true biome classification;
+- flow-permanence and basin-permanence hydrology;
+- delta/estuary/fan morphology;
+- roads / human geography / interdependent POI graph.
+
+## Current checkpoint — post-release development planning
+
 Immediate next action:
-1. explicit release-candidate ACCEPT / REJECT;
-2. ACCEPT → create `release/0.2-prealpha` from accepted current dev head and record commit;
-3. REJECT → identify a concrete release blocker without reopening accepted world semantics speculatively.
+1. keep `release/0.2-prealpha` frozen;
+2. choose the next new semantic layer on `dev/0.2`;
+3. open a new INV-006 design gate before material semantic implementation;
+4. do not reopen accepted Core 0.2 layers without concrete evidence.
