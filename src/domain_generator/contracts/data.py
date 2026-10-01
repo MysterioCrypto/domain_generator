@@ -258,8 +258,16 @@ class DomainData(FrozenStrictModel):
 
         if any(not feature_id for feature_id in self.features):
             raise ValueError("feature ids must be non-empty")
-        if set(self.networks) - {"rivers"}:
-            raise ValueError("Core 0.1 only defines the 'rivers' network")
+        allowed_networks = {"rivers"}
+        if self.provenance.spec_schema_version == "0.2":
+            allowed_networks.add("potential_drainage")
+        unsupported_networks = set(self.networks) - allowed_networks
+        if unsupported_networks:
+            raise ValueError(
+                "unsupported network ids for spec schema "
+                f"{self.provenance.spec_schema_version!r}: "
+                f"{sorted(unsupported_networks)}"
+            )
 
         for network in self.networks.values():
             for node in network.nodes.values():
