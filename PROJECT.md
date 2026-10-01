@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-placement-continuation
-checkpoint: h11-a-potential-drainage-export-accepted
-next_topic: placement-readiness-audit
+checkpoint: p08-a-placement-environmental-metrics-design-review
+next_topic: operator-review-p08-a-design
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -444,3 +444,32 @@ Remaining physical hydro classifications stay deferred:
 - delta / estuary / fan.
 
 Next active area: **Placement continuation / readiness audit**.
+
+
+## Placement 0.2 — P08-A environmental site metrics design
+
+Placement readiness audit result:
+- candidate lattice: KEEP;
+- reservation containment: KEEP;
+- footprint semantics: KEEP;
+- hard requirements: KEEP;
+- preference scoring / near-best / weighted selection: KEEP;
+- existing physical metrics: KEEP;
+- `moisture_mean` now observes accepted C2 in Core 0.2;
+- `vegetation_density_mean` now observes accepted C3 in Core 0.2.
+
+Design PR #88:
+`https://github.com/MysterioCrypto/domain_generator/pull/88`
+
+Proposed Core 0.2-only metrics:
+```text
+temperature_mean
+annual_precipitation_mean
+distance_to_potential_drainage
+```
+
+`distance_to_potential_drainage` means exact geometric proximity to the accepted H09-E drainage scaffold, not distance to permanent water.
+
+No candidate-generation or site-selection algorithm changes are proposed.
+
+Current gate: **P08-A DESIGN — OPERATOR REVIEW**.
