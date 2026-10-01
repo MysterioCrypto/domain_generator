@@ -1,0 +1,1680 @@
+from __future__ import annotations
+
+import argparse
+import json
+from collections import Counter
+from math import atan2, cos, hypot, pi, sin
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.colors import LightSource
+
+import domain_generator
+from domain_generator.application import (
+    load_generation_request,
+    load_preset_catalog,
+    registry_for_request,
+)
+from domain_generator.compiler import compile_domain_spec
+from domain_generator.geometry import backend_region_set
+from domain_generator.hydrology import generate_hydrology, validate_hydrology
+from domain_generator.hydrology.depression_hierarchy import build_nested_depression_hierarchy
+from domain_generator.hydrology.ids import lake_feature_id
+from domain_generator.hydrology.continuous import (
+    _activate_channel_skeleton,
+    _dominant_channel_receiver_index,
+)
+from domain_generator.layout import generate_layout
+from domain_generator.pipeline.rng import RngFactory
+from domain_generator.terrain import generate_terrain
+
+
+def _world_xy(row: np.ndarray, column: np.ndarray, *, cell_size_km: float, height_km: float):
+    x = (column.astype(np.float64) + 0.5) * cell_size_km
+    y = height_km - (row.astype(np.float64) + 0.5) * cell_size_km
+    return x, y
+
+
+def _hillshade(elevation_m: np.ndarray, *, cell_size_km: float) -> np.ndarray:
+    z = np.flipud(np.asarray(elevation_m, dtype=np.float64)) / 1000.0
+    light = LightSource(azdeg=315.0, altdeg=38.0)
+    return light.shade(
+        z,
+        cmap=plt.get_cmap("terrain"),
+        vert_exag=1.8,
+        dx=cell_size_km,
+        dy=cell_size_km,
+        blend_mode="soft",
+    )
+
+
+def _lake_mask(shape: tuple[int, int], lake_candidates) -> np.ndarray:
+    mask = np.zeros(shape, dtype=np.bool_)
+    for lake in lake_candidates:
+        for cell in lake.cells:
+            mask[cell] = True
+    return mask
+
+
+def _plot_river_network(ax, network) -> None:
+    catches = [
+        float(segment.properties.catchment_area_km2)
+        for segment in network.segments.values()
+    ]
+    max_log = max((np.log1p(value) for value in catches), default=1.0)
+    for segment in network.segments.values():
+        xs = [point.x_km for point in segment.centerline]
+        ys = [point.y_km for point in segment.centerline]
+        catchment = float(segment.properties.catchment_area_km2)
+        width = 0.8 + 1.8 * (np.log1p(catchment) / max_log if max_log > 0.0 else 0.0)
+        ax.plot(xs, ys, linewidth=width, color="tab:blue", alpha=0.95, zorder=7)
+
+
+def _plot_potential_hierarchy(
+    ax,
+    hydrology,
+    *,
+    color: str = "tab:cyan",
+    alpha: float = 0.88,
+    width_scale: float = 1.0,
+    zorder: int = 6,
+) -> None:
+    network = hydrology.potential_river_network
+    orders = hydrology.potential_segment_strahler_order
+    if network is None:
+        return
+    for segment_id, segment in network.segments.items():
+        order = int(orders.get(segment_id, 1))
+        xs = [point.x_km for point in segment.centerline]
+        ys = [point.y_km for point in segment.centerline]
+        width = width_scale * (0.45 + 0.55 * float(order))
+        ax.plot(xs, ys, linewidth=width, color=color, alpha=alpha, zorder=zorder)
+
+
+def _plot_potential_nodes(ax, hydrology) -> None:
+    network = hydrology.potential_river_network
+    if network is None:
+        return
+    source_x: list[float] = []
+    source_y: list[float] = []
+    confluence_x: list[float] = []
+    confluence_y: list[float] = []
+    for node in network.nodes.values():
+        if node.kind.value == "source":
+            source_x.append(float(node.position.x_km))
+            source_y.append(float(node.position.y_km))
+        elif node.kind.value == "confluence":
+            confluence_x.append(float(node.position.x_km))
+            confluence_y.append(float(node.position.y_km))
+    if source_x:
+        ax.scatter(source_x, source_y, s=15.0, marker="o", color="limegreen", zorder=9)
+    if confluence_x:
+        ax.scatter(confluence_x, confluence_y, s=20.0, marker="D", color="magenta", zorder=9)
+
+
+def _plot_refined_lakes(ax, hydrology, *, alpha: float = 0.58, outline_only: bool = False) -> None:
+    for lake_id, feature in sorted(hydrology.lake_features.items()):
+        for polygon in feature.geometry.polygons:
+            xs = [float(point.x_km) for point in polygon.outer]
+            ys = [float(point.y_km) for point in polygon.outer]
+            if outline_only:
+                ax.plot(xs + [xs[0]], ys + [ys[0]], color="deepskyblue", linewidth=1.2, alpha=0.95, zorder=6)
+            else:
+                ax.fill(xs, ys, color="deepskyblue", alpha=alpha, linewidth=0.0, zorder=5)
+                ax.plot(xs + [xs[0]], ys + [ys[0]], color="dodgerblue", linewidth=0.8, alpha=0.95, zorder=6)
+
+
+def _lake_network_points(hydrology):
+    inflow_x: list[float] = []
+    inflow_y: list[float] = []
+    outlet_x: list[float] = []
+    outlet_y: list[float] = []
+    for node in hydrology.river_network.nodes.values():
+        if node.kind.value == "lake_inflow":
+            inflow_x.append(float(node.position.x_km))
+            inflow_y.append(float(node.position.y_km))
+        elif node.kind.value == "lake_outlet":
+            outlet_x.append(float(node.position.x_km))
+            outlet_y.append(float(node.position.y_km))
+    return inflow_x, inflow_y, outlet_x, outlet_y
+
+
+def _plot_lakes_and_outlets(ax, hydrology, *, cell_size_km: float, height_km: float) -> None:
+    _plot_refined_lakes(ax, hydrology)
+    inflow_x, inflow_y, outlet_x, outlet_y = _lake_network_points(hydrology)
+    if inflow_x:
+        ax.scatter(inflow_x, inflow_y, s=26.0, marker="v", color="gold", edgecolors="black", linewidths=0.4, zorder=9)
+    if outlet_x:
+        ax.scatter(outlet_x, outlet_y, s=45.0, marker="x", color="red", linewidths=1.2, zorder=10)
+
+
+def _final_direction_stats(network) -> dict[str, float | int]:
+    steps = 0
+    locked = 0
+    total_length = 0.0
+    tolerance = pi / 180.0
+    for segment in network.segments.values():
+        for first, second in zip(segment.centerline, segment.centerline[1:]):
+            dx = float(second.x_km - first.x_km)
+            dy = float(second.y_km - first.y_km)
+            length = hypot(dx, dy)
+            if length <= 1e-12:
+                continue
+            steps += 1
+            total_length += length
+            angle = atan2(dy, dx) % (2.0 * pi)
+            nearest = round(angle / (pi / 4.0)) * (pi / 4.0)
+            delta = abs((angle - nearest + pi) % (2.0 * pi) - pi)
+            if delta <= tolerance:
+                locked += 1
+    return {
+        "step_count": steps,
+        "grid_locked_step_count_1deg": locked,
+        "grid_locked_step_fraction_1deg": (locked / steps) if steps else 0.0,
+        "total_length_km": total_length,
+    }
+
+
+def _routing_direction_stats(flow_angle_rad: np.ndarray) -> dict[str, float | int]:
+    values = np.asarray(flow_angle_rad, dtype=np.float64)
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        return {
+            "sample_count": 0,
+            "grid_locked_count_1deg": 0,
+            "grid_locked_fraction_1deg": 0.0,
+        }
+    unit = pi / 4.0
+    tolerance = pi / 180.0
+    nearest = np.round(finite / unit) * unit
+    delta = np.abs((finite - nearest + pi) % (2.0 * pi) - pi)
+    locked = int(np.count_nonzero(delta <= tolerance))
+    return {
+        "sample_count": int(finite.size),
+        "grid_locked_count_1deg": locked,
+        "grid_locked_fraction_1deg": float(locked / finite.size),
+    }
+
+
+def _save_terrain_rivers(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_river_network(ax, hydrology.river_network)
+    ax.set_title("H09 — Terrain 0.2 with final continuous river network")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "01-terrain-final-rivers.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_drainage_field(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    field = hydrology.continuous_routing
+    assert field is not None
+    angle = field.flow_angle_rad
+    rows, columns = angle.shape
+    stride = max(1, int(round(max(rows, columns) / 42.0)))
+    rr, cc = np.mgrid[0:rows:stride, 0:columns:stride]
+    aa = angle[0:rows:stride, 0:columns:stride]
+    valid = np.isfinite(aa)
+    x, y = _world_xy(rr[valid], cc[valid], cell_size_km=cell_size_km, height_km=height_km)
+    u = np.cos(aa[valid])
+    v = np.sin(aa[valid])
+
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        alpha=0.62,
+    )
+    ax.quiver(
+        x,
+        y,
+        u,
+        v,
+        angles="xy",
+        scale_units="xy",
+        scale=0.42,
+        width=0.0018,
+        alpha=0.72,
+        color="black",
+        zorder=5,
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    ax.set_title(f"H09 — Continuous drainage field (sampled every {stride} cells)")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "02-continuous-drainage-field.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_channel_support(
+    output: Path,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    support = hydrology.channel_support_mask
+    assert support is not None
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        np.flipud(support.astype(np.float64)),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="nearest",
+        aspect="equal",
+        cmap="Greys",
+        vmin=0.0,
+        vmax=1.0,
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_river_network(ax, hydrology.river_network)
+    ax.set_title("H09 — Channel support (raster) with final semantic rivers (vector)")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "03-channel-support-vs-rivers.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_channel_skeleton(
+    output: Path,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    support = hydrology.channel_support_mask
+    skeleton = hydrology.channel_skeleton_mask
+    assert support is not None
+    assert skeleton is not None
+
+    diagnostic = support.astype(np.float64) * 0.28
+    diagnostic[skeleton] = 1.0
+
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    image = ax.imshow(
+        np.flipud(diagnostic),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="nearest",
+        aspect="equal",
+        cmap="Greys",
+        vmin=0.0,
+        vmax=1.0,
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_river_network(ax, hydrology.river_network)
+
+    source_x = []
+    source_y = []
+    confluence_x = []
+    confluence_y = []
+    for node in hydrology.river_network.nodes.values():
+        if node.kind.value == "source":
+            source_x.append(node.position.x_km)
+            source_y.append(node.position.y_km)
+        elif node.kind.value == "confluence":
+            confluence_x.append(node.position.x_km)
+            confluence_y.append(node.position.y_km)
+    if source_x:
+        ax.scatter(source_x, source_y, s=18.0, marker="o", color="limegreen", zorder=9)
+    if confluence_x:
+        ax.scatter(confluence_x, confluence_y, s=24.0, marker="D", color="magenta", zorder=9)
+
+    ax.set_title("H09-D2 — Raw MFD support (gray), terrain-aware skeleton (black), final rivers (blue)")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "05-channel-skeleton-vs-support.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_accumulation_overlay(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    accumulation = np.asarray(hydrology.flow_accumulation_km2, dtype=np.float64)
+    log_acc = np.log1p(accumulation)
+
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        alpha=0.48,
+    )
+    image = ax.imshow(
+        np.flipud(log_acc),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        cmap="viridis",
+        alpha=0.58,
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_river_network(ax, hydrology.river_network)
+    colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.025)
+    colorbar.set_label("log(1 + contributing area km²)")
+    ax.set_title("H09 — Distributed accumulation with final river traces")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "04-accumulation-final-overlay.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _source_points(hydrology) -> tuple[list[float], list[float]]:
+    xs: list[float] = []
+    ys: list[float] = []
+    for node in hydrology.river_network.nodes.values():
+        if node.kind.value == "source":
+            xs.append(float(node.position.x_km))
+            ys.append(float(node.position.y_km))
+    return xs, ys
+
+
+def _save_local_slope(
+    output: Path,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+) -> None:
+    field = hydrology.continuous_routing
+    assert field is not None and field.local_slope is not None
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    image = ax.imshow(
+        np.flipud(field.local_slope),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        cmap="viridis",
+    )
+    xs, ys = _source_points(hydrology)
+    if xs:
+        ax.scatter(xs, ys, s=28.0, marker="o", color="red", zorder=9)
+    colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.025)
+    colorbar.set_label("dimensionless slope (rise/run)")
+    ax.set_title("H09-D2 — Conditioned local slope with selected sources")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    fig.tight_layout()
+    fig.savefig(output / "06-local-slope-sources.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_convergence(
+    output: Path,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+) -> None:
+    convergence = hydrology.channel_convergence
+    assert convergence is not None
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    image = ax.imshow(
+        np.flipud(convergence),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        cmap="viridis",
+    )
+    xs, ys = _source_points(hydrology)
+    if xs:
+        ax.scatter(xs, ys, s=28.0, marker="o", color="red", zorder=9)
+    colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.025)
+    colorbar.set_label("incoming MFD fraction sum")
+    ax.set_title("H09-D2 — MFD flow convergence with selected sources")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    fig.tight_layout()
+    fig.savefig(output / "07-flow-convergence-sources.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_initiation_score(
+    output: Path,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    threshold_km2: float,
+) -> None:
+    score = hydrology.channel_initiation_score_km2
+    convergence = hydrology.channel_convergence
+    unique_area = hydrology.channel_unique_area_km2
+    field = hydrology.continuous_routing
+    assert score is not None and convergence is not None and unique_area is not None
+    assert field is not None and field.local_slope is not None
+
+    slope = np.asarray(field.local_slope, dtype=np.float64)
+    reference_slope = 0.02
+    baseline = unique_area >= threshold_km2
+    promoted = (
+        (unique_area < threshold_km2)
+        & (convergence > 1.0 + 1e-9)
+        & (slope > reference_slope)
+        & (score >= threshold_km2)
+    )
+
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    image = ax.imshow(
+        np.flipud(np.log1p(score)),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        cmap="viridis",
+    )
+
+    rows, columns = np.where(baseline)
+    if rows.size:
+        x = (columns.astype(np.float64) + 0.5) * (width_km / score.shape[1])
+        y = height_km - (rows.astype(np.float64) + 0.5) * (height_km / score.shape[0])
+        ax.scatter(x, y, s=10.0, marker="s", facecolors="none", edgecolors="cyan", alpha=0.55, zorder=7)
+
+    rows, columns = np.where(promoted)
+    if rows.size:
+        x = (columns.astype(np.float64) + 0.5) * (width_km / score.shape[1])
+        y = height_km - (rows.astype(np.float64) + 0.5) * (height_km / score.shape[0])
+        ax.scatter(x, y, s=10.0, marker=".", color="white", alpha=0.75, zorder=8)
+
+    xs, ys = _source_points(hydrology)
+    if xs:
+        ax.scatter(xs, ys, s=34.0, marker="o", color="red", zorder=9)
+
+    colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.025)
+    colorbar.set_label("log(1 + area–slope promotion score km²)")
+    ax.set_title(
+        "H09-D2 — Source eligibility: cyan=H09-C baseline, white=terrain promotion, red=selected source"
+    )
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    fig.tight_layout()
+    fig.savefig(output / "08-initiation-score-sources.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_potential_hierarchy(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    assert hydrology.potential_river_network is not None
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_potential_hierarchy(ax, hydrology, width_scale=1.0)
+    _plot_potential_nodes(ax, hydrology)
+    ax.set_title("H09-E — Potential drainage hierarchy; line weight = Strahler order")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "09-terrain-potential-hierarchy.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_regional_over_potential(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_potential_hierarchy(
+        ax,
+        hydrology,
+        color="lightslategray",
+        alpha=0.64,
+        width_scale=0.72,
+        zorder=6,
+    )
+    _plot_river_network(ax, hydrology.river_network)
+    ax.set_title("H09-E — Regional H09-D2 rivers (blue) over potential hierarchy (gray)")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "10-regional-over-potential.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_strahler_skeleton(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    order = hydrology.channel_strahler_order
+    assert order is not None
+    maximum = max(1, int(np.max(order)))
+    masked = np.ma.masked_where(order <= 0, order.astype(np.float64))
+
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        alpha=0.38,
+    )
+    image = ax.imshow(
+        np.flipud(masked),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="nearest",
+        aspect="equal",
+        cmap="viridis",
+        vmin=1.0,
+        vmax=float(maximum),
+        alpha=0.88,
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_potential_hierarchy(ax, hydrology, color="black", alpha=0.58, width_scale=0.42, zorder=7)
+    colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.025)
+    colorbar.set_label("Strahler order on potential skeleton")
+    ax.set_title("H09-E — Potential skeleton Strahler hierarchy")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "11-strahler-skeleton.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_accumulation_potential(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    accumulation = np.asarray(hydrology.flow_accumulation_km2, dtype=np.float64)
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        alpha=0.40,
+    )
+    image = ax.imshow(
+        np.flipud(np.log1p(accumulation)),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        cmap="viridis",
+        alpha=0.58,
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_potential_hierarchy(ax, hydrology, color="black", alpha=0.76, width_scale=0.62, zorder=8)
+    colorbar = fig.colorbar(image, ax=ax, fraction=0.035, pad=0.025)
+    colorbar.set_label("log(1 + contributing area km²)")
+    ax.set_title("H09-E — MFD accumulation with potential drainage hierarchy")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "12-accumulation-potential-hierarchy.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_lake_footprint_comparison(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+        alpha=0.72,
+    )
+    lake_mask = _lake_mask(hydrology.routing_elevation_m.shape, hydrology.lake_candidates)
+    rows, columns = np.where(lake_mask)
+    if rows.size:
+        x, y = _world_xy(rows, columns, cell_size_km=cell_size_km, height_km=height_km)
+        ax.scatter(x, y, s=17.0, marker="s", color="gray", alpha=0.40, linewidths=0, zorder=4)
+    _plot_refined_lakes(ax, hydrology, alpha=0.34, outline_only=False)
+    ax.set_title("H10-A — Routing lake cells (gray) vs refined shorelines (blue)")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "13-lake-raster-vs-refined.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_refined_lakes_regional(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_river_network(ax, hydrology.river_network)
+    ax.set_title("H10-A — Refined lakes with regional rivers")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "14-refined-lakes-regional-rivers.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_refined_lakes_potential(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+    )
+    _plot_lakes_and_outlets(ax, hydrology, cell_size_km=cell_size_km, height_km=height_km)
+    _plot_potential_hierarchy(ax, hydrology, width_scale=0.78)
+    ax.set_title("H10-A — Refined lakes with potential drainage hierarchy")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "15-refined-lakes-potential-hierarchy.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_lake_contact_sheet(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    cell_size_km: float,
+    height_km: float,
+) -> None:
+    items = []
+    for index, candidate in enumerate(hydrology.lake_candidates):
+        feature = hydrology.lake_features[lake_feature_id(index)]
+        items.append((float(candidate.area_km2), index, candidate, feature))
+    items.sort(key=lambda item: (-item[0], item[1]))
+
+    fig, axes = plt.subplots(4, 4, figsize=(16.0, 16.0), dpi=150)
+    flat = list(axes.flat)
+    for ax in flat:
+        ax.axis("off")
+
+    for ax, (_area, index, candidate, feature) in zip(flat, items):
+        rows = [cell[0] for cell in candidate.cells]
+        columns = [cell[1] for cell in candidate.cells]
+        x0 = max(0.0, min(columns) * cell_size_km - 2.0)
+        x1 = min(terrain.elevation_m.shape[1] * cell_size_km, (max(columns) + 1) * cell_size_km + 2.0)
+        y0 = max(0.0, height_km - (max(rows) + 1) * cell_size_km - 2.0)
+        y1 = min(height_km, height_km - min(rows) * cell_size_km + 2.0)
+
+        ax.axis("on")
+        ax.imshow(
+            _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+            origin="lower",
+            extent=(0.0, terrain.elevation_m.shape[1] * cell_size_km, 0.0, height_km),
+            interpolation="bilinear",
+            aspect="equal",
+        )
+        rr = np.array(rows, dtype=np.int64)
+        cc = np.array(columns, dtype=np.int64)
+        rx, ry = _world_xy(rr, cc, cell_size_km=cell_size_km, height_km=height_km)
+        ax.scatter(rx, ry, s=26.0, marker="s", color="gray", alpha=0.30, linewidths=0, zorder=4)
+        for polygon in feature.geometry.polygons:
+            xs = [float(point.x_km) for point in polygon.outer]
+            ys = [float(point.y_km) for point in polygon.outer]
+            ax.fill(xs, ys, color="deepskyblue", alpha=0.56, linewidth=0.0, zorder=5)
+            ax.plot(xs + [xs[0]], ys + [ys[0]], color="dodgerblue", linewidth=1.0, zorder=6)
+
+        lake_id = lake_feature_id(index)
+        for node in hydrology.river_network.nodes.values():
+            if node.feature_id != lake_id:
+                continue
+            marker = "x" if node.kind.value == "lake_outlet" else "v"
+            color = "red" if node.kind.value == "lake_outlet" else "gold"
+            ax.scatter([node.position.x_km], [node.position.y_km], s=35.0, marker=marker, color=color, zorder=9)
+
+        ax.set_xlim(x0, x1)
+        ax.set_ylim(y0, y1)
+        ax.set_title(
+            f"{lake_id}: routing {candidate.area_km2:.0f} km² / refined {feature.properties.area_km2:.1f} km²",
+            fontsize=8,
+        )
+        ax.tick_params(labelsize=6)
+
+    fig.suptitle("H10-A — All accepted lakes: routing cells vs refined shoreline", fontsize=14)
+    fig.tight_layout()
+    fig.savefig(output / "16-lake-contact-sheet.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_lake_endpoints(
+    output: Path,
+    terrain,
+    hydrology,
+    *,
+    width_km: float,
+    height_km: float,
+    cell_size_km: float,
+) -> None:
+    fig, ax = plt.subplots(figsize=(15.0, 10.0), dpi=160)
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+    )
+    _plot_refined_lakes(ax, hydrology, alpha=0.52)
+    _plot_river_network(ax, hydrology.river_network)
+    inflow_x, inflow_y, outlet_x, outlet_y = _lake_network_points(hydrology)
+    if inflow_x:
+        ax.scatter(inflow_x, inflow_y, s=35.0, marker="v", color="gold", edgecolors="black", linewidths=0.5, zorder=10)
+    if outlet_x:
+        ax.scatter(outlet_x, outlet_y, s=55.0, marker="x", color="red", linewidths=1.4, zorder=11)
+    ax.set_title("H10-A — Refined shoreline contacts: inflow (gold) / outlet (red)")
+    ax.set_xlabel("km east")
+    ax.set_ylabel("km north")
+    ax.set_xlim(0.0, width_km)
+    ax.set_ylim(0.0, height_km)
+    fig.tight_layout()
+    fig.savefig(output / "17-lake-endpoints.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _build_nested_hierarchies(plan, terrain, hydrology):
+    result = {}
+    for index, candidate in enumerate(hydrology.lake_candidates):
+        lake_id = lake_feature_id(index)
+        result[lake_id] = build_nested_depression_hierarchy(
+            terrain.elevation_m,
+            candidate,
+            cell_size_km=float(plan.grid.cell_size_km),
+            lake_min_area_km2=float(plan.hydrology.lake_min_area_km2),
+            lake_min_depth_m=float(plan.hydrology.lake_min_depth_m),
+        )
+    return result
+
+
+def _hierarchy_summary(lake_id, hierarchy):
+    nodes = hierarchy.node_map()
+    root = nodes[hierarchy.root_id]
+    leaves = list(hierarchy.leaf_nodes())
+    significant = [node for node in leaves if node.threshold_significant]
+    significant.sort(
+        key=lambda node: (
+            -float(node.area_at_spill_km2),
+            -float(node.storage_to_spill_proxy_km3),
+            node.id,
+        )
+    )
+    root_area = float(root.area_at_spill_km2)
+    root_storage = float(root.storage_to_spill_proxy_km3)
+
+    def _node_record(node):
+        return {
+            "id": node.id,
+            "parent_id": node.parent_id,
+            "child_ids": list(node.child_ids),
+            "minimum_cell": [int(node.minimum_cell[0]), int(node.minimum_cell[1])],
+            "minimum_elevation_m": float(node.minimum_elevation_m),
+            "birth_elevation_m": float(node.birth_elevation_m),
+            "birth_cells": [[int(r), int(c)] for r, c in node.birth_cells],
+            "spill_elevation_m": float(node.spill_elevation_m),
+            "relief_to_spill_m": float(node.relief_to_spill_m),
+            "area_at_spill_km2": float(node.area_at_spill_km2),
+            "storage_to_spill_proxy_km3": float(node.storage_to_spill_proxy_km3),
+            "area_fraction_of_root": (
+                float(node.area_at_spill_km2) / root_area if root_area > 0.0 else 0.0
+            ),
+            "storage_fraction_of_root": (
+                float(node.storage_to_spill_proxy_km3) / root_storage
+                if root_storage > 0.0 else 0.0
+            ),
+            "threshold_significant": bool(node.threshold_significant),
+        }
+
+    area_fractions = [
+        float(node.area_at_spill_km2) / root_area
+        for node in significant
+        if root_area > 0.0
+    ]
+    storage_fractions = [
+        float(node.storage_to_spill_proxy_km3) / root_storage
+        for node in significant
+        if root_storage > 0.0
+    ]
+    return {
+        "lake_id": lake_id,
+        "root_id": hierarchy.root_id,
+        "node_count": len(hierarchy.nodes),
+        "merge_node_count": sum(1 for node in hierarchy.nodes if node.child_ids),
+        "leaf_count": len(leaves),
+        "threshold_significant_leaf_count": len(significant),
+        "has_multiple_significant_children": len(significant) >= 2,
+        "root_area_km2": root_area,
+        "root_storage_proxy_km3": root_storage,
+        "largest_significant_leaf_area_fraction": (
+            max(area_fractions) if area_fractions else None
+        ),
+        "second_significant_leaf_area_fraction": (
+            sorted(area_fractions, reverse=True)[1] if len(area_fractions) >= 2 else None
+        ),
+        "largest_significant_leaf_storage_fraction": (
+            max(storage_fractions) if storage_fractions else None
+        ),
+        "second_significant_leaf_storage_fraction": (
+            sorted(storage_fractions, reverse=True)[1] if len(storage_fractions) >= 2 else None
+        ),
+        "significant_leaves": [_node_record(node) for node in significant],
+        "nodes": [_node_record(node) for node in hierarchy.nodes],
+    }
+
+
+def _plot_hierarchy_on_lake(
+    ax,
+    terrain,
+    hydrology,
+    lake_index,
+    hierarchy,
+    *,
+    cell_size_km: float,
+    height_km: float,
+    padding_km: float = 2.0,
+) -> None:
+    candidate = hydrology.lake_candidates[lake_index]
+    lake_id = lake_feature_id(lake_index)
+    feature = hydrology.lake_features[lake_id]
+
+    rows = [cell[0] for cell in candidate.cells]
+    columns = [cell[1] for cell in candidate.cells]
+    width_km = terrain.elevation_m.shape[1] * cell_size_km
+    x0 = max(0.0, min(columns) * cell_size_km - padding_km)
+    x1 = min(width_km, (max(columns) + 1) * cell_size_km + padding_km)
+    y0 = max(0.0, height_km - (max(rows) + 1) * cell_size_km - padding_km)
+    y1 = min(height_km, height_km - min(rows) * cell_size_km + padding_km)
+
+    ax.imshow(
+        _hillshade(terrain.elevation_m, cell_size_km=cell_size_km),
+        origin="lower",
+        extent=(0.0, width_km, 0.0, height_km),
+        interpolation="bilinear",
+        aspect="equal",
+    )
+    for polygon in feature.geometry.polygons:
+        xs = [float(point.x_km) for point in polygon.outer]
+        ys = [float(point.y_km) for point in polygon.outer]
+        ax.fill(xs, ys, color="deepskyblue", alpha=0.32, linewidth=0.0, zorder=4)
+        ax.plot(xs + [xs[0]], ys + [ys[0]], color="dodgerblue", linewidth=1.0, zorder=5)
+
+    leaves = [
+        node for node in hierarchy.leaf_nodes()
+        if node.threshold_significant
+    ]
+    leaves.sort(key=lambda node: (-node.area_at_spill_km2, node.id))
+    cmap = plt.get_cmap("tab10")
+    for leaf_index, node in enumerate(leaves):
+        rr = np.array([cell[0] for cell in node.cells_at_spill], dtype=np.int64)
+        cc = np.array([cell[1] for cell in node.cells_at_spill], dtype=np.int64)
+        xx, yy = _world_xy(rr, cc, cell_size_km=cell_size_km, height_km=height_km)
+        ax.scatter(
+            xx,
+            yy,
+            s=34.0,
+            marker="s",
+            facecolors="none",
+            edgecolors=[cmap(leaf_index % 10)],
+            linewidths=0.9,
+            zorder=7,
+        )
+        min_x, min_y = _world_xy(
+            np.array([node.minimum_cell[0]], dtype=np.int64),
+            np.array([node.minimum_cell[1]], dtype=np.int64),
+            cell_size_km=cell_size_km,
+            height_km=height_km,
+        )
+        ax.scatter(min_x, min_y, s=28.0, marker="o", color=[cmap(leaf_index % 10)], zorder=9)
+
+    merge_nodes = [node for node in hierarchy.nodes if node.child_ids]
+    for node in merge_nodes:
+        if not node.birth_cells:
+            continue
+        rr = np.array([cell[0] for cell in node.birth_cells], dtype=np.int64)
+        cc = np.array([cell[1] for cell in node.birth_cells], dtype=np.int64)
+        xx, yy = _world_xy(rr, cc, cell_size_km=cell_size_km, height_km=height_km)
+        ax.scatter(xx, yy, s=32.0, marker="x", color="magenta", linewidths=1.0, zorder=10)
+
+    ax.set_xlim(x0, x1)
+    ax.set_ylim(y0, y1)
+    ax.set_aspect("equal")
+    ax.set_title(
+        f"{lake_id}: leaves={len(hierarchy.leaf_nodes())}, significant={len(leaves)}, merges={len(merge_nodes)}",
+        fontsize=8,
+    )
+    ax.tick_params(labelsize=6)
+
+
+def _save_nested_depression_contact_sheet(
+    output: Path,
+    terrain,
+    hydrology,
+    hierarchies,
+    *,
+    cell_size_km: float,
+    height_km: float,
+) -> None:
+    items = [
+        (float(candidate.area_km2), index)
+        for index, candidate in enumerate(hydrology.lake_candidates)
+    ]
+    items.sort(key=lambda item: (-item[0], item[1]))
+    fig, axes = plt.subplots(4, 4, figsize=(16.0, 16.0), dpi=150)
+    flat = list(axes.flat)
+    for ax in flat:
+        ax.axis("off")
+    for ax, (_area, index) in zip(flat, items):
+        ax.axis("on")
+        lake_id = lake_feature_id(index)
+        _plot_hierarchy_on_lake(
+            ax,
+            terrain,
+            hydrology,
+            index,
+            hierarchies[lake_id],
+            cell_size_km=cell_size_km,
+            height_km=height_km,
+        )
+    fig.suptitle(
+        "H10-B — Nested depression diagnostic: significant leaf basins, minima and merge saddles",
+        fontsize=14,
+    )
+    fig.tight_layout()
+    fig.savefig(output / "18-nested-depression-contact-sheet.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def _save_largest_nested_depressions(
+    output: Path,
+    terrain,
+    hydrology,
+    hierarchies,
+    *,
+    cell_size_km: float,
+    height_km: float,
+) -> None:
+    largest = sorted(
+        range(len(hydrology.lake_candidates)),
+        key=lambda index: (
+            -float(hydrology.lake_candidates[index].area_km2),
+            index,
+        ),
+    )[:4]
+    fig, axes = plt.subplots(2, 2, figsize=(16.0, 12.0), dpi=160)
+    for ax, index in zip(axes.flat, largest):
+        lake_id = lake_feature_id(index)
+        _plot_hierarchy_on_lake(
+            ax,
+            terrain,
+            hydrology,
+            index,
+            hierarchies[lake_id],
+            cell_size_km=cell_size_km,
+            height_km=height_km,
+            padding_km=3.0,
+        )
+        summary = _hierarchy_summary(lake_id, hierarchies[lake_id])
+        first = summary["largest_significant_leaf_area_fraction"]
+        second = summary["second_significant_leaf_area_fraction"]
+        subtitle = (
+            f"largest/second significant leaf area fraction: "
+            f"{first:.2f}/{second:.2f}"
+            if first is not None and second is not None
+            else f"largest significant leaf area fraction: {first:.2f}"
+            if first is not None else "no significant leaf"
+        )
+        ax.text(
+            0.02,
+            0.02,
+            subtitle,
+            transform=ax.transAxes,
+            fontsize=8,
+            bbox={"facecolor": "white", "alpha": 0.72, "edgecolor": "none"},
+            zorder=12,
+        )
+    fig.suptitle("H10-B — Four largest routing lakes: internal depression structure", fontsize=14)
+    fig.tight_layout()
+    fig.savefig(output / "19-largest-lake-hierarchies.png", bbox_inches="tight")
+    plt.close(fig)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Render Core 0.2 hydrology H09 checkpoint")
+    parser.add_argument("request", type=Path)
+    parser.add_argument("presets", type=Path)
+    parser.add_argument("output", type=Path)
+    args = parser.parse_args()
+
+    request = load_generation_request(args.request)
+    catalog = load_preset_catalog(args.presets)
+    registry = registry_for_request(request, catalog)
+    plan = compile_domain_spec(
+        request.domain_spec,
+        registry=registry,
+        generator_version=domain_generator.__version__,
+    )
+    if plan.plan_version != "0.2":
+        raise RuntimeError("H09 checkpoint requires GenerationPlan 0.2")
+
+    rng = RngFactory(plan.seed)
+    layout = generate_layout(plan, attempt_index=0, rng_factory=rng)
+    terrain = generate_terrain(plan, layout, attempt_index=0, rng_factory=rng)
+    hydrology = generate_hydrology(plan, terrain)
+    if hydrology.routing_mode != "continuous" or hydrology.continuous_routing is None:
+        raise RuntimeError("H09 checkpoint requires continuous Core 0.2 hydrology")
+    if hydrology.channel_support_mask is None:
+        raise RuntimeError("H09 checkpoint requires channel_support_mask")
+    if hydrology.channel_skeleton_mask is None:
+        raise RuntimeError("H09-E checkpoint requires regional channel_skeleton_mask")
+    if (
+        hydrology.potential_channel_skeleton_mask is None
+        or hydrology.channel_strahler_order is None
+        or hydrology.potential_river_network is None
+    ):
+        raise RuntimeError("H09-E checkpoint requires potential drainage hierarchy")
+
+    validation = validate_hydrology(plan, terrain, hydrology, attempt_index=0)
+
+    args.output.mkdir(parents=True, exist_ok=True)
+    width_km = float(plan.domain.width_km)
+    height_km = float(plan.domain.height_km)
+    cell_size_km = float(plan.grid.cell_size_km)
+
+    _save_terrain_rivers(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_drainage_field(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_channel_support(
+        args.output,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_accumulation_overlay(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_channel_skeleton(
+        args.output,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_local_slope(
+        args.output,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+    )
+    _save_convergence(
+        args.output,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+    )
+    _save_initiation_score(
+        args.output,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        threshold_km2=float(plan.hydrology.stream_threshold_km2),
+    )
+    _save_potential_hierarchy(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_regional_over_potential(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_strahler_skeleton(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_accumulation_potential(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_lake_footprint_comparison(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_refined_lakes_regional(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_refined_lakes_potential(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+    _save_lake_contact_sheet(
+        args.output,
+        terrain,
+        hydrology,
+        cell_size_km=cell_size_km,
+        height_km=height_km,
+    )
+    _save_lake_endpoints(
+        args.output,
+        terrain,
+        hydrology,
+        width_km=width_km,
+        height_km=height_km,
+        cell_size_km=cell_size_km,
+    )
+
+    nested_hierarchies = _build_nested_hierarchies(plan, terrain, hydrology)
+    _save_nested_depression_contact_sheet(
+        args.output,
+        terrain,
+        hydrology,
+        nested_hierarchies,
+        cell_size_km=cell_size_km,
+        height_km=height_km,
+    )
+    _save_largest_nested_depressions(
+        args.output,
+        terrain,
+        hydrology,
+        nested_hierarchies,
+        cell_size_km=cell_size_km,
+        height_km=height_km,
+    )
+
+    node_kinds = Counter(node.kind.value for node in hydrology.river_network.nodes.values())
+    potential_node_kinds = Counter(
+        node.kind.value for node in hydrology.potential_river_network.nodes.values()
+    )
+    final_stats = _final_direction_stats(hydrology.river_network)
+    potential_final_stats = _final_direction_stats(hydrology.potential_river_network)
+    potential_indegree = {
+        node_id: 0 for node_id in hydrology.potential_river_network.nodes
+    }
+    potential_outdegree = {
+        node_id: 0 for node_id in hydrology.potential_river_network.nodes
+    }
+    for segment in hydrology.potential_river_network.segments.values():
+        potential_outdegree[segment.from_node] += 1
+        potential_indegree[segment.to_node] += 1
+    potential_confluence_indegrees = {
+        node_id: int(potential_indegree[node_id])
+        for node_id, node in hydrology.potential_river_network.nodes.items()
+        if node.kind.value == "confluence"
+    }
+    routing_stats = _routing_direction_stats(hydrology.continuous_routing.flow_angle_rad)
+    unique_area = np.asarray(hydrology.channel_unique_area_km2, dtype=np.float64)
+    convergence = np.asarray(hydrology.channel_convergence, dtype=np.float64)
+    initiation_score = np.asarray(hydrology.channel_initiation_score_km2, dtype=np.float64)
+    local_slope = np.asarray(hydrology.continuous_routing.local_slope, dtype=np.float64)
+    threshold_km2 = float(plan.hydrology.stream_threshold_km2)
+    convergent_mask = convergence > 1.0 + 1e-9
+    reference_slope = 0.02
+    promotion_exponent = 1.65
+    score_mask = initiation_score >= threshold_km2
+    base_eligible_mask = unique_area >= threshold_km2
+    promoted_mask = (
+        (unique_area < threshold_km2)
+        & convergent_mask
+        & (local_slope > reference_slope)
+        & score_mask
+    )
+    eligible_mask = base_eligible_mask | promoted_mask
+    potential_mask = np.asarray(hydrology.potential_channel_skeleton_mask, dtype=np.bool_)
+    regional_mask = np.asarray(hydrology.channel_skeleton_mask, dtype=np.bool_)
+    strahler_order = np.asarray(hydrology.channel_strahler_order)
+    segment_order_counts = Counter(hydrology.potential_segment_strahler_order.values())
+    cell_order_counts = Counter(
+        int(value) for value in strahler_order[strahler_order > 0].tolist()
+    )
+    regional_cells = int(np.count_nonzero(regional_mask))
+    regional_covered = int(np.count_nonzero(regional_mask & potential_mask))
+
+    def _percentiles(values: np.ndarray) -> dict[str, float]:
+        finite = values[np.isfinite(values)]
+        if finite.size == 0:
+            return {}
+        return {
+            "p50": float(np.percentile(finite, 50)),
+            "p75": float(np.percentile(finite, 75)),
+            "p90": float(np.percentile(finite, 90)),
+            "p95": float(np.percentile(finite, 95)),
+            "p99": float(np.percentile(finite, 99)),
+            "max": float(np.max(finite)),
+        }
+
+    # Reconstruct the previous H09-C fixed-area source set on the exact same
+    # routing state. This is diagnostic only and lets us see what the new
+    # terrain-aware rule suppressed instead of tuning constants blindly.
+    receiver_index = _dominant_channel_receiver_index(
+        hydrology.continuous_routing,
+        hydrology.flow_accumulation_km2,
+        hydrology.channel_support_mask,
+        lake_candidates=hydrology.lake_candidates,
+        lake_outlets=hydrology.lake_outlets,
+    )
+    old_eligible = base_eligible_mask.copy()
+    lake_cells = {
+        cell
+        for lake in hydrology.lake_candidates
+        for cell in lake.cells
+    }
+    for cell in lake_cells:
+        old_eligible[cell] = False
+    old_indegree = np.zeros(old_eligible.shape, dtype=np.int32)
+    rows, columns = old_eligible.shape
+    for row in range(rows):
+        for column in range(columns):
+            if not bool(old_eligible[row, column]):
+                continue
+            target_index = int(receiver_index[row, column])
+            if target_index < 0:
+                continue
+            target = divmod(target_index, columns)
+            if target not in lake_cells and bool(old_eligible[target]):
+                old_indegree[target] += 1
+    outlet_receivers = {item.receiver_cell for item in hydrology.lake_outlets}
+    old_sources = [
+        (row, column)
+        for row in range(rows)
+        for column in range(columns)
+        if bool(old_eligible[row, column])
+        and int(old_indegree[row, column]) == 0
+        and row not in {0, rows - 1}
+        and column not in {0, columns - 1}
+        and (row, column) not in outlet_receivers
+    ]
+    old_source_diagnostics = [
+        {
+            "row": int(row),
+            "column": int(column),
+            "unique_area_km2": float(unique_area[row, column]),
+            "local_slope": float(local_slope[row, column]),
+            "convergence": float(convergence[row, column]),
+            "score_km2": float(initiation_score[row, column]),
+            "passes_convergence": bool(convergent_mask[row, column]),
+        }
+        for row, column in sorted(old_sources)
+    ]
+
+    candidate_cells = list(zip(*np.where(convergent_mask)))
+    candidate_cells.sort(
+        key=lambda cell: (
+            -float(initiation_score[cell]),
+            -float(unique_area[cell]),
+            -float(local_slope[cell]),
+            cell[0],
+            cell[1],
+        )
+    )
+    top_candidates = [
+        {
+            "row": int(row),
+            "column": int(column),
+            "unique_area_km2": float(unique_area[row, column]),
+            "local_slope": float(local_slope[row, column]),
+            "convergence": float(convergence[row, column]),
+            "score_km2": float(initiation_score[row, column]),
+        }
+        for row, column in candidate_cells[:20]
+    ]
+
+    lake_diagnostics = []
+    cell_area_km2 = cell_size_km * cell_size_km
+    outlet_by_id = {outlet.lake_id: outlet for outlet in hydrology.lake_outlets}
+    for lake_index, candidate in enumerate(hydrology.lake_candidates):
+        lake_id = lake_feature_id(lake_index)
+        feature = hydrology.lake_features[lake_id]
+        refined_backend = backend_region_set(feature.geometry)
+        refined_area_km2 = float(feature.properties.area_km2)
+        refined_perimeter_km = float(refined_backend._value.length)
+        cells = tuple(candidate.cells)
+        rows_lake = [cell[0] for cell in cells]
+        cols_lake = [cell[1] for cell in cells]
+        cell_set = set(cells)
+        perimeter_edges = 0
+        for row, column in cells:
+            for delta_row, delta_column in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                if (row + delta_row, column + delta_column) not in cell_set:
+                    perimeter_edges += 1
+        perimeter_km = float(perimeter_edges) * cell_size_km
+        shoreline_development = (
+            perimeter_km / (2.0 * np.sqrt(np.pi * float(candidate.area_km2)))
+            if candidate.area_km2 > 0.0
+            else 0.0
+        )
+        lake_catchment_km2 = float(hydrology.flow_accumulation_km2[cells[0]])
+        depth_values_m = np.array(
+            [
+                float(hydrology.fill_elevation_m[cell] - terrain.elevation_m[cell])
+                for cell in cells
+            ],
+            dtype=np.float64,
+        )
+        storage_proxy_km3 = float(np.sum(depth_values_m) * cell_area_km2 / 1000.0)
+        outlet = outlet_by_id.get(lake_id)
+        lake_diagnostics.append(
+            {
+                "lake_id": lake_id,
+                "routing_basin_area_km2": float(candidate.area_km2),
+                "refined_shoreline_area_km2": refined_area_km2,
+                "refined_to_routing_area_ratio": refined_area_km2 / float(candidate.area_km2),
+                "refined_perimeter_km": refined_perimeter_km,
+                "max_depth_m": float(candidate.max_depth_m),
+                "mean_fill_depth_m": float(np.mean(depth_values_m)),
+                "storage_proxy_km3": storage_proxy_km3,
+                "surface_elevation_m": float(candidate.surface_elevation_m),
+                "catchment_km2": lake_catchment_km2,
+                "catchment_to_lake_area_ratio": (
+                    lake_catchment_km2 / float(candidate.area_km2)
+                    if candidate.area_km2 > 0.0
+                    else None
+                ),
+                "lake_area_fraction_of_catchment": (
+                    refined_area_km2 / lake_catchment_km2
+                    if lake_catchment_km2 > 0.0
+                    else None
+                ),
+                "bbox_rows": int(max(rows_lake) - min(rows_lake) + 1),
+                "bbox_columns": int(max(cols_lake) - min(cols_lake) + 1),
+                "grid_perimeter_km": perimeter_km,
+                "shoreline_development_index_grid": float(shoreline_development),
+                "shoreline_development_index_refined": (
+                    refined_perimeter_km / (2.0 * np.sqrt(np.pi * refined_area_km2))
+                    if refined_area_km2 > 0.0 else 0.0
+                ),
+                "outlet_lake_cell": (
+                    [int(outlet.lake_cell[0]), int(outlet.lake_cell[1])]
+                    if outlet is not None else None
+                ),
+                "outlet_receiver_cell": (
+                    [int(outlet.receiver_cell[0]), int(outlet.receiver_cell[1])]
+                    if outlet is not None else None
+                ),
+            }
+        )
+    lake_diagnostics.sort(
+        key=lambda item: (-item["routing_basin_area_km2"], item["lake_id"])
+    )
+    nested_depression_diagnostics = [
+        _hierarchy_summary(lake_id, hierarchy)
+        for lake_id, hierarchy in sorted(nested_hierarchies.items())
+    ]
+    nested_depression_diagnostics.sort(
+        key=lambda item: (-item["root_area_km2"], item["lake_id"])
+    )
+
+    stats = {
+        "checkpoint": "H10-B",
+        "generator_version": domain_generator.__version__,
+        "plan_version": plan.plan_version,
+        "routing_mode": hydrology.routing_mode,
+        "domain": {
+            "width_km": width_km,
+            "height_km": height_km,
+            "cell_size_km": cell_size_km,
+            "rows": int(plan.grid.rows),
+            "columns": int(plan.grid.columns),
+        },
+        "terrain_elevation_m": {
+            "min": float(np.min(terrain.elevation_m)),
+            "max": float(np.max(terrain.elevation_m)),
+            "std": float(np.std(terrain.elevation_m)),
+        },
+        "hydrology": {
+            "accepted_lake_count": len(hydrology.lake_candidates),
+            "canonical_lake_outlet_count": len(hydrology.lake_outlets),
+            "lake_diagnostics": lake_diagnostics,
+            "nested_depression_diagnostics": nested_depression_diagnostics,
+            "channel_support_cells": int(np.count_nonzero(hydrology.channel_support_mask)),
+            "channel_skeleton_cells": int(np.count_nonzero(hydrology.channel_skeleton_mask)),
+            "max_local_slope": float(np.max(hydrology.continuous_routing.local_slope)),
+            "max_channel_convergence": float(np.max(hydrology.channel_convergence)),
+            "max_initiation_score_km2": float(np.max(hydrology.channel_initiation_score_km2)),
+            "initiation_diagnostics": {
+                "threshold_km2": threshold_km2,
+                "reference_slope": reference_slope,
+                "promotion_exponent": promotion_exponent,
+                "convergent_cell_count": int(np.count_nonzero(convergent_mask)),
+                "baseline_eligible_cell_count": int(np.count_nonzero(base_eligible_mask)),
+                "promotion_score_at_or_above_threshold_count": int(np.count_nonzero(score_mask)),
+                "promoted_cell_count": int(np.count_nonzero(promoted_mask)),
+                "eligible_cell_count": int(np.count_nonzero(eligible_mask)),
+                "unique_area_all_km2": _percentiles(unique_area),
+                "unique_area_convergent_km2": _percentiles(unique_area[convergent_mask]),
+                "local_slope_all": _percentiles(local_slope),
+                "local_slope_convergent": _percentiles(local_slope[convergent_mask]),
+                "score_all_km2": _percentiles(initiation_score),
+                "score_convergent_km2": _percentiles(initiation_score[convergent_mask]),
+                "top_convergent_candidates": top_candidates,
+                "h09c_fixed_area_source_count": len(old_source_diagnostics),
+                "h09c_fixed_area_sources_preserved": old_source_diagnostics,
+            },
+            "final_stream_cells": int(np.count_nonzero(hydrology.stream_mask)),
+            "river_node_count": len(hydrology.river_network.nodes),
+            "river_segment_count": len(hydrology.river_network.segments),
+            "river_node_kinds": dict(sorted(node_kinds.items())),
+            "potential_hierarchy": {
+                "threshold_factor": 0.40,
+                "threshold_km2": threshold_km2 * 0.40,
+                "skeleton_cells": int(np.count_nonzero(potential_mask)),
+                "regional_skeleton_cells": regional_cells,
+                "regional_cells_covered": regional_covered,
+                "regional_coverage_fraction": (
+                    float(regional_covered / regional_cells) if regional_cells else 1.0
+                ),
+                "river_node_count": len(hydrology.potential_river_network.nodes),
+                "river_segment_count": len(hydrology.potential_river_network.segments),
+                "river_node_kinds": dict(sorted(potential_node_kinds.items())),
+                "confluence_indegree_histogram": dict(
+                    sorted(Counter(potential_confluence_indegrees.values()).items())
+                ),
+                "confluences_with_indegree_lt_2": [
+                    node_id
+                    for node_id, value in sorted(potential_confluence_indegrees.items())
+                    if value < 2
+                ],
+                "nodes_with_outdegree_gt_1": [
+                    node_id
+                    for node_id, value in sorted(potential_outdegree.items())
+                    if value > 1
+                ],
+                "maximum_strahler_order": int(np.max(strahler_order)),
+                "strahler_cell_histogram": {
+                    str(key): int(value) for key, value in sorted(cell_order_counts.items())
+                },
+                "strahler_segment_histogram": {
+                    str(key): int(value) for key, value in sorted(segment_order_counts.items())
+                },
+                "final_vector_geometry": potential_final_stats,
+            },
+            "max_accumulation_km2": float(np.max(hydrology.flow_accumulation_km2)),
+            "continuous_routing_direction": routing_stats,
+            "final_vector_geometry": final_stats,
+        },
+        "validation": {
+            "engine_invariants_passed": bool(validation.engine_invariants.passed),
+            "hard_constraints_passed": bool(validation.hard_constraints.passed),
+        },
+    }
+    serialized_stats = json.dumps(stats, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    (args.output / "statistics.json").write_text(
+        serialized_stats,
+        encoding="utf-8",
+    )
+    print(serialized_stats, end="")
+
+
+if __name__ == "__main__":
+    main()

@@ -33,7 +33,11 @@ from .boolean import (
     to_region_set,
     union_geometry,
 )
-from .queries import region_set_covers_point
+from .queries import (
+    region_set_boundary_distance_km,
+    region_set_covers_point,
+    region_set_nearest_boundary_point,
+)
 
 __all__ = [
     "EXPECTED_SHAPELY_VERSION",
@@ -52,7 +56,9 @@ __all__ = [
     "intersect_geometry",
     "intersection_area_km2",
     "is_canonical_region_set",
+    "region_set_boundary_distance_km",
     "region_set_covers_point",
+    "region_set_nearest_boundary_point",
     "subtract_geometry",
     "to_region_set",
     "union_geometry",

@@ -99,8 +99,17 @@ def build_water_depth_m(
                 result[cell] = float(fill[cell] - terrain[cell])
                 continue
             if bool(stream_mask[cell]):
-                result[cell] = river_depth_proxy_m(
+                # Core 0.2 semantic channel traces may bridge a short distributed-flow
+                # gap where a single raster cell carries less than the channel-support
+                # threshold even though the continuous river passes through it. Such a
+                # cell receives the minimum visible channel depth. Core 0.1 is unchanged
+                # because its stream mask already implies catchment >= threshold.
+                effective_catchment = max(
                     float(flow_accumulation_km2[cell]),
+                    float(stream_threshold_km2),
+                )
+                result[cell] = river_depth_proxy_m(
+                    effective_catchment,
                     stream_threshold_km2=stream_threshold_km2,
                     river_depth_at_threshold_m=river_depth_at_threshold_m,
                     river_depth_exponent=river_depth_exponent,
