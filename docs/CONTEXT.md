@@ -499,13 +499,51 @@ Accepted boundary:
 
 P08-A is frozen unless a concrete metric/contract defect appears.
 
-## Current checkpoint — Placement next-slice audit
+## Placement 0.2 — current scope complete
+
+Post-P08-A audit result:
+- the preset/plan SiteProfile contract already accepts metric IDs as explicit strings;
+- Core 0.2 environmental metrics therefore work through the existing compiler path without another schema redesign;
+- candidate generation and site selection already consume the version-aware runtime registry;
+- no additional base Placement semantic slice is required at the current Core 0.2 scope.
+
+Still deferred as higher-layer work:
+- deferred-to-deferred POI interactions;
+- roads/accessibility networks;
+- human geography;
+- settlement-specific hidden defaults or heuristics.
+
+These must not be smuggled into generic Core Placement merely because environmental metrics now exist.
+
+## Current checkpoint — Core 0.2 integrated acceptance hardening
+
+Historical acceptance cases A01–A07 are Core 0.1 fixtures. Core 0.2 has strong component checkpoints but no single frozen end-to-end acceptance case.
+
+Hardening PR #90:
+`https://github.com/MysterioCrypto/domain_generator/pull/90`
+
+A08 exercises:
+```text
+DomainSpec 0.2
+→ PresetCatalog
+→ compiler
+→ Terrain 0.2
+→ Hydrology 0.2
+→ C1/C2/C3
+→ Placement using P08-A metrics
+→ DomainData rivers + potential_drainage
+→ canonical bundle
+→ exact replay
+```
+
+This is test/integration hardening only. It does not introduce new world semantics and therefore does not require a new INV-006 semantic design gate.
 
 Immediate next action:
-1. inspect remaining dependent-placement contract/runtime boundaries;
-2. identify which missing capability prevents Core 0.2 from using the now-available environmental metrics meaningfully;
-3. choose one bounded slice;
-4. write design under INV-006 before changing semantics.
+1. run A08 with baseline=PENDING;
+2. inspect any real integration failures first;
+3. if the run is semantically correct, pin the exact deterministic baseline;
+4. rerun full pytest/replay/bundle acceptance;
+5. merge hardening PR #90 after green evidence.
 
 ## Rejected / constrained paths that must not silently return
 
