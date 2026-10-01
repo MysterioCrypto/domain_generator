@@ -296,19 +296,65 @@ Contract finding:
 H11-A design status:
 ```text
 design PR #86           ACCEPTED / MERGED
-runtime implementation  NEXT
+implementation PR #87   OPERATOR REVIEW
 ```
 
 Design merge commit:
 `712dae3179605b894558a9e399cd6929ffcda459`
 
+Implementation PR #87:
+`https://github.com/MysterioCrypto/domain_generator/pull/87`
+
+Semantic head:
+`b77d3247577c552117ba6bf4567d4e7563f062b1`
+
+Implemented boundary:
+```text
+Core 0.1:
+  networks["rivers"] only
+
+Core 0.2:
+  networks["rivers"]
+  networks["potential_drainage"]
+```
+
+Runtime contract correction discovered during checkpoint:
+- the `DomainData.networks` field type/schema already allowed multiple named RiverNetwork values;
+- a historical model validator still rejected every network other than `rivers`, regardless of 0.2 provenance;
+- H11-A makes the validator version-aware while keeping 0.1 unchanged and allowing only the exact additional `potential_drainage` ID for 0.2;
+- no root DomainData version bump.
+
+Checkpoint:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36845608659`
+
+Evidence:
+```text
+network keys              ["rivers", "potential_drainage"]
+
+regional runtime           58 nodes / 33 segments
+regional export            58 nodes / 33 segments
+regional exact equality    true
+
+potential runtime          111 nodes / 66 segments
+potential export           111 nodes / 66 segments
+potential exact equality   true
+
+upstream hashes unchanged  true
+```
+
+Automation:
+- X01–X08 GREEN;
+- push pytest GREEN;
+- PR pytest GREEN;
+- H11-A checkpoint GREEN.
+
+No spatial rerender is required because H11-A does not alter accepted H09-E geometry.
+
 Immediate next action:
-1. create a separate H11-A implementation branch from current `dev/0.2`;
-2. export the existing runtime `potential_river_network` as `DomainData.networks["potential_drainage"]` for Core 0.2 only;
-3. add X01–X08 guardrails;
-4. run full pytest;
-5. produce lightweight operator-visible network key/count/equality evidence;
-6. do not merge implementation before explicit ACCEPT / REJECT.
+1. explicit H11-A implementation ACCEPT / REJECT;
+2. ACCEPT → mark PR #87 ready, merge, and freeze this public boundary;
+3. REJECT → identify a concrete public-contract defect only;
+4. do not reopen routing/network geometry from an export-layer issue.
 
 ## Rejected / constrained paths that must not silently return
 
