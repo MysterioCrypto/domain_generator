@@ -43,27 +43,32 @@ PR #83 merge:
 ## IN PROGRESS
 
 ```text
-C3 vegetation / biome readiness — DESIGN OPERATOR REVIEW
-├─ INV-006 design PR #84 — draft/open
-├─ normative design document — PROPOSED
+C3 vegetation / biome readiness — IMPLEMENTATION NEXT
+├─ INV-006 design PR #84 — ACCEPTED / MERGED
+├─ normative design document — ACCEPTED
 └─ runtime implementation — NOT STARTED
 ```
 
 Design PR:
 `https://github.com/MysterioCrypto/domain_generator/pull/84`
 
+Merge commit:
+`2ad695d059b4f198b5f06c6451b005c0d630fbc9`
+
+Acceptance is formal project/operator acceptance, not expert ecological validation.
+
 No C3 runtime implementation has started.
 
 ## NEXT
 
 ```text
-1. operator review C3 design PR #84
-2. explicit design ACCEPT / REJECT
-3. ACCEPT → merge design
-4. only then create C3 implementation branch
-5. automated V01–V11 guardrails
-6. representative operator-visible C3-A checkpoint
-7. explicit implementation ACCEPT / REJECT
+1. create C3 implementation branch
+2. implement accepted climate-aware vegetation semantics
+3. automated V01–V11 guardrails
+4. full pytest
+5. representative operator-visible C3-A checkpoint
+6. explicit implementation ACCEPT / REJECT
+7. ACCEPT → freeze/merge C3
 8. later revisit deferred hydro-surface finishing with environmental context
 9. then continue Placement
 ```
