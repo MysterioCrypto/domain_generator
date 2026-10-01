@@ -374,11 +374,59 @@ Unsupported physical classifications remain deferred:
 
 The hydro-surface finishing slice is closed at the current model fidelity. The project now returns to Placement as previously planned.
 
+Placement readiness-audit result:
+
+KEEP unchanged:
+- rotated world-space candidate lattice;
+- explicit candidate spacing;
+- reservation containment;
+- circular raster footprint;
+- hard requirements;
+- preference scoring;
+- near-best filtering;
+- deterministic weighted selection;
+- RNG namespace separation;
+- no hidden retries/relaxation.
+
+Existing metrics retained:
+- slope_mean;
+- water_fraction;
+- elevation_mean;
+- local_relief;
+- relative_elevation;
+- moisture_mean;
+- vegetation_density_mean;
+- distance_to_water.
+
+Core 0.2 upstream meaning:
+- `moisture_mean` now evaluates accepted C2 effective moisture;
+- `vegetation_density_mean` now evaluates accepted C3 vegetation.
+
+Chosen bounded slice: **P08-A Placement Environmental Site Metrics v0.2**.
+
+Design PR #88:
+`https://github.com/MysterioCrypto/domain_generator/pull/88`
+
+Proposed Core 0.2-only additions:
+- `temperature_mean`;
+- `annual_precipitation_mean`;
+- `distance_to_potential_drainage`.
+
+Potential-drainage distance is explicitly geometric proximity to the accepted H09-E scaffold, not water permanence/access.
+
+No candidate lattice, requirement evaluator, scoring, near-best or final selection changes.
+
+Current gate:
+```text
+P08-A design          OPERATOR REVIEW
+runtime implementation NOT STARTED
+```
+
 Immediate next action:
-1. inspect current Placement design/code against accepted Terrain/Hydrology/C1/C2/C3 and public potential drainage;
-2. determine which existing Placement semantics remain valid from Core 0.1 and which need a Core 0.2 redesign;
-3. select one bounded Placement slice;
-4. document it under INV-006 before implementation if semantics materially change.
+1. explicit P08-A design ACCEPT / REJECT;
+2. ACCEPT → merge design;
+3. only then implement version-aware site metric registry + P01–P11;
+4. produce a representative metric/diagnostic-placement checkpoint before implementation acceptance.
 
 ## Rejected / constrained paths that must not silently return
 
