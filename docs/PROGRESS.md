@@ -47,8 +47,11 @@ Hydro-surface finishing — DONE
 ├─ X01–X08 — GREEN
 └─ public potential_drainage export — FROZEN
 
-Placement continuation — READINESS AUDIT
-└─ current Core 0.1 placement semantics vs accepted Core 0.2 environment
+Placement continuation — P08-A DESIGN OPERATOR REVIEW
+├─ readiness audit — DONE
+├─ existing placement mechanics — KEEP
+├─ design PR #88 — draft/open
+└─ runtime implementation — NOT STARTED
 ```
 
 Accepted hydrology routing/network remains frozen.
@@ -56,12 +59,12 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. inspect existing Placement contracts/designs/code
-2. classify Core 0.1 Placement semantics as KEEP / SUPERSEDE / BLOCKED
-3. choose one bounded Core 0.2 Placement slice
-4. design ACCEPT / REJECT if semantics change
-5. implementation + automated guardrails
-6. representative operator-visible checkpoint where spatial behavior changes
+1. operator review P08-A design PR #88
+2. explicit design ACCEPT / REJECT
+3. ACCEPT → merge design
+4. implement version-aware site metric registry
+5. P01–P11 + full pytest
+6. representative operator-visible metric/placement checkpoint
 7. explicit implementation ACCEPT / REJECT
 ```
 
@@ -94,3 +97,7 @@ H11-A design PR:
 
 H11-A checkpoint:
 `https://github.com/MysterioCrypto/domain_generator/actions/runs/36845608659`
+
+
+P08-A design PR:
+`https://github.com/MysterioCrypto/domain_generator/pull/88`
