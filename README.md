@@ -7,7 +7,7 @@
 ## С чего начать
 
 - [`PROJECT.md`](PROJECT.md) — текущее каноническое состояние проекта и архитектурные инварианты.
-- [`docs/roadmap.md`](docs/roadmap.md) — этапы разработки Core 0.1.
+- [`docs/roadmap.md`](docs/roadmap.md) — исторический roadmap Core 0.1; актуальный Core 0.2 ведётся через PROJECT/CONTEXT/PROGRESS и accepted design-документы.
 - [`docs/architecture.md`](docs/architecture.md) — актуальная архитектура.
 - [`docs/glossary.md`](docs/glossary.md) — общий словарь терминов.
 - [`docs/decisions/`](docs/decisions/) — принятые архитектурные решения и причины их принятия.
@@ -32,7 +32,7 @@ python -m pytest
 source .venv/bin/activate.fish
 ```
 
-Core 0.1 намеренно ограничивает NumPy диапазоном `>=2.0,<2.4`. Начиная с NumPy 2.4 официальные x86-64 wheels используют более новый CPU baseline; на старых x86_64 CPU это может завершаться `Illegal instruction` ещё при импорте NumPy. Проверенный совместимый вариант для старого x86_64 — NumPy 2.3.x.
+Проект намеренно ограничивает NumPy диапазоном `>=2.0,<2.4`. Начиная с NumPy 2.4 официальные x86-64 wheels используют более новый CPU baseline; на старых x86_64 CPU это может завершаться `Illegal instruction` ещё при импорте NumPy. Проверенный совместимый вариант для старого x86_64 — NumPy 2.3.x.
 
 Локальные virtual environments, test-generation outputs, editable-install metadata и Python caches игнорируются `.gitignore`.
 
@@ -73,7 +73,7 @@ LLM, orchestration агентов, GitHub Actions и инструменты пр
 
 ## Состояние разработки
 
-M0–M11 завершены. Core 0.1 функционально закрыт Acceptance Suite и находится в коротком release-hardening / release-candidate review. Актуальный checkpoint и следующий bounded шаг всегда фиксируются в [`PROJECT.md`](PROJECT.md).
+Core 0.1 сохранён как историческая совместимая линия `release/0.1-prealpha`. Активная линия — Core 0.2 в `dev/0.2`: приняты Terrain 0.2, Hydrology 0.2, annual climate, effective moisture, climate-aware vegetation, public potential drainage и environmental Placement metrics; A08 фиксирует полный end-to-end Core 0.2 acceptance path. Текущий release-hardening checkpoint и следующий bounded шаг всегда фиксируются в [`PROJECT.md`](PROJECT.md).
 
 ## Язык документации
 
