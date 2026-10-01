@@ -65,7 +65,8 @@ Surface / climate / biome 0.2
    ├─ climate DomainData export — IMPLEMENTED
    ├─ C01–C09 climate guardrails — IMPLEMENTED
    ├─ v0.2 fixture compatibility — IMPLEMENTED
-   └─ schema snapshots + CI stabilization — IN PROGRESS
+   ├─ schema snapshots — UPDATED
+   └─ CI stabilization / C1 checkpoint — IN PROGRESS
 
 Hydrology 0.2 — ACCEPTED
 ├─ H10-A shoreline refinement — KEEP
