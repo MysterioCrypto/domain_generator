@@ -40,13 +40,15 @@ PR #85 merge:
 ## IN PROGRESS
 
 ```text
-Hydro-surface finishing — H11-A OPERATOR REVIEW
+Hydro-surface finishing — DONE
 ├─ readiness audit — DONE
-├─ design PR #86 — ACCEPTED / MERGED
-├─ implementation PR #87 — draft/open
+├─ H11-A design PR #86 — ACCEPTED / MERGED
+├─ H11-A implementation PR #87 — ACCEPTED / MERGED
 ├─ X01–X08 — GREEN
-├─ push/PR pytest — GREEN
-└─ H11-A contract checkpoint — GREEN
+└─ public potential_drainage export — FROZEN
+
+Placement continuation — READINESS AUDIT
+└─ current Core 0.1 placement semantics vs accepted Core 0.2 environment
 ```
 
 Accepted hydrology routing/network remains frozen.
@@ -54,11 +56,13 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. explicit H11-A implementation ACCEPT / REJECT
-2. ACCEPT → freeze/merge PR #87
-3. keep unsupported physical hydro classifications deferred
-4. then continue Placement
-5. later add additional environment/process models only when required by a concrete feature
+1. inspect existing Placement contracts/designs/code
+2. classify Core 0.1 Placement semantics as KEEP / SUPERSEDE / BLOCKED
+3. choose one bounded Core 0.2 Placement slice
+4. design ACCEPT / REJECT if semantics change
+5. implementation + automated guardrails
+6. representative operator-visible checkpoint where spatial behavior changes
+7. explicit implementation ACCEPT / REJECT
 ```
 
 Do not bundle all deferred hydrology finishing into one change.
@@ -71,7 +75,6 @@ diffuse headwater roots / low-order visibility
 standing lake vs wetland / playa / dry basin
 delta / estuary / fan morphology
 biome labels
-Placement continuation
 ```
 
 ## Acceptance boundary
