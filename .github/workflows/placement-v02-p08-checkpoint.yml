@@ -1,0 +1,75 @@
+name: placement-v02-p08-checkpoint
+
+on:
+  pull_request:
+    paths:
+      - "src/domain_generator/poi/**"
+      - "tests/test_placement_environmental_metrics_v02.py"
+      - "scripts/render_placement_environmental_metrics_v02.py"
+      - "examples/terrain-v02/checkpoint/**"
+      - ".github/workflows/placement-v02-p08-checkpoint.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  render-p08:
+    if: github.event.pull_request.head.ref == 'impl/v0.2-placement-environmental-site-metrics'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact implementation revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install checked-out generator with render dependencies
+        run: python -m pip install -e ".[render]"
+
+      - name: Render P08-A diagnostic checkpoint
+        run: |
+          python scripts/render_placement_environmental_metrics_v02.py \
+            examples/terrain-v02/checkpoint/request.json \
+            examples/terrain-v02/checkpoint/presets.json \
+            "$RUNNER_TEMP/placement-v02-p08"
+
+      - name: Emit compact operator previews
+        run: |
+          python - <<'PY'
+          import base64
+          import io
+          import os
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "placement-v02-p08"
+          selected = (
+              "01-temperature.png",
+              "02-precipitation.png",
+              "03-potential-drainage-candidates.png",
+              "04-diagnostic-selection.png",
+          )
+          for name in selected:
+              image = Image.open(root / name).convert("RGB")
+              image.thumbnail((1200, 800))
+              buffer = io.BytesIO()
+              image.save(buffer, format="JPEG", quality=76, optimize=True)
+              payload = base64.b64encode(buffer.getvalue()).decode("ascii")
+              print(f"OPERATOR_PREVIEW_BEGIN:{name}")
+              print(payload)
+              print(f"OPERATOR_PREVIEW_END:{name}")
+          PY
+
+      - name: Upload P08-A operator checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: placement-v02-p08
+          path: ${{ runner.temp }}/placement-v02-p08
+          if-no-files-found: error
+          retention-days: 14

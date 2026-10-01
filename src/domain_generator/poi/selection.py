@@ -21,8 +21,12 @@ class ScoredSite:
     suitability: float
 
 
-def _validate_preference(preference: SitePreference) -> None:
-    if preference.metric not in SITE_METRIC_IDS:
+def _validate_preference(
+    preference: SitePreference,
+    *,
+    metric_ids: tuple[str, ...] = SITE_METRIC_IDS,
+) -> None:
+    if preference.metric not in metric_ids:
         raise PlacementSelectionCapabilityError(
             f"unknown site metric {preference.metric!r}"
         )
@@ -69,9 +73,11 @@ def _metric_values(
 def preference_scores(
     sites: tuple[EvaluatedSite, ...],
     preference: SitePreference,
+    *,
+    metric_ids: tuple[str, ...] = SITE_METRIC_IDS,
 ) -> tuple[float, ...]:
     """Normalize one intrinsic preference over the current valid-site set."""
-    _validate_preference(preference)
+    _validate_preference(preference, metric_ids=metric_ids)
     if not sites:
         return ()
 
@@ -120,6 +126,8 @@ def preference_scores(
 def score_valid_sites(
     valid_sites: tuple[EvaluatedSite, ...],
     preferences: tuple[SitePreference, ...],
+    *,
+    metric_ids: tuple[str, ...] = SITE_METRIC_IDS,
 ) -> tuple[ScoredSite, ...]:
     """Score canonical valid sites using weighted intrinsic preferences."""
     sites = tuple(
@@ -132,7 +140,7 @@ def score_valid_sites(
         return ()
 
     for preference in preferences:
-        _validate_preference(preference)
+        _validate_preference(preference, metric_ids=metric_ids)
 
     if not preferences:
         return tuple(
@@ -140,7 +148,10 @@ def score_valid_sites(
             for site in sites
         )
 
-    columns = tuple(preference_scores(sites, preference) for preference in preferences)
+    columns = tuple(
+        preference_scores(sites, preference, metric_ids=metric_ids)
+        for preference in preferences
+    )
     total_weight = sum(float(preference.weight) for preference in preferences)
     if not isfinite(total_weight) or total_weight <= 0.0:
         raise PlacementSelectionCapabilityError(
@@ -299,6 +310,7 @@ def select_final_site(
     *,
     attempt_index: int,
     rng_factory: RngFactory,
+    metric_ids: tuple[str, ...] = SITE_METRIC_IDS,
 ) -> ScoredSite | None:
     """Score, near-best filter and deterministically select one valid site."""
     if feature.effect.site_profile is None:
@@ -314,7 +326,11 @@ def select_final_site(
     if not valid_sites:
         return None
 
-    scored = score_valid_sites(valid_sites, feature.effect.site_profile.preferences)
+    scored = score_valid_sites(
+        valid_sites,
+        feature.effect.site_profile.preferences,
+        metric_ids=metric_ids,
+    )
     near_best = near_best_sites(scored, delta)
     if not near_best:
         raise PlacementSelectionCapabilityError(
