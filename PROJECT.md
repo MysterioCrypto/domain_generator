@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-c3-vegetation-biome-readiness
-checkpoint: c3-vegetation-design-operator-review
-next_topic: operator-review-c3-design
+checkpoint: c3-vegetation-design-accepted
+next_topic: implement-c3-vegetation
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -23,6 +23,7 @@ accepted_designs:
   - nested-depression-hierarchy-diagnostic-v0.2
   - annual-climate-forcing-v0.2
   - effective-surface-moisture-v0.2
+  - vegetation-biome-readiness-v0.2
 completed:
   - core-0.1-prealpha-infrastructure
   - core-0.1-m11-acceptance-suite
@@ -258,4 +259,14 @@ Design boundaries:
 - no biome labels yet;
 - no C3 runtime implementation before explicit design ACCEPT.
 
-Current gate: **C3 DESIGN — OPERATOR REVIEW**.
+Operator decision: **C3 DESIGN ACCEPTED**.
+
+Acceptance note:
+- this is a formal project/operator acceptance;
+- the operator explicitly noted insufficient subject-matter expertise for independent expert ecological validation;
+- therefore acceptance authorizes implementation under the agreed bounded semantics but is not evidence of expert scientific validation.
+
+Design PR #84 merged:
+`2ad695d059b4f198b5f06c6451b005c0d630fbc9`
+
+Next: implement C3 on a separate branch with V01–V11 guardrails and an operator-visible C3-A checkpoint.
