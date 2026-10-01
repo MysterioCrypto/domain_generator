@@ -81,6 +81,7 @@ def _build_placement(
             valid_sites,
             attempt_index=attempt_index,
             rng_factory=rng_factory,
+            metric_ids=metric_context.metric_ids,
         )
         if selected is None:
             no_valid.append(feature.id)
@@ -156,7 +157,14 @@ def _selected_requirements_pass(
             return False
         profile = feature.effect.site_profile
         metrics = evaluate_site_metrics(context, point, profile.footprint_radius_km)
-        if not all(requirement_passes(metrics, requirement) for requirement in profile.requirements):
+        if not all(
+            requirement_passes(
+                metrics,
+                requirement,
+                metric_ids=context.metric_ids,
+            )
+            for requirement in profile.requirements
+        ):
             return False
     return True
 
