@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-c2-effective-surface-moisture
-checkpoint: c2-effective-surface-moisture-design-accepted
-next_topic: implement-c2-effective-surface-moisture
+checkpoint: c2-a-effective-moisture-ready-for-operator-review
+next_topic: operator-review-c2-a
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -190,3 +190,26 @@ Accepted C1 interpretation:
 - calibration remains setting-dependent and may be revisited only if a later layer reveals a concrete blocker.
 
 Next bounded layer: climate + hydrology + terrain → effective surface moisture.
+
+
+## Surface / Climate 0.2 — C2-A operator checkpoint
+
+C2 effective surface moisture is implemented on draft PR #83 and ready for human review.
+
+Representative C2-A land statistics:
+- climatic wetness median ~0.628;
+- final effective moisture median ~0.728;
+- p05 / p95 ~0.619 / 0.887;
+- no land cells <=0.2 on this deliberately cool/wet representative climate;
+- ~18.0% of land >=0.8 moisture;
+- final moisture correlation: precipitation +0.712, temperature -0.691, distance-to-water -0.397;
+- log contributing-area correlation is near zero globally because catchment concentration is local/subordinate;
+- slope retention is weak on this 1 km terrain (mean ~0.9987, minimum ~0.978).
+
+Current assistant assessment:
+- macro moisture structure is now climate-driven rather than legacy water-distance/noise-driven;
+- catchment contribution remains subordinate rather than turning all drainage into saturated channels;
+- actual canonical water still produces visibly broad wet riparian corridors because the inherited representative water_moisture_decay_km is 8 km;
+- the representative climate is cool/wet, so a generally humid moisture field is expected and is not itself evidence of saturation failure.
+
+No retuning before operator review.

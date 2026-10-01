@@ -1019,3 +1019,160 @@ C2-A implementation target:
 - preserve legacy vegetation via temporary compatibility path until C3.
 
 Heavy Actions artifacts remain remote; operator checkpoints should provide direct workflow-run links.
+
+
+## C2 implementation slice 1 — effective moisture core
+
+PR #83 opened on branch `impl/v0.2-effective-surface-moisture`.
+
+Implemented:
+- new deterministic `EffectiveMoistureComponents`;
+- Holdridge-inspired climatic wetness from accepted C1 temperature/precipitation;
+- actual-water proximity from existing water boost/decay parameters;
+- contributing-area concentration scaled by accepted regional stream threshold;
+- catchment signal gated by climatic wetness;
+- fixed cos²(slope) retention;
+- canonical water cells forced to moisture=1;
+- Core 0.2 canonical moisture now uses effective-moisture semantics;
+- existing moisture_bias remains additive on the new canonical moisture;
+- Core 0.1 moisture remains on the legacy path;
+- C2-A vegetation is intentionally computed from the full legacy moisture path (including feature moisture bias), preserving pre-C2 vegetation semantics.
+
+Pending:
+- M01–M10 guardrails;
+- CI compatibility fixes;
+- C2-A diagnostic component maps and operator workflow.
+
+Heavy Actions artifacts remain remote; use direct workflow-run links for operator checkpoints.
+
+
+## C2 implementation slice 2 — M01–M10 guardrails
+
+Added dedicated C2 tests on PR #83:
+
+- M01 higher precipitation -> higher effective moisture;
+- M02 warmer annual temperature -> greater annual demand -> lower effective moisture;
+- M03 canonical water moisture exactly 1;
+- M04 actual-water proximity decays monotonically with distance;
+- M05 larger contributing area cannot reduce moisture;
+- M06 steeper slope cannot increase effective moisture;
+- M07 Core 0.2 moisture finite float32 / [0,1] / deterministic replay;
+- M08 Terrain/Hydrology upstream arrays remain unchanged;
+- M09 C2-A vegetation remains bit-identical to the legacy path;
+- M10 Core 0.1 moisture/vegetation remain equivalent to legacy helpers.
+
+The historical C1 compatibility test was updated to reflect accepted C2 semantics:
+Core 0.2 moisture is now expected to differ from Core 0.1 legacy moisture, while vegetation remains frozen for C2-A.
+
+Pending:
+- CI stabilization;
+- C2-A component diagnostics and operator workflow.
+
+
+## C2 implementation checkpoint — guardrails GREEN
+
+PR #83 current semantic head passed both push and pull-request pytest after the C2 core + M01–M10 guardrail slices.
+
+No upstream Terrain/Hydrology/C1 changes were required.
+
+Next step: build the C2-A operator diagnostics and workflow; do not retune the moisture formula before seeing the component maps.
+
+
+## C2 implementation slice 3 — operator checkpoint tooling
+
+Added C2-A operator diagnostics on PR #83:
+
+Artifacts:
+- 01-climatic-wetness.png
+- 02-water-proximity.png
+- 03-catchment-signal.png
+- 04-slope-retention.png
+- 05-effective-moisture.png
+- 06-legacy-vs-effective.png
+- 07-effective-moisture-hydrology.png
+- statistics.json
+
+The checkpoint recomputes accepted Hydrology 0.2 deterministically from the accepted terrain field to expose accumulation/rivers/lakes for diagnostics without expanding DomainData contracts.
+
+Representative request contains no Surface-family feature bias, so checkpoint asserts canonical moisture equals raw C2 effective moisture.
+
+Workflow:
+`.github/workflows/surface-v02-c2-checkpoint.yml`
+Artifact name:
+`surface-v02-c2`
+
+Heavy artifact remains on GitHub; operator should receive the direct workflow-run link after a green run.
+
+
+## C2-A checkpoint render fix
+
+The first C2-A workflow reached semantic rendering but failed a diagnostic equality assertion because canonical C1 temperature/precipitation fields are exported as float32, while Core internally derived C2 moisture from pre-export float64 climate arrays.
+
+Observed difference was only float32 roundoff:
+- max absolute moisture difference ~5.96e-08.
+
+The checkpoint assertion now uses a strict 1e-7 absolute tolerance. No Surface/Hydrology semantics changed.
+
+
+## C2-A same-world checkpoint
+
+Semantic implementation head:
+`74a2508372cffdd2c80b8c6b919828697b04ac12`
+
+GitHub Actions:
+- C2-A checkpoint workflow: GREEN;
+- pull-request pytest: GREEN;
+- push pytest: GREEN.
+
+Direct operator workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36831234738`
+
+Artifact:
+`surface-v02-c2`
+
+The full artifact was NOT downloaded into chat/container. Assistant review used statistics and compact previews from workflow logs.
+
+Representative land statistics:
+
+```text
+climatic wetness:
+  p05 / median / p95    0.500 / 0.628 / 0.863
+  mean                  0.642
+
+effective moisture:
+  min                   0.520
+  p05 / median / p95    0.619 / 0.728 / 0.887
+  max                   0.979
+  mean                  0.734
+  land >= 0.8           ~18.0%
+  land <= 0.2            0%
+
+local signals:
+  water proximity mean  ~0.249
+  gated catchment mean  ~0.039
+  gated catchment p95   ~0.149
+
+slope retention:
+  mean                  ~0.99875
+  min                   ~0.9777
+
+effective moisture correlations on land:
+  precipitation          +0.712
+  temperature            -0.691
+  distance to water      -0.397
+  legacy moisture        +0.281
+  log1p accumulation     -0.036
+```
+
+Visual assessment from compact previews:
+- climate now controls the broad wet/dry pattern;
+- old legacy field was much more dominated by water-distance structure;
+- catchment signal visibly follows drainage but remains low-amplitude in the final field;
+- canonical rivers/lakes still make bright wet corridors in final moisture, with broad halos from the inherited 8 km water-proximity decay;
+- slope retention contributes little on this representative 1 km terrain because measured local slopes are gentle;
+- no obvious raster-lattice artifact is visible in the final moisture field.
+
+Main operator question:
+**are the visible riparian wet corridors at the current 8 km decay scale plausible enough, or do they still read as an artificial river halo?**
+
+Do not retune water proximity or C1 climate before operator judgment.
