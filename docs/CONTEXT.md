@@ -185,16 +185,19 @@ Terrain 0.2                 ACCEPTED
 Hydrology 0.2               ACCEPTED
 C1 annual climate           ACCEPTED
 C2 effective moisture       ACCEPTED
-C3 vegetation readiness     DESIGN OPERATOR REVIEW
+C3 vegetation readiness     DESIGN ACCEPTED / IMPLEMENTATION NEXT
 ```
 
-INV-006 design PR #84:
+INV-006 design PR #84 is ACCEPTED and merged:
 `https://github.com/MysterioCrypto/domain_generator/pull/84`
 
-Proposed document:
+Merge commit:
+`2ad695d059b4f198b5f06c6451b005c0d630fbc9`
+
+Normative document:
 `docs/design/vegetation-biome-readiness-v0.2.md`
 
-Proposed semantics:
+Accepted semantics:
 - use accepted C2 moisture as the sole water-availability input;
 - use a normalized Miami-style annual temperature response as thermal suitability;
 - multiply moisture × thermal suitability;
@@ -205,12 +208,18 @@ Proposed semantics:
 - no biome labels in C3;
 - Core 0.1 remains unchanged.
 
+Acceptance qualification:
+- operator formally ACCEPTED the design;
+- operator explicitly noted insufficient competence for independent expert ecological assessment;
+- record this as project-level acceptance, not expert ecological validation.
+
 Immediate next action:
-1. operator reviews C3 design PR #84;
-2. explicit ACCEPT / REJECT;
-3. ACCEPT → merge design before any runtime implementation;
-4. only then implement C3 with V01–V11 guardrails;
-5. generate representative C3-A operator-visible checkpoint before implementation acceptance.
+1. create a separate C3 implementation branch from current `dev/0.2`;
+2. implement only the accepted vegetation semantics;
+3. add V01–V11 automated guardrails;
+4. run full pytest;
+5. generate representative C3-A operator-visible checkpoint;
+6. do not merge C3 implementation until explicit implementation ACCEPT / REJECT.
 
 ## Rejected / constrained paths that must not silently return
 
