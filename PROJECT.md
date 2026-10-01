@@ -1,14 +1,16 @@
 ---
 project: domain_generator
 target_version: core-0.2
-phase: release-hardening
+phase: post-release-development
 status: in-progress
 historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
-current_milestone: v0.2-release-candidate
-checkpoint: core-v0.2-release-candidate-ready-for-operator-review
-next_topic: operator-decision-core-v0.2-release-candidate
+release_branch: release/0.2-prealpha
+release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
+current_milestone: v0.2-prealpha-released
+checkpoint: core-v0.2-prealpha-release-frozen
+next_topic: post-release-semantic-layer-selection
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -645,10 +647,21 @@ Explicitly deferred beyond this release scope:
 - true biome labels / seasonality model;
 - roads, human geography and deferred-to-deferred POI graphs.
 
-Current gate: **CORE 0.2 RELEASE CANDIDATE — OPERATOR REVIEW**.
+Operator decision: **CORE 0.2 RELEASE CANDIDATE ACCEPTED**.
 
-If ACCEPTED:
-1. freeze current `dev/0.2` semantic state;
-2. create `release/0.2-prealpha` from the accepted head;
-3. record the exact release commit in canonical context;
-4. do not fold deferred new semantics into that release line.
+Frozen release line:
+`release/0.2-prealpha`
+
+Exact release freeze commit:
+`c69c1af010a085fb80d248af703a77471fc6c9d7`
+
+The branch was created directly from the accepted `dev/0.2` head before any post-release documentation commits.
+
+Release scope is frozen:
+- no deferred new world semantics are to be added to `release/0.2-prealpha`;
+- fixes on the release line must be bounded release/blocker corrections only;
+- new semantic work resumes on the development line after release closure.
+
+Current state: **CORE 0.2 PREALPHA RELEASE FROZEN**.
+
+Next: select the next post-release semantic layer on `dev/0.2` without reopening accepted Core 0.2 layers speculatively.
