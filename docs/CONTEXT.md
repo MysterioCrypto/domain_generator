@@ -633,3 +633,47 @@ Remaining questions such as whether a basin is a perennial lake, seasonal lake, 
 Assistant recommendation: treat H10-A + current full-spill routing basins as the **Hydrology 0.2 base**, stop lake algorithm tuning here, and move to final Hydrology operator review. Reopen Terrain 0.2 only if a later layer provides a concrete cross-layer defect, not because a neutral lake-rich representative world looks unusual.
 
 Heavy Actions artifacts remain remote unless explicitly requested.
+
+
+## Operator decision: Hydrology 0.2 ACCEPT
+
+The operator formally accepted Hydrology 0.2 without separately reopening the lake artifact.
+
+Accepted Hydrology 0.2 base:
+
+```text
+Priority-Flood conditioning
+MFD p=1.1 contributing area
+continuous MFD vector field
+H09-D2 regional river network
+H09-E potential drainage hierarchy
+Strahler ordering
+one-supernode / one-outlet lake routing
+H10-A refined shoreline geometry
+exact river/lake shoreline contacts
+```
+
+H10-B remains diagnostic evidence only: nested-lake splitting is not part of production semantics.
+
+Hydrology is now frozen unless a later cross-layer defect provides concrete evidence requiring reopening it.
+
+Artifact workflow policy:
+- do not download heavy Actions artifacts into chat/container unless explicitly requested;
+- when an operator artifact is needed, provide the direct GitHub Actions workflow-run link so the operator can download it from GitHub;
+- routine assistant review should use logs, statistics and compact previews.
+
+## Next active layer
+
+Move to Core 0.2 Surface / climate / biome foundation.
+
+Before production implementation:
+- inspect the existing Surface 0.1 semantics/contracts;
+- write a bounded INV-006 design;
+- preserve accepted Terrain/Hydrology;
+- include operator-visible diagnostics before acceptance.
+
+Deferred hydro finishing to revisit only after this layer:
+- standing lake vs wetland/playa/dry depression;
+- perennial vs seasonal low-order drainage;
+- diffuse headwater roots;
+- estuary/delta/fan morphology where a receiving environment is known.
