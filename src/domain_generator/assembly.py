@@ -176,6 +176,20 @@ def _merge_features(specified: dict[str, object], hydro: Mapping[str, HydroFeatu
     return output
 
 
+def _networks_for_output(plan: GenerationPlan, hydrology) -> dict[str, object]:
+    networks: dict[str, object] = {
+        "rivers": hydrology.river_network,
+    }
+    if plan.plan_version == "0.2":
+        potential = hydrology.potential_river_network
+        if potential is None:
+            raise DomainAssemblyError(
+                "Core 0.2 candidate is missing accepted potential drainage network"
+            )
+        networks["potential_drainage"] = potential
+    return networks
+
+
 def _readonly_payload(array: np.ndarray, *, field_id: str, shape: tuple[int, int]) -> np.ndarray:
     if not isinstance(array, np.ndarray):
         raise DomainAssemblyError(f"field {field_id!r} payload must be numpy ndarray")
@@ -243,6 +257,7 @@ def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: Generatio
     geometries = _final_geometry_by_id(plan, state)
     specified = _specified_features(plan, geometries)
     features = _merge_features(specified, state.hydrology.lake_features)
+    networks = _networks_for_output(plan, state.hydrology)
 
     shape = (plan.grid.rows, plan.grid.columns)
     payloads = {
@@ -289,7 +304,7 @@ def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: Generatio
             grid={"cell_size_km": plan.grid.cell_size_km, "rows": plan.grid.rows, "columns": plan.grid.columns},
             fields=_field_descriptors(shape, include_climate=include_climate),
             features=features,
-            networks={"rivers": state.hydrology.river_network},
+            networks=networks,
             validation=ValidationSummary(
                 engine_invariants_passed=True,
                 hard_constraints_passed=True,
