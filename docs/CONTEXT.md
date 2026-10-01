@@ -677,3 +677,47 @@ Deferred hydro finishing to revisit only after this layer:
 - perennial vs seasonal low-order drainage;
 - diffuse headwater roots;
 - estuary/delta/fan morphology where a receiving environment is known.
+
+
+## Hydrology implementation merge
+
+PR #72 merged into dev/0.2 after formal operator ACCEPT.
+
+Hydrology 0.2 is now part of the active development baseline, not an open implementation branch.
+
+## C1 proposed design gate
+
+PR #80:
+`docs/design/annual-climate-forcing-v0.2.md`
+
+Status: **PROPOSED / awaiting explicit operator ACCEPT / REJECT**.
+
+Bounded C1 proposal:
+
+```text
+Terrain 0.2 + Hydrology 0.2
+        ↓ read-only
+annual mean temperature
+  - explicit regional mean
+  - north/south macro gradient
+  - 6.5 C/km elevation lapse experiment
+  - deterministic coherent noise
+
+annual precipitation
+  - explicit domain mean
+  - explicit moisture-transport bearing
+  - continuous upwind terrain exposure
+  - windward / lee contrast
+  - deterministic coherent noise
+        ↓
+SurfaceState climate forcing fields
+```
+
+C1 deliberately does **not** rewrite existing moisture / vegetation yet. That is reserved for C2 after operator acceptance of the climate forcing fields.
+
+Proposed schema 0.2 climate recipe has no hidden defaults. The current design adds explicit mean temperature, north-south thermal delta, precipitation mean, moisture transport bearing, orographic scale/strength and noise controls.
+
+Operator artifact policy is now part of working context:
+- heavy Actions artifacts stay on GitHub unless explicitly requested;
+- when an operator checkpoint is generated, provide the direct workflow-run link for download;
+- assistant routine review uses statistics / logs / compact previews.
