@@ -21,11 +21,14 @@ from .selection import (
     select_final_site,
 )
 from .site_metrics import (
+    CORE_V02_SITE_METRIC_IDS,
     SITE_METRIC_IDS,
     SiteMetricCapabilityError,
     SiteMetricContext,
+    distance_to_river_network_km,
     evaluate_site_metrics,
     footprint_cells,
+    site_metric_ids_for_plan_version,
 )
 from .state import PlacementState
 
@@ -34,12 +37,14 @@ __all__ = [
     "PlacementCandidateCapabilityError",
     "PlacementSelectionCapabilityError",
     "PlacementState",
+    "CORE_V02_SITE_METRIC_IDS",
     "SITE_METRIC_IDS",
     "ScoredSite",
     "SiteMetricCapabilityError",
     "SiteMetricContext",
     "choose_weighted_site",
     "evaluate_candidate_sites",
+    "distance_to_river_network_km",
     "evaluate_site_metrics",
     "filter_valid_sites",
     "footprint_cells",
@@ -53,5 +58,6 @@ __all__ = [
     "sample_near_best_delta",
     "score_valid_sites",
     "select_final_site",
+    "site_metric_ids_for_plan_version",
     "validate_placement",
 ]
