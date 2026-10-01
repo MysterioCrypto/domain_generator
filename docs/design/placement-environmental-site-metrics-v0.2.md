@@ -1,6 +1,6 @@
 # Placement Environmental Site Metrics v0.2
 
-Status: **ACCEPTED design gate; runtime implementation authorized but not yet accepted**
+Status: **ACCEPTED / implemented / merged**
 Target branch: `dev/0.2`
 Checkpoint: P08-A
 Depends on: accepted Terrain 0.2 + Hydrology 0.2/H11-A + C1 + C2 + C3
@@ -342,3 +342,20 @@ PR #88 merged into `dev/0.2` at:
 `66003288e528fc340663d92f84ed14cbee88744b`.
 
 Implementation is authorized only for the bounded metric-registry extension above. Existing candidate generation and site-selection semantics remain frozen for P08-A.
+
+
+## 15. Implementation acceptance
+
+P08-A implementation was formally ACCEPTED and merged through PR #89.
+
+Merge commit:
+`57e77c8de6ac8668ddd09e25167e30aa773cf645`
+
+Accepted checkpoint:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36849780012`
+
+P01–P11 and full pytest were green.
+
+The diagnostic placement recipe remains test-only evidence and is not a production settlement policy.
+
+P08-A is frozen unless later evidence identifies a concrete metric or contract defect.
