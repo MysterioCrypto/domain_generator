@@ -76,3 +76,7 @@ def test_core_v02_request_reaches_canonical_bundle_boundary(tmp_path: Path) -> N
     assert (output / "domain.json").is_file()
     assert (output / "manifest.json").is_file()
     assert (output / "fields" / "elevation.npy").is_file()
+    assert (output / "fields" / "temperature.npy").is_file()
+    assert (output / "fields" / "annual_precipitation.npy").is_file()
+    assert result.assembly.data.fields["temperature"].unit == "degC"
+    assert result.assembly.data.fields["annual_precipitation"].unit == "mm/year"
