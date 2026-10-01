@@ -175,119 +175,102 @@ Interpretation:
 
 C2-A temporary vegetation compatibility has served its purpose. C3 may now redesign Core 0.2 vegetation against accepted C1 + C2 while Core 0.1 stays frozen.
 
-## Current checkpoint — C3 vegetation / biome readiness design
+## C3 climate-aware vegetation — ACCEPTED / merged
 
-INV-006 requires substantial architecture/semantic changes to be documented and accepted before runtime implementation.
-
-Current state:
-```text
-Terrain 0.2                 ACCEPTED
-Hydrology 0.2               ACCEPTED
-C1 annual climate           ACCEPTED
-C2 effective moisture       ACCEPTED
-C3 vegetation readiness     DESIGN ACCEPTED / IMPLEMENTATION NEXT
-```
-
-INV-006 design PR #84 is ACCEPTED and merged:
-`https://github.com/MysterioCrypto/domain_generator/pull/84`
-
-Merge commit:
-`2ad695d059b4f198b5f06c6451b005c0d630fbc9`
-
-Normative document:
+Normative design:
 `docs/design/vegetation-biome-readiness-v0.2.md`
 
-Accepted semantics:
-- use accepted C2 moisture as the sole water-availability input;
-- use a normalized Miami-style annual temperature response as thermal suitability;
-- multiply moisture × thermal suitability;
-- apply existing explicit vegetation bias additively;
-- keep canonical water vegetation exactly 0;
-- do not apply the legacy Core 0.1 linear slope factor again;
-- no new vegetation noise;
-- no biome labels in C3;
-- Core 0.1 remains unchanged.
+Design PR #84 merged:
+`2ad695d059b4f198b5f06c6451b005c0d630fbc9`
 
-Acceptance qualification:
-- operator formally ACCEPTED the design;
-- operator explicitly noted insufficient competence for independent expert ecological assessment;
-- record this as project-level acceptance, not expert ecological validation.
+Implementation PR #85 merged:
+`37e213ebf5f82ebfae149d21088c07e08d836549`
 
-### C3 implementation checkpoint — READY FOR OPERATOR REVIEW
+Accepted Core 0.2 semantics:
 
-Implementation PR #85:
-`https://github.com/MysterioCrypto/domain_generator/pull/85`
+```text
+thermal_suitability =
+    normalized Miami-style annual temperature response
 
-Semantic head:
-`eb1365759f891991e8614f712eb1db7ab7da2bae`
+vegetation_potential =
+    accepted C2 effective moisture
+    * thermal_suitability
 
-Implemented:
-- normalized Miami-style annual thermal suitability;
-- accepted C2 moisture × thermal suitability;
-- existing additive vegetation bias;
-- canonical water vegetation exactly 0;
-- no direct precipitation term;
-- no second legacy slope penalty;
-- no new vegetation noise;
+vegetation_density =
+    clamp(
+        vegetation_potential
+        + feature_vegetation_bias,
+        0,
+        1
+    )
+
+canonical water = 0 exactly
+```
+
+Boundaries:
+- no direct precipitation term in C3;
+- no extra vegetation noise;
+- no second legacy linear slope penalty;
 - Core 0.1 remains legacy-compatible;
-- V01–V11 guardrails.
-
-Automation:
-- push pytest GREEN;
-- PR pytest GREEN;
-- C3-A workflow GREEN.
+- no biome labels yet;
+- `vegetation_density` is an abstract normalized ecological potential/density index, not physical canopy-cover percentage and not literal NPP.
 
 C3-A workflow:
 `https://github.com/MysterioCrypto/domain_generator/actions/runs/36842261493`
 
-Artifact:
-`surface-v02-c3`
+Automation:
+- V01–V11 GREEN;
+- push pytest GREEN;
+- PR pytest GREEN;
+- C3-A checkpoint GREEN.
 
-Representative land statistics:
+Representative C3-A:
 ```text
-temperature p05 / median / p95        ~4.32 / 8.17 / 10.45 C
-thermal suitability p05/median/p95   ~0.342 / 0.459 / 0.533
-effective moisture p05/median/p95     ~0.548 / 0.658 / 0.864
-vegetation p05 / median / p95         ~0.261 / 0.297 / 0.348
-vegetation mean                       ~0.299
-vegetation min / max                  ~0.181 / 0.400
-land >= 0.8                           0%
-land <= 0.2                           ~0.105%
+vegetation p05 / median / p95  ~0.261 / 0.297 / 0.348
+mean                           ~0.299
+min / max                      ~0.181 / 0.400
+
+correlations:
+  effective moisture            +0.369
+  temperature                   +0.330
+  precipitation                 +0.290
+  slope                         -0.169
+  distance to water             -0.178
+  legacy vegetation             +0.360
 ```
 
-Correlations on land:
-```text
-effective moisture   +0.369
-temperature          +0.330
-precipitation        +0.290
-slope                -0.169
-distance to water    -0.178
-legacy vegetation    +0.360
-```
+Operator formally accepted C3-A. As with the C3 design, this is project/operator acceptance and not independent expert ecological validation.
 
-Assistant assessment:
-- the final field is not a temperature-only or moisture-only mask;
-- accepted C2 spatial structure remains visible;
-- cold/wet terrain is moderated without a second arbitrary slope penalty;
-- no broad legacy water halo or added vegetation noise dominates;
-- canonical water remains exact zero vegetation;
-- no concrete blocker has been identified in the representative checkpoint.
+### How mountains affect vegetation
 
-Interpretation boundary:
-C3 `vegetation_density` is a normalized ecological potential/density index, not fractional canopy cover and not literal NPP. Do not interpret 0.30 as 30% physical plant cover.
+There is no extra C3 rule saying "mountain => less vegetation".
 
-Current gate:
-```text
-C3 vegetation implementation   OPERATOR REVIEW
-PR #85                         draft/open
-merge                          BLOCKED pending explicit ACCEPT / REJECT
-```
+Instead terrain acts through accepted upstream environmental mechanisms:
+- relative elevation changes C1 annual temperature through the 6.5 °C/km lapse-rate experiment;
+- topography redistributes C1 precipitation through windward/lee forcing;
+- slope changes C2 moisture retention through `cos(slope)^2`;
+- terrain-derived drainage changes C2 catchment and water-proximity context;
+- C3 then consumes the resulting temperature and effective moisture.
+
+This preserves mountain influence while avoiding a second arbitrary slope penalty.
+
+## Current checkpoint — deferred hydro-surface finishing
+
+Terrain/Hydrology/C1/C2/C3 now provide the environmental context that earlier hydrology finishing explicitly waited for.
+
+Deferred candidates now eligible for design:
+- perennial / seasonal / dry low-order channel semantics;
+- diffuse headwater roots / low-order visibility;
+- standing lake vs wetland / playa / dry basin semantics;
+- delta / estuary / fan morphology where receiving environment is actually known.
+
+The accepted Hydrology 0.2 routing/network body remains frozen. The next slice must classify or finish accepted structure rather than reroute rivers.
 
 Immediate next action:
-1. operator reviews C3-A checkpoint;
-2. explicit ACCEPT / REJECT;
-3. ACCEPT → freeze C3 and merge PR #85;
-4. REJECT → identify one concrete C3 component before retuning.
+1. inspect existing hydrology contracts/designs and deferred assumptions;
+2. choose one bounded finishing slice;
+3. write design before implementation under INV-006;
+4. do not combine channel regime, basin type and delta/estuary/fan morphology into one implementation step.
 
 ## Rejected / constrained paths that must not silently return
 
