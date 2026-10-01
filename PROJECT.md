@@ -6,9 +6,9 @@ status: in-progress
 historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
-current_milestone: v0.2-batch-c2-effective-surface-moisture
-checkpoint: c2-b-water-proximity-retune
-next_topic: bounded-water-proximity-retune
+current_milestone: v0.2-batch-c3-vegetation-biome-readiness
+checkpoint: c2-effective-surface-moisture-accepted
+next_topic: design-c3-vegetation-biome-readiness
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -32,6 +32,7 @@ completed:
   - core-0.2-domain-provenance-boundary
   - core-0.2-hydrology
   - core-0.2-annual-climate-forcing
+  - core-0.2-effective-surface-moisture
 rejected_or_superseded:
   - core-0.1-world-generation-semantics
   - guide-renderer-as-fix-for-upstream-world-state
@@ -193,38 +194,39 @@ Accepted C1 interpretation:
 Next bounded layer: climate + hydrology + terrain → effective surface moisture.
 
 
-## Surface / Climate 0.2 — C2-A REJECTED / C2-B bounded correction
+## Surface / Climate 0.2 — C2 ACCEPTED
 
-C2 effective surface moisture design remains ACCEPTED and implementation remains on draft PR #83.
+C2 effective surface moisture is formally ACCEPTED and merged through PR #83 into `dev/0.2`.
 
-C2-A operator decision: **REJECT**.
+Accepted production semantics remain the accepted C2 design:
+- climate-driven annual effective surface moisture;
+- local actual-water proximity;
+- climate-gated contributing-area concentration;
+- `cos(slope)^2` retention;
+- no additional C2 moisture-noise layer;
+- canonical water moisture exactly `1.0`;
+- Core 0.1 unchanged.
 
-Concrete rejected component:
-- inherited representative `water_moisture_decay_km = 8` produces an excessively broad, nearly uniform-width wet halo around canonical rivers/lakes;
-- the defect is assigned specifically to the **actual-water proximity spatial scale**;
-- climatic wetness, catchment contribution and slope retention are not reopened by this decision;
-- Terrain 0.2, Hydrology 0.2 and C1 remain frozen.
+C2-A with representative `water_moisture_decay_km = 8` was rejected because the actual-water term created broad artificial-looking halos around rivers/lakes. The rejected component was only the representative water-proximity spatial scale.
 
-Evidence:
-- macro moisture structure is climate-driven;
-- catchment contribution remains subordinate;
-- slope retention is weak but coherent on this 1 km representative terrain;
-- compact operator previews show actual-water influence tracking river geometry as a broad halo;
-- a single 8 km e-folding scale is too broad as the representative generic proximity scale for narrow rivers at 1 km resolution.
+C2-B changed only the representative decay scale to `2 km`. Terrain, Hydrology, C1, catchment contribution, slope retention and the effective-moisture combination remained unchanged.
 
-Latest rejected C2-A workflow:
-`https://github.com/MysterioCrypto/domain_generator/actions/runs/36831586933`
+Accepted C2-B workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36837227248`
 
-Artifact: `surface-v02-c2`.
+Representative C2-B land result:
+- effective moisture p05 / median / p95 ~0.548 / 0.658 / 0.864;
+- mean ~0.673;
+- land >= 0.8 ~10.4%;
+- precipitation correlation ~+0.820;
+- temperature correlation ~-0.747;
+- distance-to-water correlation ~-0.069;
+- water-proximity signal mean ~0.068;
+- slope retention mean ~0.99875.
 
-Repository-state note:
-- PR #83 implementation branch diverged from `dev/0.2` after canonical-context maintenance;
-- `dev/0.2` is one documentation-only commit ahead of the PR merge base;
-- sync the implementation branch with `dev/0.2` before the C2-B correction.
+The `2 km` value is accepted representative calibration, not a hard universal constant: `water_moisture_decay_km` remains an explicit required semantic parameter.
 
-C2-B bounded next step:
-1. sync PR #83 branch with current `dev/0.2`;
-2. change only the representative actual-water decay scale;
-3. rerun same-world C2 checkpoint;
-4. keep C1 / catchment / slope / Terrain / Hydrology untouched;
-5. accept or reject the corrected water-proximity scale from the new render.
+PR #83 merge commit:
+`de5646a1af9c9057fe13cf1e7eb92bb1a3728e46`
+
+Next bounded layer: INV-006 design gate for C3 vegetation / biome readiness. No C3 runtime implementation before design acceptance.
