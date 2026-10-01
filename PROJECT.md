@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-c2-effective-surface-moisture
-checkpoint: c2-effective-surface-moisture-design-proposed
-next_topic: accept-effective-surface-moisture-v0.2
+checkpoint: c2-effective-surface-moisture-design-accepted
+next_topic: implement-c2-effective-surface-moisture
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -22,6 +22,7 @@ accepted_designs:
   - lake-shoreline-morphology-v0.2
   - nested-depression-hierarchy-diagnostic-v0.2
   - annual-climate-forcing-v0.2
+  - effective-surface-moisture-v0.2
 completed:
   - core-0.1-prealpha-infrastructure
   - core-0.1-m11-acceptance-suite
