@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **H11-A potential drainage public export — implementation operator review**.
+Current checkpoint: **Placement continuation — readiness audit**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -75,22 +75,22 @@ Core 0.2 networks["potential_drainage"] = accepted H09-E potential network
 No flow-permanence labels, no Strahler public metadata, no hydrology geometry changes.
 
 H11-A implementation:
-- draft PR #87: `https://github.com/MysterioCrypto/domain_generator/pull/87`;
-- semantic head: `b77d3247577c552117ba6bf4567d4e7563f062b1`;
-- X01–X08 GREEN;
-- push/PR pytest GREEN;
-- checkpoint GREEN:
-  `https://github.com/MysterioCrypto/domain_generator/actions/runs/36845608659`;
-- exported keys: `rivers`, `potential_drainage`;
-- regional runtime/export = 58 nodes / 33 segments exactly;
-- potential runtime/export = 111 nodes / 66 segments exactly;
-- upstream canonical hashes unchanged.
+- PR #87 ACCEPTED / merged;
+- merge commit: `cef91e81c86c64555ae1e1363d7ffaf2934ff6ce`;
+- checkpoint: `https://github.com/MysterioCrypto/domain_generator/actions/runs/36845608659`;
+- Core 0.2 public networks: `rivers`, `potential_drainage`;
+- Core 0.1 remains `rivers` only;
+- potential network is a drainage scaffold, not a permanence class.
 
-A historical DomainData validator had to be made version-aware: Core 0.1 still permits only `rivers`; Core 0.2 additionally permits only `potential_drainage`.
+Physical hydro classifications still deferred:
+- perennial / seasonal / dry;
+- lake vs wetland/playa/dry basin;
+- delta / estuary / fan.
 
 Immediate next step:
-- explicit H11-A implementation ACCEPT / REJECT;
-- no merge before that decision.
+- Placement readiness audit against accepted Core 0.2 environment;
+- choose one bounded Placement slice;
+- design before implementation if semantics materially change.
 
 Do not reopen the accepted hydrology routing/network body without concrete evidence.
 
