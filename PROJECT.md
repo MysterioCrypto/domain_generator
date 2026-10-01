@@ -56,6 +56,7 @@ canonical_documents:
   additive_terrain_aware_source_promotion_v0_2: docs/design/additive-terrain-aware-source-promotion-v0.2.md
   multiscale_drainage_hierarchy_v0_2: docs/design/multiscale-drainage-hierarchy-v0.2.md
   annual_climate_forcing_v0_2: docs/design/annual-climate-forcing-v0.2.md
+  effective_surface_moisture_v0_2: docs/design/effective-surface-moisture-v0.2.md
 historical_documents:
   core_0_1_roadmap: docs/roadmap.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
@@ -195,6 +196,11 @@ Next bounded layer: climate + hydrology + terrain → effective surface moisture
 ## Surface / Climate 0.2 — C2-A operator checkpoint
 
 C2 effective surface moisture is implemented on draft PR #83 and ready for human review.
+
+Latest green operator workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36831586933`
+
+Artifact: `surface-v02-c2`.
 
 Representative C2-A land statistics:
 - climatic wetness median ~0.628;

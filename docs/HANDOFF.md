@@ -20,3 +20,6 @@ PROJECT.md
 - Git/PR history используется для археологии, а не как основной handoff.
 
 Не использовать старое содержимое этого файла или исторический Core 0.1 roadmap как источник текущей задачи.
+
+
+For a copy-paste snapshot into a fresh chat, see `docs/CHAT-HANDOFF.md`. It is lower-authority than the canonical three files above and should be regenerated at handoff checkpoints.

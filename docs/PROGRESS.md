@@ -1,153 +1,98 @@
 # Project Progress Tree
 
-Purpose: a compact, human-readable project state for handoff between chats.
-
-This file answers only:
-
-```text
-what is DONE?
-what is IN PROGRESS?
-what is NEXT?
-```
-
-For reasoning and rejected-path constraints read `docs/CONTEXT.md`. For normative semantics read the accepted design docs.
+Purpose: compact handoff state. For reasoning read `docs/CONTEXT.md`; for normative semantics read accepted `docs/design/*`.
 
 ## DONE
 
 ```text
 Core 0.1 infrastructure
-├─ contracts / compiler
+├─ contracts/compiler
 ├─ deterministic semantic RNG
-├─ attempts / ranking / validation
-├─ DomainData / DomainBundle
-├─ CLI / application boundary
+├─ attempts/ranking/validation
+├─ DomainData/DomainBundle
+├─ CLI/application boundary
 ├─ Codex + GitHub remote generation
 └─ exact replay
 
 Core 0.2
 ├─ Terrain 0.2 — ACCEPTED
-├─ Hydrology foundations kept
-│  ├─ Priority Flood
-│  ├─ MFD p=1.1 contributing area
-│  ├─ continuous MFD vector field
-│  ├─ lake supernodes
-│  └─ one canonical lake outlet
-├─ H09-D2 regional river network — KEEP
-├─ H09-E potential hierarchy — ACCEPTED
-   ├─ 0.40 × regional extraction scale
-   ├─ potential drainage scaffold
-   ├─ Strahler hierarchy
-   ├─ continuous vector geometry
-   └─ false-confluence normalization
-```
-
-Rejected paths that must not silently return:
-
-```text
-D8 canonical routing
-two-receiver D∞ accumulation
-direct broad MFD support as semantic river network
-H09-C as sole sparse network
-multiplicative H09-D rule that deletes fixed-area baseline
-renderer/smoothing as an upstream-fix substitute
+├─ Hydrology 0.2 — ACCEPTED / MERGED
+│  ├─ MFD p=1.1
+│  ├─ H09-D2 regional rivers
+│  ├─ H09-E potential hierarchy + Strahler
+│  ├─ H10-A refined lake shorelines
+│  └─ H10-B nested split hypothesis rejected by evidence
+└─ C1 annual climate forcing — ACCEPTED / MERGED
+   ├─ annual temperature
+   ├─ annual precipitation
+   ├─ windward/lee forcing
+   └─ C01–C09 guards
 ```
 
 ## IN PROGRESS
 
 ```text
-Surface / climate / biome 0.2
-├─ C1 annual climate forcing — ACCEPTED
-└─ C2 effective surface moisture — OPERATOR REVIEW
-   ├─ C1 climate frozen / ACCEPTED
-   ├─ PR #82 ACCEPTED / merged
-   ├─ effective moisture core — IMPLEMENTED
-   ├─ PR #83 opened
-   ├─ M01–M10 guardrails — IMPLEMENTED
-   ├─ C2-A renderer/workflow — IMPLEMENTED
-   ├─ M01–M10 / push + PR pytest — GREEN
-   ├─ C2-A workflow — GREEN
-   └─ operator ACCEPT / REJECT — PENDING
-   ├─ Hydrology 0.2 merged / frozen
-   ├─ Surface 0.1 baseline inspected
-   ├─ PR #80 ACCEPTED / merged
-   ├─ climate contracts / compiler boundary — IMPLEMENTED
-   ├─ temperature + precipitation fields — IMPLEMENTED
-   ├─ climate DomainData export — IMPLEMENTED
-   ├─ C01–C09 climate guardrails — IMPLEMENTED
-   ├─ v0.2 fixture compatibility — IMPLEMENTED
-   ├─ schema snapshots — UPDATED
-   ├─ C1-A renderer/workflow — IMPLEMENTED
-   ├─ push + PR pytest — GREEN
-   ├─ C1-A workflow — GREEN
-   └─ PR #81 ACCEPTED / merged
-
-Hydrology 0.2 — ACCEPTED
-├─ H10-A shoreline refinement — KEEP
-└─ H10-B nested depression hierarchy — COMPLETE
-   ├─ river hierarchy frozen
-   ├─ diagnostics complete
-   │  ├─ 13 routing lakes
-   │  ├─ 890 km² total raster lake area
-   │  └─ catchment/lake ratios ~5.6...136
-   ├─ PR #78 ACCEPTED / merged
-   ├─ refined sub-cell shoreline reconstruction — IMPLEMENTED
-   ├─ exact lake inflow/outlet shoreline alignment — IMPLEMENTED
-   ├─ L01/L03/L05/L06/L08 guards — IMPLEMENTED
-   ├─ H10-A visual diagnostics — IMPLEMENTED
-   ├─ CI + same-world checkpoint — GREEN
-   └─ not final lake solution
-
-H10-B
-   ├─ design PR #79 ACCEPTED / merged
-   ├─ hierarchy core + diagnostics — GREEN
-   ├─ all 13 lakes: single-basin hierarchy
-   ├─ nested-split hypothesis — REJECTED by evidence
-   └─ production nested/partial-fill semantics — DO NOT IMPLEMENT
+C2 effective surface moisture — OPERATOR REVIEW
+├─ design PR #82 — ACCEPTED / merged
+├─ implementation PR #83 — draft/open
+├─ effective-moisture core — IMPLEMENTED
+├─ M01–M10 guards — GREEN
+├─ push/PR pytest — GREEN
+├─ C2-A workflow — GREEN
+└─ operator ACCEPT / REJECT — PENDING
 ```
 
-PR #72 is approved for merge into dev/0.2 after formal Hydrology ACCEPT.
+Latest workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36831586933`
+
+Artifact:
+`surface-v02-c2`
+
+Main review question:
+`water_moisture_decay_km = 8` creates broad wet halos around rivers/lakes. Decide whether that scale reads plausibly before retuning.
 
 ## NEXT
 
+If C2-A = ACCEPT:
+
 ```text
-1. Operator review C2-A workflow artifact
-2. ACCEPT → freeze C2 moisture and merge PR #83
-3. REJECT → identify climate / water-proximity / catchment / slope defect before retuning
-4. Only then design C3 vegetation / biome readiness
-4. Later hydro-surface finishing
-   ├─ low-order headwater-root visibility
-   ├─ perennial / seasonal / dry classification
-   ├─ estuary / delta / fan only when receiver semantics justify it
-   └─ cartographic endpoint treatment
-6. Placement continuation
+1. freeze C2 moisture
+2. merge PR #83
+3. INV-006 design C3 vegetation / biome readiness
+4. implement vegetation only after design acceptance
+5. later revisit deferred hydro-surface finishing
+6. then continue Placement
 ```
 
-River hierarchy is frozen. Reopen it only for a new concrete defect, not while tuning lakes.
+If C2-A = REJECT:
+
+```text
+identify one concrete defect:
+  climatic wetness
+  actual-water proximity scale
+  catchment contribution
+  slope retention
+
+then make one bounded correction;
+do not reopen Terrain/Hydrology/C1 without evidence.
+```
+
+## Deferred
+
+```text
+perennial / seasonal / dry channel classification
+headwater visual roots
+standing lake vs wetland/playa/dry basin
+delta / estuary / fan morphology
+biome labels
+Placement continuation
+```
 
 ## Acceptance boundary
 
 ```text
-automated green
-+
-operator-visible checkpoint
-+
-explicit operator ACCEPT
-=
-accepted spatial semantic layer
+green automation
++ operator-visible output
++ explicit operator ACCEPT
+= accepted spatial semantic layer
 ```
-
-
-## CURRENT DECISION GATE
-
-```text
-Terrain 0.2                   ACCEPTED
-Hydrology 0.2                 ACCEPTED
-C1 annual climate forcing     ACCEPTED
-next                          C2 effective moisture design
-```
-
-Deferred to climate/surface/biomes:
-- perennial vs seasonal low-order drainage;
-- standing lake vs wetland/playa/dry basin classification;
-- headwater visual roots;
-- delta/estuary/fan endpoint morphology.

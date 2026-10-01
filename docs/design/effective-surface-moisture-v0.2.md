@@ -1,6 +1,6 @@
 # Effective Surface Moisture v0.2
 
-Status: **proposed design gate**
+Status: **accepted design gate; implementation under operator review**
 Target branch: `dev/0.2`
 Checkpoint: C2-A
 Depends on: accepted Terrain 0.2 + Hydrology 0.2 + C1 annual climate forcing

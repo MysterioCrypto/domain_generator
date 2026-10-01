@@ -1,6 +1,6 @@
 # Annual Climate Forcing v0.2
 
-Status: **proposed design gate**
+Status: **accepted / implemented baseline**
 Target branch: `dev/0.2`
 Checkpoint: C1
 Depends on: accepted Terrain 0.2 + Hydrology 0.2
