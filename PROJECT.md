@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-c3-vegetation-biome-readiness
-checkpoint: c3-vegetation-design-accepted
-next_topic: implement-c3-vegetation
+checkpoint: c3-a-vegetation-ready-for-operator-review
+next_topic: operator-review-c3-a
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -270,3 +270,51 @@ Design PR #84 merged:
 `2ad695d059b4f198b5f06c6451b005c0d630fbc9`
 
 Next: implement C3 on a separate branch with V01–V11 guardrails and an operator-visible C3-A checkpoint.
+
+
+## Surface / Climate 0.2 — C3-A implementation checkpoint
+
+Implementation PR #85:
+`https://github.com/MysterioCrypto/domain_generator/pull/85`
+
+Branch:
+`impl/v0.2-c3-vegetation-biome-readiness`
+
+Current semantic head:
+`eb1365759f891991e8614f712eb1db7ab7da2bae`
+
+C3-A workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36842261493`
+
+Artifact:
+`surface-v02-c3`
+
+Automation:
+- push pytest GREEN;
+- pull-request pytest GREEN;
+- C3-A checkpoint GREEN;
+- V01–V11 GREEN.
+
+Representative vegetation:
+- p05 / median / p95 ~0.261 / 0.297 / 0.348;
+- mean ~0.299;
+- min / max ~0.181 / 0.400;
+- effective-moisture correlation ~+0.369;
+- temperature correlation ~+0.330;
+- precipitation correlation ~+0.290;
+- slope correlation ~-0.169;
+- distance-to-water correlation ~-0.178.
+
+Interpretation:
+- no single driver dominates;
+- accepted C2 moisture remains visible;
+- thermal suitability moderates cold/wet terrain;
+- no second legacy slope penalty;
+- no extra vegetation noise;
+- canonical water vegetation remains exactly zero.
+
+Important semantic caveat:
+`vegetation_density` in C3 is an abstract normalized ecological potential/density index. It is not canopy-cover percentage and not literal NPP; absolute values such as 0.30 must not be read as 30% physical vegetation cover.
+
+Current gate: **C3-A IMPLEMENTATION — OPERATOR REVIEW**.
+Do not merge PR #85 before explicit ACCEPT / REJECT.
