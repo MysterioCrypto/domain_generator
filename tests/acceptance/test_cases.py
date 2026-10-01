@@ -26,12 +26,22 @@ def test_acceptance_world_semantics_and_baseline(case_id: str) -> None:
 
     assert data.validation.engine_invariants_passed is True
     assert data.validation.hard_constraints_passed is True
-    assert tuple(data.fields) == (
-        "elevation",
-        "water_depth",
-        "moisture",
-        "vegetation_density",
-    )
+    if data.provenance.spec_schema_version == "0.2":
+        assert tuple(data.fields) == (
+            "elevation",
+            "water_depth",
+            "moisture",
+            "vegetation_density",
+            "temperature",
+            "annual_precipitation",
+        )
+    else:
+        assert tuple(data.fields) == (
+            "elevation",
+            "water_depth",
+            "moisture",
+            "vegetation_density",
+        )
 
     expected_shape = (data.grid.rows, data.grid.columns)
     for field_id, array in assembly.field_payloads.items():
@@ -45,6 +55,10 @@ def test_acceptance_world_semantics_and_baseline(case_id: str) -> None:
         (assembly.field_payloads["vegetation_density"] >= 0.0)
         & (assembly.field_payloads["vegetation_density"] <= 1.0)
     )
+    if data.provenance.spec_schema_version == "0.2":
+        assert np.isfinite(assembly.field_payloads["temperature"]).all()
+        assert np.all(assembly.field_payloads["annual_precipitation"] > 0.0)
+        assert set(data.networks) == {"rivers", "potential_drainage"}
 
     if case_id == "a01-minimal":
         assert data.features == {}
@@ -132,14 +146,56 @@ def test_acceptance_world_semantics_and_baseline(case_id: str) -> None:
         assert result.run.valid_candidates
         assert data.validation.soft.weighted_mean_score <= 1.0
 
+    elif case_id == "a08-core-v02-integrated":
+        settlement = data.features["settlement-01"]
+        assert settlement.family.value == "poi"
+        assert isinstance(settlement.geometry, PointGeometry)
+        selected_state = result.run.selected.state
+        assert selected_state.layout is not None
+        assert selected_state.placement is not None
+        assert selected_state.hydrology is not None
+        assert selected_state.surface is not None
+        reservation = selected_state.layout.placement_reservations["settlement-01"]
+        assert region_set_covers_point(reservation.allowed_region, settlement.geometry)
+        assert selected_state.placement.final_points["settlement-01"] == settlement.geometry
+        assert data.networks["rivers"].segments
+        assert data.networks["potential_drainage"].segments
+        assert selected_state.hydrology.potential_river_network is not None
+        assert (
+            data.networks["potential_drainage"]
+            == selected_state.hydrology.potential_river_network
+        )
+        assert selected_state.surface.annual_mean_temperature_c is not None
+        assert selected_state.surface.annual_precipitation_mm is not None
+        placement_feature = next(
+            feature for feature in result.plan.features if feature.id == "settlement-01"
+        )
+        assert placement_feature.effect.site_profile is not None
+        used_metrics = {
+            requirement.metric
+            for requirement in placement_feature.effect.site_profile.requirements
+        } | {
+            preference.metric
+            for preference in placement_feature.effect.site_profile.preferences
+        }
+        assert {
+            "temperature_mean",
+            "annual_precipitation_mean",
+            "distance_to_potential_drainage",
+        }.issubset(used_metrics)
+
     else:  # pragma: no cover - guarded by CASE_IDS
         raise AssertionError(case_id)
 
     assert_or_report_baseline(result)
 
 
-def test_a01_and_a07_publish_canonical_bundles(tmp_path) -> None:
-    for case_id in ("a01-minimal", "a07-complex-mixed"):
+def test_representative_cases_publish_canonical_bundles(tmp_path) -> None:
+    for case_id, expected_file_count in (
+        ("a01-minimal", 5),
+        ("a07-complex-mixed", 5),
+        ("a08-core-v02-integrated", 7),
+    ):
         result = verify_bundle(load_case(case_id), tmp_path)
         assert result.technical_preview is None
-        assert len(result.manifest.canonical_files) == 5
+        assert len(result.manifest.canonical_files) == expected_file_count

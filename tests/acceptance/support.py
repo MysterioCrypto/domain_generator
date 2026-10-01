@@ -36,6 +36,7 @@ CASE_IDS = (
     "a05-dependent-poi",
     "a06-constraints-ranking",
     "a07-complex-mixed",
+    "a08-core-v02-integrated",
 )
 
 CASES_ROOT = Path(__file__).resolve().parent / "cases"
@@ -80,8 +81,15 @@ def load_case(case_id: str) -> AcceptanceCase:
     catalog_path = root / "presets.json"
     catalog = load_preset_catalog(catalog_path) if catalog_path.is_file() else None
     expected = _read_json(root / "expected.json")
-    if expected.get("case_version") != "0.1":
-        raise AssertionError(f"{case_id}: expected.json case_version must be 0.1")
+    case_version = expected.get("case_version")
+    if case_version not in {"0.1", "0.2"}:
+        raise AssertionError(
+            f"{case_id}: expected.json case_version must be 0.1 or 0.2"
+        )
+    if case_version != request.domain_spec.schema_version:
+        raise AssertionError(
+            f"{case_id}: expected.json case_version must match DomainSpec schema_version"
+        )
     return AcceptanceCase(
         case_id=case_id,
         root=root,
@@ -175,7 +183,7 @@ def baseline_snapshot(result: DetailedGeneration) -> dict[str, Any]:
     }
 
     provenance = data.provenance
-    return {
+    snapshot = {
         "accepted_attempt_index": provenance.accepted_attempt_index,
         "attempts_executed": result.run.attempts_executed,
         "valid_candidate_attempts": [candidate.attempt_index for candidate in result.run.valid_candidates],
@@ -188,6 +196,13 @@ def baseline_snapshot(result: DetailedGeneration) -> dict[str, Any]:
         "rivers": river_summary,
         "validation": data.validation.model_dump(mode="json", by_alias=True, exclude_none=False),
     }
+    if provenance.spec_schema_version == "0.2":
+        potential = data.networks.get("potential_drainage")
+        snapshot["potential_drainage"] = {
+            "nodes": len(potential.nodes) if potential is not None else 0,
+            "segments": len(potential.segments) if potential is not None else 0,
+        }
+    return snapshot
 
 
 def assert_or_report_baseline(result: DetailedGeneration) -> None:
