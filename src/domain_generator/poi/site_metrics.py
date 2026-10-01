@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import ceil, isfinite
+from math import ceil, inf, isfinite
 
 import numpy as np
+from shapely.geometry import LineString, Point
 
+from ..contracts.data import RiverNetwork
 from ..contracts.geometry import PointGeometry
 from ..contracts.plan import GenerationPlan
 from ..grid import GridAdapter
@@ -25,15 +27,33 @@ SITE_METRIC_IDS: tuple[str, ...] = (
     "distance_to_water",
 )
 
+CORE_V02_SITE_METRIC_IDS: tuple[str, ...] = SITE_METRIC_IDS + (
+    "temperature_mean",
+    "annual_precipitation_mean",
+    "distance_to_potential_drainage",
+)
+
+
+def site_metric_ids_for_plan_version(plan_version: str) -> tuple[str, ...]:
+    if plan_version == "0.1":
+        return SITE_METRIC_IDS
+    if plan_version == "0.2":
+        return CORE_V02_SITE_METRIC_IDS
+    raise SiteMetricCapabilityError(
+        f"unsupported plan version for site metrics: {plan_version!r}"
+    )
+
 
 class SiteMetricCapabilityError(RuntimeError):
-    """Site-metric Core 0.1 cannot evaluate the supplied runtime state."""
+    """Site metrics cannot evaluate the supplied runtime state."""
 
 
 @dataclass(frozen=True, slots=True)
 class SiteMetricContext:
     """Attempt-global upstream fields used to evaluate many candidate sites."""
 
+    plan_version: str
+    metric_ids: tuple[str, ...]
     adapter: GridAdapter
     elevation_m: np.ndarray
     water_depth_m: np.ndarray
@@ -41,6 +61,9 @@ class SiteMetricContext:
     vegetation_density: np.ndarray
     slope_deg: np.ndarray
     distance_to_water_km: np.ndarray
+    annual_mean_temperature_c: np.ndarray | None = None
+    annual_precipitation_mm: np.ndarray | None = None
+    potential_river_network: RiverNetwork | None = None
 
     @classmethod
     def from_states(
@@ -82,6 +105,38 @@ class SiteMetricContext:
             normalized=True,
         )
 
+        temperature: np.ndarray | None = None
+        precipitation: np.ndarray | None = None
+        potential_network: RiverNetwork | None = None
+        if plan.plan_version == "0.2":
+            if surface.annual_mean_temperature_c is None:
+                raise SiteMetricCapabilityError(
+                    "Core 0.2 site metrics require annual_mean_temperature_c"
+                )
+            if surface.annual_precipitation_mm is None:
+                raise SiteMetricCapabilityError(
+                    "Core 0.2 site metrics require annual_precipitation_mm"
+                )
+            if hydrology.potential_river_network is None:
+                raise SiteMetricCapabilityError(
+                    "Core 0.2 site metrics require potential_river_network"
+                )
+            temperature = _require_field(
+                "annual_mean_temperature_c",
+                surface.annual_mean_temperature_c,
+                expected_shape=expected_shape,
+                non_negative=False,
+                normalized=False,
+            )
+            precipitation = _require_field(
+                "annual_precipitation_mm",
+                surface.annual_precipitation_mm,
+                expected_shape=expected_shape,
+                non_negative=True,
+                normalized=False,
+            )
+            potential_network = hydrology.potential_river_network
+
         slope = slope_degrees(elevation, cell_size_km=adapter.cell_size_km)
         water_mask = (water_depth > 0.0).astype(np.bool_, copy=False)
         water_distance = distance_to_water_km(
@@ -90,6 +145,8 @@ class SiteMetricContext:
         )
 
         return cls(
+            plan_version=plan.plan_version,
+            metric_ids=site_metric_ids_for_plan_version(plan.plan_version),
             adapter=adapter,
             elevation_m=elevation,
             water_depth_m=water_depth,
@@ -97,6 +154,9 @@ class SiteMetricContext:
             vegetation_density=vegetation,
             slope_deg=slope,
             distance_to_water_km=water_distance,
+            annual_mean_temperature_c=temperature,
+            annual_precipitation_mm=precipitation,
+            potential_river_network=potential_network,
         )
 
 
@@ -123,7 +183,9 @@ def _validate_candidate(adapter: GridAdapter, candidate: PointGeometry) -> tuple
     try:
         return adapter.containing_cell(candidate.x_km, candidate.y_km)
     except (TypeError, ValueError) as exc:
-        raise SiteMetricCapabilityError("candidate point must be finite and inside/on domain") from exc
+        raise SiteMetricCapabilityError(
+            "candidate point must be finite and inside/on domain"
+        ) from exc
 
 
 def footprint_cells(
@@ -138,7 +200,9 @@ def footprint_cells(
     try:
         radius = float(footprint_radius_km)
     except (TypeError, ValueError, OverflowError) as exc:
-        raise SiteMetricCapabilityError("footprint_radius_km must be finite and >= 0") from exc
+        raise SiteMetricCapabilityError(
+            "footprint_radius_km must be finite and >= 0"
+        ) from exc
     if not isfinite(radius) or radius < 0.0:
         raise SiteMetricCapabilityError("footprint_radius_km must be finite and >= 0")
     if radius == 0.0:
@@ -166,12 +230,41 @@ def footprint_cells(
     return tuple(cells)
 
 
+def distance_to_river_network_km(
+    network: RiverNetwork,
+    candidate: PointGeometry,
+    footprint_radius_km: float,
+) -> float:
+    """Return exact circular-footprint distance to RiverNetwork centerline geometry."""
+    if isinstance(footprint_radius_km, bool):
+        raise SiteMetricCapabilityError("footprint_radius_km must be finite and >= 0")
+    radius = float(footprint_radius_km)
+    if not isfinite(radius) or radius < 0.0:
+        raise SiteMetricCapabilityError("footprint_radius_km must be finite and >= 0")
+    if not network.segments:
+        return inf
+
+    target = Point(float(candidate.x_km), float(candidate.y_km))
+    minimum = inf
+    for segment_id in sorted(network.segments):
+        segment = network.segments[segment_id]
+        line = LineString(
+            tuple(
+                (float(point.x_km), float(point.y_km))
+                for point in segment.centerline
+            )
+        )
+        minimum = min(minimum, float(line.distance(target)))
+
+    return max(0.0, minimum - radius)
+
+
 def evaluate_site_metrics(
     context: SiteMetricContext,
     candidate: PointGeometry,
     footprint_radius_km: float,
 ) -> dict[str, float]:
-    """Evaluate the complete Core 0.1 site metric registry for one candidate."""
+    """Evaluate the complete versioned site-metric registry for one candidate."""
     cells = footprint_cells(context.adapter, candidate, footprint_radius_km)
     containing = _validate_candidate(context.adapter, candidate)
 
@@ -203,7 +296,7 @@ def evaluate_site_metrics(
     elevation_mean = float(np.mean(elevations, dtype=np.float64))
     containing_elevation = float(context.elevation_m[containing])
 
-    values = {
+    values: dict[str, float] = {
         "slope_mean": float(np.mean(slopes, dtype=np.float64)),
         "water_fraction": float(np.count_nonzero(water) / len(cells)),
         "elevation_mean": elevation_mean,
@@ -213,4 +306,33 @@ def evaluate_site_metrics(
         "vegetation_density_mean": float(np.mean(vegetation, dtype=np.float64)),
         "distance_to_water": float(np.min(water_distance)),
     }
-    return {metric_id: values[metric_id] for metric_id in SITE_METRIC_IDS}
+
+    if context.plan_version == "0.2":
+        assert context.annual_mean_temperature_c is not None
+        assert context.annual_precipitation_mm is not None
+        assert context.potential_river_network is not None
+        temperature = np.asarray(
+            [context.annual_mean_temperature_c[cell] for cell in cells],
+            dtype=np.float64,
+        )
+        precipitation = np.asarray(
+            [context.annual_precipitation_mm[cell] for cell in cells],
+            dtype=np.float64,
+        )
+        values.update(
+            {
+                "temperature_mean": float(
+                    np.mean(temperature, dtype=np.float64)
+                ),
+                "annual_precipitation_mean": float(
+                    np.mean(precipitation, dtype=np.float64)
+                ),
+                "distance_to_potential_drainage": distance_to_river_network_km(
+                    context.potential_river_network,
+                    candidate,
+                    footprint_radius_km,
+                ),
+            }
+        )
+
+    return {metric_id: values[metric_id] for metric_id in context.metric_ids}
