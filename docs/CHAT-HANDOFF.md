@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **Core 0.2 release hardening — version/docs consistency**.
+Current checkpoint: **Core 0.2 release candidate — operator review**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -166,3 +166,21 @@ A08 is frozen and GREEN:
 - regional + potential networks.
 
 Release-readiness audit now focuses on stale package/docs version metadata. Independent contract versions remain independent unless a concrete shape break requires a bump.
+
+
+## Core 0.2 release-candidate readiness
+
+PR #91 merged:
+`5cafb8119050f19765447d65dcef022ebebe052b`
+
+Generator identity:
+`0.2.0.dev0`
+
+Merge-head pytest GREEN:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36853774759`
+
+A01–A08 are GREEN. Version re-sign changed only DomainData provenance hashes; world fields/geometry/networks/placement remained identical.
+
+No known blocker remains inside accepted Core 0.2 scope.
+
+Do not create `release/0.2-prealpha` until explicit operator ACCEPT.
