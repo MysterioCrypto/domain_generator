@@ -808,3 +808,18 @@ Existing Core 0.2 terrain/hydrology test fixtures were updated with explicit neu
 
 Known remaining maintenance item:
 schema snapshots must be regenerated/updated for the new ClimateSpec / PlanClimate contract structure.
+
+
+## C1 implementation slice 4 — schema snapshots
+
+Updated Core v0.2 schema snapshots for:
+- DomainSpec / ClimateSpec;
+- GenerationPlan / PlanClimate;
+- GenerationRequest transitive DomainSpec structure.
+
+The schema change is structural only; conditional requirements (0.2 requires climate, 0.1 forbids it) remain enforced by model validators rather than JSON Schema conditionals.
+
+Pending:
+- CI stabilization;
+- any C01–C09 implementation defects revealed by tests;
+- C1 operator checkpoint.
