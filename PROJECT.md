@@ -6,9 +6,9 @@ status: in-progress
 historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
-current_milestone: v0.2-batch-c1-surface-climate-foundation
-checkpoint: c1-a-annual-climate-ready-for-operator-review
-next_topic: operator-review-c1-a
+current_milestone: v0.2-batch-c2-effective-surface-moisture
+checkpoint: c1-annual-climate-accepted
+next_topic: design-c2-effective-surface-moisture
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -30,6 +30,7 @@ completed:
   - core-0.2-continuous-terrain-foundation
   - core-0.2-domain-provenance-boundary
   - core-0.2-hydrology
+  - core-0.2-annual-climate-forcing
 rejected_or_superseded:
   - core-0.1-world-generation-semantics
   - guide-renderer-as-fix-for-upstream-world-state
@@ -162,9 +163,9 @@ implementation
 Green CI не заменяет human visual acceptance. Визуально удачный render также не отменяет failed invariants.
 
 
-## Surface / Climate 0.2 — C1-A operator checkpoint
+## Surface / Climate 0.2 — C1 ACCEPTED
 
-C1 annual climate forcing is implemented on draft PR #81 and is ready for human review.
+C1 annual climate forcing is formally ACCEPTED by operator and merged through PR #81 into `dev/0.2`.
 
 Representative C1-A:
 - annual temperature range: ~1.64 .. 11.50 °C;
@@ -180,9 +181,11 @@ CI:
 - PR pytest: GREEN;
 - C1 checkpoint workflow: GREEN.
 
-Current assistant assessment:
-- temperature field is plausible enough for operator review and shows no obvious raster artifact;
-- precipitation mechanism behaves as intended and shows a coherent windward/lee response;
-- precipitation contrast is intentionally the main operator-review question: localized maxima near ~4,000 mm/year and a strong windward/lee contrast may be acceptable or may be too aggressive for the desired generic regional baseline.
+Accepted C1 interpretation:
+- C1 is regional atmospheric forcing, not a planetary moisture-source simulation;
+- mean precipitation represents moisture supplied to the regional domain from outside the modeled atmospheric system;
+- terrain redistributes that forcing through windward/lee effects;
+- local rivers/lakes do not themselves generate the atmospheric precipitation field in C1;
+- calibration remains setting-dependent and may be revisited only if a later layer reveals a concrete blocker.
 
-No parameter retuning occurs before operator review.
+Next bounded layer: climate + hydrology + terrain → effective surface moisture.
