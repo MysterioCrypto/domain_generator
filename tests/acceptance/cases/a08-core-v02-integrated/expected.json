@@ -3,7 +3,7 @@
   "baseline": {
     "accepted_attempt_index": 0,
     "attempts_executed": 1,
-    "domain_data_sha256": "sha256:b16d07c4444d1094e89a116c28e6e111860695bfc688facc523ab22a185ffcc8",
+    "domain_data_sha256": "sha256:015367efd11f74c7e604da1ac3334b1f2e7d6cba255bf44f0e7fe221a37564d3",
     "features": {
       "lake-0001": {
         "family": "hydro",

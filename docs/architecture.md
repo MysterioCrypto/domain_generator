@@ -1,12 +1,12 @@
 ---
-id: ARCH-CORE-0.1
+id: ARCH-CORE-0.2
 kind: architecture
 status: active
 normative: true
-target: core-0.1
+target: core-0.2
 ---
 
-# Архитектура Core 0.1
+# Архитектура Core 0.2
 
 ## Назначение и граница
 
@@ -55,6 +55,37 @@ Core не хранит идентичность сеттинга и не инт�
 ```
 
 `DomainSpec` — язык намерения пользователя или внешнего потребителя. `GenerationPlan` — неизменяемый разрешённый рецепт. `LayoutCandidate` — конкретный macro-layout одного attempt. `DomainCandidate` — runtime-состояние вычислений. `DomainData` — принятый сгенерированный регион.
+
+## Core 0.2: принятая дельта поверх Core 0.1
+
+Core 0.2 сохраняет инфраструктурную архитектуру Core 0.1 — versioned contracts, semantic RNG, attempts/ranking, immutable stage boundaries, dependent Placement и canonical bundle — но заменяет/расширяет world-generation semantics:
+
+```text
+continuous Terrain 0.2
+→ Hydrology 0.2
+   → MFD p=1.1 contributing area
+   → regional rivers
+   → potential_drainage
+→ Surface / Climate
+   → annual temperature
+   → annual precipitation
+   → effective moisture
+   → climate-aware vegetation
+→ dependent Placement
+   → Core 0.2 environmental site metrics
+→ DomainData / bundle
+```
+
+Accepted Core 0.2 boundaries:
+- canonical elevation не мутируется Hydrology;
+- regional `rivers` остаётся canonical water authority;
+- `potential_drainage` — terrain-consistent drainage scaffold, не утверждение о постоянном течении;
+- annual climate — regional forcing, а не глобальная атмосферная модель;
+- moisture и vegetation имеют отдельные диагностируемые semantics;
+- Placement читает upstream environment, но не мутирует его;
+- Core 0.1 inputs сохраняют historical compatibility path.
+
+Явные упоминания Core 0.1 ниже описывают сохранённую инфраструктурную/contract baseline там, где этот раздел не переопределён Core 0.2 design-документами.
 
 ## Координаты и grid
 
@@ -292,14 +323,23 @@ effective_violation = (1 - score) * weight
 
 `DomainData` — самодостаточный canonical structured result принятой генерации. Он содержит identity/provenance, metadata domain/grid, descriptors canonical/derived fields, semantic features, networks и компактный validation summary.
 
-Базовые canonical continuous fields Core 0.1:
+Canonical continuous fields:
 
+Core 0.1:
 - `elevation` (`float32`, m);
-- `water_depth` (`float32`, m, >=0); binary water mask является derived;
+- `water_depth` (`float32`, m, >=0);
 - `moisture` (`float32`, normalized 0..1);
 - `vegetation_density` (`float32`, normalized 0..1).
 
-Крупные arrays хранятся отдельными `.npy`; `domain.json` содержит descriptors/references. Semantic lakes остаются area features; river network хранит явную направленную topology upstream -> downstream.
+Core 0.2 добавляет:
+- `temperature` (`float32`, degC);
+- `annual_precipitation` (`float32`, mm/year).
+
+Core 0.2 public networks:
+- `rivers` — accepted regional/canonical river network;
+- `potential_drainage` — accepted denser drainage scaffold.
+
+Binary water mask остаётся derived от `water_depth`. Крупные arrays хранятся отдельными `.npy`; `domain.json` содержит descriptors/references. Semantic lakes остаются area features; river networks хранят явную направленную topology upstream -> downstream.
 
 `PlacementReservation`, sampler recipes, rejected attempts и debug traces не входят в `DomainData`.
 
