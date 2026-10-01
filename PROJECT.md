@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-hydro-surface-finishing
-checkpoint: h11-a-potential-drainage-export-design-accepted
-next_topic: implement-h11-a-potential-drainage-export
+checkpoint: h11-a-potential-drainage-export-ready-for-operator-review
+next_topic: operator-review-h11-a-implementation
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -372,3 +372,51 @@ Acceptance scope:
 - no basin-regime or delta/estuary/fan inference.
 
 Next: implement H11-A on a separate branch with X01–X08 and operator-visible contract evidence.
+
+
+## Hydrology 0.2 — H11-A implementation checkpoint
+
+Implementation PR #87:
+`https://github.com/MysterioCrypto/domain_generator/pull/87`
+
+Branch:
+`impl/v0.2-potential-drainage-export`
+
+Semantic head:
+`b77d3247577c552117ba6bf4567d4e7563f062b1`
+
+Checkpoint:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36845608659`
+
+Automation:
+- X01–X08 GREEN;
+- push pytest GREEN;
+- PR pytest GREEN;
+- H11-A checkpoint GREEN.
+
+Representative public boundary:
+```text
+networks:
+  rivers
+  potential_drainage
+
+regional runtime/export:
+  58 nodes / 33 segments
+  exact equality = true
+
+potential runtime/export:
+  111 nodes / 66 segments
+  exact equality = true
+
+upstream canonical field hashes unchanged = true
+```
+
+Implementation note:
+the first checkpoint exposed a historical runtime `DomainData` validator that enforced the Core 0.1 single-network restriction even for 0.2 provenance. The bounded fix makes allowed network IDs version-aware:
+- 0.1: `rivers` only;
+- 0.2: `rivers` plus `potential_drainage`.
+
+No root DomainData version bump and no arbitrary extra network IDs.
+
+Current gate: **H11-A IMPLEMENTATION — OPERATOR REVIEW**.
+Do not merge PR #87 before explicit ACCEPT / REJECT.
