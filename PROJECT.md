@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-placement-continuation
-checkpoint: p08-a-placement-environmental-metrics-ready-for-operator-review
-next_topic: operator-review-p08-a-implementation
+checkpoint: p08-a-placement-environmental-metrics-accepted
+next_topic: placement-next-slice-audit
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -38,6 +38,7 @@ completed:
   - core-0.2-effective-surface-moisture
   - core-0.2-climate-aware-vegetation
   - core-0.2-potential-drainage-public-export
+  - core-0.2-placement-environmental-site-metrics
 rejected_or_superseded:
   - core-0.1-world-generation-semantics
   - guide-renderer-as-fix-for-upstream-world-state
@@ -539,5 +540,18 @@ Integrity:
 
 The diagnostic placement recipe is test evidence only, not a hidden production settlement policy.
 
-Current gate: **P08-A IMPLEMENTATION — OPERATOR REVIEW**.
-Do not merge PR #89 before explicit ACCEPT / REJECT.
+Operator decision: **P08-A IMPLEMENTATION ACCEPTED**.
+
+Implementation PR #89 merged into `dev/0.2`:
+`57e77c8de6ac8668ddd09e25167e30aa773cf645`
+
+Accepted Placement 0.2 observation boundary:
+- Core 0.1 registry remains the historical eight metrics;
+- Core 0.2 adds `temperature_mean`, `annual_precipitation_mean`, `distance_to_potential_drainage`;
+- `moisture_mean` observes C2;
+- `vegetation_density_mean` observes C3;
+- candidate generation / filtering / scoring / near-best / weighted selection remain unchanged.
+
+P08-A is frozen unless a concrete metric/contract defect appears.
+
+Next: audit the remaining Placement boundary and choose one bounded follow-up slice.
