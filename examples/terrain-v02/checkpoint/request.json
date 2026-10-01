@@ -44,7 +44,7 @@
     "surface": {
       "moisture_base": 0.35,
       "water_moisture_boost": 0.55,
-      "water_moisture_decay_km": 8,
+      "water_moisture_decay_km": 2,
       "moisture_noise_amplitude": 0.1,
       "moisture_noise_scale_km": 20,
       "vegetation_slope_zero_deg": 45,
