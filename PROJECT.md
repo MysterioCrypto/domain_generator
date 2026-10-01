@@ -6,9 +6,9 @@ status: in-progress
 historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
-current_milestone: v0.2-batch-c3-vegetation-biome-readiness
-checkpoint: c3-a-vegetation-ready-for-operator-review
-next_topic: operator-review-c3-a
+current_milestone: v0.2-batch-hydro-surface-finishing
+checkpoint: c3-vegetation-accepted
+next_topic: design-hydro-surface-finishing
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -34,6 +34,7 @@ completed:
   - core-0.2-hydrology
   - core-0.2-annual-climate-forcing
   - core-0.2-effective-surface-moisture
+  - core-0.2-climate-aware-vegetation
 rejected_or_superseded:
   - core-0.1-world-generation-semantics
   - guide-renderer-as-fix-for-upstream-world-state
@@ -316,5 +317,19 @@ Interpretation:
 Important semantic caveat:
 `vegetation_density` in C3 is an abstract normalized ecological potential/density index. It is not canopy-cover percentage and not literal NPP; absolute values such as 0.30 must not be read as 30% physical vegetation cover.
 
-Current gate: **C3-A IMPLEMENTATION — OPERATOR REVIEW**.
-Do not merge PR #85 before explicit ACCEPT / REJECT.
+Operator decision: **C3-A IMPLEMENTATION ACCEPTED**.
+
+Implementation PR #85 merged into `dev/0.2`:
+`37e213ebf5f82ebfae149d21088c07e08d836549`
+
+C3 is now frozen unless later evidence identifies a concrete defect.
+
+Mountain influence clarification:
+- C3 has no second direct slope penalty;
+- elevation affects vegetation through C1 lapse-rate temperature;
+- terrain affects precipitation through C1 windward/lee forcing;
+- slope affects moisture through accepted C2 `cos²(slope)` retention;
+- terrain-shaped drainage affects C2 catchment/water signals;
+- therefore mountains influence vegetation through accepted physical/environmental layers without double-counting slope.
+
+Next bounded area: revisit deferred hydro-surface finishing now that climate/moisture/vegetation context exists.
