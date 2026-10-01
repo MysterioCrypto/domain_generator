@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **Core 0.2 prealpha release frozen — post-release development planning**.
+Current checkpoint: **C4-A Environmental Seasonality — design operator review**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -196,3 +196,28 @@ Immediate next step:
 - choose the next post-release semantic layer;
 - open a new INV-006 design gate before material implementation;
 - do not reopen accepted Core 0.2 semantics without concrete evidence.
+
+
+## Post-release C4-A seasonality
+
+Dependency audit rejected immediate biome classification because current climate is annual-only.
+
+Design PR #92:
+`https://github.com/MysterioCrypto/domain_generator/pull/92`
+
+Proposal:
+- optional explicit 12-month climatological envelope;
+- monthly temperature preserves annual mean;
+- monthly precipitation preserves annual total;
+- explicit peak months and amplitudes;
+- no hemisphere/latitude inference;
+- no new monthly noise or seasonal wind changes;
+- C2/C3 unchanged during C4-A;
+- no biome or stream-permanence labels yet;
+- no seasonality recipe means frozen prealpha-compatible annual behavior.
+
+Immediate next step:
+- explicit C4-A design ACCEPT / REJECT;
+- no runtime implementation before design acceptance.
+
+`release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
