@@ -43,10 +43,14 @@ PR #83 merge:
 ## IN PROGRESS
 
 ```text
-C3 vegetation / biome readiness — IMPLEMENTATION NEXT
-├─ INV-006 design PR #84 — ACCEPTED / MERGED
-├─ normative design document — ACCEPTED
-└─ runtime implementation — NOT STARTED
+C3 vegetation / biome readiness — OPERATOR REVIEW
+├─ design PR #84 — ACCEPTED / MERGED
+├─ implementation PR #85 — draft/open
+├─ climate-aware vegetation core — IMPLEMENTED
+├─ V01–V11 — GREEN
+├─ push/PR pytest — GREEN
+├─ C3-A workflow — GREEN
+└─ implementation ACCEPT / REJECT — PENDING
 ```
 
 Design PR:
@@ -57,20 +61,23 @@ Merge commit:
 
 Acceptance is formal project/operator acceptance, not expert ecological validation.
 
-No C3 runtime implementation has started.
+C3-A workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36842261493`
+
+Artifact:
+`surface-v02-c3`
+
+No merge until explicit implementation ACCEPT / REJECT.
 
 ## NEXT
 
 ```text
-1. create C3 implementation branch
-2. implement accepted climate-aware vegetation semantics
-3. automated V01–V11 guardrails
-4. full pytest
-5. representative operator-visible C3-A checkpoint
-6. explicit implementation ACCEPT / REJECT
-7. ACCEPT → freeze/merge C3
-8. later revisit deferred hydro-surface finishing with environmental context
-9. then continue Placement
+1. operator review C3-A checkpoint
+2. explicit implementation ACCEPT / REJECT
+3. ACCEPT → freeze/merge PR #85
+4. REJECT → identify one concrete C3 component before retuning
+5. later revisit deferred hydro-surface finishing with environmental context
+6. then continue Placement
 ```
 
 Do not reopen Terrain/Hydrology/C1/C2 without new concrete evidence.
