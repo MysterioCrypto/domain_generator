@@ -7,40 +7,72 @@
     "seed": 2026091402,
     "domain": {
       "size": {
-        "width_km": 180.0,
-        "height_km": 120.0
+        "width_km": 180,
+        "height_km": 120
       }
     },
     "simulation": {
-      "cell_size_km": 1.0
+      "cell_size_km": 1
     },
     "terrain": {
-      "base_elevation_m": 240.0,
+      "base_elevation_m": 240,
       "noise_layers": [
-        {"id": "macro", "scale_km": 180.0, "amplitude_m": 420.0},
-        {"id": "regional", "scale_km": 55.0, "amplitude_m": 170.0},
-        {"id": "local", "scale_km": 14.0, "amplitude_m": 55.0}
+        {
+          "id": "macro",
+          "scale_km": 180,
+          "amplitude_m": 420
+        },
+        {
+          "id": "regional",
+          "scale_km": 55,
+          "amplitude_m": 170
+        },
+        {
+          "id": "local",
+          "scale_km": 14,
+          "amplitude_m": 55
+        }
       ]
     },
     "hydrology": {
-      "stream_threshold_km2": 250.0,
-      "lake_min_area_km2": 8.0,
-      "lake_min_depth_m": 3.0,
+      "stream_threshold_km2": 250,
+      "lake_min_area_km2": 8,
+      "lake_min_depth_m": 3,
       "river_depth_at_threshold_m": 0.5,
       "river_depth_exponent": 0.3
     },
     "surface": {
       "moisture_base": 0.35,
       "water_moisture_boost": 0.55,
-      "water_moisture_decay_km": 8.0,
+      "water_moisture_decay_km": 8,
       "moisture_noise_amplitude": 0.1,
-      "moisture_noise_scale_km": 20.0,
-      "vegetation_slope_zero_deg": 45.0
+      "moisture_noise_scale_km": 20,
+      "vegetation_slope_zero_deg": 45,
+      "climate": {
+        "mean_temperature_c": 8,
+        "north_minus_south_temperature_c": -4,
+        "temperature_noise_amplitude_c": 1.5,
+        "mean_annual_precipitation_mm": 900,
+        "moisture_transport_bearing_deg": 90,
+        "orographic_scale_km": 45,
+        "orographic_strength": 2,
+        "precipitation_noise_log_amplitude": 0.22,
+        "climate_noise_scale_km": 60
+      }
     },
     "features": [
-      {"id": "massif-01", "preset": "massif"},
-      {"id": "upland-01", "preset": "upland"},
-      {"id": "basin-01", "preset": "basin"}
+      {
+        "id": "massif-01",
+        "preset": "massif"
+      },
+      {
+        "id": "upland-01",
+        "preset": "upland"
+      },
+      {
+        "id": "basin-01",
+        "preset": "basin"
+      }
     ],
     "constraints": []
   },

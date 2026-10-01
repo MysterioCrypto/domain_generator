@@ -312,6 +312,22 @@ class PlanHydrology(FrozenStrictModel):
     river_depth_exponent: Annotated[StrictFloat, Field(ge=0.0, allow_inf_nan=False)]
 
 
+class PlanClimate(FrozenStrictModel):
+    mean_temperature_c: Annotated[StrictFloat, Field(allow_inf_nan=False)]
+    north_minus_south_temperature_c: Annotated[StrictFloat, Field(allow_inf_nan=False)]
+    temperature_noise_amplitude_c: Annotated[StrictFloat, Field(ge=0.0, allow_inf_nan=False)]
+    mean_annual_precipitation_mm: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
+    moisture_transport_bearing_deg: Annotated[
+        StrictFloat, Field(ge=0.0, lt=360.0, allow_inf_nan=False)
+    ]
+    orographic_scale_km: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
+    orographic_strength: Annotated[StrictFloat, Field(ge=0.0, allow_inf_nan=False)]
+    precipitation_noise_log_amplitude: Annotated[
+        StrictFloat, Field(ge=0.0, allow_inf_nan=False)
+    ]
+    climate_noise_scale_km: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
+
+
 class PlanSurface(FrozenStrictModel):
     moisture_base: Annotated[StrictFloat, Field(ge=0.0, le=1.0, allow_inf_nan=False)]
     water_moisture_boost: Annotated[StrictFloat, Field(ge=0.0, le=1.0, allow_inf_nan=False)]
@@ -319,6 +335,7 @@ class PlanSurface(FrozenStrictModel):
     moisture_noise_amplitude: Annotated[StrictFloat, Field(ge=0.0, le=1.0, allow_inf_nan=False)]
     moisture_noise_scale_km: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
     vegetation_slope_zero_deg: Annotated[StrictFloat, Field(gt=0.0, le=90.0, allow_inf_nan=False)]
+    climate: PlanClimate | None = None
 
 
 class GenerationPlan(FrozenStrictModel):
@@ -341,6 +358,10 @@ class GenerationPlan(FrozenStrictModel):
             raise ValueError("GenerationPlan 0.2 requires terrain synthesis plan")
         if self.plan_version == "0.1" and self.terrain is not None:
             raise ValueError("GenerationPlan 0.1 cannot contain terrain synthesis plan")
+        if self.plan_version == "0.2" and self.surface.climate is None:
+            raise ValueError("GenerationPlan 0.2 requires surface climate plan")
+        if self.plan_version == "0.1" and self.surface.climate is not None:
+            raise ValueError("GenerationPlan 0.1 cannot contain surface climate plan")
         if self.grid.columns * self.grid.cell_size_km != self.domain.width_km:
             raise ValueError("grid columns must exactly match domain width")
         if self.grid.rows * self.grid.cell_size_km != self.domain.height_km:

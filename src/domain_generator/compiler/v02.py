@@ -8,7 +8,7 @@ from .compile import (
     compile_domain_spec as _compile_domain_spec_v01,
     semantic_plan_fingerprint as _semantic_plan_fingerprint_v01,
 )
-from ..contracts.plan import GenerationPlan
+from ..contracts.plan import GenerationPlan, PlanClimate
 from ..contracts.spec import DomainSpec
 from ..contracts.terrain import PlanTerrain, PlanTerrainNoiseLayer
 from ..presets import PresetRegistry
@@ -25,13 +25,18 @@ def _canonical_json_bytes(value: object) -> bytes:
 
 
 def _legacy_shadow(spec: DomainSpec) -> DomainSpec:
-    return spec.model_copy(update={"schema_version": "0.1", "terrain": None})
+    legacy_surface = spec.surface.model_copy(update={"climate": None})
+    return spec.model_copy(
+        update={"schema_version": "0.1", "terrain": None, "surface": legacy_surface}
+    )
 
 
 def domain_spec_fingerprint(spec: DomainSpec) -> str:
     if spec.schema_version == "0.1":
         payload = spec.model_dump(mode="json", by_alias=True, exclude_none=False)
         payload.pop("terrain", None)
+        if isinstance(payload.get("surface"), dict):
+            payload["surface"].pop("climate", None)
     else:
         payload = spec.model_dump(mode="json", by_alias=True, exclude_none=False)
     return "sha256:" + sha256(_canonical_json_bytes(payload)).hexdigest()
@@ -92,6 +97,9 @@ def compile_domain_spec(
         registry=registry,
         generator_version=generator_version,
     )
+    if spec.surface.climate is None:
+        raise CompilerError("DomainSpec 0.2 requires surface.climate configuration")
+
     terrain = PlanTerrain(
         base_elevation_m=spec.terrain.base_elevation_m,
         noise_layers=tuple(
@@ -103,6 +111,8 @@ def compile_domain_spec(
             for layer in spec.terrain.noise_layers
         ),
     )
+    climate = PlanClimate(**spec.surface.climate.model_dump(mode="python"))
+    surface = legacy.surface.model_copy(update={"climate": climate})
     source = legacy.source.model_copy(
         update={
             "spec_schema_version": "0.2",
@@ -115,6 +125,7 @@ def compile_domain_spec(
             "plan_version": "0.2",
             "source": source,
             "terrain": terrain,
+            "surface": surface,
         }
     )
     return GenerationPlan.model_validate(payload)
