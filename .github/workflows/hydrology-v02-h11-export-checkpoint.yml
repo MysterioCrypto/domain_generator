@@ -1,0 +1,48 @@
+name: hydrology-v02-h11-export-checkpoint
+
+on:
+  pull_request:
+    paths:
+      - "src/domain_generator/assembly.py"
+      - "tests/test_potential_drainage_export_v02.py"
+      - "scripts/check_potential_drainage_export_v02.py"
+      - "examples/terrain-v02/checkpoint/**"
+      - ".github/workflows/hydrology-v02-h11-export-checkpoint.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check-export:
+    if: github.event.pull_request.head.ref == 'impl/v0.2-potential-drainage-export'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact implementation revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install checked-out generator
+        run: python -m pip install -e .
+
+      - name: Check H11-A public network export
+        run: |
+          python scripts/check_potential_drainage_export_v02.py \
+            examples/terrain-v02/checkpoint/request.json \
+            examples/terrain-v02/checkpoint/presets.json \
+            "$RUNNER_TEMP/h11-a-report.json"
+
+      - name: Upload lightweight H11-A report
+        uses: actions/upload-artifact@v4
+        with:
+          name: hydrology-v02-h11-export
+          path: ${{ runner.temp }}/h11-a-report.json
+          if-no-files-found: error
+          retention-days: 14
