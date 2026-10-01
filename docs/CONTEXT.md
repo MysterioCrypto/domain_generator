@@ -484,17 +484,28 @@ Assistant review:
 - canonical water distance and potential drainage remain semantically distinct;
 - no concrete blocker identified.
 
-Current gate:
+P08-A implementation status:
 ```text
-P08-A implementation   OPERATOR REVIEW
-PR #89                  draft/open
-merge                   BLOCKED pending explicit ACCEPT / REJECT
+implementation PR #89   ACCEPTED / MERGED
+merge commit             57e77c8de6ac8668ddd09e25167e30aa773cf645
 ```
 
+Accepted boundary:
+- Core 0.1 site metric registry remains unchanged;
+- Core 0.2 adds only `temperature_mean`, `annual_precipitation_mean`, `distance_to_potential_drainage`;
+- C2/C3-backed legacy metric IDs remain stable;
+- potential drainage proximity is not canonical-water proximity;
+- existing Placement candidate/selection mechanics remain frozen.
+
+P08-A is frozen unless a concrete metric/contract defect appears.
+
+## Current checkpoint — Placement next-slice audit
+
 Immediate next action:
-1. explicit P08-A implementation ACCEPT / REJECT;
-2. ACCEPT → freeze/merge PR #89;
-3. REJECT → identify one concrete metric/contract defect before changing Placement mechanics.
+1. inspect remaining dependent-placement contract/runtime boundaries;
+2. identify which missing capability prevents Core 0.2 from using the now-available environmental metrics meaningfully;
+3. choose one bounded slice;
+4. write design under INV-006 before changing semantics.
 
 ## Rejected / constrained paths that must not silently return
 
