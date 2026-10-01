@@ -43,23 +43,29 @@ PR #83 merge:
 ## IN PROGRESS
 
 ```text
-C3 vegetation / biome readiness — DESIGN GATE
-└─ INV-006: document and accept semantics before runtime implementation
+C3 vegetation / biome readiness — DESIGN OPERATOR REVIEW
+├─ INV-006 design PR #84 — draft/open
+├─ normative design document — PROPOSED
+└─ runtime implementation — NOT STARTED
 ```
+
+Design PR:
+`https://github.com/MysterioCrypto/domain_generator/pull/84`
 
 No C3 runtime implementation has started.
 
 ## NEXT
 
 ```text
-1. create C3 vegetation / biome-readiness design
+1. operator review C3 design PR #84
 2. explicit design ACCEPT / REJECT
-3. ACCEPT → implementation branch
-4. automated C3 guardrails
-5. representative operator-visible C3 checkpoint
-6. explicit implementation ACCEPT / REJECT
-7. later revisit deferred hydro-surface finishing with environmental context
-8. then continue Placement
+3. ACCEPT → merge design
+4. only then create C3 implementation branch
+5. automated V01–V11 guardrails
+6. representative operator-visible C3-A checkpoint
+7. explicit implementation ACCEPT / REJECT
+8. later revisit deferred hydro-surface finishing with environmental context
+9. then continue Placement
 ```
 
 Do not reopen Terrain/Hydrology/C1/C2 without new concrete evidence.
