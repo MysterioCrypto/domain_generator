@@ -47,14 +47,13 @@ Hydro-surface finishing — DONE
 ├─ X01–X08 — GREEN
 └─ public potential_drainage export — FROZEN
 
-Placement continuation — P08-A OPERATOR REVIEW
-├─ readiness audit — DONE
-├─ existing placement mechanics — KEEP
-├─ design PR #88 — ACCEPTED / MERGED
-├─ implementation PR #89 — draft/open
-├─ P01–P11 — GREEN
-├─ push/PR pytest — GREEN
-└─ P08-A checkpoint — GREEN
+Placement continuation
+├─ P08-A environmental site metrics — ACCEPTED / MERGED
+│  ├─ design PR #88
+│  ├─ implementation PR #89
+│  ├─ P01–P11 GREEN
+│  └─ diagnostic checkpoint ACCEPTED
+└─ next-slice audit — IN PROGRESS
 ```
 
 Accepted hydrology routing/network remains frozen.
@@ -62,10 +61,11 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. explicit P08-A implementation ACCEPT / REJECT
-2. ACCEPT → freeze/merge PR #89
-3. REJECT → identify one concrete metric/contract defect
-4. after P08-A closure, choose next Placement slice
+1. inspect remaining Placement contracts/runtime boundaries
+2. identify one concrete Core 0.2 capability gap
+3. choose one bounded slice
+4. design ACCEPT / REJECT
+5. implement only after design acceptance
 ```
 
 Do not bundle all deferred hydrology finishing into one change.
