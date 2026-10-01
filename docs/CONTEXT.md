@@ -185,14 +185,32 @@ Terrain 0.2                 ACCEPTED
 Hydrology 0.2               ACCEPTED
 C1 annual climate           ACCEPTED
 C2 effective moisture       ACCEPTED
-C3 vegetation readiness     DESIGN NEXT
+C3 vegetation readiness     DESIGN OPERATOR REVIEW
 ```
 
+INV-006 design PR #84:
+`https://github.com/MysterioCrypto/domain_generator/pull/84`
+
+Proposed document:
+`docs/design/vegetation-biome-readiness-v0.2.md`
+
+Proposed semantics:
+- use accepted C2 moisture as the sole water-availability input;
+- use a normalized Miami-style annual temperature response as thermal suitability;
+- multiply moisture × thermal suitability;
+- apply existing explicit vegetation bias additively;
+- keep canonical water vegetation exactly 0;
+- do not apply the legacy Core 0.1 linear slope factor again;
+- no new vegetation noise;
+- no biome labels in C3;
+- Core 0.1 remains unchanged.
+
 Immediate next action:
-1. write a bounded C3 vegetation / biome-readiness design;
-2. expose the design for explicit ACCEPT / REJECT;
-3. only after design acceptance implement C3;
-4. require automated guards + representative operator-visible vegetation checkpoint before C3 implementation acceptance.
+1. operator reviews C3 design PR #84;
+2. explicit ACCEPT / REJECT;
+3. ACCEPT → merge design before any runtime implementation;
+4. only then implement C3 with V01–V11 guardrails;
+5. generate representative C3-A operator-visible checkpoint before implementation acceptance.
 
 ## Rejected / constrained paths that must not silently return
 
