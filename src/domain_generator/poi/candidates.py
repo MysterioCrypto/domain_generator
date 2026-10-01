@@ -261,8 +261,10 @@ def evaluate_candidate_sites(
 def requirement_passes(
     metrics: dict[str, float],
     requirement: SiteRequirement,
+    *,
+    metric_ids: tuple[str, ...] = SITE_METRIC_IDS,
 ) -> bool:
-    if requirement.metric not in SITE_METRIC_IDS:
+    if requirement.metric not in metric_ids:
         raise PlacementCandidateCapabilityError(
             f"unknown site metric {requirement.metric!r}"
         )
@@ -286,10 +288,12 @@ def requirement_passes(
 def filter_valid_sites(
     evaluated_sites: tuple[EvaluatedSite, ...],
     requirements: tuple[SiteRequirement, ...],
+    *,
+    metric_ids: tuple[str, ...] = SITE_METRIC_IDS,
 ) -> tuple[EvaluatedSite, ...]:
     """Keep only sites satisfying every hard SiteProfile requirement."""
     for requirement in requirements:
-        if requirement.metric not in SITE_METRIC_IDS:
+        if requirement.metric not in metric_ids:
             raise PlacementCandidateCapabilityError(
                 f"unknown site metric {requirement.metric!r}"
             )
@@ -301,7 +305,14 @@ def filter_valid_sites(
     return tuple(
         site
         for site in evaluated_sites
-        if all(requirement_passes(site.metrics, requirement) for requirement in requirements)
+        if all(
+            requirement_passes(
+                site.metrics,
+                requirement,
+                metric_ids=metric_ids,
+            )
+            for requirement in requirements
+        )
     )
 
 
@@ -327,4 +338,8 @@ def generate_valid_sites_for_feature(
         rng_factory=rng_factory,
     )
     evaluated = evaluate_candidate_sites(context, points, profile)
-    return filter_valid_sites(evaluated, profile.requirements)
+    return filter_valid_sites(
+        evaluated,
+        profile.requirements,
+        metric_ids=context.metric_ids,
+    )
