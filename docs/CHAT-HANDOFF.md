@@ -17,7 +17,7 @@ docs/PROGRESS.md
 docs/design/effective-surface-moisture-v0.2.md
 ```
 
-Current checkpoint: **C3 vegetation / biome readiness — INV-006 design gate**.
+Current checkpoint: **C3 vegetation / biome readiness — design operator review**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -55,8 +55,16 @@ C2-A vegetation compatibility was temporary. C3 may now redesign Core 0.2 `veget
 
 INV-006 means substantial architecture/semantic changes must be documented and accepted before implementation.
 
+C3 design:
+- draft PR #84: `https://github.com/MysterioCrypto/domain_generator/pull/84`;
+- proposed document: `docs/design/vegetation-biome-readiness-v0.2.md`;
+- proposed base = accepted C2 moisture × normalized annual thermal suitability + existing vegetation bias;
+- no direct precipitation term, no new vegetation noise, no second legacy slope penalty;
+- Core 0.1 unchanged;
+- no biome labels yet.
+
 Immediate next step:
-- create bounded C3 vegetation / biome-readiness design;
+- operator reviews PR #84 design;
 - explicit design ACCEPT / REJECT;
 - no C3 runtime implementation before design acceptance.
 
