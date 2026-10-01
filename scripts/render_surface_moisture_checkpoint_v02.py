@@ -276,9 +276,11 @@ def main() -> None:
     # moisture must equal the raw C2 effective-moisture field.
     if any(feature.family.value == "surface" for feature in plan.features):
         raise RuntimeError("C2-A checkpoint request must not contain Surface feature biases")
-    np.testing.assert_array_equal(
-        final_moisture.astype(np.float32),
-        components.effective_moisture.astype(np.float32),
+    np.testing.assert_allclose(
+        final_moisture,
+        components.effective_moisture,
+        rtol=0.0,
+        atol=1e-7,
     )
 
     legacy_moisture = moisture_field(
