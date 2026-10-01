@@ -6,9 +6,9 @@ status: in-progress
 historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
-current_milestone: v0.2-batch-placement-continuation
-checkpoint: core-v0.2-integrated-acceptance-hardening
-next_topic: pin-a08-core-v02-baseline
+current_milestone: v0.2-release-hardening
+checkpoint: core-v0.2-integrated-acceptance-accepted
+next_topic: release-metadata-and-docs-consistency
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -577,4 +577,20 @@ Purpose:
 
 No world-generation semantics change.
 
-Current checkpoint: **A08 CORE 0.2 INTEGRATED ACCEPTANCE — BASELINE PENDING**.
+A08 Core 0.2 integrated acceptance is GREEN and merged through PR #90.
+
+Merge commit:
+`568eeff9676ee387d5837cfb1fca1a8ff087e99b`
+
+Accepted frozen A08:
+- full spec/preset/compiler/runtime/assembly/bundle path;
+- exact replay GREEN;
+- 6 Core 0.2 canonical fields;
+- regional network 49 nodes / 31 segments;
+- potential drainage 104 nodes / 73 segments;
+- dependent placement consumes P08-A metrics through normal preset SiteProfile;
+- full pytest GREEN.
+
+No world-generation semantics changed in A08.
+
+Current checkpoint: **CORE 0.2 RELEASE HARDENING — METADATA / DOC CONSISTENCY**.
