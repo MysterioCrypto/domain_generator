@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **P08-A Placement environmental site metrics — implementation operator review**.
+Current checkpoint: **Placement continuation — next-slice audit**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -125,18 +125,15 @@ distance_to_potential_drainage
 ```
 
 P08-A implementation:
-- draft PR #89: `https://github.com/MysterioCrypto/domain_generator/pull/89`;
-- semantic head: `ec59e0b6693c10fb6064ebf4b68d7f8c019097e8`;
+- PR #89 ACCEPTED / merged;
+- merge commit: `57e77c8de6ac8668ddd09e25167e30aa773cf645`;
 - P01–P11 GREEN;
-- push/PR pytest GREEN;
-- checkpoint GREEN:
-  `https://github.com/MysterioCrypto/domain_generator/actions/runs/36849780012`;
+- checkpoint: `https://github.com/MysterioCrypto/domain_generator/actions/runs/36849780012`;
 - Core 0.1 registry remains 8 metrics;
 - Core 0.2 adds temperature_mean, annual_precipitation_mean, distance_to_potential_drainage;
-- upstream state/network unchanged.
-
-Diagnostic fixture: 148 candidates / 133 valid / 1 near-best; selected point ~23.326, 38.308 km. Fixture rules are test evidence only.
+- existing Placement mechanics remain unchanged.
 
 Immediate next step:
-- explicit P08-A implementation ACCEPT / REJECT;
-- no merge before that decision.
+- audit remaining Placement boundaries;
+- choose one bounded Core 0.2 follow-up slice;
+- design before implementation if semantics change.
