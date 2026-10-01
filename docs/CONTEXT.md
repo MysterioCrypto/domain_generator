@@ -912,3 +912,44 @@ Assistant recommendation:
 **review C1-A visually before any retuning.** The mechanism is coherent enough to keep; whether the representative orographic contrast is too strong is an operator-facing calibration judgment.
 
 Do not merge PR #81 until explicit operator ACCEPT / REJECT.
+
+
+## Operator decision: C1-A ACCEPT
+
+The operator formally accepted C1 annual climate forcing.
+
+Acceptance note:
+the operator considers the maps coherent enough and has no climate-domain blocker to raise; acceptance does not claim climate-model expert validation.
+
+PR #81 merged into dev/0.2.
+
+Accepted C1 semantics:
+
+```text
+explicit regional annual temperature forcing
++
+explicit regional annual precipitation forcing
++
+terrain-driven lapse / orographic redistribution
+```
+
+Important scope boundary now frozen:
+- C1 does not infer remote oceans or atmospheric moisture sources from map water;
+- the requested mean annual precipitation represents regional atmospheric moisture supply entering the modeled domain;
+- rivers and ordinary lakes are not direct precipitation sources;
+- future global/continental atmospheric transport may supersede this boundary in another scale/model, but not inside Core 0.2 regional C1.
+
+Do not retune C1 merely because a later biome looks unexpected. First diagnose whether the defect belongs to climate forcing, effective moisture, vegetation response, or biome classification.
+
+## Next active design question
+
+C2 should replace the legacy Surface 0.1 moisture heuristic with a climate-aware **effective surface moisture** layer while keeping C1, Terrain and Hydrology frozen.
+
+The next bounded design must distinguish:
+- atmospheric precipitation;
+- evaporative/climatic demand;
+- local hydrologic access / capillary-wetness proxy;
+- terrain drainage/slope;
+- effective surface moisture.
+
+Vegetation / biome classification should remain a later step unless the moisture field itself is accepted first.
