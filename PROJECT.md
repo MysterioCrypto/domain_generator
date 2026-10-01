@@ -8,9 +8,9 @@ historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
-current_milestone: v0.2-prealpha-released
-checkpoint: core-v0.2-prealpha-release-frozen
-next_topic: post-release-semantic-layer-selection
+current_milestone: v0.2-post-release-c4-seasonality
+checkpoint: c4-a-environmental-seasonality-design-review
+next_topic: operator-review-c4-a-design
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -665,3 +665,32 @@ Release scope is frozen:
 Current state: **CORE 0.2 PREALPHA RELEASE FROZEN**.
 
 Next: select the next post-release semantic layer on `dev/0.2` without reopening accepted Core 0.2 layers speculatively.
+
+
+## Post-release C4-A — Environmental Seasonality design
+
+Dependency audit result:
+- true biome classification remains premature on annual-only climate;
+- perennial/seasonal/dry drainage also remains underdetermined while seasonality/baseflow are absent;
+- therefore the next bounded environmental layer is seasonality, not biome labels.
+
+Design PR #92:
+`https://github.com/MysterioCrypto/domain_generator/pull/92`
+
+Proposed C4-A:
+- optional explicit seasonality recipe under Core 0.2 climate;
+- 12 climatological monthly temperature fields derived from accepted annual temperature;
+- 12 monthly precipitation fields whose sum equals accepted annual precipitation;
+- explicit temperature peak month and amplitude;
+- explicit precipitation peak month and log-amplitude;
+- no latitude/hemisphere inference;
+- no monthly noise;
+- no seasonal wind changes;
+- C2/C3 remain unchanged during C4-A;
+- no biome or stream-permanence classification yet.
+
+Compatibility:
+- absence of `climate.seasonality` preserves frozen prealpha annual-only behavior;
+- `release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
+
+Current gate: **C4-A DESIGN — OPERATOR REVIEW**.
