@@ -60,7 +60,8 @@ Surface / climate / biome 0.2
    ├─ Hydrology 0.2 merged / frozen
    ├─ Surface 0.1 baseline inspected
    ├─ PR #80 ACCEPTED / merged
-   └─ temperature + precipitation implementation — IN PROGRESS
+   ├─ climate contracts / compiler boundary — IMPLEMENTED
+   └─ temperature + precipitation fields — IN PROGRESS
 
 Hydrology 0.2 — ACCEPTED
 ├─ H10-A shoreline refinement — KEEP
