@@ -743,3 +743,18 @@ C1 implementation target:
 - operator-visible climate checkpoint.
 
 Heavy Actions artifacts remain remote; provide direct workflow-run links for operator download instead of copying large artifacts into chat.
+
+
+## C1 implementation slice 1 — contracts
+
+PR #81 opened on branch `impl/v0.2-surface-climate`.
+
+Implemented:
+- explicit `ClimateSpec` / `PlanClimate`;
+- schema/plan 0.2 requires a climate recipe;
+- schema/plan 0.1 forbids climate recipe;
+- Core 0.1 semantic fingerprints explicitly omit the new optional climate field, preserving legacy fingerprint semantics;
+- v0.2 compiler injects the accepted climate recipe after compiling the legacy-compatible shadow;
+- representative Terrain/Hydrology request now carries an explicit C1 climate recipe.
+
+No climate fields are generated yet in this slice. Terrain/Hydrology and existing moisture/vegetation remain unchanged.
