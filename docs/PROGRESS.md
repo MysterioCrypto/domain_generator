@@ -47,11 +47,14 @@ Hydro-surface finishing — DONE
 ├─ X01–X08 — GREEN
 └─ public potential_drainage export — FROZEN
 
-Placement continuation — P08-A IMPLEMENTATION NEXT
+Placement continuation — P08-A OPERATOR REVIEW
 ├─ readiness audit — DONE
 ├─ existing placement mechanics — KEEP
 ├─ design PR #88 — ACCEPTED / MERGED
-└─ runtime implementation — NOT STARTED
+├─ implementation PR #89 — draft/open
+├─ P01–P11 — GREEN
+├─ push/PR pytest — GREEN
+└─ P08-A checkpoint — GREEN
 ```
 
 Accepted hydrology routing/network remains frozen.
@@ -59,11 +62,10 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. create P08-A implementation branch
-2. implement version-aware site metric registry
-3. P01–P11 + full pytest
-4. representative operator-visible metric/placement checkpoint
-5. explicit implementation ACCEPT / REJECT
+1. explicit P08-A implementation ACCEPT / REJECT
+2. ACCEPT → freeze/merge PR #89
+3. REJECT → identify one concrete metric/contract defect
+4. after P08-A closure, choose next Placement slice
 ```
 
 Do not bundle all deferred hydrology finishing into one change.
@@ -99,3 +101,7 @@ H11-A checkpoint:
 
 P08-A design PR:
 `https://github.com/MysterioCrypto/domain_generator/pull/88`
+
+
+P08-A checkpoint:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36849780012`
