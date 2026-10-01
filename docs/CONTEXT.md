@@ -1076,3 +1076,29 @@ PR #83 current semantic head passed both push and pull-request pytest after the 
 No upstream Terrain/Hydrology/C1 changes were required.
 
 Next step: build the C2-A operator diagnostics and workflow; do not retune the moisture formula before seeing the component maps.
+
+
+## C2 implementation slice 3 — operator checkpoint tooling
+
+Added C2-A operator diagnostics on PR #83:
+
+Artifacts:
+- 01-climatic-wetness.png
+- 02-water-proximity.png
+- 03-catchment-signal.png
+- 04-slope-retention.png
+- 05-effective-moisture.png
+- 06-legacy-vs-effective.png
+- 07-effective-moisture-hydrology.png
+- statistics.json
+
+The checkpoint recomputes accepted Hydrology 0.2 deterministically from the accepted terrain field to expose accumulation/rivers/lakes for diagnostics without expanding DomainData contracts.
+
+Representative request contains no Surface-family feature bias, so checkpoint asserts canonical moisture equals raw C2 effective moisture.
+
+Workflow:
+`.github/workflows/surface-v02-c2-checkpoint.yml`
+Artifact name:
+`surface-v02-c2`
+
+Heavy artifact remains on GitHub; operator should receive the direct workflow-run link after a green run.
