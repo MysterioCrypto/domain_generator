@@ -1112,3 +1112,67 @@ Observed difference was only float32 roundoff:
 - max absolute moisture difference ~5.96e-08.
 
 The checkpoint assertion now uses a strict 1e-7 absolute tolerance. No Surface/Hydrology semantics changed.
+
+
+## C2-A same-world checkpoint
+
+Semantic implementation head:
+`74a2508372cffdd2c80b8c6b919828697b04ac12`
+
+GitHub Actions:
+- C2-A checkpoint workflow: GREEN;
+- pull-request pytest: GREEN;
+- push pytest: GREEN.
+
+Direct operator workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36831234738`
+
+Artifact:
+`surface-v02-c2`
+
+The full artifact was NOT downloaded into chat/container. Assistant review used statistics and compact previews from workflow logs.
+
+Representative land statistics:
+
+```text
+climatic wetness:
+  p05 / median / p95    0.500 / 0.628 / 0.863
+  mean                  0.642
+
+effective moisture:
+  min                   0.520
+  p05 / median / p95    0.619 / 0.728 / 0.887
+  max                   0.979
+  mean                  0.734
+  land >= 0.8           ~18.0%
+  land <= 0.2            0%
+
+local signals:
+  water proximity mean  ~0.249
+  gated catchment mean  ~0.039
+  gated catchment p95   ~0.149
+
+slope retention:
+  mean                  ~0.99875
+  min                   ~0.9777
+
+effective moisture correlations on land:
+  precipitation          +0.712
+  temperature            -0.691
+  distance to water      -0.397
+  legacy moisture        +0.281
+  log1p accumulation     -0.036
+```
+
+Visual assessment from compact previews:
+- climate now controls the broad wet/dry pattern;
+- old legacy field was much more dominated by water-distance structure;
+- catchment signal visibly follows drainage but remains low-amplitude in the final field;
+- canonical rivers/lakes still make bright wet corridors in final moisture, with broad halos from the inherited 8 km water-proximity decay;
+- slope retention contributes little on this representative 1 km terrain because measured local slopes are gentle;
+- no obvious raster-lattice artifact is visible in the final moisture field.
+
+Main operator question:
+**are the visible riparian wet corridors at the current 8 km decay scale plausible enough, or do they still read as an artificial river halo?**
+
+Do not retune water proximity or C1 climate before operator judgment.
