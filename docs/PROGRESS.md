@@ -40,9 +40,9 @@ PR #85 merge:
 ## IN PROGRESS
 
 ```text
-Hydro-surface finishing — H11-A DESIGN OPERATOR REVIEW
+Hydro-surface finishing — H11-A IMPLEMENTATION NEXT
 ├─ readiness audit — DONE
-├─ design PR #86 — draft/open
+├─ design PR #86 — ACCEPTED / MERGED
 └─ runtime implementation — NOT STARTED
 ```
 
@@ -51,11 +51,11 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. operator review H11-A design PR #86
-2. explicit design ACCEPT / REJECT
-3. ACCEPT → merge design
-4. implementation: export accepted potential_drainage network only
-5. X01–X08 guardrails + contract/operator evidence
+1. create H11-A implementation branch
+2. export accepted potential_drainage network only
+3. X01–X08 guardrails
+4. full pytest
+5. operator-visible network key/count/equality evidence
 6. explicit implementation ACCEPT / REJECT
 7. close unsupported hydro classifications as still deferred
 8. then continue Placement
