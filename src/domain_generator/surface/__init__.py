@@ -1,8 +1,10 @@
 from .derive import (
     EffectiveMoistureComponents,
     SurfaceCapabilityError,
+    VegetationComponents,
     annual_mean_temperature_field,
     annual_precipitation_field,
+    climate_aware_vegetation_components,
     distance_to_water_km,
     effective_surface_moisture_components,
     moisture_field,
@@ -15,8 +17,10 @@ from .state import SurfaceState
 __all__ = [
     "EffectiveMoistureComponents",
     "SurfaceCapabilityError",
+    "VegetationComponents",
     "annual_mean_temperature_field",
     "annual_precipitation_field",
+    "climate_aware_vegetation_components",
     "SurfaceState",
     "distance_to_water_km",
     "effective_surface_moisture_components",
