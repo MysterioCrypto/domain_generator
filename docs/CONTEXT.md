@@ -1019,3 +1019,28 @@ C2-A implementation target:
 - preserve legacy vegetation via temporary compatibility path until C3.
 
 Heavy Actions artifacts remain remote; operator checkpoints should provide direct workflow-run links.
+
+
+## C2 implementation slice 1 — effective moisture core
+
+PR #83 opened on branch `impl/v0.2-effective-surface-moisture`.
+
+Implemented:
+- new deterministic `EffectiveMoistureComponents`;
+- Holdridge-inspired climatic wetness from accepted C1 temperature/precipitation;
+- actual-water proximity from existing water boost/decay parameters;
+- contributing-area concentration scaled by accepted regional stream threshold;
+- catchment signal gated by climatic wetness;
+- fixed cos²(slope) retention;
+- canonical water cells forced to moisture=1;
+- Core 0.2 canonical moisture now uses effective-moisture semantics;
+- existing moisture_bias remains additive on the new canonical moisture;
+- Core 0.1 moisture remains on the legacy path;
+- C2-A vegetation is intentionally computed from the full legacy moisture path (including feature moisture bias), preserving pre-C2 vegetation semantics.
+
+Pending:
+- M01–M10 guardrails;
+- CI compatibility fixes;
+- C2-A diagnostic component maps and operator workflow.
+
+Heavy Actions artifacts remain remote; use direct workflow-run links for operator checkpoints.
