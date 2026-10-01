@@ -1,6 +1,6 @@
 # Vegetation / Biome Readiness v0.2
 
-Status: **PROPOSED — INV-006 design gate; no runtime implementation yet**
+Status: **ACCEPTED design gate; runtime implementation authorized but not yet accepted**
 Target branch: `dev/0.2`
 Checkpoint: C3
 Depends on: accepted Terrain 0.2 + Hydrology 0.2 + C1 annual climate forcing + C2 effective surface moisture
@@ -376,3 +376,17 @@ C3 borrows only this monotonic annual temperature-response shape.
 C3 deliberately does not use the Miami precipitation branch because accepted C2 already combines precipitation demand balance, actual-water proximity, contributing-area concentration and slope retention into canonical effective moisture.
 
 This remains a reduced annual ecological index. More mechanistic vegetation productivity would require additional inputs such as radiation, monthly climate, soils and disturbance that Core 0.2 does not yet model.
+
+
+## 17. Design acceptance
+
+Operator decision: **ACCEPTED**.
+
+PR #84 merged into `dev/0.2` at:
+`2ad695d059b4f198b5f06c6451b005c0d630fbc9`.
+
+Acceptance qualification:
+- this is formal project/operator acceptance under INV-006;
+- the operator explicitly noted insufficient subject-matter expertise for independent expert ecological validation;
+- implementation is authorized under the bounded semantics above;
+- implementation still requires V01–V11, green automation, an operator-visible C3-A checkpoint, and explicit implementation acceptance before merge.
