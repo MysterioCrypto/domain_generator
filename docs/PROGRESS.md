@@ -50,11 +50,15 @@ Hydro-surface finishing — DONE
 Placement continuation — CURRENT SCOPE COMPLETE
 └─ P08-A environmental site metrics — ACCEPTED / MERGED
 
-Core 0.2 integrated acceptance — IN PROGRESS
+Core 0.2 integrated acceptance — DONE
 ├─ A01–A07 historical Core 0.1 baselines — KEEP
-├─ A08 Core 0.2 integrated fixture — ADDED
-├─ hardening PR #90 — draft/open
-└─ deterministic baseline — PENDING
+├─ A08 Core 0.2 integrated fixture — FROZEN
+├─ hardening PR #90 — MERGED
+├─ exact replay / bundle — GREEN
+└─ full pytest — GREEN
+
+Core 0.2 release hardening — IN PROGRESS
+└─ package/docs/version consistency audit — DONE
 ```
 
 Accepted hydrology routing/network remains frozen.
@@ -62,12 +66,13 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. run A08 pending baseline
-2. diagnose integration failures, if any
-3. pin deterministic A08 baseline
-4. full pytest + exact replay + bundle checks
-5. merge hardening PR #90
-6. only then choose the next new semantic layer
+1. align generator/package development version with Core 0.2
+2. refresh README current-state documentation
+3. update canonical architecture Core 0.2 delta
+4. add version/docs consistency guardrails
+5. full pytest + A08
+6. decide whether Core 0.2 is ready for release-candidate branch/tag
+7. keep new physical layers out until release-hardening decision
 ```
 
 Do not bundle all deferred hydrology finishing into one change.
