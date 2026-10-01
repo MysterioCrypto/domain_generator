@@ -67,6 +67,11 @@ Core 0.2 release hardening — DONE
 Core 0.2 release candidate — ACCEPTED / FROZEN
 ├─ release/0.2-prealpha — CREATED
 └─ freeze commit — c69c1af010a085fb80d248af703a77471fc6c9d7
+
+Post-release C4-A Environmental Seasonality — DESIGN OPERATOR REVIEW
+├─ dependency audit — DONE
+├─ design PR #92 — draft/open
+└─ runtime implementation — NOT STARTED
 ```
 
 Accepted hydrology routing/network remains frozen.
@@ -74,10 +79,12 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. keep release/0.2-prealpha frozen
-2. select next post-release semantic layer on dev/0.2
-3. create INV-006 design before material semantic implementation
-4. preserve deferred work boundaries unless new evidence justifies promoting one
+1. operator review C4-A design PR #92
+2. explicit design ACCEPT / REJECT
+3. ACCEPT → merge design
+4. implement optional monthly seasonality + S01–S13
+5. representative seasonal checkpoint
+6. explicit implementation ACCEPT / REJECT
 ```
 
 Do not bundle all deferred hydrology finishing into one change.
