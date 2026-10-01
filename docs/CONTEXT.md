@@ -293,17 +293,22 @@ Contract finding:
 - Core 0.1 output remains unchanged;
 - no Strahler metadata extension is included in this slice.
 
-Current gate:
+H11-A design status:
 ```text
-H11-A design          OPERATOR REVIEW
-runtime implementation NOT STARTED
+design PR #86           ACCEPTED / MERGED
+runtime implementation  NEXT
 ```
 
+Design merge commit:
+`712dae3179605b894558a9e399cd6929ffcda459`
+
 Immediate next action:
-1. explicit H11-A design ACCEPT / REJECT;
-2. ACCEPT → merge design;
-3. only then implement exact assembly/export guardrails;
-4. do not add unsupported flow-permanence labels in H11-A.
+1. create a separate H11-A implementation branch from current `dev/0.2`;
+2. export the existing runtime `potential_river_network` as `DomainData.networks["potential_drainage"]` for Core 0.2 only;
+3. add X01–X08 guardrails;
+4. run full pytest;
+5. produce lightweight operator-visible network key/count/equality evidence;
+6. do not merge implementation before explicit ACCEPT / REJECT.
 
 ## Rejected / constrained paths that must not silently return
 
