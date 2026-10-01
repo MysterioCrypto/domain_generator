@@ -192,13 +192,33 @@ def _readonly_payload(array: np.ndarray, *, field_id: str, shape: tuple[int, int
     return payload
 
 
-def _field_descriptors(shape: tuple[int, int]) -> dict[str, FieldDescriptor]:
-    return {
+def _field_descriptors(
+    shape: tuple[int, int],
+    *,
+    include_climate: bool,
+) -> dict[str, FieldDescriptor]:
+    fields = {
         "elevation": FieldDescriptor(role=FieldRole.CANONICAL, path="fields/elevation.npy", dtype="float32", shape=shape, unit="m"),
         "water_depth": FieldDescriptor(role=FieldRole.CANONICAL, path="fields/water_depth.npy", dtype="float32", shape=shape, unit="m"),
         "moisture": FieldDescriptor(role=FieldRole.CANONICAL, path="fields/moisture.npy", dtype="float32", shape=shape, unit="normalized"),
         "vegetation_density": FieldDescriptor(role=FieldRole.CANONICAL, path="fields/vegetation_density.npy", dtype="float32", shape=shape, unit="normalized"),
     }
+    if include_climate:
+        fields["temperature"] = FieldDescriptor(
+            role=FieldRole.CANONICAL,
+            path="fields/temperature.npy",
+            dtype="float32",
+            shape=shape,
+            unit="degC",
+        )
+        fields["annual_precipitation"] = FieldDescriptor(
+            role=FieldRole.CANONICAL,
+            path="fields/annual_precipitation.npy",
+            dtype="float32",
+            shape=shape,
+            unit="mm/year",
+        )
+    return fields
 
 
 def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: GenerationConfig, candidate: DomainCandidate) -> DomainAssembly:
@@ -231,6 +251,23 @@ def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: Generatio
         "moisture": _readonly_payload(state.surface.moisture, field_id="moisture", shape=shape),
         "vegetation_density": _readonly_payload(state.surface.vegetation_density, field_id="vegetation_density", shape=shape),
     }
+    include_climate = plan.plan_version == "0.2"
+    if include_climate:
+        if (
+            state.surface.annual_mean_temperature_c is None
+            or state.surface.annual_precipitation_mm is None
+        ):
+            raise DomainAssemblyError("Core 0.2 surface climate fields are missing")
+        payloads["temperature"] = _readonly_payload(
+            state.surface.annual_mean_temperature_c,
+            field_id="temperature",
+            shape=shape,
+        )
+        payloads["annual_precipitation"] = _readonly_payload(
+            state.surface.annual_precipitation_mm,
+            field_id="annual_precipitation",
+            shape=shape,
+        )
 
     final = candidate.final_validation
     assert final.ranking is not None
@@ -250,7 +287,7 @@ def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: Generatio
             ),
             domain=DomainExtent(width_km=plan.domain.width_km, height_km=plan.domain.height_km),
             grid={"cell_size_km": plan.grid.cell_size_km, "rows": plan.grid.rows, "columns": plan.grid.columns},
-            fields=_field_descriptors(shape),
+            fields=_field_descriptors(shape, include_climate=include_climate),
             features=features,
             networks={"rivers": state.hydrology.river_network},
             validation=ValidationSummary(

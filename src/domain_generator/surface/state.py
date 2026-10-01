@@ -11,3 +11,5 @@ class SurfaceState:
 
     moisture: np.ndarray
     vegetation_density: np.ndarray
+    annual_mean_temperature_c: np.ndarray | None = None
+    annual_precipitation_mm: np.ndarray | None = None

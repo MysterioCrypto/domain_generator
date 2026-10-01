@@ -7,8 +7,9 @@ from .config import GenerationConfig, ObservabilityConfig, SemanticGenerationCon
 from .data import DomainData, FieldDescriptor, FieldRole, RiverNetwork
 from .geometry import AreaGeometry, BandGeometry, CorridorGeometry, Geometry, PointGeometry, RegionSet, WorldPoint
 from .layout import LayoutCandidate, PlacementReservation
-from .plan import GenerationPlan, PlanHydrology, PlanSurface, ResolvedFeature
+from .plan import GenerationPlan, PlanClimate, PlanHydrology, PlanSurface, ResolvedFeature
 from .spec import (
+    ClimateSpec,
     ConstraintSpec,
     DomainSpec,
     FeatureSpec,
@@ -26,6 +27,7 @@ __all__ = [
     "BundleFileEntry",
     "BundleFileKind",
     "BundleManifest",
+    "ClimateSpec",
     "ConstraintSpec",
     "ConstraintStrength",
     "CorridorGeometry",
@@ -44,6 +46,7 @@ __all__ = [
     "LayoutCandidate",
     "ObservabilityConfig",
     "PlacementReservation",
+    "PlanClimate",
     "PlanHydrology",
     "PlanSurface",
     "PlanTerrain",

@@ -1,0 +1,78 @@
+name: surface-v02-c1-checkpoint
+
+on:
+  pull_request:
+    paths:
+      - "src/domain_generator/surface/**"
+      - "src/domain_generator/contracts/**"
+      - "src/domain_generator/compiler/**"
+      - "src/domain_generator/assembly.py"
+      - "tests/test_surface_climate_v02.py"
+      - "examples/terrain-v02/checkpoint/**"
+      - "scripts/render_surface_climate_checkpoint_v02.py"
+      - ".github/workflows/surface-v02-c1-checkpoint.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  render-c1:
+    if: github.event.pull_request.head.ref == 'impl/v0.2-surface-climate'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact implementation revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install checked-out generator with render dependencies
+        run: python -m pip install -e ".[render]"
+
+      - name: Render C1 climate checkpoint
+        run: |
+          python scripts/render_surface_climate_checkpoint_v02.py \
+            examples/terrain-v02/checkpoint/request.json \
+            examples/terrain-v02/checkpoint/presets.json \
+            "$RUNNER_TEMP/surface-v02-c1"
+
+      - name: Emit compact operator previews
+        run: |
+          python - <<'PY'
+          import base64
+          import io
+          import os
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "surface-v02-c1"
+          selected = (
+              "01-terrain-temperature.png",
+              "02-terrain-precipitation.png",
+              "03-precipitation-wind.png",
+              "04-along-wind-cross-section.png",
+          )
+          for name in selected:
+              image = Image.open(root / name).convert("RGB")
+              image.thumbnail((1200, 800))
+              buffer = io.BytesIO()
+              image.save(buffer, format="JPEG", quality=76, optimize=True)
+              payload = base64.b64encode(buffer.getvalue()).decode("ascii")
+              print(f"OPERATOR_PREVIEW_BEGIN:{name}")
+              print(payload)
+              print(f"OPERATOR_PREVIEW_END:{name}")
+          PY
+
+      - name: Upload C1 operator checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: surface-v02-c1
+          path: ${{ runner.temp }}/surface-v02-c1
+          if-no-files-found: error
+          retention-days: 14

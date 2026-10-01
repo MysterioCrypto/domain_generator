@@ -146,13 +146,15 @@ def semantic_plan_fingerprint(plan: GenerationPlan) -> str:
         item.pop("source_relation", None)
         constraints.append(item)
 
+    surface_payload = plan.surface.model_dump(mode="json")
+    surface_payload.pop("climate", None)
     payload = {
         "plan_version": plan.plan_version,
         "seed": plan.seed,
         "domain": plan.domain.model_dump(mode="json"),
         "grid": plan.grid.model_dump(mode="json"),
         "hydrology": plan.hydrology.model_dump(mode="json"),
-        "surface": plan.surface.model_dump(mode="json"),
+        "surface": surface_payload,
         "features": features,
         "constraints": constraints,
     }

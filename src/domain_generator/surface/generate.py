@@ -30,6 +30,8 @@ from ..pipeline.sampling import SamplingCapabilityError, sample_resolved_paramet
 from ..terrain.state import TerrainState
 from .derive import (
     SurfaceCapabilityError,
+    annual_mean_temperature_field,
+    annual_precipitation_field,
     moisture_potential_field,
     slope_degrees,
     vegetation_potential_field,
@@ -223,6 +225,36 @@ def _build_surface(
             )
         applied.append(feature.id)
 
+    temperature64: np.ndarray | None = None
+    precipitation64: np.ndarray | None = None
+    if plan.plan_version == "0.2":
+        climate = plan.surface.climate
+        if climate is None:
+            raise SurfaceCapabilityError("Core 0.2 surface requires climate plan")
+        temperature64 = annual_mean_temperature_field(
+            adapter=adapter,
+            elevation_m=elevation,
+            mean_temperature_c=climate.mean_temperature_c,
+            north_minus_south_temperature_c=climate.north_minus_south_temperature_c,
+            temperature_noise_amplitude_c=climate.temperature_noise_amplitude_c,
+            climate_noise_scale_km=climate.climate_noise_scale_km,
+            rng_factory=rng_factory,
+            attempt_index=attempt_index,
+        )
+        precipitation64 = annual_precipitation_field(
+            adapter=adapter,
+            elevation_m=elevation,
+            water_depth_m=water_depth,
+            mean_annual_precipitation_mm=climate.mean_annual_precipitation_mm,
+            moisture_transport_bearing_deg=climate.moisture_transport_bearing_deg,
+            orographic_scale_km=climate.orographic_scale_km,
+            orographic_strength=climate.orographic_strength,
+            precipitation_noise_log_amplitude=climate.precipitation_noise_log_amplitude,
+            climate_noise_scale_km=climate.climate_noise_scale_km,
+            rng_factory=rng_factory,
+            attempt_index=attempt_index,
+        )
+
     water_mask = water_depth > 0.0
     moisture64 = np.clip(moisture_potential + moisture_bias, 0.0, 1.0)
     moisture64[water_mask] = 1.0
@@ -243,6 +275,12 @@ def _build_surface(
         state=SurfaceState(
             moisture=moisture64.astype(np.float32),
             vegetation_density=vegetation64.astype(np.float32),
+            annual_mean_temperature_c=(
+                temperature64.astype(np.float32) if temperature64 is not None else None
+            ),
+            annual_precipitation_mm=(
+                precipitation64.astype(np.float32) if precipitation64 is not None else None
+            ),
         ),
         applied_feature_ids=tuple(applied),
     )
@@ -294,9 +332,29 @@ def _recomputed_surface_matches(
         )
     except SurfaceCapabilityError:
         return False
-    return np.array_equal(surface.moisture, expected.moisture) and np.array_equal(
-        surface.vegetation_density,
-        expected.vegetation_density,
+    return (
+        np.array_equal(surface.moisture, expected.moisture)
+        and np.array_equal(surface.vegetation_density, expected.vegetation_density)
+        and (
+            surface.annual_mean_temperature_c is None
+            and expected.annual_mean_temperature_c is None
+            or isinstance(surface.annual_mean_temperature_c, np.ndarray)
+            and isinstance(expected.annual_mean_temperature_c, np.ndarray)
+            and np.array_equal(
+                surface.annual_mean_temperature_c,
+                expected.annual_mean_temperature_c,
+            )
+        )
+        and (
+            surface.annual_precipitation_mm is None
+            and expected.annual_precipitation_mm is None
+            or isinstance(surface.annual_precipitation_mm, np.ndarray)
+            and isinstance(expected.annual_precipitation_mm, np.ndarray)
+            and np.array_equal(
+                surface.annual_precipitation_mm,
+                expected.annual_precipitation_mm,
+            )
+        )
     )
 
 
@@ -327,6 +385,11 @@ def validate_surface(
     moisture_finite = vegetation_finite = False
     moisture_range = vegetation_range = False
     water_moisture_exact = water_vegetation_exact = False
+    climate_contract = False
+    temperature_shape = precipitation_shape = False
+    temperature_dtype = precipitation_dtype = False
+    temperature_finite = precipitation_finite = False
+    precipitation_positive = False
     deterministic_recompute = False
 
     if terrain_exists:
@@ -353,6 +416,29 @@ def validate_surface(
         vegetation_range = vegetation_finite and bool(
             np.all((vegetation >= 0.0) & (vegetation <= 1.0))
         )
+
+        temperature = surface.annual_mean_temperature_c
+        precipitation = surface.annual_precipitation_mm
+        if plan.plan_version == "0.2":
+            climate_contract = isinstance(temperature, np.ndarray) and isinstance(
+                precipitation, np.ndarray
+            )
+            if climate_contract:
+                temperature_shape = temperature.shape == expected_shape
+                precipitation_shape = precipitation.shape == expected_shape
+                temperature_dtype = temperature.dtype == np.dtype(np.float32)
+                precipitation_dtype = precipitation.dtype == np.dtype(np.float32)
+                temperature_finite = bool(np.isfinite(temperature).all())
+                precipitation_finite = bool(np.isfinite(precipitation).all())
+                precipitation_positive = precipitation_finite and bool(
+                    np.all(precipitation > 0.0)
+                )
+        else:
+            climate_contract = temperature is None and precipitation is None
+            temperature_shape = precipitation_shape = True
+            temperature_dtype = precipitation_dtype = True
+            temperature_finite = precipitation_finite = True
+            precipitation_positive = True
 
         if hydrology_exists and water_shape and moisture_shape and vegetation_shape:
             water_mask = hydrology.water_depth_m > 0.0
@@ -415,6 +501,14 @@ def validate_surface(
         EngineInvariantResult(id="surface-vegetation-range", passed=vegetation_range),
         EngineInvariantResult(id="surface-water-moisture-is-one", passed=water_moisture_exact),
         EngineInvariantResult(id="surface-water-vegetation-is-zero", passed=water_vegetation_exact),
+        EngineInvariantResult(id="surface-climate-contract-matches-version", passed=climate_contract),
+        EngineInvariantResult(id="surface-temperature-shape-matches-grid", passed=temperature_shape),
+        EngineInvariantResult(id="surface-temperature-dtype-float32", passed=temperature_dtype),
+        EngineInvariantResult(id="surface-temperature-finite", passed=temperature_finite),
+        EngineInvariantResult(id="surface-precipitation-shape-matches-grid", passed=precipitation_shape),
+        EngineInvariantResult(id="surface-precipitation-dtype-float32", passed=precipitation_dtype),
+        EngineInvariantResult(id="surface-precipitation-finite", passed=precipitation_finite),
+        EngineInvariantResult(id="surface-precipitation-positive", passed=precipitation_positive),
         EngineInvariantResult(
             id="surface-feature-effects-applied-exactly",
             passed=applied_complete,

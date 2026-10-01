@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from math import atan, degrees, exp, inf, isfinite, sqrt
+from math import atan, cos, degrees, exp, floor, inf, isfinite, radians, sin, sqrt
 
 import numpy as np
 
@@ -267,3 +267,222 @@ def vegetation_density_field(
     )
     vegetation[water_depth_m > 0.0] = 0.0
     return vegetation
+
+
+
+_ENVIRONMENTAL_LAPSE_RATE_C_PER_KM = 6.5
+_OROGRAPHIC_SAMPLES_PER_SCALE = 8
+_OROGRAPHIC_HORIZON_SCALES = 4
+
+
+def _sample_cell_centered_bilinear(
+    field: np.ndarray,
+    adapter: GridAdapter,
+    x_km: float,
+    y_km: float,
+) -> float:
+    if not 0.0 <= x_km <= adapter.width_km or not 0.0 <= y_km <= adapter.height_km:
+        raise SurfaceCapabilityError("bilinear sample point lies outside domain")
+
+    column_f = x_km / adapter.cell_size_km - 0.5
+    row_f = (adapter.height_km - y_km) / adapter.cell_size_km - 0.5
+    c0 = floor(column_f)
+    r0 = floor(row_f)
+    tx = column_f - c0
+    ty = row_f - r0
+
+    value = 0.0
+    total = 0.0
+    for delta_row, weight_y in ((0, 1.0 - ty), (1, ty)):
+        for delta_column, weight_x in ((0, 1.0 - tx), (1, tx)):
+            row = min(adapter.rows - 1, max(0, r0 + delta_row))
+            column = min(adapter.columns - 1, max(0, c0 + delta_column))
+            weight = max(0.0, weight_x * weight_y)
+            value += weight * float(field[row, column])
+            total += weight
+    if total <= 0.0:
+        raise SurfaceCapabilityError("bilinear climate sampling collapsed to zero weight")
+    return value / total
+
+
+def annual_mean_temperature_field(
+    *,
+    adapter: GridAdapter,
+    elevation_m: np.ndarray,
+    mean_temperature_c: float,
+    north_minus_south_temperature_c: float,
+    temperature_noise_amplitude_c: float,
+    climate_noise_scale_km: float,
+    rng_factory: RngFactory,
+    attempt_index: int,
+) -> np.ndarray:
+    """Return annual mean air temperature in degrees Celsius as float64."""
+    expected_shape = (adapter.rows, adapter.columns)
+    if not isinstance(elevation_m, np.ndarray) or elevation_m.shape != expected_shape:
+        raise SurfaceCapabilityError("elevation_m must match grid shape")
+    if not bool(np.isfinite(elevation_m).all()):
+        raise SurfaceCapabilityError("elevation_m must be finite")
+    for name, value in (
+        ("mean_temperature_c", mean_temperature_c),
+        ("north_minus_south_temperature_c", north_minus_south_temperature_c),
+        ("temperature_noise_amplitude_c", temperature_noise_amplitude_c),
+        ("climate_noise_scale_km", climate_noise_scale_km),
+    ):
+        if not isfinite(value):
+            raise SurfaceCapabilityError(f"{name} must be finite")
+    if temperature_noise_amplitude_c < 0.0:
+        raise SurfaceCapabilityError("temperature_noise_amplitude_c must be >= 0")
+    if climate_noise_scale_km <= 0.0:
+        raise SurfaceCapabilityError("climate_noise_scale_km must be > 0")
+
+    elevation64 = elevation_m.astype(np.float64, copy=False)
+    mean_elevation_m = float(np.mean(elevation64))
+    result = np.empty(expected_shape, dtype=np.float64)
+
+    for row in range(adapter.rows):
+        for column in range(adapter.columns):
+            point = adapter.cell_center(row, column)
+            y_norm = point.y_km / adapter.height_km
+            macro = mean_temperature_c + north_minus_south_temperature_c * (y_norm - 0.5)
+            lapse = -_ENVIRONMENTAL_LAPSE_RATE_C_PER_KM * (
+                (float(elevation64[row, column]) - mean_elevation_m) / 1000.0
+            )
+            noise = value_noise_2d(
+                x_km=point.x_km,
+                y_km=point.y_km,
+                scale_km=climate_noise_scale_km,
+                rng_factory=rng_factory,
+                attempt_index=attempt_index,
+                stage=RngStage.SURFACE,
+                scope=("field", "climate", "temperature"),
+                purpose="value",
+            )
+            result[row, column] = macro + lapse + temperature_noise_amplitude_c * noise
+    return result
+
+
+def _upwind_reference_elevation_m(
+    *,
+    adapter: GridAdapter,
+    elevation_m: np.ndarray,
+    x_km: float,
+    y_km: float,
+    transport_dx: float,
+    transport_dy: float,
+    orographic_scale_km: float,
+) -> float:
+    step_km = orographic_scale_km / float(_OROGRAPHIC_SAMPLES_PER_SCALE)
+    sample_count = _OROGRAPHIC_SAMPLES_PER_SCALE * _OROGRAPHIC_HORIZON_SCALES
+    weighted = 0.0
+    total_weight = 0.0
+
+    for index in range(1, sample_count + 1):
+        distance_km = step_km * float(index)
+        sample_x = x_km - transport_dx * distance_km
+        sample_y = y_km - transport_dy * distance_km
+        if not (0.0 <= sample_x <= adapter.width_km and 0.0 <= sample_y <= adapter.height_km):
+            break
+        weight = exp(-distance_km / orographic_scale_km)
+        weighted += weight * _sample_cell_centered_bilinear(
+            elevation_m,
+            adapter,
+            sample_x,
+            sample_y,
+        )
+        total_weight += weight
+
+    if total_weight <= 0.0:
+        return _sample_cell_centered_bilinear(elevation_m, adapter, x_km, y_km)
+    return weighted / total_weight
+
+
+def annual_precipitation_field(
+    *,
+    adapter: GridAdapter,
+    elevation_m: np.ndarray,
+    water_depth_m: np.ndarray,
+    mean_annual_precipitation_mm: float,
+    moisture_transport_bearing_deg: float,
+    orographic_scale_km: float,
+    orographic_strength: float,
+    precipitation_noise_log_amplitude: float,
+    climate_noise_scale_km: float,
+    rng_factory: RngFactory,
+    attempt_index: int,
+) -> np.ndarray:
+    """Return annual precipitation in mm/year as a deterministic float64 field."""
+    expected_shape = (adapter.rows, adapter.columns)
+    if not isinstance(elevation_m, np.ndarray) or elevation_m.shape != expected_shape:
+        raise SurfaceCapabilityError("elevation_m must match grid shape")
+    if not isinstance(water_depth_m, np.ndarray) or water_depth_m.shape != expected_shape:
+        raise SurfaceCapabilityError("water_depth_m must match grid shape")
+    if not bool(np.isfinite(elevation_m).all()) or not bool(np.isfinite(water_depth_m).all()):
+        raise SurfaceCapabilityError("climate upstream fields must be finite")
+    if bool(np.any(water_depth_m < 0.0)):
+        raise SurfaceCapabilityError("water_depth_m must be non-negative")
+    if not isfinite(mean_annual_precipitation_mm) or mean_annual_precipitation_mm <= 0.0:
+        raise SurfaceCapabilityError("mean_annual_precipitation_mm must be finite and > 0")
+    if (
+        not isfinite(moisture_transport_bearing_deg)
+        or not 0.0 <= moisture_transport_bearing_deg < 360.0
+    ):
+        raise SurfaceCapabilityError("moisture_transport_bearing_deg must be in [0, 360)")
+    if not isfinite(orographic_scale_km) or orographic_scale_km <= 0.0:
+        raise SurfaceCapabilityError("orographic_scale_km must be finite and > 0")
+    if not isfinite(orographic_strength) or orographic_strength < 0.0:
+        raise SurfaceCapabilityError("orographic_strength must be finite and >= 0")
+    if (
+        not isfinite(precipitation_noise_log_amplitude)
+        or precipitation_noise_log_amplitude < 0.0
+    ):
+        raise SurfaceCapabilityError(
+            "precipitation_noise_log_amplitude must be finite and >= 0"
+        )
+    if not isfinite(climate_noise_scale_km) or climate_noise_scale_km <= 0.0:
+        raise SurfaceCapabilityError("climate_noise_scale_km must be finite and > 0")
+
+    bearing = radians(moisture_transport_bearing_deg)
+    transport_dx = sin(bearing)
+    transport_dy = cos(bearing)
+    elevation64 = elevation_m.astype(np.float64, copy=False)
+    log_weight = np.empty(expected_shape, dtype=np.float64)
+
+    for row in range(adapter.rows):
+        for column in range(adapter.columns):
+            point = adapter.cell_center(row, column)
+            upwind = _upwind_reference_elevation_m(
+                adapter=adapter,
+                elevation_m=elevation64,
+                x_km=point.x_km,
+                y_km=point.y_km,
+                transport_dx=transport_dx,
+                transport_dy=transport_dy,
+                orographic_scale_km=orographic_scale_km,
+            )
+            relative_relief_km = (float(elevation64[row, column]) - upwind) / 1000.0
+            noise = value_noise_2d(
+                x_km=point.x_km,
+                y_km=point.y_km,
+                scale_km=climate_noise_scale_km,
+                rng_factory=rng_factory,
+                attempt_index=attempt_index,
+                stage=RngStage.SURFACE,
+                scope=("field", "climate", "precipitation"),
+                purpose="value",
+            )
+            log_weight[row, column] = (
+                orographic_strength * relative_relief_km
+                + precipitation_noise_log_amplitude * noise
+            )
+
+    land_mask = water_depth_m <= 0.0
+    normalization_mask = land_mask if bool(land_mask.any()) else np.ones(expected_shape, dtype=np.bool_)
+    reference_max = float(np.max(log_weight[normalization_mask]))
+    raw_weight = np.exp(log_weight - reference_max)
+    mean_weight = float(np.mean(raw_weight[normalization_mask]))
+    if not isfinite(mean_weight) or mean_weight <= 0.0:
+        raise SurfaceCapabilityError("precipitation normalization collapsed")
+    result = mean_annual_precipitation_mm * raw_weight / mean_weight
+    if not bool(np.isfinite(result).all()) or bool(np.any(result <= 0.0)):
+        raise SurfaceCapabilityError("annual precipitation must be finite and positive")
+    return result
