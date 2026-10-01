@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **Core 0.2 integrated acceptance hardening — A08 baseline pending**.
+Current checkpoint: **Core 0.2 release hardening — version/docs consistency**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -151,3 +151,18 @@ Hardening PR #90:
 A08 is a full Core 0.2 acceptance fixture using P08-A metrics through a real preset. Initial baseline is intentionally PENDING so CI can emit the exact deterministic snapshot before pinning.
 
 No new world semantics are introduced by PR #90.
+
+
+## A08 integrated acceptance
+
+PR #90 merged:
+`568eeff9676ee387d5837cfb1fca1a8ff087e99b`
+
+A08 is frozen and GREEN:
+- full Core 0.2 pipeline;
+- P08-A metrics through preset/compiler;
+- exact replay;
+- canonical bundle;
+- regional + potential networks.
+
+Release-readiness audit now focuses on stale package/docs version metadata. Independent contract versions remain independent unless a concrete shape break requires a bump.
