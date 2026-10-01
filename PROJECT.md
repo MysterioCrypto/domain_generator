@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-c3-vegetation-biome-readiness
-checkpoint: c2-effective-surface-moisture-accepted
-next_topic: design-c3-vegetation-biome-readiness
+checkpoint: c3-vegetation-design-operator-review
+next_topic: operator-review-c3-design
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -230,3 +230,32 @@ PR #83 merge commit:
 `de5646a1af9c9057fe13cf1e7eb92bb1a3728e46`
 
 Next bounded layer: INV-006 design gate for C3 vegetation / biome readiness. No C3 runtime implementation before design acceptance.
+
+
+## Surface / Climate 0.2 — C3 design gate
+
+INV-006 design PR #84 is open as draft:
+`https://github.com/MysterioCrypto/domain_generator/pull/84`
+
+Proposed normative document:
+`docs/design/vegetation-biome-readiness-v0.2.md`
+
+Proposed bounded semantics:
+```text
+normalized annual thermal suitability
+× accepted C2 effective moisture
++ existing vegetation_bias
+-> Core 0.2 vegetation_density
+
+canonical water = 0
+```
+
+Design boundaries:
+- no direct precipitation term in C3;
+- no new vegetation noise;
+- no second legacy linear slope penalty;
+- Core 0.1 unchanged;
+- no biome labels yet;
+- no C3 runtime implementation before explicit design ACCEPT.
+
+Current gate: **C3 DESIGN — OPERATOR REVIEW**.
