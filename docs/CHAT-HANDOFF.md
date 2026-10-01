@@ -17,7 +17,7 @@ docs/PROGRESS.md
 docs/design/effective-surface-moisture-v0.2.md
 ```
 
-Current checkpoint: **C2-A Effective Surface Moisture — operator review**.
+Current checkpoint: **C2-B Effective Surface Moisture — bounded water-proximity retune**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -78,13 +78,22 @@ Representative C2-A:
 - catchment contribution is subordinate;
 - slope retention is weak on this 1 km world.
 
-Main unresolved question:
-**does the inherited 8 km actual-water decay produce an artificial-looking wet halo around rivers/lakes?**
+C2-A operator decision:
+**REJECT**.
+
+Concrete culprit:
+- inherited representative `water_moisture_decay_km = 8` produces a broad artificial-looking actual-water halo;
+- climatic wetness, catchment contribution and slope retention are kept;
+- Terrain/Hydrology/C1 remain frozen.
+
+Repository-state audit:
+- PR #83 implementation branch is one documentation-only `dev/0.2` commit behind and must be synchronized before further work.
 
 Immediate next step:
-- operator reviews C2-A;
-- ACCEPT → freeze C2, merge PR #83, then design C3 vegetation / biome readiness;
-- REJECT → identify the concrete C2 component at fault before retuning.
+- sync PR #83 branch with current `dev/0.2`;
+- retune only the representative actual-water decay scale;
+- rerun the same-world C2 checkpoint;
+- ACCEPT corrected scale → freeze C2, merge PR #83, then design C3 vegetation / biome readiness.
 
 Process rule:
 after every meaningful implementation/decision slice, update external context so a chat failure loses at most the current unfinished step.
