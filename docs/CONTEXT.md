@@ -213,13 +213,81 @@ Acceptance qualification:
 - operator explicitly noted insufficient competence for independent expert ecological assessment;
 - record this as project-level acceptance, not expert ecological validation.
 
+### C3 implementation checkpoint — READY FOR OPERATOR REVIEW
+
+Implementation PR #85:
+`https://github.com/MysterioCrypto/domain_generator/pull/85`
+
+Semantic head:
+`eb1365759f891991e8614f712eb1db7ab7da2bae`
+
+Implemented:
+- normalized Miami-style annual thermal suitability;
+- accepted C2 moisture × thermal suitability;
+- existing additive vegetation bias;
+- canonical water vegetation exactly 0;
+- no direct precipitation term;
+- no second legacy slope penalty;
+- no new vegetation noise;
+- Core 0.1 remains legacy-compatible;
+- V01–V11 guardrails.
+
+Automation:
+- push pytest GREEN;
+- PR pytest GREEN;
+- C3-A workflow GREEN.
+
+C3-A workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36842261493`
+
+Artifact:
+`surface-v02-c3`
+
+Representative land statistics:
+```text
+temperature p05 / median / p95        ~4.32 / 8.17 / 10.45 C
+thermal suitability p05/median/p95   ~0.342 / 0.459 / 0.533
+effective moisture p05/median/p95     ~0.548 / 0.658 / 0.864
+vegetation p05 / median / p95         ~0.261 / 0.297 / 0.348
+vegetation mean                       ~0.299
+vegetation min / max                  ~0.181 / 0.400
+land >= 0.8                           0%
+land <= 0.2                           ~0.105%
+```
+
+Correlations on land:
+```text
+effective moisture   +0.369
+temperature          +0.330
+precipitation        +0.290
+slope                -0.169
+distance to water    -0.178
+legacy vegetation    +0.360
+```
+
+Assistant assessment:
+- the final field is not a temperature-only or moisture-only mask;
+- accepted C2 spatial structure remains visible;
+- cold/wet terrain is moderated without a second arbitrary slope penalty;
+- no broad legacy water halo or added vegetation noise dominates;
+- canonical water remains exact zero vegetation;
+- no concrete blocker has been identified in the representative checkpoint.
+
+Interpretation boundary:
+C3 `vegetation_density` is a normalized ecological potential/density index, not fractional canopy cover and not literal NPP. Do not interpret 0.30 as 30% physical plant cover.
+
+Current gate:
+```text
+C3 vegetation implementation   OPERATOR REVIEW
+PR #85                         draft/open
+merge                          BLOCKED pending explicit ACCEPT / REJECT
+```
+
 Immediate next action:
-1. create a separate C3 implementation branch from current `dev/0.2`;
-2. implement only the accepted vegetation semantics;
-3. add V01–V11 automated guardrails;
-4. run full pytest;
-5. generate representative C3-A operator-visible checkpoint;
-6. do not merge C3 implementation until explicit implementation ACCEPT / REJECT.
+1. operator reviews C3-A checkpoint;
+2. explicit ACCEPT / REJECT;
+3. ACCEPT → freeze C3 and merge PR #85;
+4. REJECT → identify one concrete C3 component before retuning.
 
 ## Rejected / constrained paths that must not silently return
 
