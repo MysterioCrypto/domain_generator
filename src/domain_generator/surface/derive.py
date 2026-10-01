@@ -595,3 +595,69 @@ def effective_surface_moisture_components(
         slope_retention=slope_retention,
         effective_moisture=effective,
     )
+
+
+_MIAMI_TEMP_INTERCEPT = 1.315
+_MIAMI_TEMP_SLOPE_PER_C = 0.119
+_MIAMI_TEMP_REFERENCE_C = 30.0
+
+
+@dataclass(frozen=True, slots=True)
+class VegetationComponents:
+    thermal_suitability: np.ndarray
+    vegetation_potential: np.ndarray
+
+
+def climate_aware_vegetation_components(
+    *,
+    moisture: np.ndarray,
+    annual_mean_temperature_c: np.ndarray,
+) -> VegetationComponents:
+    """Build deterministic Core 0.2 climate-aware vegetation components."""
+    if not isinstance(moisture, np.ndarray) or moisture.ndim != 2:
+        raise SurfaceCapabilityError("moisture must be a 2D numpy array")
+    if (
+        not isinstance(annual_mean_temperature_c, np.ndarray)
+        or annual_mean_temperature_c.shape != moisture.shape
+    ):
+        raise SurfaceCapabilityError(
+            "annual_mean_temperature_c must match moisture shape"
+        )
+    if not bool(np.isfinite(moisture).all()):
+        raise SurfaceCapabilityError("moisture must be finite")
+    if not bool(np.isfinite(annual_mean_temperature_c).all()):
+        raise SurfaceCapabilityError("annual_mean_temperature_c must be finite")
+    if bool(np.any(moisture < 0.0)) or bool(np.any(moisture > 1.0)):
+        raise SurfaceCapabilityError("moisture must be in [0, 1]")
+
+    temperature = annual_mean_temperature_c.astype(np.float64, copy=False)
+    temperature_for_response = np.minimum(
+        temperature,
+        _MIAMI_TEMP_REFERENCE_C,
+    )
+
+    exponent = np.clip(
+        _MIAMI_TEMP_INTERCEPT
+        - _MIAMI_TEMP_SLOPE_PER_C * temperature_for_response,
+        -700.0,
+        700.0,
+    )
+    response = 1.0 / (1.0 + np.exp(exponent))
+
+    reference_exponent = (
+        _MIAMI_TEMP_INTERCEPT
+        - _MIAMI_TEMP_SLOPE_PER_C * _MIAMI_TEMP_REFERENCE_C
+    )
+    reference_response = 1.0 / (1.0 + exp(reference_exponent))
+
+    thermal_suitability = np.clip(response / reference_response, 0.0, 1.0)
+    vegetation_potential = np.clip(
+        moisture.astype(np.float64, copy=False) * thermal_suitability,
+        0.0,
+        1.0,
+    )
+
+    return VegetationComponents(
+        thermal_suitability=thermal_suitability,
+        vegetation_potential=vegetation_potential,
+    )
