@@ -1,6 +1,6 @@
 # Potential Drainage Public Export v0.2
 
-Status: **ACCEPTED design gate; runtime implementation authorized but not yet accepted**
+Status: **ACCEPTED / implemented / merged**
 Target branch: `dev/0.2`
 Checkpoint: H11-A
 Depends on: accepted Hydrology 0.2 H09-E potential drainage hierarchy + accepted C1/C2/C3 environmental context
@@ -265,3 +265,25 @@ PR #86 merged into `dev/0.2` at:
 `712dae3179605b894558a9e399cd6929ffcda459`.
 
 Implementation is authorized only for the bounded public-export semantics above. Unsupported channel permanence, basin-regime and receiving-environment classifications remain deferred.
+
+
+## 13. Implementation acceptance
+
+H11-A implementation was formally ACCEPTED and merged through PR #87.
+
+Merge commit:
+`cef91e81c86c64555ae1e1363d7ffaf2934ff6ce`
+
+Accepted checkpoint:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36845608659`
+
+X01–X08 and full pytest were green.
+
+Accepted representative export:
+- `rivers`: 58 nodes / 33 segments, exact runtime/export equality;
+- `potential_drainage`: 111 nodes / 66 segments, exact runtime/export equality;
+- upstream canonical-state hashes unchanged.
+
+The implementation required one bounded contract correction: the runtime `DomainData` validator became provenance-version-aware. Core 0.1 still permits only `rivers`; Core 0.2 additionally permits exactly `potential_drainage`.
+
+H11-A is frozen unless later evidence identifies a concrete public-contract defect.
