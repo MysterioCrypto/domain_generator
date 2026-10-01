@@ -1044,3 +1044,26 @@ Pending:
 - C2-A diagnostic component maps and operator workflow.
 
 Heavy Actions artifacts remain remote; use direct workflow-run links for operator checkpoints.
+
+
+## C2 implementation slice 2 — M01–M10 guardrails
+
+Added dedicated C2 tests on PR #83:
+
+- M01 higher precipitation -> higher effective moisture;
+- M02 warmer annual temperature -> greater annual demand -> lower effective moisture;
+- M03 canonical water moisture exactly 1;
+- M04 actual-water proximity decays monotonically with distance;
+- M05 larger contributing area cannot reduce moisture;
+- M06 steeper slope cannot increase effective moisture;
+- M07 Core 0.2 moisture finite float32 / [0,1] / deterministic replay;
+- M08 Terrain/Hydrology upstream arrays remain unchanged;
+- M09 C2-A vegetation remains bit-identical to the legacy path;
+- M10 Core 0.1 moisture/vegetation remain equivalent to legacy helpers.
+
+The historical C1 compatibility test was updated to reflect accepted C2 semantics:
+Core 0.2 moisture is now expected to differ from Core 0.1 legacy moisture, while vegetation remains frozen for C2-A.
+
+Pending:
+- CI stabilization;
+- C2-A component diagnostics and operator workflow.
