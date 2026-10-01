@@ -287,11 +287,17 @@ def main() -> None:
         moisture=moisture,
         annual_mean_temperature_c=temperature,
     )
+    water_mask = water_depth > 0.0
+    land = ~water_mask
     np.testing.assert_allclose(
-        final_vegetation,
-        vegetation.vegetation_potential,
+        final_vegetation[land],
+        vegetation.vegetation_potential[land],
         rtol=0.0,
         atol=1e-7,
+    )
+    np.testing.assert_array_equal(
+        final_vegetation[water_mask],
+        np.zeros(int(np.count_nonzero(water_mask)), dtype=np.float64),
     )
 
     terrain = TerrainState(elevation_m=elevation)
@@ -406,8 +412,6 @@ def main() -> None:
     )
     _save_temperature_curve(args.output / "08-temperature-response.png")
 
-    water_mask = water_depth > 0.0
-    land = ~water_mask
     finite_distance = land & np.isfinite(distance)
     stats = {
         "checkpoint": "C3-A",
