@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-placement-continuation
-checkpoint: p08-a-placement-environmental-metrics-accepted
-next_topic: placement-next-slice-audit
+checkpoint: core-v0.2-integrated-acceptance-hardening
+next_topic: pin-a08-core-v02-baseline
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -555,3 +555,26 @@ Accepted Placement 0.2 observation boundary:
 P08-A is frozen unless a concrete metric/contract defect appears.
 
 Next: audit the remaining Placement boundary and choose one bounded follow-up slice.
+
+
+## Core 0.2 integrated acceptance hardening
+
+Placement next-slice audit found no additional Core 0.2 semantic gap after P08-A:
+- existing preset/plan `SiteProfile.metric` contract already carries the new metric IDs;
+- compiler does not require a new schema shape;
+- deferred-to-deferred POI, roads and human geography remain higher-layer work rather than missing base Placement semantics.
+
+Placement 0.2 is therefore considered Core-ready at the current scope.
+
+Hardening PR #90:
+`https://github.com/MysterioCrypto/domain_generator/pull/90`
+
+Purpose:
+- add an end-to-end Core 0.2 acceptance fixture;
+- exercise new P08-A metrics through normal preset/compiler path;
+- cover Terrain/Hydrology/C1/C2/C3/Placement/DomainData/bundle/exact replay together;
+- freeze a deterministic baseline after review.
+
+No world-generation semantics change.
+
+Current checkpoint: **A08 CORE 0.2 INTEGRATED ACCEPTANCE — BASELINE PENDING**.
