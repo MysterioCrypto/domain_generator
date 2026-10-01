@@ -1,6 +1,6 @@
 # Placement Environmental Site Metrics v0.2
 
-Status: **PROPOSED — INV-006 design gate; no runtime implementation yet**
+Status: **ACCEPTED design gate; runtime implementation authorized but not yet accepted**
 Target branch: `dev/0.2`
 Checkpoint: P08-A
 Depends on: accepted Terrain 0.2 + Hydrology 0.2/H11-A + C1 + C2 + C3
@@ -332,3 +332,13 @@ Implementation may be accepted only if:
 - Do not add adaptive retries or requirement relaxation.
 - Do not mutate Hydrology/Surface from Placement.
 - If a future setting needs a semantic concept not represented by these physical metrics, add a new explicit layer/metric rather than overloading an existing ID.
+
+
+## 14. Design acceptance
+
+Operator decision: **ACCEPTED**.
+
+PR #88 merged into `dev/0.2` at:
+`66003288e528fc340663d92f84ed14cbee88744b`.
+
+Implementation is authorized only for the bounded metric-registry extension above. Existing candidate generation and site-selection semantics remain frozen for P08-A.
