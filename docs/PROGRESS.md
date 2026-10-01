@@ -55,7 +55,13 @@ renderer/smoothing as an upstream-fix substitute
 ## IN PROGRESS
 
 ```text
-Hydrology 0.2
+Surface / climate / biome 0.2
+└─ C1 foundation — DESIGN
+   ├─ Hydrology 0.2 frozen / ACCEPTED
+   ├─ inspect Surface 0.1 baseline
+   └─ define first bounded environmental semantics
+
+Hydrology 0.2 — ACCEPTED
 ├─ H10-A shoreline refinement — KEEP
 └─ H10-B nested depression hierarchy — COMPLETE
    ├─ river hierarchy frozen
@@ -79,21 +85,15 @@ H10-B
    └─ production nested/partial-fill semantics — DO NOT IMPLEMENT
 ```
 
-PR #72 remains draft/open until the Hydrology lake slice and final review are complete.
+PR #72 is approved for merge into dev/0.2 after formal Hydrology ACCEPT.
 
 ## NEXT
 
 ```text
-1. Implement H10-A shoreline refinement
-2. Run automated guards and same-world checkpoint
-   ├─ lake count
-   ├─ size distribution
-   ├─ terrain-following shape
-   ├─ catchment ↔ lake size relation
-   └─ placement inside drainage hierarchy
-3. Hydrology 0.2 final operator review
-4. Surface / climate / biome work
-5. Later hydro-surface finishing
+1. Merge accepted Hydrology 0.2 implementation
+2. C1 Surface / climate / biome design gate
+3. First environmental-field implementation + diagnostics
+4. Later hydro-surface finishing
    ├─ low-order headwater-root visibility
    ├─ perennial / seasonal / dry classification
    ├─ estuary / delta / fan only when receiver semantics justify it
@@ -119,12 +119,9 @@ accepted spatial semantic layer
 ## CURRENT DECISION GATE
 
 ```text
-Hydrology 0.2 final operator review
-├─ Terrain 0.2                 ACCEPTED
-├─ river hierarchy H09-E       ACCEPTED
-├─ H10-A refined shorelines    KEEP
-├─ H10-B diagnostic            COMPLETE
-└─ recommendation              ACCEPT Hydrology 0.2 base
+Hydrology 0.2                 ACCEPTED
+Terrain 0.2                   ACCEPTED
+next                          Surface / climate / biome C1 design
 ```
 
 Deferred to climate/surface/biomes:

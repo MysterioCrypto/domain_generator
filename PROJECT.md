@@ -1,14 +1,14 @@
 ---
 project: domain_generator
 target_version: core-0.2
-phase: hydrology-redesign
+phase: surface-climate-redesign
 status: in-progress
 historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
-current_milestone: v0.2-batch-b8-nested-depression-diagnostic
-checkpoint: h10-b-diagnostic-complete-no-nested-compound-lakes
-next_topic: hydrology-v0.2-final-operator-review
+current_milestone: v0.2-batch-c1-surface-climate-foundation
+checkpoint: hydrology-v0.2-accepted
+next_topic: design-surface-climate-foundation-v0.2
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -28,6 +28,7 @@ completed:
   - core-0.1-codex-and-remote-generation-integrations
   - core-0.2-continuous-terrain-foundation
   - core-0.2-domain-provenance-boundary
+  - core-0.2-hydrology
 rejected_or_superseded:
   - core-0.1-world-generation-semantics
   - guide-renderer-as-fix-for-upstream-world-state
@@ -103,7 +104,7 @@ continuous multi-scale base elevation
 
 Normative design: `docs/design/continuous-terrain-foundation-v0.2.md`.
 
-### Hydrology 0.2 — in progress
+### Hydrology 0.2 — ACCEPTED
 
 После отклонённых D8 / two-receiver D∞ / direct MFD-support вариантов текущая сохранённая линия:
 
@@ -128,20 +129,11 @@ Priority-Flood conditioning
 
 H09-E **ACCEPTED by operator for the river-hierarchy slice**. MFD + H09-D2 regional network + H09-E potential hierarchy are frozen unless a new concrete defect requires reopening them.
 
-PR #72 остаётся draft/open, пока Hydrology 0.2 не завершит отдельный lake pass и финальный operator checkpoint.
+Hydrology 0.2 formally ACCEPTED by operator. PR #72 is ready to merge into `dev/0.2`.
 
-## Что ещё не завершено в Hydrology
+## Deferred hydro-surface finishing
 
-Следующий bounded слой после принятия H09-E — отдельный lake pass:
-
-```text
-lake count / size distribution
-lake shape following terrain/depression
-lake size vs catchment
-lake placement inside drainage hierarchy
-```
-
-Отдельно от lake pass отложен вопрос **визуально/геоморфологически завершённых концов речной системы**:
+Hydrology 0.2 base is frozen. The following cross-layer finishing remains deferred until Surface / climate / biomes provide environmental context:
 
 - размытые/мелкие headwater roots;
 - seasonal/minor tributary fan-out;
