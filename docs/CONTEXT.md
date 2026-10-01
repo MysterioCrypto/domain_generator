@@ -996,3 +996,26 @@ External rationale used for the design:
 C2-A is intentionally an annual effective-moisture index, not literal soil volumetric water content and not a monthly soil-water simulation.
 
 Do not implement production C2 until operator accepts PR #82.
+
+
+## Operator decision: C2 Effective Surface Moisture ACCEPT
+
+The operator explicitly accepted PR #82 / effective-surface-moisture-v0.2.
+
+PR #82 merged into dev/0.2. Production implementation may proceed.
+
+Frozen during C2-A:
+- Terrain 0.2;
+- Hydrology 0.2;
+- C1 annual temperature and precipitation;
+- current vegetation_density semantics;
+- Core 0.1 moisture/vegetation behavior.
+
+C2-A implementation target:
+- replace only Core 0.2 canonical moisture with climate-aware effective moisture;
+- keep canonical water exactly moisture=1;
+- combine climatic wetness, actual-water proximity, climate-gated catchment concentration and slope retention;
+- no extra moisture noise layer;
+- preserve legacy vegetation via temporary compatibility path until C3.
+
+Heavy Actions artifacts remain remote; operator checkpoints should provide direct workflow-run links.
