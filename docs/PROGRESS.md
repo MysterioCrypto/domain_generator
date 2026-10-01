@@ -63,7 +63,9 @@ Surface / climate / biome 0.2
    ├─ climate contracts / compiler boundary — IMPLEMENTED
    ├─ temperature + precipitation fields — IMPLEMENTED
    ├─ climate DomainData export — IMPLEMENTED
-   └─ C01–C09 guards / compatibility fixes — IN PROGRESS
+   ├─ C01–C09 climate guardrails — IMPLEMENTED
+   ├─ v0.2 fixture compatibility — IMPLEMENTED
+   └─ schema snapshots + CI stabilization — IN PROGRESS
 
 Hydrology 0.2 — ACCEPTED
 ├─ H10-A shoreline refinement — KEEP
