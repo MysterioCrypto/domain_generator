@@ -66,7 +66,8 @@ Surface / climate / biome 0.2
    ├─ C01–C09 climate guardrails — IMPLEMENTED
    ├─ v0.2 fixture compatibility — IMPLEMENTED
    ├─ schema snapshots — UPDATED
-   └─ CI stabilization / C1 checkpoint — IN PROGRESS
+   ├─ C1-A renderer/workflow — IMPLEMENTED
+   └─ CI + operator checkpoint review — IN PROGRESS
 
 Hydrology 0.2 — ACCEPTED
 ├─ H10-A shoreline refinement — KEEP
