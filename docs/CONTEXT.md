@@ -419,19 +419,82 @@ No candidate lattice, requirement evaluator, scoring, near-best or final selecti
 P08-A design status:
 ```text
 design PR #88           ACCEPTED / MERGED
-runtime implementation  NEXT
+implementation PR #89   OPERATOR REVIEW
 ```
 
 Design merge commit:
 `66003288e528fc340663d92f84ed14cbee88744b`
 
+Implementation PR #89:
+`https://github.com/MysterioCrypto/domain_generator/pull/89`
+
+Semantic head:
+`ec59e0b6693c10fb6064ebf4b68d7f8c019097e8`
+
+Implemented:
+- version-aware site metric registry;
+- Core 0.1 remains exactly the historical eight metrics;
+- Core 0.2 additionally exposes `temperature_mean`, `annual_precipitation_mean`, `distance_to_potential_drainage`;
+- climate metrics aggregate accepted C1 arrays over the existing footprint cells;
+- potential-drainage distance is exact world-space point-to-centerline distance minus footprint radius, clamped at zero;
+- no Placement RNG or selection-semantics change.
+
+Checkpoint:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36849780012`
+
+Artifact:
+`placement-v02-p08`
+
+Representative diagnostic:
+```text
+candidates                      148
+valid                           133
+near-best                       1
+selected x/y                    ~23.326 / 38.308 km
+selected suitability            ~0.895
+
+temperature_mean range          ~2.96 .. 11.34 C
+temperature_mean median         ~8.24 C
+annual precipitation range      ~302 .. 3243 mm/year
+annual precipitation median     ~794 mm/year
+potential drainage distance     0 .. ~23.69 km
+potential drainage median       ~4.38 km
+```
+
+Selected fixture-only site:
+```text
+temperature_mean                ~6.42 C
+annual_precipitation_mean       ~2159.8 mm/year
+distance_to_potential_drainage  ~6.86 km
+moisture_mean                   ~0.853
+vegetation_density_mean         ~0.345
+distance_to_water                7 km
+```
+
+Integrity:
+- P01–P11 GREEN;
+- push pytest GREEN;
+- PR pytest GREEN;
+- upstream canonical hashes unchanged;
+- potential drainage unchanged.
+
+Assistant review:
+- climate metrics visibly correspond to accepted C1 fields;
+- potential-drainage metric follows accepted H09-E geometry;
+- canonical water distance and potential drainage remain semantically distinct;
+- no concrete blocker identified.
+
+Current gate:
+```text
+P08-A implementation   OPERATOR REVIEW
+PR #89                  draft/open
+merge                   BLOCKED pending explicit ACCEPT / REJECT
+```
+
 Immediate next action:
-1. create a separate P08-A implementation branch from current `dev/0.2`;
-2. implement version-aware site metric registry only;
-3. add P01–P11 guardrails;
-4. run full pytest;
-5. generate the representative metric/diagnostic-placement checkpoint;
-6. do not merge implementation before explicit ACCEPT / REJECT.
+1. explicit P08-A implementation ACCEPT / REJECT;
+2. ACCEPT → freeze/merge PR #89;
+3. REJECT → identify one concrete metric/contract defect before changing Placement mechanics.
 
 ## Rejected / constrained paths that must not silently return
 
