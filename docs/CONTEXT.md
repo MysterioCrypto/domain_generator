@@ -609,3 +609,36 @@ The generator development identity is being aligned from `0.1.0.dev0` to `0.2.0.
 Because generator version is semantic provenance and participates in `plan_fingerprint`, A01–A08 baselines must be re-signed. Allowed delta is limited to provenance/fingerprint-derived values; world arrays, features, networks, placement and validation semantics must remain unchanged.
 
 First CI intentionally uses PENDING baselines to emit exact snapshots before pinning.
+
+
+## Core 0.2 release-candidate gate
+
+Release metadata hardening PR #91:
+- merged at `5cafb8119050f19765447d65dcef022ebebe052b`;
+- generator/package identity now `0.2.0.dev0`;
+- README and canonical architecture aligned with active Core 0.2;
+- A01–A08 re-signed after version change;
+- every baseline changed only in `domain_data_sha256`; all field hashes, geometry/network summaries, attempts, ranking and validation remained identical.
+
+Merge-head pytest:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36853774759`
+— GREEN.
+
+No concrete blocker remains inside current Core 0.2 release scope.
+
+Deferred work is explicitly outside this candidate:
+- environmental seasonality / true biome classification;
+- flow-permanence and basin-permanence hydrology;
+- receiving-environment delta/estuary/fan morphology;
+- roads / human geography / interdependent POI graph.
+
+Current gate:
+```text
+Core 0.2 release candidate   OPERATOR REVIEW
+release/0.2-prealpha         NOT CREATED
+```
+
+Immediate next action:
+1. explicit release-candidate ACCEPT / REJECT;
+2. ACCEPT → create `release/0.2-prealpha` from accepted current dev head and record commit;
+3. REJECT → identify a concrete release blocker without reopening accepted world semantics speculatively.
