@@ -91,37 +91,21 @@ Representative C1-A:
 
 Operator accepted C1 because the maps were coherent enough and no concrete climate-domain blocker was identified. This is not a claim of expert climatological validation.
 
-## Current checkpoint — C2-B Water-Proximity Retune
+## C2 effective surface moisture — ACCEPTED / merged
 
 Normative design: `docs/design/effective-surface-moisture-v0.2.md`.
 
-Design status: ACCEPTED.
-Implementation: draft PR #83, branch `impl/v0.2-effective-surface-moisture`.
-Current PR head: `d4c9eb947d7491352a3f05d96153d93318f7c440`.
+Implementation PR #83 is merged into `dev/0.2`.
+Merge commit:
+`de5646a1af9c9057fe13cf1e7eb92bb1a3728e46`
 
-Latest green operator workflow:
-`https://github.com/MysterioCrypto/domain_generator/actions/runs/36831586933`
-
-Artifact:
-`surface-v02-c2`
-
-Do not download heavy Actions artifacts into chat/container unless the operator explicitly asks. Routine assistant review should use workflow logs, statistics and compact previews. When the operator needs the artifact, provide the direct workflow-run link.
-
-### C2 semantics
-
-Core 0.2 canonical `moisture` is now an annual **effective surface moisture index**, not literal volumetric soil moisture.
-
-Climatic wetness:
+Accepted semantics:
 
 ```text
 T_bio = clamp(T, 0, 30)
-PET_proxy_mm = 58.93 * T_bio
-climatic_wetness = P / (P + PET_proxy_mm)
-```
+PET_proxy = 58.93 * T_bio
+climatic_wetness = P / (P + PET_proxy)
 
-Local hydrology:
-
-```text
 water_proximity =
     water_moisture_boost * exp(-distance_to_water / water_moisture_decay_km)
 
@@ -133,127 +117,82 @@ climate_gated_catchment =
 
 local_hydrology =
     max(water_proximity, climate_gated_catchment)
-```
 
-Combination:
-
-```text
 pre_slope =
-    climatic_wetness
-    + (1 - climatic_wetness) * local_hydrology
+    climatic_wetness + (1 - climatic_wetness) * local_hydrology
 
-slope_retention = cos(slope)^2
-
-effective_moisture =
-    clamp(pre_slope * slope_retention + feature_moisture_bias, 0, 1)
+moisture =
+    clamp(pre_slope * cos(slope)^2 + feature_moisture_bias, 0, 1)
 
 canonical water = 1 exactly
 ```
 
-No additional Core 0.2 moisture noise layer.
+No extra Core 0.2 moisture noise. Core 0.1 remains unchanged.
 
-Compatibility boundary:
-- Core 0.1 moisture/vegetation unchanged;
-- C2-A vegetation remains deliberately legacy-compatible and is **not** yet driven by effective moisture;
-- C3 will redesign vegetation only after C2 moisture is accepted.
+C2-A reference with representative `water_moisture_decay_km = 8` was rejected on one bounded defect: broad actual-water halos. Climatic wetness, catchment contribution and slope retention were explicitly kept.
 
-### C2 automated state
+C2-B changed only the representative actual-water decay to `2 km`.
 
-M01–M10 guards are GREEN:
-- precipitation ordering;
-- thermal-demand ordering;
-- canonical-water exactness;
-- riparian decay;
-- catchment monotonicity;
-- slope drainage;
-- dtype/range/replay;
-- Terrain/Hydrology/C1 upstream immutability;
-- C2-A vegetation compatibility;
-- Core 0.1 compatibility.
+Accepted C2-B workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36837227248`
 
-Latest PR pytest and C2 workflow are GREEN.
+Automation:
+- pytest GREEN;
+- C2 checkpoint GREEN;
+- M01–M10 remain GREEN.
 
-### C2-A representative result
-
-Land statistics:
-
+Representative accepted C2-B:
 ```text
-climatic wetness:
-  p05 / median / p95   0.500 / 0.628 / 0.863
-  mean                 0.642
-
 effective moisture:
-  min                  0.520
-  p05 / median / p95   0.619 / 0.728 / 0.887
-  max                  0.979
-  mean                 0.734
-  land >= 0.8          ~18.0%
-  land <= 0.2          0%
+  min                  ~0.395
+  p05 / median / p95   ~0.548 / 0.658 / 0.864
+  max                  ~0.974
+  mean                 ~0.673
+  land >= 0.8          ~10.4%
+  land <= 0.2           0%
 
-local signals:
-  water proximity mean ~0.249
-  gated catchment mean ~0.039
-  gated catchment p95  ~0.149
+water proximity mean   ~0.068
+catchment mean         ~0.039
+
+correlations:
+  precipitation         +0.820
+  temperature           -0.747
+  distance to water     -0.069
+  legacy moisture       +0.025
+  log1p accumulation    -0.090
 
 slope retention:
   mean                 ~0.99875
   min                  ~0.9777
-
-effective-moisture correlations:
-  precipitation         +0.712
-  temperature           -0.691
-  distance to water     -0.397
-  legacy moisture       +0.281
-  log1p accumulation    -0.036
 ```
 
 Interpretation:
-- macro wet/dry structure is now climate-driven rather than legacy distance/noise-driven;
-- catchment contribution is subordinate and does not turn every drainage line into a saturated stripe;
-- slope retention is weak on this 1 km representative terrain because slopes are gentle;
-- the representative climate is deliberately cool/wet, so absence of very dry cells is not itself a defect;
-- the main unresolved visual question is **actual-water proximity**: inherited `water_moisture_decay_km = 8` creates broad riparian wet halos around canonical rivers/lakes.
+- macro moisture is climate-driven;
+- actual-water influence is now localized rather than a domain-scale river halo;
+- catchment concentration remains subordinate;
+- the accepted `2 km` is a representative calibration at 1 km cell size, not a universal physical riparian width;
+- `water_moisture_decay_km` remains an explicit required plan/spec parameter.
 
-### C2-A operator decision — REJECT
+C2-A temporary vegetation compatibility has served its purpose. C3 may now redesign Core 0.2 vegetation against accepted C1 + C2 while Core 0.1 stays frozen.
 
-C2-A is rejected on one bounded visual/physical defect only:
+## Current checkpoint — C3 vegetation / biome readiness design
 
-`water_moisture_decay_km = 8` makes actual-water influence extend as a broad, nearly uniform-width halo around canonical rivers and lakes.
+INV-006 requires substantial architecture/semantic changes to be documented and accepted before runtime implementation.
 
-Culprit assignment:
-- **actual-water proximity scale: REJECTED / retune required**;
-- climatic wetness: KEEP;
-- catchment contribution: KEEP;
-- slope retention: KEEP;
-- effective-moisture combination semantics: KEEP.
-
-This does not reopen Terrain 0.2, Hydrology 0.2 or C1.
-
-The rejection is a calibration/spatial-scale correction inside the already accepted C2 design, not a return to legacy distance-to-water + noise moisture.
-
-Repository-state audit before C2-B:
-- PR #83 branch is 6 implementation commits ahead of its merge base;
-- `dev/0.2` is 1 documentation-only commit ahead of that same merge base;
-- therefore the implementation branch must be synchronized with current `dev/0.2` before further C2-B work;
-- the C2 code/test/workflow slice itself is intact and green.
-
-Next bounded experiment: reduce only the representative actual-water decay scale and rerun the same world. No other C2 component is to be retuned in the same slice.
-
-## Current decision gate
-
+Current state:
 ```text
 Terrain 0.2                 ACCEPTED
 Hydrology 0.2               ACCEPTED
 C1 annual climate           ACCEPTED
-C2 effective moisture       C2-A REJECTED / C2-B RETUNE
+C2 effective moisture       ACCEPTED
+C3 vegetation readiness     DESIGN NEXT
 ```
 
 Immediate next action:
-1. synchronize PR #83 implementation branch with current `dev/0.2`;
-2. retune only `water_moisture_decay_km` on the representative same-world checkpoint;
-3. rerun automated guards + operator-visible C2 checkpoint;
-4. if the corrected scale is accepted, freeze C2 and merge PR #83;
-5. only then open INV-006 design for C3 vegetation / biome readiness.
+1. write a bounded C3 vegetation / biome-readiness design;
+2. expose the design for explicit ACCEPT / REJECT;
+3. only after design acceptance implement C3;
+4. require automated guards + representative operator-visible vegetation checkpoint before C3 implementation acceptance.
 
 ## Rejected / constrained paths that must not silently return
 
