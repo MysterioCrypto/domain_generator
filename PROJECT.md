@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-c2-effective-surface-moisture
-checkpoint: c2-a-effective-moisture-ready-for-operator-review
-next_topic: operator-review-c2-a
+checkpoint: c2-b-water-proximity-retune
+next_topic: bounded-water-proximity-retune
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -193,29 +193,38 @@ Accepted C1 interpretation:
 Next bounded layer: climate + hydrology + terrain → effective surface moisture.
 
 
-## Surface / Climate 0.2 — C2-A operator checkpoint
+## Surface / Climate 0.2 — C2-A REJECTED / C2-B bounded correction
 
-C2 effective surface moisture is implemented on draft PR #83 and ready for human review.
+C2 effective surface moisture design remains ACCEPTED and implementation remains on draft PR #83.
 
-Latest green operator workflow:
+C2-A operator decision: **REJECT**.
+
+Concrete rejected component:
+- inherited representative `water_moisture_decay_km = 8` produces an excessively broad, nearly uniform-width wet halo around canonical rivers/lakes;
+- the defect is assigned specifically to the **actual-water proximity spatial scale**;
+- climatic wetness, catchment contribution and slope retention are not reopened by this decision;
+- Terrain 0.2, Hydrology 0.2 and C1 remain frozen.
+
+Evidence:
+- macro moisture structure is climate-driven;
+- catchment contribution remains subordinate;
+- slope retention is weak but coherent on this 1 km representative terrain;
+- compact operator previews show actual-water influence tracking river geometry as a broad halo;
+- a single 8 km e-folding scale is too broad as the representative generic proximity scale for narrow rivers at 1 km resolution.
+
+Latest rejected C2-A workflow:
 `https://github.com/MysterioCrypto/domain_generator/actions/runs/36831586933`
 
 Artifact: `surface-v02-c2`.
 
-Representative C2-A land statistics:
-- climatic wetness median ~0.628;
-- final effective moisture median ~0.728;
-- p05 / p95 ~0.619 / 0.887;
-- no land cells <=0.2 on this deliberately cool/wet representative climate;
-- ~18.0% of land >=0.8 moisture;
-- final moisture correlation: precipitation +0.712, temperature -0.691, distance-to-water -0.397;
-- log contributing-area correlation is near zero globally because catchment concentration is local/subordinate;
-- slope retention is weak on this 1 km terrain (mean ~0.9987, minimum ~0.978).
+Repository-state note:
+- PR #83 implementation branch diverged from `dev/0.2` after canonical-context maintenance;
+- `dev/0.2` is one documentation-only commit ahead of the PR merge base;
+- sync the implementation branch with `dev/0.2` before the C2-B correction.
 
-Current assistant assessment:
-- macro moisture structure is now climate-driven rather than legacy water-distance/noise-driven;
-- catchment contribution remains subordinate rather than turning all drainage into saturated channels;
-- actual canonical water still produces visibly broad wet riparian corridors because the inherited representative water_moisture_decay_km is 8 km;
-- the representative climate is cool/wet, so a generally humid moisture field is expected and is not itself evidence of saturation failure.
-
-No retuning before operator review.
+C2-B bounded next step:
+1. sync PR #83 branch with current `dev/0.2`;
+2. change only the representative actual-water decay scale;
+3. rerun same-world C2 checkpoint;
+4. keep C1 / catchment / slope / Terrain / Hydrology untouched;
+5. accept or reject the corrected water-proximity scale from the new render.
