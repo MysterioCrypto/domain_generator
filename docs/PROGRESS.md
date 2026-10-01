@@ -64,8 +64,9 @@ Core 0.2 release hardening — DONE
 ├─ A01–A08 provenance re-sign — DONE
 └─ merge-head pytest — GREEN
 
-Core 0.2 release candidate — OPERATOR REVIEW
-└─ release/0.2-prealpha — NOT CREATED
+Core 0.2 release candidate — ACCEPTED / FROZEN
+├─ release/0.2-prealpha — CREATED
+└─ freeze commit — c69c1af010a085fb80d248af703a77471fc6c9d7
 ```
 
 Accepted hydrology routing/network remains frozen.
@@ -73,10 +74,10 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. explicit Core 0.2 release-candidate ACCEPT / REJECT
-2. ACCEPT → create release/0.2-prealpha from accepted dev head
-3. record exact release commit and freeze release scope
-4. only after release closure resume new semantic layers on development line
+1. keep release/0.2-prealpha frozen
+2. select next post-release semantic layer on dev/0.2
+3. create INV-006 design before material semantic implementation
+4. preserve deferred work boundaries unless new evidence justifies promoting one
 ```
 
 Do not bundle all deferred hydrology finishing into one change.
