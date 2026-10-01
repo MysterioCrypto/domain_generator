@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-release-hardening
-checkpoint: core-v0.2-integrated-acceptance-accepted
-next_topic: release-metadata-and-docs-consistency
+checkpoint: core-v0.2-release-metadata-hardening
+next_topic: verify-version-bump-baseline-delta
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -594,3 +594,17 @@ Accepted frozen A08:
 No world-generation semantics changed in A08.
 
 Current checkpoint: **CORE 0.2 RELEASE HARDENING — METADATA / DOC CONSISTENCY**.
+
+
+Release-hardening PR #91:
+`https://github.com/MysterioCrypto/domain_generator/pull/91`
+
+Planned identity change:
+`0.1.0.dev0 -> 0.2.0.dev0`
+
+Expected acceptance impact:
+- plan fingerprints change;
+- DomainData hashes change through provenance;
+- numerical world fields and semantic geometry must remain unchanged.
+
+A01–A08 are temporarily PENDING on the hardening branch only to emit exact post-bump snapshots.
