@@ -1,6 +1,6 @@
 # Vegetation / Biome Readiness v0.2
 
-Status: **ACCEPTED design gate; runtime implementation authorized but not yet accepted**
+Status: **ACCEPTED / implemented / merged**
 Target branch: `dev/0.2`
 Checkpoint: C3
 Depends on: accepted Terrain 0.2 + Hydrology 0.2 + C1 annual climate forcing + C2 effective surface moisture
@@ -390,3 +390,25 @@ Acceptance qualification:
 - the operator explicitly noted insufficient subject-matter expertise for independent expert ecological validation;
 - implementation is authorized under the bounded semantics above;
 - implementation still requires V01–V11, green automation, an operator-visible C3-A checkpoint, and explicit implementation acceptance before merge.
+
+
+## 18. Implementation acceptance
+
+C3-A implementation was formally ACCEPTED and merged through PR #85.
+
+Merge commit:
+`37e213ebf5f82ebfae149d21088c07e08d836549`
+
+Accepted workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36842261493`
+
+V01–V11 and full pytest were green.
+
+Mountain influence is intentionally indirect:
+- C1 lapse-rate temperature;
+- C1 orographic precipitation;
+- C2 slope retention;
+- terrain-controlled hydrology feeding C2;
+- no additional direct C3 slope penalty.
+
+C3 is frozen unless later evidence identifies a concrete C3 defect.
