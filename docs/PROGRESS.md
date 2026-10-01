@@ -23,71 +23,50 @@ Core 0.2
 │  ├─ H10-A refined lake shorelines
 │  └─ H10-B nested split hypothesis rejected by evidence
 ├─ C1 annual climate forcing — ACCEPTED / MERGED
-│  ├─ annual temperature
-│  ├─ annual precipitation
-│  ├─ windward/lee forcing
-│  └─ C01–C09 guards
-└─ C2 effective surface moisture — ACCEPTED / MERGED
-   ├─ PR #83
-   ├─ M01–M10 guards GREEN
-   ├─ C2-A 8 km proximity scale REJECTED
-   └─ C2-B 2 km representative proximity scale ACCEPTED
+├─ C2 effective surface moisture — ACCEPTED / MERGED
+└─ C3 climate-aware vegetation — ACCEPTED / MERGED
+   ├─ design PR #84
+   ├─ implementation PR #85
+   ├─ V01–V11 GREEN
+   └─ C3-A operator checkpoint ACCEPTED
 ```
-
-Accepted C2-B workflow:
-`https://github.com/MysterioCrypto/domain_generator/actions/runs/36837227248`
-
-PR #83 merge:
-`de5646a1af9c9057fe13cf1e7eb92bb1a3728e46`
-
-## IN PROGRESS
-
-```text
-C3 vegetation / biome readiness — OPERATOR REVIEW
-├─ design PR #84 — ACCEPTED / MERGED
-├─ implementation PR #85 — draft/open
-├─ climate-aware vegetation core — IMPLEMENTED
-├─ V01–V11 — GREEN
-├─ push/PR pytest — GREEN
-├─ C3-A workflow — GREEN
-└─ implementation ACCEPT / REJECT — PENDING
-```
-
-Design PR:
-`https://github.com/MysterioCrypto/domain_generator/pull/84`
-
-Merge commit:
-`2ad695d059b4f198b5f06c6451b005c0d630fbc9`
-
-Acceptance is formal project/operator acceptance, not expert ecological validation.
 
 C3-A workflow:
 `https://github.com/MysterioCrypto/domain_generator/actions/runs/36842261493`
 
-Artifact:
-`surface-v02-c3`
+PR #85 merge:
+`37e213ebf5f82ebfae149d21088c07e08d836549`
 
-No merge until explicit implementation ACCEPT / REJECT.
+## IN PROGRESS
+
+```text
+Hydro-surface finishing — DESIGN NEXT
+└─ environmental context is now available from C1/C2/C3
+```
+
+Accepted hydrology routing/network remains frozen.
 
 ## NEXT
 
 ```text
-1. operator review C3-A checkpoint
-2. explicit implementation ACCEPT / REJECT
-3. ACCEPT → freeze/merge PR #85
-4. REJECT → identify one concrete C3 component before retuning
-5. later revisit deferred hydro-surface finishing with environmental context
-6. then continue Placement
+1. inspect deferred hydro-surface candidates against current contracts
+2. choose one bounded finishing slice
+3. design ACCEPT / REJECT
+4. implementation + automated guardrails
+5. representative operator-visible checkpoint
+6. explicit implementation ACCEPT / REJECT
+7. repeat only for remaining useful deferred slices
+8. then continue Placement
 ```
 
-Do not reopen Terrain/Hydrology/C1/C2 without new concrete evidence.
+Do not bundle all deferred hydrology finishing into one change.
 
-## Deferred
+## Deferred candidates
 
 ```text
-perennial / seasonal / dry channel classification
-headwater visual roots
-standing lake vs wetland/playa/dry basin
+perennial / seasonal / dry low-order channel classification
+diffuse headwater roots / low-order visibility
+standing lake vs wetland / playa / dry basin
 delta / estuary / fan morphology
 biome labels
 Placement continuation
