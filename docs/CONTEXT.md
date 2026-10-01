@@ -721,3 +721,25 @@ Operator artifact policy is now part of working context:
 - heavy Actions artifacts stay on GitHub unless explicitly requested;
 - when an operator checkpoint is generated, provide the direct workflow-run link for download;
 - assistant routine review uses statistics / logs / compact previews.
+
+
+## Operator decision: C1 Annual Climate Forcing ACCEPT
+
+The operator explicitly accepted PR #80 / annual-climate-forcing-v0.2.
+
+PR #80 merged into dev/0.2. Production implementation may proceed.
+
+Frozen during C1:
+- Terrain 0.2;
+- Hydrology 0.2;
+- existing moisture / vegetation semantics;
+- existing surface feature biases.
+
+C1 implementation target:
+- annual_mean_temperature_c;
+- annual_precipitation_mm;
+- explicit schema/plan 0.2 climate recipe;
+- deterministic replay;
+- operator-visible climate checkpoint.
+
+Heavy Actions artifacts remain remote; provide direct workflow-run links for operator download instead of copying large artifacts into chat.
