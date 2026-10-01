@@ -1,4 +1,124 @@
 {
   "case_version": "0.2",
-  "baseline": "PENDING"
+  "baseline": {
+    "accepted_attempt_index": 0,
+    "attempts_executed": 1,
+    "domain_data_sha256": "sha256:015367efd11f74c7e604da1ac3334b1f2e7d6cba255bf44f0e7fe221a37564d3",
+    "features": {
+      "lake-0001": {
+        "family": "hydro",
+        "geometry_type": "region_set",
+        "source_type": "generated"
+      },
+      "lake-0002": {
+        "family": "hydro",
+        "geometry_type": "region_set",
+        "source_type": "generated"
+      },
+      "lake-0003": {
+        "family": "hydro",
+        "geometry_type": "region_set",
+        "source_type": "generated"
+      },
+      "lake-0004": {
+        "family": "hydro",
+        "geometry_type": "region_set",
+        "source_type": "generated"
+      },
+      "ridge-01": {
+        "family": "terrain",
+        "geometry_type": "band",
+        "source_type": "specified"
+      },
+      "settlement-01": {
+        "family": "poi",
+        "geometry_type": "point",
+        "source_type": "specified"
+      }
+    },
+    "fields": {
+      "annual_precipitation": {
+        "dtype": "float32",
+        "max": 1459.866943359375,
+        "min": 685.870849609375,
+        "sha256": "sha256:67e03acd6d4985e55dd1ec340e647d273f7a7cdaaf5d233a604cd77e2de6cb37",
+        "shape": [
+          48,
+          64
+        ]
+      },
+      "elevation": {
+        "dtype": "float32",
+        "max": 564.0960083007812,
+        "min": -48.05617904663086,
+        "sha256": "sha256:d5d2de7e405790ec2651238ca3d1b8562df39ab0183c9dde37be823295234758",
+        "shape": [
+          48,
+          64
+        ]
+      },
+      "moisture": {
+        "dtype": "float32",
+        "max": 1,
+        "min": 0.5193184614181519,
+        "sha256": "sha256:178be3528e27e15869af5908d8c47944b67b98aaa54985e1f28b631f06485a81",
+        "shape": [
+          48,
+          64
+        ]
+      },
+      "temperature": {
+        "dtype": "float32",
+        "max": 11.8522310256958,
+        "min": 6.32014799118042,
+        "sha256": "sha256:ec2952658f20d7e52ae4845aa416d31e65a3df17c5c1deeb450b0b8fd781ff6b",
+        "shape": [
+          48,
+          64
+        ]
+      },
+      "vegetation_density": {
+        "dtype": "float32",
+        "max": 0.4266209602355957,
+        "min": 0,
+        "sha256": "sha256:0e8044d252ed29a9890bea9a3c93cb652deda20d312905de49829cb63472a574",
+        "shape": [
+          48,
+          64
+        ]
+      },
+      "water_depth": {
+        "dtype": "float32",
+        "max": 5.374839782714844,
+        "min": 0,
+        "sha256": "sha256:382f3d415c49f017ce3ef3dd429f921c3eadf7c905df1bb1a3f8f745d4a66cb8",
+        "shape": [
+          48,
+          64
+        ]
+      }
+    },
+    "generation_config_fingerprint": "sha256:a9c96f82f2477fea35f2c5d4aa7d17f543b52089e411f7dd3e521bbff3ad0381",
+    "plan_fingerprint": "sha256:15970c8b771e049ec958f2182419ee1f8316dd73e4e81e9b1014435ed3d6f1d8",
+    "potential_drainage": {
+      "nodes": 104,
+      "segments": 73
+    },
+    "rivers": {
+      "nodes": 49,
+      "segments": 31
+    },
+    "spec_fingerprint": "sha256:ae27f9151850fe61e789a182aeaa055cb2c511c2f352bd093c21283901e67bb9",
+    "valid_candidate_attempts": [
+      0
+    ],
+    "validation": {
+      "engine_invariants_passed": true,
+      "hard_constraints_passed": true,
+      "soft": {
+        "weighted_mean_score": 1,
+        "worst_effective_violation": 0
+      }
+    }
+  }
 }
