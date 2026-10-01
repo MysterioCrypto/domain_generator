@@ -660,10 +660,56 @@ Deferred work stays outside `release/0.2-prealpha`:
 - delta/estuary/fan morphology;
 - roads / human geography / interdependent POI graph.
 
-## Current checkpoint — post-release development planning
+## Current checkpoint — C4-A Environmental Seasonality design
+
+Post-release dependency audit:
+- C3 explicitly records that annual-only climate is not sufficient for defensible biome labels;
+- flow-permanence classification still lacks seasonality plus baseflow/groundwater;
+- therefore biome labels and channel permanence remain deferred;
+- the next bounded layer is an explicit climatological monthly envelope.
+
+Design PR #92:
+`https://github.com/MysterioCrypto/domain_generator/pull/92`
+
+Proposed C4-A semantics:
+```text
+optional climate.seasonality:
+  temperature_seasonal_amplitude_c
+  temperature_peak_month
+  precipitation_seasonality_log_amplitude
+  precipitation_peak_month
+
+annual temperature
+→ 12 monthly temperature means
+→ exact annual-mean conservation
+
+annual precipitation
+→ 12 monthly precipitation totals
+→ exact annual-total conservation
+```
+
+Boundary:
+- regional explicit seasonality; no latitude/hemisphere inference;
+- no additional monthly noise;
+- no seasonal moisture-transport rotation;
+- accepted annual C1 remains canonical;
+- C2 moisture and C3 vegetation remain unchanged in C4-A;
+- monthly fields are derived, not replacements for annual canonical fields;
+- no biome labels;
+- no channel permanence labels.
+
+Compatibility:
+- no seasonality recipe → frozen annual-only prealpha behavior;
+- release branch remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
+
+Current gate:
+```text
+C4-A design             OPERATOR REVIEW
+runtime implementation  NOT STARTED
+```
 
 Immediate next action:
-1. keep `release/0.2-prealpha` frozen;
-2. choose the next new semantic layer on `dev/0.2`;
-3. open a new INV-006 design gate before material semantic implementation;
-4. do not reopen accepted Core 0.2 layers without concrete evidence.
+1. explicit C4-A design ACCEPT / REJECT;
+2. ACCEPT → merge PR #92;
+3. only then implement seasonality contract/runtime/export + S01–S13;
+4. require representative operator-visible seasonal checkpoint before implementation acceptance.
