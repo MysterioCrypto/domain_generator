@@ -788,3 +788,23 @@ Pending:
 - operator-visible C1 checkpoint.
 
 Heavy Actions artifacts remain remote; future checkpoint response must include direct workflow-run link.
+
+
+## C1 implementation slice 3 — guardrails
+
+Added dedicated C01–C09 climate tests on PR #81:
+
+- C01 flat/no-noise uniform climate baseline;
+- C02 6.5 C/km elevation lapse;
+- C03 north/south world-space macro-gradient;
+- C04 windward > lee precipitation on a synthetic ridge;
+- C05 rotational consistency when terrain + moisture transport rotate together;
+- C06 requested land-mean precipitation conservation;
+- C07 deterministic replay / attempt-noise variation;
+- C08 Terrain/Hydrology upstream immutability;
+- C09 C1 compatibility: existing moisture and vegetation are unchanged.
+
+Existing Core 0.2 terrain/hydrology test fixtures were updated with explicit neutral climate recipes. Application-boundary test now expects climate field files in the canonical bundle.
+
+Known remaining maintenance item:
+schema snapshots must be regenerated/updated for the new ClimateSpec / PlanClimate contract structure.
