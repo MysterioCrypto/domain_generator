@@ -823,3 +823,25 @@ Pending:
 - CI stabilization;
 - any C01–C09 implementation defects revealed by tests;
 - C1 operator checkpoint.
+
+
+## C1 implementation slice 5 — operator checkpoint
+
+Added C1-A operator checkpoint tooling on PR #81:
+
+Artifacts:
+- 01-terrain-temperature.png
+- 02-terrain-precipitation.png
+- 03-precipitation-wind.png
+- 04-along-wind-cross-section.png
+- 05-temperature-elevation.png
+- statistics.json
+
+Workflow:
+`.github/workflows/surface-v02-c1-checkpoint.yml`
+
+The workflow uploads a GitHub Actions artifact named `surface-v02-c1` and emits compact previews into logs.
+
+Operator artifact policy:
+- do not materialize/download the full artifact into chat unless explicitly requested;
+- once the run is green, provide the direct workflow-run URL so the operator can download the artifact from GitHub.
