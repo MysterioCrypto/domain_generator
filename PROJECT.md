@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-placement-continuation
-checkpoint: p08-a-placement-environmental-metrics-design-review
-next_topic: operator-review-p08-a-design
+checkpoint: p08-a-placement-environmental-metrics-design-accepted
+next_topic: implement-p08-a-placement-environmental-metrics
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -25,6 +25,7 @@ accepted_designs:
   - effective-surface-moisture-v0.2
   - vegetation-biome-readiness-v0.2
   - potential-drainage-public-export-v0.2
+  - placement-environmental-site-metrics-v0.2
 completed:
   - core-0.1-prealpha-infrastructure
   - core-0.1-m11-acceptance-suite
@@ -472,4 +473,16 @@ distance_to_potential_drainage
 
 No candidate-generation or site-selection algorithm changes are proposed.
 
-Current gate: **P08-A DESIGN — OPERATOR REVIEW**.
+Operator decision: **P08-A DESIGN ACCEPTED**.
+
+Design PR #88 merged:
+`66003288e528fc340663d92f84ed14cbee88744b`
+
+Accepted scope:
+- Core 0.1 site metric registry remains unchanged;
+- Core 0.2 adds only `temperature_mean`, `annual_precipitation_mean`, `distance_to_potential_drainage`;
+- existing C2/C3-backed metrics keep their IDs;
+- candidate lattice / requirements / scoring / near-best / final selection semantics remain unchanged;
+- potential drainage proximity is geometry proximity, not permanent-water access.
+
+Next: separate implementation branch with P01–P11 and representative diagnostic checkpoint.
