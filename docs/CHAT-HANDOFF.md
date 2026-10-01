@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **Placement continuation — readiness audit**.
+Current checkpoint: **P08-A Placement environmental site metrics — design operator review**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -96,3 +96,29 @@ Do not reopen the accepted hydrology routing/network body without concrete evide
 
 Process rule:
 after every meaningful implementation/decision slice, update external context so a chat failure loses at most the current unfinished step.
+
+
+## Placement readiness result
+
+Existing Core 0.1 placement mechanics are retained:
+- lattice/reservation/footprint;
+- requirements;
+- preferences;
+- near-best;
+- deterministic weighted selection.
+
+Core 0.2 automatically gives new meaning to:
+- `moisture_mean` via C2;
+- `vegetation_density_mean` via C3.
+
+P08-A design PR #88:
+`https://github.com/MysterioCrypto/domain_generator/pull/88`
+
+Proposed Core 0.2-only metrics:
+```text
+temperature_mean
+annual_precipitation_mean
+distance_to_potential_drainage
+```
+
+No runtime implementation before explicit P08-A design ACCEPT.
