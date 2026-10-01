@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **Placement continuation — next-slice audit**.
+Current checkpoint: **Core 0.2 integrated acceptance hardening — A08 baseline pending**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -137,3 +137,17 @@ Immediate next step:
 - audit remaining Placement boundaries;
 - choose one bounded Core 0.2 follow-up slice;
 - design before implementation if semantics change.
+
+
+## Placement closure / A08 hardening
+
+Post-P08-A audit found no additional base Placement contract gap. New Core 0.2 metrics already pass through normal preset/compiler SiteProfile strings.
+
+Placement current scope is complete.
+
+Hardening PR #90:
+`https://github.com/MysterioCrypto/domain_generator/pull/90`
+
+A08 is a full Core 0.2 acceptance fixture using P08-A metrics through a real preset. Initial baseline is intentionally PENDING so CI can emit the exact deterministic snapshot before pinning.
+
+No new world semantics are introduced by PR #90.
