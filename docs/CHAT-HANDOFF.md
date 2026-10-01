@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **deferred hydro-surface finishing — choose/design one bounded slice**.
+Current checkpoint: **H11-A potential drainage public export — design operator review**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -54,12 +54,22 @@ Mountain influence:
 - terrain-shaped hydrology feeding C2;
 - no second direct C3 slope penalty.
 
-Next design candidates:
-- perennial / seasonal / dry low-order channels;
-- diffuse headwater roots / low-order visibility;
-- lake vs wetland/playa/dry basin;
-- delta/estuary/fan where receiving environment is known.
+Hydro-surface readiness audit:
+- perennial / seasonal / dry remains blocked by absent seasonality/baseflow/groundwater;
+- lake vs wetland/playa/dry basin remains blocked by absent water-balance/permanence;
+- delta/estuary/fan remains blocked by absent receiving-environment/process context;
+- headwater visibility can use the accepted potential scaffold, but that scaffold is currently internal only.
 
+H11-A design PR #86:
+`https://github.com/MysterioCrypto/domain_generator/pull/86`
+
+Proposal:
+```text
+Core 0.2 networks["rivers"] = accepted regional H09-D2
+Core 0.2 networks["potential_drainage"] = accepted H09-E potential network
+```
+
+No runtime implementation before explicit H11-A design acceptance.
 Do not reopen the accepted hydrology routing/network body without concrete evidence.
 
 Process rule:
