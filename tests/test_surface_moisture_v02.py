@@ -274,7 +274,7 @@ def test_m08_c2_does_not_mutate_upstream_fields() -> None:
     assert surface.annual_precipitation_mm is not None
 
 
-def test_m09_c2_keeps_vegetation_bit_identical_to_legacy_path() -> None:
+def test_c2_moisture_remains_superseded_after_c3_vegetation_activation() -> None:
     plan_v01 = _plan(version="0.1", rows=7, columns=7)
     plan_v02 = _plan(version="0.2", rows=7, columns=7)
     elevation = np.linspace(0.0, 500.0, 49, dtype=np.float64).reshape(7, 7)
@@ -300,8 +300,8 @@ def test_m09_c2_keeps_vegetation_bit_identical_to_legacy_path() -> None:
         rng_factory=RngFactory(plan_v02.seed),
     )
 
-    np.testing.assert_array_equal(current.vegetation_density, legacy.vegetation_density)
     assert not np.array_equal(current.moisture, legacy.moisture)
+    assert not np.array_equal(current.vegetation_density, legacy.vegetation_density)
 
 
 def test_m10_core_v01_moisture_and_vegetation_match_legacy_helpers() -> None:
