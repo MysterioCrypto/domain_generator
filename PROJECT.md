@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-c1-surface-climate-foundation
-checkpoint: c1-annual-climate-forcing-design-accepted
-next_topic: implement-c1-annual-climate-forcing
+checkpoint: c1-a-annual-climate-ready-for-operator-review
+next_topic: operator-review-c1-a
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -53,6 +53,7 @@ canonical_documents:
   terrain_aware_channel_initiation_v0_2: docs/design/terrain-aware-channel-initiation-v0.2.md
   additive_terrain_aware_source_promotion_v0_2: docs/design/additive-terrain-aware-source-promotion-v0.2.md
   multiscale_drainage_hierarchy_v0_2: docs/design/multiscale-drainage-hierarchy-v0.2.md
+  annual_climate_forcing_v0_2: docs/design/annual-climate-forcing-v0.2.md
 historical_documents:
   core_0_1_roadmap: docs/roadmap.md
 invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-008, INV-009, INV-010, INV-011]
@@ -159,3 +160,29 @@ implementation
 ```
 
 Green CI не заменяет human visual acceptance. Визуально удачный render также не отменяет failed invariants.
+
+
+## Surface / Climate 0.2 — C1-A operator checkpoint
+
+C1 annual climate forcing is implemented on draft PR #81 and is ready for human review.
+
+Representative C1-A:
+- annual temperature range: ~1.64 .. 11.50 °C;
+- temperature/elevation correlation: ~-0.774;
+- requested land-mean annual precipitation: 900 mm/year;
+- actual land mean: 900 mm/year;
+- precipitation p05 / median / p95: ~473 / 796 / 1647 mm/year;
+- precipitation maximum: ~3954 mm/year;
+- synthetic windward/lee fixture ratio: ~3.22, guard passed.
+
+CI:
+- push pytest: GREEN;
+- PR pytest: GREEN;
+- C1 checkpoint workflow: GREEN.
+
+Current assistant assessment:
+- temperature field is plausible enough for operator review and shows no obvious raster artifact;
+- precipitation mechanism behaves as intended and shows a coherent windward/lee response;
+- precipitation contrast is intentionally the main operator-review question: localized maxima near ~4,000 mm/year and a strong windward/lee contrast may be acceptable or may be too aggressive for the desired generic regional baseline.
+
+No parameter retuning occurs before operator review.
