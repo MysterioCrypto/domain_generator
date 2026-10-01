@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-placement-continuation
-checkpoint: p08-a-placement-environmental-metrics-design-accepted
-next_topic: implement-p08-a-placement-environmental-metrics
+checkpoint: p08-a-placement-environmental-metrics-ready-for-operator-review
+next_topic: operator-review-p08-a-implementation
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -486,3 +486,58 @@ Accepted scope:
 - potential drainage proximity is geometry proximity, not permanent-water access.
 
 Next: separate implementation branch with P01–P11 and representative diagnostic checkpoint.
+
+
+## Placement 0.2 — P08-A implementation checkpoint
+
+Implementation PR #89:
+`https://github.com/MysterioCrypto/domain_generator/pull/89`
+
+Branch:
+`impl/v0.2-placement-environmental-site-metrics`
+
+Semantic head:
+`ec59e0b6693c10fb6064ebf4b68d7f8c019097e8`
+
+Checkpoint:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36849780012`
+
+Automation:
+- P01–P11 GREEN;
+- push pytest GREEN;
+- PR pytest GREEN;
+- P08-A checkpoint GREEN.
+
+Implemented registry:
+```text
+Core 0.1:
+  historical 8 metrics only
+
+Core 0.2:
+  historical 8
+  + temperature_mean
+  + annual_precipitation_mean
+  + distance_to_potential_drainage
+```
+
+Representative diagnostic fixture:
+- 148 candidate sites;
+- 133 valid under fixture-only requirements;
+- 1 near-best;
+- selected x≈23.326 km, y≈38.308 km;
+- selected suitability ≈0.895.
+
+New metric ranges:
+- temperature_mean ~2.96..11.34 °C, median ~8.24;
+- annual_precipitation_mean ~302..3243 mm/year, median ~794;
+- distance_to_potential_drainage 0..~23.69 km, median ~4.38.
+
+Integrity:
+- upstream canonical hashes unchanged;
+- potential drainage network unchanged;
+- candidate lattice/scoring/selection semantics unchanged.
+
+The diagnostic placement recipe is test evidence only, not a hidden production settlement policy.
+
+Current gate: **P08-A IMPLEMENTATION — OPERATOR REVIEW**.
+Do not merge PR #89 before explicit ACCEPT / REJECT.
