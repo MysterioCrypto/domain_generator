@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **P08-A Placement environmental site metrics — design operator review**.
+Current checkpoint: **P08-A Placement environmental site metrics — design accepted, implementation next**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -111,14 +111,20 @@ Core 0.2 automatically gives new meaning to:
 - `moisture_mean` via C2;
 - `vegetation_density_mean` via C3.
 
-P08-A design PR #88:
+P08-A design PR #88 ACCEPTED / merged:
 `https://github.com/MysterioCrypto/domain_generator/pull/88`
 
-Proposed Core 0.2-only metrics:
+Merge commit:
+`66003288e528fc340663d92f84ed14cbee88744b`
+
+Accepted Core 0.2-only metrics:
 ```text
 temperature_mean
 annual_precipitation_mean
 distance_to_potential_drainage
 ```
 
-No runtime implementation before explicit P08-A design ACCEPT.
+Immediate next step:
+- separate implementation branch;
+- P01–P11 + representative diagnostic checkpoint;
+- no implementation merge before explicit ACCEPT.
