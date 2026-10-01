@@ -1102,3 +1102,13 @@ Artifact name:
 `surface-v02-c2`
 
 Heavy artifact remains on GitHub; operator should receive the direct workflow-run link after a green run.
+
+
+## C2-A checkpoint render fix
+
+The first C2-A workflow reached semantic rendering but failed a diagnostic equality assertion because canonical C1 temperature/precipitation fields are exported as float32, while Core internally derived C2 moisture from pre-export float64 climate arrays.
+
+Observed difference was only float32 roundoff:
+- max absolute moisture difference ~5.96e-08.
+
+The checkpoint assertion now uses a strict 1e-7 absolute tolerance. No Surface/Hydrology semantics changed.
