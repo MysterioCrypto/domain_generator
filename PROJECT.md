@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-c1-surface-climate-foundation
-checkpoint: hydrology-v0.2-accepted
-next_topic: design-surface-climate-foundation-v0.2
+checkpoint: c1-annual-climate-forcing-design-proposed
+next_topic: accept-annual-climate-forcing-v0.2
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -129,7 +129,7 @@ Priority-Flood conditioning
 
 H09-E **ACCEPTED by operator for the river-hierarchy slice**. MFD + H09-D2 regional network + H09-E potential hierarchy are frozen unless a new concrete defect requires reopening them.
 
-Hydrology 0.2 formally ACCEPTED by operator. PR #72 is ready to merge into `dev/0.2`.
+Hydrology 0.2 formally ACCEPTED by operator and merged through PR #72 into `dev/0.2`.
 
 ## Deferred hydro-surface finishing
 
