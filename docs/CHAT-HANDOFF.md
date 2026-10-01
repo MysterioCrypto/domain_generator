@@ -17,7 +17,7 @@ docs/PROGRESS.md
 docs/design/effective-surface-moisture-v0.2.md
 ```
 
-Current checkpoint: **C3 vegetation / biome readiness — design accepted, implementation next**.
+Current checkpoint: **C3-A vegetation implementation — operator review**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -69,10 +69,22 @@ Acceptance qualification:
 - operator noted insufficient expertise for independent ecological expert assessment;
 - do not describe this as expert scientific validation.
 
+C3 implementation:
+- draft PR #85: `https://github.com/MysterioCrypto/domain_generator/pull/85`;
+- semantic head: `eb1365759f891991e8614f712eb1db7ab7da2bae`;
+- V01–V11 GREEN;
+- push/PR pytest GREEN;
+- C3-A workflow GREEN: `https://github.com/MysterioCrypto/domain_generator/actions/runs/36842261493`;
+- artifact: `surface-v02-c3`.
+
+Representative vegetation p05 / median / p95:
+~0.261 / 0.297 / 0.348.
+
+Important: C3 vegetation_density is an abstract normalized ecological potential index, not percent canopy cover and not literal NPP.
+
 Immediate next step:
-- create separate C3 implementation branch;
-- implement V01–V11 + representative C3-A checkpoint;
-- no merge until explicit implementation ACCEPT.
+- explicit C3-A implementation ACCEPT / REJECT;
+- no merge before that decision.
 
 Process rule:
 after every meaningful implementation/decision slice, update external context so a chat failure loses at most the current unfinished step.
