@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from math import atan, cos, degrees, exp, floor, inf, isfinite, radians, sin, sqrt
 
 import numpy as np
@@ -486,3 +487,111 @@ def annual_precipitation_field(
     if not bool(np.isfinite(result).all()) or bool(np.any(result <= 0.0)):
         raise SurfaceCapabilityError("annual precipitation must be finite and positive")
     return result
+
+
+
+_HOLDRIDGE_PET_MM_PER_C = 58.93
+
+
+@dataclass(frozen=True, slots=True)
+class EffectiveMoistureComponents:
+    climatic_wetness: np.ndarray
+    water_proximity_signal: np.ndarray
+    catchment_signal: np.ndarray
+    climate_gated_catchment: np.ndarray
+    local_hydrology: np.ndarray
+    pre_slope_moisture: np.ndarray
+    slope_retention: np.ndarray
+    effective_moisture: np.ndarray
+
+
+def effective_surface_moisture_components(
+    *,
+    adapter: GridAdapter,
+    annual_mean_temperature_c: np.ndarray,
+    annual_precipitation_mm: np.ndarray,
+    flow_accumulation_km2: np.ndarray,
+    water_depth_m: np.ndarray,
+    slope_deg: np.ndarray,
+    stream_threshold_km2: float,
+    water_moisture_boost: float,
+    water_moisture_decay_km: float,
+) -> EffectiveMoistureComponents:
+    """Build deterministic Core 0.2 effective-moisture components as float64 arrays."""
+    expected_shape = (adapter.rows, adapter.columns)
+    fields = (
+        ("annual_mean_temperature_c", annual_mean_temperature_c),
+        ("annual_precipitation_mm", annual_precipitation_mm),
+        ("flow_accumulation_km2", flow_accumulation_km2),
+        ("water_depth_m", water_depth_m),
+        ("slope_deg", slope_deg),
+    )
+    for name, field in fields:
+        if not isinstance(field, np.ndarray) or field.shape != expected_shape:
+            raise SurfaceCapabilityError(f"{name} must match grid shape")
+        if not bool(np.isfinite(field).all()):
+            raise SurfaceCapabilityError(f"{name} must be finite")
+
+    if bool(np.any(annual_precipitation_mm <= 0.0)):
+        raise SurfaceCapabilityError("annual_precipitation_mm must be positive")
+    if bool(np.any(flow_accumulation_km2 < 0.0)):
+        raise SurfaceCapabilityError("flow_accumulation_km2 must be non-negative")
+    if bool(np.any(water_depth_m < 0.0)):
+        raise SurfaceCapabilityError("water_depth_m must be non-negative")
+    if bool(np.any(slope_deg < 0.0)) or bool(np.any(slope_deg > 90.0)):
+        raise SurfaceCapabilityError("slope_deg must be in [0, 90]")
+    if not isfinite(stream_threshold_km2) or stream_threshold_km2 <= 0.0:
+        raise SurfaceCapabilityError("stream_threshold_km2 must be finite and > 0")
+    if (
+        not isfinite(water_moisture_boost)
+        or water_moisture_boost < 0.0
+        or water_moisture_boost > 1.0
+    ):
+        raise SurfaceCapabilityError("water_moisture_boost must be finite and in [0, 1]")
+    if not isfinite(water_moisture_decay_km) or water_moisture_decay_km <= 0.0:
+        raise SurfaceCapabilityError("water_moisture_decay_km must be finite and > 0")
+
+    temperature = annual_mean_temperature_c.astype(np.float64, copy=False)
+    precipitation = annual_precipitation_mm.astype(np.float64, copy=False)
+    accumulation = flow_accumulation_km2.astype(np.float64, copy=False)
+    slope = slope_deg.astype(np.float64, copy=False)
+
+    biotemperature = np.clip(temperature, 0.0, 30.0)
+    pet_proxy_mm = _HOLDRIDGE_PET_MM_PER_C * biotemperature
+    climatic_wetness = precipitation / (precipitation + pet_proxy_mm)
+    climatic_wetness = np.clip(climatic_wetness, 0.0, 1.0)
+
+    water_mask = water_depth_m > 0.0
+    distance = distance_to_water_km(
+        water_mask.astype(np.bool_, copy=False),
+        cell_size_km=adapter.cell_size_km,
+    )
+    if bool(water_mask.any()):
+        water_proximity = water_moisture_boost * np.exp(
+            -distance / float(water_moisture_decay_km)
+        )
+    else:
+        water_proximity = np.zeros(expected_shape, dtype=np.float64)
+
+    catchment_signal = accumulation / (
+        accumulation + float(stream_threshold_km2)
+    )
+    catchment_signal = np.clip(catchment_signal, 0.0, 1.0)
+    climate_gated_catchment = climatic_wetness * catchment_signal
+    local_hydrology = np.maximum(water_proximity, climate_gated_catchment)
+
+    pre_slope = climatic_wetness + (1.0 - climatic_wetness) * local_hydrology
+    slope_retention = np.square(np.cos(np.radians(slope)))
+    effective = np.clip(pre_slope * slope_retention, 0.0, 1.0)
+    effective[water_mask] = 1.0
+
+    return EffectiveMoistureComponents(
+        climatic_wetness=climatic_wetness,
+        water_proximity_signal=water_proximity,
+        catchment_signal=catchment_signal,
+        climate_gated_catchment=climate_gated_catchment,
+        local_hydrology=local_hydrology,
+        pre_slope_moisture=pre_slope,
+        slope_retention=slope_retention,
+        effective_moisture=effective,
+    )
