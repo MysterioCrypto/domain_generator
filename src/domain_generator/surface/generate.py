@@ -32,6 +32,7 @@ from .derive import (
     SurfaceCapabilityError,
     annual_mean_temperature_field,
     annual_precipitation_field,
+    climate_aware_vegetation_components,
     effective_surface_moisture_components,
     moisture_potential_field,
     slope_degrees,
@@ -169,17 +170,19 @@ def _build_surface(
         raise SurfaceCapabilityError("hydrology water depth must be finite and non-negative")
 
     adapter = GridAdapter.from_plan(plan)
-    moisture_potential = moisture_potential_field(
-        adapter=adapter,
-        water_depth_m=water_depth,
-        moisture_base=plan.surface.moisture_base,
-        water_moisture_boost=plan.surface.water_moisture_boost,
-        water_moisture_decay_km=plan.surface.water_moisture_decay_km,
-        moisture_noise_amplitude=plan.surface.moisture_noise_amplitude,
-        moisture_noise_scale_km=plan.surface.moisture_noise_scale_km,
-        rng_factory=rng_factory,
-        attempt_index=attempt_index,
-    )
+    legacy_moisture_potential: np.ndarray | None = None
+    if plan.plan_version == "0.1":
+        legacy_moisture_potential = moisture_potential_field(
+            adapter=adapter,
+            water_depth_m=water_depth,
+            moisture_base=plan.surface.moisture_base,
+            water_moisture_boost=plan.surface.water_moisture_boost,
+            water_moisture_decay_km=plan.surface.water_moisture_decay_km,
+            moisture_noise_amplitude=plan.surface.moisture_noise_amplitude,
+            moisture_noise_scale_km=plan.surface.moisture_noise_scale_km,
+            rng_factory=rng_factory,
+            attempt_index=attempt_index,
+        )
 
     moisture_bias = np.zeros(expected_shape, dtype=np.float64)
     vegetation_bias = np.zeros(expected_shape, dtype=np.float64)
@@ -257,8 +260,16 @@ def _build_surface(
         )
 
     water_mask = water_depth > 0.0
-    legacy_moisture64 = np.clip(moisture_potential + moisture_bias, 0.0, 1.0)
-    legacy_moisture64[water_mask] = 1.0
+    legacy_moisture64: np.ndarray | None = None
+    if plan.plan_version == "0.1":
+        if legacy_moisture_potential is None:
+            raise SurfaceCapabilityError("Core 0.1 legacy moisture was not generated")
+        legacy_moisture64 = np.clip(
+            legacy_moisture_potential + moisture_bias,
+            0.0,
+            1.0,
+        )
+        legacy_moisture64[water_mask] = 1.0
 
     slope64 = slope_degrees(
         elevation,
@@ -286,14 +297,27 @@ def _build_surface(
         )
         moisture64[water_mask] = 1.0
     else:
+        if legacy_moisture64 is None:
+            raise SurfaceCapabilityError("Core 0.1 legacy moisture was not generated")
         moisture64 = legacy_moisture64
 
-    # C2-A intentionally freezes vegetation on the pre-C2 moisture path.
-    vegetation_potential = vegetation_potential_field(
-        moisture=legacy_moisture64,
-        slope_deg=slope64,
-        vegetation_slope_zero_deg=plan.surface.vegetation_slope_zero_deg,
-    )
+    if plan.plan_version == "0.2":
+        if temperature64 is None:
+            raise SurfaceCapabilityError("Core 0.2 temperature field was not generated")
+        vegetation = climate_aware_vegetation_components(
+            moisture=moisture64,
+            annual_mean_temperature_c=temperature64,
+        )
+        vegetation_potential = vegetation.vegetation_potential
+    else:
+        if legacy_moisture64 is None:
+            raise SurfaceCapabilityError("Core 0.1 legacy moisture was not generated")
+        vegetation_potential = vegetation_potential_field(
+            moisture=legacy_moisture64,
+            slope_deg=slope64,
+            vegetation_slope_zero_deg=plan.surface.vegetation_slope_zero_deg,
+        )
+
     vegetation64 = np.clip(vegetation_potential + vegetation_bias, 0.0, 1.0)
     vegetation64[water_mask] = 0.0
 
