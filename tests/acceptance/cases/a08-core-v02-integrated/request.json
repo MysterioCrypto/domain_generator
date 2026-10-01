@@ -1,0 +1,84 @@
+{
+  "request_version": "0.2",
+  "domain_spec": {
+    "schema_version": "0.2",
+    "id": "acceptance-a08-core-v02-integrated",
+    "label": "A08 Core 0.2 Integrated",
+    "seed": 8008,
+    "domain": {
+      "size": {
+        "width_km": 64.0,
+        "height_km": 48.0
+      }
+    },
+    "simulation": {
+      "cell_size_km": 1.0
+    },
+    "terrain": {
+      "base_elevation_m": 180.0,
+      "noise_layers": [
+        {
+          "id": "macro",
+          "scale_km": 64.0,
+          "amplitude_m": 280.0
+        },
+        {
+          "id": "regional",
+          "scale_km": 20.0,
+          "amplitude_m": 100.0
+        },
+        {
+          "id": "local",
+          "scale_km": 6.0,
+          "amplitude_m": 30.0
+        }
+      ]
+    },
+    "hydrology": {
+      "stream_threshold_km2": 40.0,
+      "lake_min_area_km2": 2.0,
+      "lake_min_depth_m": 1.5,
+      "river_depth_at_threshold_m": 0.5,
+      "river_depth_exponent": 0.3
+    },
+    "surface": {
+      "moisture_base": 0.35,
+      "water_moisture_boost": 0.55,
+      "water_moisture_decay_km": 2.0,
+      "moisture_noise_amplitude": 0.1,
+      "moisture_noise_scale_km": 10.0,
+      "vegetation_slope_zero_deg": 45.0,
+      "climate": {
+        "mean_temperature_c": 10.0,
+        "north_minus_south_temperature_c": -3.0,
+        "temperature_noise_amplitude_c": 1.0,
+        "mean_annual_precipitation_mm": 850.0,
+        "moisture_transport_bearing_deg": 90.0,
+        "orographic_scale_km": 18.0,
+        "orographic_strength": 1.2,
+        "precipitation_noise_log_amplitude": 0.15,
+        "climate_noise_scale_km": 24.0
+      }
+    },
+    "features": [
+      {
+        "id": "ridge-01",
+        "preset": "a08_ridge"
+      },
+      {
+        "id": "settlement-01",
+        "label": "Integrated Placement Fixture",
+        "preset": "a08_settlement"
+      }
+    ],
+    "constraints": []
+  },
+  "generation_config": {
+    "generation_config_version": "0.1",
+    "semantic": {
+      "max_attempts": 1,
+      "target_valid_candidates": 1
+    },
+    "observability": {}
+  }
+}
