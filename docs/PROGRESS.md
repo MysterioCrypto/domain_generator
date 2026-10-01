@@ -57,10 +57,10 @@ renderer/smoothing as an upstream-fix substitute
 ```text
 Surface / climate / biome 0.2
 ├─ C1 annual climate forcing — ACCEPTED
-└─ C2 effective surface moisture — DESIGN GATE
+└─ C2 effective surface moisture — IMPLEMENTATION
    ├─ C1 climate frozen / ACCEPTED
-   ├─ PR #82 proposed
-   └─ awaiting operator ACCEPT / REJECT
+   ├─ PR #82 ACCEPTED / merged
+   └─ effective moisture implementation — IN PROGRESS
    ├─ Hydrology 0.2 merged / frozen
    ├─ Surface 0.1 baseline inspected
    ├─ PR #80 ACCEPTED / merged
@@ -104,9 +104,9 @@ PR #72 is approved for merge into dev/0.2 after formal Hydrology ACCEPT.
 ## NEXT
 
 ```text
-1. Operator ACCEPT / REJECT PR #82
-2. If ACCEPT: implement C2 effective moisture
-3. C2-A diagnostics / operator checkpoint
+1. Implement C2 effective moisture
+2. Add M01–M10 guardrails
+3. Generate C2-A diagnostics / operator checkpoint
 4. Only then design C3 vegetation / biome readiness
 4. Later hydro-surface finishing
    ├─ low-order headwater-root visibility
