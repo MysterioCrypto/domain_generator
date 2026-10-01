@@ -57,11 +57,15 @@ Core 0.2 integrated acceptance — DONE
 ├─ exact replay / bundle — GREEN
 └─ full pytest — GREEN
 
-Core 0.2 release hardening — IN PROGRESS
-├─ package/docs/version consistency audit — DONE
-├─ PR #91 — draft/open
-├─ generator identity 0.2.0.dev0 — PROPOSED
-└─ A01–A08 baseline re-sign — PENDING
+Core 0.2 release hardening — DONE
+├─ PR #91 — MERGED
+├─ generator identity 0.2.0.dev0 — DONE
+├─ README / architecture alignment — DONE
+├─ A01–A08 provenance re-sign — DONE
+└─ merge-head pytest — GREEN
+
+Core 0.2 release candidate — OPERATOR REVIEW
+└─ release/0.2-prealpha — NOT CREATED
 ```
 
 Accepted hydrology routing/network remains frozen.
@@ -69,13 +73,10 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. align generator/package development version with Core 0.2
-2. refresh README current-state documentation
-3. update canonical architecture Core 0.2 delta
-4. add version/docs consistency guardrails
-5. full pytest + A08
-6. decide whether Core 0.2 is ready for release-candidate branch/tag
-7. keep new physical layers out until release-hardening decision
+1. explicit Core 0.2 release-candidate ACCEPT / REJECT
+2. ACCEPT → create release/0.2-prealpha from accepted dev head
+3. record exact release commit and freeze release scope
+4. only after release closure resume new semantic layers on development line
 ```
 
 Do not bundle all deferred hydrology finishing into one change.
