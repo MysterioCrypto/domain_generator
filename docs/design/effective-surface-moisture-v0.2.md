@@ -1,8 +1,8 @@
 # Effective Surface Moisture v0.2
 
-Status: **accepted design gate; implementation under operator review**
+Status: **ACCEPTED / implemented / merged**
 Target branch: `dev/0.2`
-Checkpoint: C2-A
+Accepted implementation: PR #83 / C2-B
 Depends on: accepted Terrain 0.2 + Hydrology 0.2 + C1 annual climate forcing
 
 ## 1. Problem
@@ -247,3 +247,27 @@ Operator questions:
 - Holdridge-style annual PET uses approximately 58.93 × biotemperature and relates PET to annual precipitation.
 - FAO soil-water balance separates precipitation input from evapotranspiration, runoff, deep drainage, capillary rise and storage change.
 - C2 is explicitly a reduced annual index because Core 0.2 does not yet model monthly climate, soil storage, radiation, humidity or groundwater depth.
+
+## 14. Implementation acceptance
+
+C2-A with representative `water_moisture_decay_km = 8` was rejected because the actual-water term produced broad artificial-looking river/lake halos.
+
+C2-B changed only the representative checkpoint value to `2 km`. No C1, Terrain, Hydrology, catchment-combination or slope-retention semantics were changed.
+
+Accepted C2-B workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36837227248`
+
+Representative accepted result:
+- effective moisture p05 / median / p95 ~0.548 / 0.658 / 0.864;
+- mean ~0.673;
+- land >= 0.8 ~10.4%;
+- distance-to-water correlation ~-0.069;
+- precipitation correlation ~+0.820;
+- water-proximity mean ~0.068.
+
+The `2 km` value is a representative calibration for the 1 km checkpoint world, not a universal constant. `water_moisture_decay_km` remains an explicit required semantic parameter.
+
+Implementation merged through PR #83 at:
+`de5646a1af9c9057fe13cf1e7eb92bb1a3728e46`.
+
+C2 is frozen unless later evidence identifies a concrete C2 defect.
