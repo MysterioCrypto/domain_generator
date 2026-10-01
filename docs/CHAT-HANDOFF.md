@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **Core 0.2 release candidate — operator review**.
+Current checkpoint: **Core 0.2 prealpha release frozen — post-release development planning**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -183,4 +183,16 @@ A01–A08 are GREEN. Version re-sign changed only DomainData provenance hashes; 
 
 No known blocker remains inside accepted Core 0.2 scope.
 
-Do not create `release/0.2-prealpha` until explicit operator ACCEPT.
+Operator formally ACCEPTED the release candidate.
+
+Frozen release:
+- branch: `release/0.2-prealpha`;
+- exact freeze commit: `c69c1af010a085fb80d248af703a77471fc6c9d7`;
+- generator identity: `0.2.0.dev0`.
+
+The release branch is frozen. New semantic work continues only on `dev/0.2`.
+
+Immediate next step:
+- choose the next post-release semantic layer;
+- open a new INV-006 design gate before material implementation;
+- do not reopen accepted Core 0.2 semantics without concrete evidence.
