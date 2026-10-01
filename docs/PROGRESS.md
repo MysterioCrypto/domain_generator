@@ -56,7 +56,7 @@ renderer/smoothing as an upstream-fix substitute
 
 ```text
 Surface / climate / biome 0.2
-└─ C1 annual climate forcing — IMPLEMENTATION
+└─ C1 annual climate forcing — OPERATOR REVIEW
    ├─ Hydrology 0.2 merged / frozen
    ├─ Surface 0.1 baseline inspected
    ├─ PR #80 ACCEPTED / merged
@@ -67,7 +67,9 @@ Surface / climate / biome 0.2
    ├─ v0.2 fixture compatibility — IMPLEMENTED
    ├─ schema snapshots — UPDATED
    ├─ C1-A renderer/workflow — IMPLEMENTED
-   └─ CI + operator checkpoint review — IN PROGRESS
+   ├─ push + PR pytest — GREEN
+   ├─ C1-A workflow — GREEN
+   └─ operator ACCEPT / REJECT — PENDING
 
 Hydrology 0.2 — ACCEPTED
 ├─ H10-A shoreline refinement — KEEP
@@ -98,9 +100,9 @@ PR #72 is approved for merge into dev/0.2 after formal Hydrology ACCEPT.
 ## NEXT
 
 ```text
-1. Implement C1 annual temperature + precipitation
-2. Add C01–C09 guardrails
-3. Generate C1 operator checkpoint
+1. Operator review C1-A workflow artifact
+2. ACCEPT → freeze C1 climate forcing and merge PR #81
+3. REJECT → identify temperature vs precipitation defect before retuning
 4. Later hydro-surface finishing
    ├─ low-order headwater-root visibility
    ├─ perennial / seasonal / dry classification
@@ -127,9 +129,10 @@ accepted spatial semantic layer
 ## CURRENT DECISION GATE
 
 ```text
-Hydrology 0.2                 ACCEPTED
 Terrain 0.2                   ACCEPTED
-next                          Surface / climate / biome C1 design
+Hydrology 0.2                 ACCEPTED
+C1 annual climate forcing     OPERATOR REVIEW
+next decision                 C1-A ACCEPT / REJECT
 ```
 
 Deferred to climate/surface/biomes:
