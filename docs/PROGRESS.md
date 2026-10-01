@@ -58,7 +58,10 @@ Core 0.2 integrated acceptance — DONE
 └─ full pytest — GREEN
 
 Core 0.2 release hardening — IN PROGRESS
-└─ package/docs/version consistency audit — DONE
+├─ package/docs/version consistency audit — DONE
+├─ PR #91 — draft/open
+├─ generator identity 0.2.0.dev0 — PROPOSED
+└─ A01–A08 baseline re-sign — PENDING
 ```
 
 Accepted hydrology routing/network remains frozen.
