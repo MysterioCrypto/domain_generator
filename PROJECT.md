@@ -6,9 +6,9 @@ status: in-progress
 historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
-current_milestone: v0.2-batch-hydro-surface-finishing
-checkpoint: h11-a-potential-drainage-export-ready-for-operator-review
-next_topic: operator-review-h11-a-implementation
+current_milestone: v0.2-batch-placement-continuation
+checkpoint: h11-a-potential-drainage-export-accepted
+next_topic: placement-readiness-audit
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -36,6 +36,7 @@ completed:
   - core-0.2-annual-climate-forcing
   - core-0.2-effective-surface-moisture
   - core-0.2-climate-aware-vegetation
+  - core-0.2-potential-drainage-public-export
 rejected_or_superseded:
   - core-0.1-world-generation-semantics
   - guide-renderer-as-fix-for-upstream-world-state
@@ -418,5 +419,28 @@ the first checkpoint exposed a historical runtime `DomainData` validator that en
 
 No root DomainData version bump and no arbitrary extra network IDs.
 
-Current gate: **H11-A IMPLEMENTATION — OPERATOR REVIEW**.
-Do not merge PR #87 before explicit ACCEPT / REJECT.
+Operator decision: **H11-A IMPLEMENTATION ACCEPTED**.
+
+Implementation PR #87 merged into `dev/0.2`:
+`cef91e81c86c64555ae1e1363d7ffaf2934ff6ce`
+
+Accepted public boundary:
+```text
+Core 0.1:
+  networks["rivers"]
+
+Core 0.2:
+  networks["rivers"]
+  networks["potential_drainage"]
+```
+
+The H09-E potential geometry itself was not modified; H11-A only exposes the already accepted scaffold.
+
+H11-A is frozen unless a concrete public-contract defect appears.
+
+Remaining physical hydro classifications stay deferred:
+- perennial / seasonal / dry;
+- lake vs wetland/playa/dry basin;
+- delta / estuary / fan.
+
+Next active area: **Placement continuation / readiness audit**.
