@@ -1,6 +1,6 @@
 # Potential Drainage Public Export v0.2
 
-Status: **PROPOSED — INV-006 design gate; no runtime implementation yet**
+Status: **ACCEPTED design gate; runtime implementation authorized but not yet accepted**
 Target branch: `dev/0.2`
 Checkpoint: H11-A
 Depends on: accepted Hydrology 0.2 H09-E potential drainage hierarchy + accepted C1/C2/C3 environmental context
@@ -255,3 +255,13 @@ That makes later bounded work possible without reopening Hydrology geometry:
 - setting-specific map renderers.
 
 If no additional environmental model is added in Core 0.2, H11-A is sufficient to close the deferred low-order-drainage exposure problem without inventing unsupported flow permanence.
+
+
+## 12. Design acceptance
+
+Operator decision: **ACCEPTED**.
+
+PR #86 merged into `dev/0.2` at:
+`712dae3179605b894558a9e399cd6929ffcda459`.
+
+Implementation is authorized only for the bounded public-export semantics above. Unsupported channel permanence, basin-regime and receiving-environment classifications remain deferred.
