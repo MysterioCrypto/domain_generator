@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **H11-A potential drainage public export — design accepted, implementation next**.
+Current checkpoint: **H11-A potential drainage public export — implementation operator review**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -74,10 +74,23 @@ Core 0.2 networks["potential_drainage"] = accepted H09-E potential network
 
 No flow-permanence labels, no Strahler public metadata, no hydrology geometry changes.
 
+H11-A implementation:
+- draft PR #87: `https://github.com/MysterioCrypto/domain_generator/pull/87`;
+- semantic head: `b77d3247577c552117ba6bf4567d4e7563f062b1`;
+- X01–X08 GREEN;
+- push/PR pytest GREEN;
+- checkpoint GREEN:
+  `https://github.com/MysterioCrypto/domain_generator/actions/runs/36845608659`;
+- exported keys: `rivers`, `potential_drainage`;
+- regional runtime/export = 58 nodes / 33 segments exactly;
+- potential runtime/export = 111 nodes / 66 segments exactly;
+- upstream canonical hashes unchanged.
+
+A historical DomainData validator had to be made version-aware: Core 0.1 still permits only `rivers`; Core 0.2 additionally permits only `potential_drainage`.
+
 Immediate next step:
-- separate H11-A implementation branch;
-- X01–X08 + lightweight contract checkpoint;
-- no implementation merge before explicit ACCEPT.
+- explicit H11-A implementation ACCEPT / REJECT;
+- no merge before that decision.
 
 Do not reopen the accepted hydrology routing/network body without concrete evidence.
 
