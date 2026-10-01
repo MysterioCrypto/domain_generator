@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-hydro-surface-finishing
-checkpoint: h11-a-potential-drainage-export-design-review
-next_topic: operator-review-h11-a-design
+checkpoint: h11-a-potential-drainage-export-design-accepted
+next_topic: implement-h11-a-potential-drainage-export
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -24,6 +24,7 @@ accepted_designs:
   - annual-climate-forcing-v0.2
   - effective-surface-moisture-v0.2
   - vegetation-biome-readiness-v0.2
+  - potential-drainage-public-export-v0.2
 completed:
   - core-0.1-prealpha-infrastructure
   - core-0.1-m11-acceptance-suite
@@ -358,4 +359,16 @@ networks["potential_drainage"]  = accepted H09-E potential network
 
 No routing, geometry, water-depth, climate, moisture or vegetation changes.
 
-Current gate: **H11-A DESIGN — OPERATOR REVIEW**.
+Operator decision: **H11-A DESIGN ACCEPTED**.
+
+Design PR #86 merged:
+`712dae3179605b894558a9e399cd6929ffcda459`
+
+Acceptance scope:
+- public export boundary only;
+- no routing/network geometry changes;
+- no Strahler public metadata extension;
+- no perennial/seasonal/dry labels;
+- no basin-regime or delta/estuary/fan inference.
+
+Next: implement H11-A on a separate branch with X01–X08 and operator-visible contract evidence.
