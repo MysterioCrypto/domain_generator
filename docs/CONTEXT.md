@@ -266,11 +266,44 @@ Deferred candidates now eligible for design:
 
 The accepted Hydrology 0.2 routing/network body remains frozen. The next slice must classify or finish accepted structure rather than reroute rivers.
 
+Readiness audit result:
+- perennial / seasonal / dry low-order classification: still BLOCKED by absent seasonality/baseflow/groundwater semantics;
+- lake vs wetland / playa / dry basin: still BLOCKED by absent water-balance/permanence semantics;
+- delta / estuary / fan: still BLOCKED by absent known receiving-environment/process context;
+- diffuse headwater/low-order visibility: presentation-ready, but requires public access to the already accepted H09-E potential scaffold.
+
+Chosen bounded slice: **H11-A public potential-drainage export**.
+
+Design PR #86:
+`https://github.com/MysterioCrypto/domain_generator/pull/86`
+
+Proposed semantics:
+```text
+Core 0.2 DomainData:
+networks["rivers"]
+    = existing accepted regional H09-D2 RiverNetwork
+
+networks["potential_drainage"]
+    = existing accepted H09-E potential RiverNetwork
+```
+
+Contract finding:
+- `DomainData.networks` already supports arbitrary named `RiverNetwork` values;
+- no root DomainData version bump or new binary field is required for H11-A;
+- Core 0.1 output remains unchanged;
+- no Strahler metadata extension is included in this slice.
+
+Current gate:
+```text
+H11-A design          OPERATOR REVIEW
+runtime implementation NOT STARTED
+```
+
 Immediate next action:
-1. inspect existing hydrology contracts/designs and deferred assumptions;
-2. choose one bounded finishing slice;
-3. write design before implementation under INV-006;
-4. do not combine channel regime, basin type and delta/estuary/fan morphology into one implementation step.
+1. explicit H11-A design ACCEPT / REJECT;
+2. ACCEPT → merge design;
+3. only then implement exact assembly/export guardrails;
+4. do not add unsupported flow-permanence labels in H11-A.
 
 ## Rejected / constrained paths that must not silently return
 
