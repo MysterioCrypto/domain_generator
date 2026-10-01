@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "src/domain_generator/assembly.py"
+      - "src/domain_generator/contracts/data.py"
       - "tests/test_potential_drainage_export_v02.py"
       - "scripts/check_potential_drainage_export_v02.py"
       - "examples/terrain-v02/checkpoint/**"
