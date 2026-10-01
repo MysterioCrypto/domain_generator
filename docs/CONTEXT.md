@@ -1067,3 +1067,12 @@ Core 0.2 moisture is now expected to differ from Core 0.1 legacy moisture, while
 Pending:
 - CI stabilization;
 - C2-A component diagnostics and operator workflow.
+
+
+## C2 implementation checkpoint — guardrails GREEN
+
+PR #83 current semantic head passed both push and pull-request pytest after the C2 core + M01–M10 guardrail slices.
+
+No upstream Terrain/Hydrology/C1 changes were required.
+
+Next step: build the C2-A operator diagnostics and workflow; do not retune the moisture formula before seeing the component maps.
