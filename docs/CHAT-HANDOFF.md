@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **H11-A potential drainage public export — design operator review**.
+Current checkpoint: **H11-A potential drainage public export — design accepted, implementation next**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -60,16 +60,25 @@ Hydro-surface readiness audit:
 - delta/estuary/fan remains blocked by absent receiving-environment/process context;
 - headwater visibility can use the accepted potential scaffold, but that scaffold is currently internal only.
 
-H11-A design PR #86:
+H11-A design PR #86 ACCEPTED / merged:
 `https://github.com/MysterioCrypto/domain_generator/pull/86`
 
-Proposal:
+Merge commit:
+`712dae3179605b894558a9e399cd6929ffcda459`
+
+Accepted design:
 ```text
 Core 0.2 networks["rivers"] = accepted regional H09-D2
 Core 0.2 networks["potential_drainage"] = accepted H09-E potential network
 ```
 
-No runtime implementation before explicit H11-A design acceptance.
+No flow-permanence labels, no Strahler public metadata, no hydrology geometry changes.
+
+Immediate next step:
+- separate H11-A implementation branch;
+- X01–X08 + lightweight contract checkpoint;
+- no implementation merge before explicit ACCEPT.
+
 Do not reopen the accepted hydrology routing/network body without concrete evidence.
 
 Process rule:
