@@ -350,11 +350,35 @@ Automation:
 
 No spatial rerender is required because H11-A does not alter accepted H09-E geometry.
 
+H11-A implementation status:
+```text
+implementation PR #87   ACCEPTED / MERGED
+merge commit             cef91e81c86c64555ae1e1363d7ffaf2934ff6ce
+```
+
+Accepted public boundary:
+- Core 0.1 exports only `networks["rivers"]`;
+- Core 0.2 exports `rivers` and `potential_drainage`;
+- `potential_drainage` is a drainage scaffold, not a flow-permanence class;
+- canonical water authority remains `rivers`;
+- routing/network geometry, lakes, water depth, C1/C2/C3 remain unchanged.
+
+H11-A is frozen unless a concrete export/contract defect appears.
+
+Unsupported physical classifications remain deferred:
+- perennial / seasonal / dry;
+- standing lake vs wetland / playa / dry basin;
+- delta / estuary / fan.
+
+## Current checkpoint — Placement continuation / readiness audit
+
+The hydro-surface finishing slice is closed at the current model fidelity. The project now returns to Placement as previously planned.
+
 Immediate next action:
-1. explicit H11-A implementation ACCEPT / REJECT;
-2. ACCEPT → mark PR #87 ready, merge, and freeze this public boundary;
-3. REJECT → identify a concrete public-contract defect only;
-4. do not reopen routing/network geometry from an export-layer issue.
+1. inspect current Placement design/code against accepted Terrain/Hydrology/C1/C2/C3 and public potential drainage;
+2. determine which existing Placement semantics remain valid from Core 0.1 and which need a Core 0.2 redesign;
+3. select one bounded Placement slice;
+4. document it under INV-006 before implementation if semantics materially change.
 
 ## Rejected / constrained paths that must not silently return
 
