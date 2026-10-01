@@ -40,8 +40,10 @@ PR #85 merge:
 ## IN PROGRESS
 
 ```text
-Hydro-surface finishing — DESIGN NEXT
-└─ environmental context is now available from C1/C2/C3
+Hydro-surface finishing — H11-A DESIGN OPERATOR REVIEW
+├─ readiness audit — DONE
+├─ design PR #86 — draft/open
+└─ runtime implementation — NOT STARTED
 ```
 
 Accepted hydrology routing/network remains frozen.
@@ -49,13 +51,13 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. inspect deferred hydro-surface candidates against current contracts
-2. choose one bounded finishing slice
-3. design ACCEPT / REJECT
-4. implementation + automated guardrails
-5. representative operator-visible checkpoint
+1. operator review H11-A design PR #86
+2. explicit design ACCEPT / REJECT
+3. ACCEPT → merge design
+4. implementation: export accepted potential_drainage network only
+5. X01–X08 guardrails + contract/operator evidence
 6. explicit implementation ACCEPT / REJECT
-7. repeat only for remaining useful deferred slices
+7. close unsupported hydro classifications as still deferred
 8. then continue Placement
 ```
 
@@ -81,3 +83,7 @@ accepted design
 + explicit operator ACCEPT
 = accepted spatial semantic layer
 ```
+
+
+H11-A design PR:
+`https://github.com/MysterioCrypto/domain_generator/pull/86`
