@@ -60,7 +60,9 @@ Surface / climate / biome 0.2
 └─ C2 effective surface moisture — IMPLEMENTATION
    ├─ C1 climate frozen / ACCEPTED
    ├─ PR #82 ACCEPTED / merged
-   └─ effective moisture implementation — IN PROGRESS
+   ├─ effective moisture core — IMPLEMENTED
+   ├─ PR #83 opened
+   └─ M01–M10 guardrails / diagnostics — IN PROGRESS
    ├─ Hydrology 0.2 merged / frozen
    ├─ Surface 0.1 baseline inspected
    ├─ PR #80 ACCEPTED / merged
