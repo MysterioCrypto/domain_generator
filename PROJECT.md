@@ -7,8 +7,8 @@ historical_release_branch: release/0.1-prealpha
 historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 current_milestone: v0.2-batch-hydro-surface-finishing
-checkpoint: c3-vegetation-accepted
-next_topic: design-hydro-surface-finishing
+checkpoint: h11-a-potential-drainage-export-design-review
+next_topic: operator-review-h11-a-design
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -333,3 +333,29 @@ Mountain influence clarification:
 - therefore mountains influence vegetation through accepted physical/environmental layers without double-counting slope.
 
 Next bounded area: revisit deferred hydro-surface finishing now that climate/moisture/vegetation context exists.
+
+
+## Hydrology 0.2 — H11-A public potential-drainage export design
+
+Design PR #86:
+`https://github.com/MysterioCrypto/domain_generator/pull/86`
+
+Proposed document:
+`docs/design/potential-drainage-public-export-v0.2.md`
+
+Readiness audit:
+- perennial / seasonal / dry classification remains blocked by missing seasonality/baseflow/groundwater semantics;
+- lake vs wetland/playa/dry-basin classification remains blocked by missing water-balance/permanence semantics;
+- delta/estuary/fan remains blocked by missing known receiving-environment/process context;
+- low-order/headwater visibility is presentation-ready, but currently the accepted potential hierarchy is not exposed at the public DomainData boundary.
+
+Proposed H11-A:
+```text
+Core 0.2:
+networks["rivers"]              = accepted H09-D2 regional network
+networks["potential_drainage"]  = accepted H09-E potential network
+```
+
+No routing, geometry, water-depth, climate, moisture or vegetation changes.
+
+Current gate: **H11-A DESIGN — OPERATOR REVIEW**.
