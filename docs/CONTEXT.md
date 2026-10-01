@@ -758,3 +758,33 @@ Implemented:
 - representative Terrain/Hydrology request now carries an explicit C1 climate recipe.
 
 No climate fields are generated yet in this slice. Terrain/Hydrology and existing moisture/vegetation remain unchanged.
+
+
+## C1 implementation slice 2 — climate fields
+
+Implemented on PR #81:
+
+- deterministic annual mean temperature field;
+- fixed experimental lapse rate 6.5 C/km around domain mean elevation;
+- explicit north/south thermal macro-gradient;
+- independent coherent temperature noise;
+- deterministic annual precipitation field;
+- explicit moisture-transport bearing;
+- continuous bilinear upwind terrain sampling;
+- exponential upwind kernel over 4 orographic scales;
+- windward/lee log-weight contrast;
+- land-mean precipitation normalization;
+- independent coherent precipitation noise;
+- SurfaceState carries climate fields for Core 0.2 while Core 0.1 remains climate-free;
+- Core 0.2 DomainData exports canonical `temperature` and `annual_precipitation`;
+- existing moisture and vegetation computation remains unchanged in C1.
+
+Implementation detail:
+if a domain contains no dry land cells, precipitation normalization falls back to the whole domain rather than failing. Normal mixed land/water domains normalize on land only as designed.
+
+Pending:
+- C01–C09 tests / regression guards;
+- schema snapshots / any contract fixture updates revealed by CI;
+- operator-visible C1 checkpoint.
+
+Heavy Actions artifacts remain remote; future checkpoint response must include direct workflow-run link.
