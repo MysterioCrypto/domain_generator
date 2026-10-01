@@ -32,14 +32,16 @@ Core 0.2
 ## IN PROGRESS
 
 ```text
-C2 effective surface moisture — OPERATOR REVIEW
+C2 effective surface moisture — C2-B RETUNE
 ├─ design PR #82 — ACCEPTED / merged
 ├─ implementation PR #83 — draft/open
 ├─ effective-moisture core — IMPLEMENTED
 ├─ M01–M10 guards — GREEN
 ├─ push/PR pytest — GREEN
 ├─ C2-A workflow — GREEN
-└─ operator ACCEPT / REJECT — PENDING
+├─ C2-A operator decision — REJECT
+│  └─ culprit: actual-water proximity scale (8 km decay halo)
+└─ C2-B bounded water-proximity correction — IN PROGRESS
 ```
 
 Latest workflow:
@@ -48,34 +50,24 @@ Latest workflow:
 Artifact:
 `surface-v02-c2`
 
-Main review question:
-`water_moisture_decay_km = 8` creates broad wet halos around rivers/lakes. Decide whether that scale reads plausibly before retuning.
+C2-A decision:
+`water_moisture_decay_km = 8` is rejected as the representative generic actual-water scale because it creates broad artificial-looking halos around rivers/lakes.
+
+Keep unchanged:
+climatic wetness, catchment contribution, slope retention, Terrain, Hydrology and C1.
 
 ## NEXT
 
-If C2-A = ACCEPT:
-
 ```text
-1. freeze C2 moisture
-2. merge PR #83
-3. INV-006 design C3 vegetation / biome readiness
-4. implement vegetation only after design acceptance
-5. later revisit deferred hydro-surface finishing
-6. then continue Placement
+1. sync PR #83 implementation branch with current dev/0.2
+2. retune only representative water_moisture_decay_km
+3. rerun same-world C2 checkpoint
+4. model/operator review of corrected proximity scale
+5. ACCEPT → freeze C2 and merge PR #83
+6. INV-006 design C3 vegetation / biome readiness
 ```
 
-If C2-A = REJECT:
-
-```text
-identify one concrete defect:
-  climatic wetness
-  actual-water proximity scale
-  catchment contribution
-  slope retention
-
-then make one bounded correction;
-do not reopen Terrain/Hydrology/C1 without evidence.
-```
+Do not reopen Terrain/Hydrology/C1 without new concrete evidence.
 
 ## Deferred
 
