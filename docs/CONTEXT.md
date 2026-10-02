@@ -705,7 +705,7 @@ Compatibility:
 C4-A status:
 ```text
 design PR #92           ACCEPTED / MERGED
-implementation PR #93   OPERATOR REVIEW
+implementation PR #93   ACCEPTED / MERGED
 ```
 
 Design merge commit:
@@ -779,15 +779,28 @@ Visual review:
 - no additional spatial climate noise appears;
 - fixed regional phase remains visibly a bounded climatological model rather than weather simulation.
 
+Operator decision: **C4-A IMPLEMENTATION ACCEPTED**.
+
+Implementation merge commit:
+`570a5c4730419d17bce69f9e804b805125343fa5`
+
+Accepted C4-A guarantees:
+- explicit seasonality remains opt-in;
+- annual climate fields remain canonical;
+- 24 monthly public fields remain derived;
+- annual-only Core 0.2 requests retain frozen prealpha behavior and fingerprints;
+- C2/C3 remain unchanged;
+- no biome/permanence semantics were smuggled into this slice.
+
 Current gate:
 ```text
-C4-A implementation   OPERATOR REVIEW
-PR #93                draft/open
-merge                 BLOCKED pending explicit ACCEPT / REJECT
+C4-A implementation   ACCEPTED / MERGED
+release/0.2-prealpha  STILL FROZEN
+next                  POST-C4 DEPENDENCY AUDIT
 ```
 
 Immediate next action:
-1. explicit C4-A implementation ACCEPT / REJECT;
-2. ACCEPT → freeze/merge PR #93 on `dev/0.2`;
-3. REJECT → identify one concrete seasonality component before retuning;
-4. keep `release/0.2-prealpha` frozen regardless.
+1. audit remaining dependencies for the deferred candidates;
+2. select exactly one bounded next semantic layer;
+3. open a new INV-006 design gate before material implementation;
+4. do not reopen accepted C4-A semantics without concrete evidence.
