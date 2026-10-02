@@ -939,6 +939,29 @@ def _activate_channel_skeleton(
         and not bool(excluded[row, column])
     }
     sources.difference_update(confluences)
+
+    order_position = {cell: index for index, cell in enumerate(order)}
+    for row in range(rows):
+        for column in range(columns):
+            cell = (row, column)
+            if not bool(skeleton[cell]):
+                continue
+            target_index = int(receiver_index[cell])
+            if target_index < 0:
+                continue
+            target = _cell_from_index(target_index, columns)
+            if target in lake_by_cell or bool(excluded[target]) or bool(skeleton[target]):
+                continue
+            raise HydrologyCapabilityError(
+                "activated channel skeleton is not downstream-closed: "
+                f"cell={cell}, target={target}, "
+                f"cell_order={order_position.get(cell)}, "
+                f"target_order={order_position.get(target)}, "
+                f"target_active_upstream={int(active_upstream[target])}, "
+                f"target_eligible={bool(eligible[target])}, "
+                f"target_edge={_is_edge(target, shape)}"
+            )
+
     return skeleton, sources, confluences
 
 
