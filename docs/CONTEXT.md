@@ -859,10 +859,10 @@ surface.climate.classification:
 
 Classification requires C4 seasonality. Existing C4 requests without classification remain unchanged.
 
-C5-A design status:
+C5-A status:
 ```text
 design PR #94           ACCEPTED / MERGED
-runtime implementation  NEXT
+implementation PR #95   OPERATOR REVIEW
 ```
 
 Design merge commit:
@@ -880,10 +880,73 @@ Scientific boundary:
 - `Thot > 10 C` for C/D;
 - `Thot <= 10 C` for E.
 
+Implementation PR #95:
+`https://github.com/MysterioCrypto/domain_generator/pull/95`
+
+Semantic head:
+`43519587fac92e94cb8bbbb64222c876d7579882`
+
+Implemented:
+- optional `surface.climate.classification`;
+- only scheme `koppen_geiger_local_season_v1`;
+- classification requires C4 seasonality;
+- isolated deterministic classifier consumes persisted float32 C4 climate through float64 views;
+- fixed codes 1..30;
+- one derived public `uint8` field;
+- absence of classification preserves C4 fingerprint semantics.
+
+Scientific rules checked against Peel/Beck:
+- B precedence;
+- C/D: `Thot > 10 C`;
+- E: `Thot <= 10 C`;
+- C/D split: `Tcold = 0 C`;
+- s/w overlap resolved by total cold-vs-warm half-year precipitation.
+
+Checkpoint:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36968143576`
+
+Artifact:
+`surface-v02-c5`
+
+Automation:
+- K01–K15 GREEN;
+- schema snapshots GREEN;
+- push full pytest GREEN;
+- PR full pytest GREEN;
+- representative renderer GREEN.
+
+Integrity:
+- every pre-existing C4 field exact-equal classification-off vs classification-on;
+- features exact-equal;
+- networks exact-equal;
+- output dtype/role/unit exact.
+
+Representative used classes:
+```text
+Csb  76.93%
+Dsc  10.40%
+Dsb   7.40%
+Dfc   3.24%
+ET    1.49%
+Cfb   0.33%
+Dfb   0.22%
+```
+
+Interpretation:
+- the diagnostic C4 recipe intentionally has month-07 thermal peak and month-01 precipitation peak, so broad dry-summer Csb is expected;
+- colder mountain structures produce D/ET transitions;
+- categorical boundaries follow continuous accepted climate rather than stochastic class noise;
+- this result does not become a default world climate.
+
+Current gate:
+```text
+C5-A implementation   OPERATOR REVIEW
+PR #95                draft/open
+merge                 BLOCKED pending explicit ACCEPT / REJECT
+```
+
 Immediate next action:
-1. create separate C5-A implementation branch;
-2. implement optional classification contract/runtime/export only;
-3. add K01–K15;
-4. run full pytest;
-5. render representative climate-regime checkpoint;
-6. do not merge implementation before explicit ACCEPT / REJECT.
+1. explicit C5-A implementation ACCEPT / REJECT;
+2. ACCEPT → freeze/merge PR #95;
+3. REJECT → identify a concrete classifier rule/contract defect;
+4. keep Köppen optional and do not alter generated climate to improve classification aesthetics.
