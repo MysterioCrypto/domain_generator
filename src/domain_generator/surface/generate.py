@@ -292,10 +292,14 @@ def _build_surface(
                         "unsupported Core 0.2 climate classification scheme"
                     )
                 climate_regime = classify_koppen_geiger_local_season(
-                    monthly_mean_temperature_c=monthly_temperature64,
-                    monthly_precipitation_mm=monthly_precipitation64,
-                    annual_mean_temperature_c=temperature64,
-                    annual_precipitation_mm=precipitation64,
+                    monthly_mean_temperature_c=monthly_temperature64.astype(
+                        np.float32
+                    ),
+                    monthly_precipitation_mm=monthly_precipitation64.astype(
+                        np.float32
+                    ),
+                    annual_mean_temperature_c=temperature64.astype(np.float32),
+                    annual_precipitation_mm=precipitation64.astype(np.float32),
                     temperature_peak_month=seasonality.temperature_peak_month,
                 )
 
