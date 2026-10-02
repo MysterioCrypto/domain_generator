@@ -449,14 +449,6 @@ def test_o12_marine_propagates_only_through_already_accepted_environmental_depen
 
     mask = marine_assembly.field_payloads["marine_mask"].astype(bool)
     assert np.any(mask)
-    historical_water = inland_assembly.field_payloads["water_depth"] > 0.0
-    print(
-        "H12_O12_DIAGNOSTIC "
-        f"marine_cells={int(np.count_nonzero(mask))} "
-        f"historical_water_inside_future_marine={int(np.count_nonzero(historical_water & mask))} "
-        f"historical_water_total={int(np.count_nonzero(historical_water))}"
-    )
-
     # Marine topology cannot alter atmospheric climate generation.
     for field_id in ("temperature", "annual_precipitation"):
         np.testing.assert_array_equal(
@@ -470,6 +462,39 @@ def test_o12_marine_propagates_only_through_already_accepted_environmental_depen
     np.testing.assert_array_equal(
         marine_assembly.field_payloads["vegetation_density"][mask],
         np.zeros(int(np.count_nonzero(mask)), dtype=np.float32),
+    )
+
+    # H12 is a semantic receiving-water boundary, not a new routing model.
+    terrain = TerrainState(elevation_m=_coastal_terrain())
+    inland_state = generate_hydrology_v02(
+        _plan(*terrain.elevation_m.shape, threshold=5.0, sea_level_m=None),
+        terrain,
+    )
+    marine_state = generate_hydrology_v02(
+        _plan(*terrain.elevation_m.shape, threshold=5.0, sea_level_m=0.0),
+        terrain,
+    )
+    np.testing.assert_array_equal(
+        marine_state.routing_elevation_m,
+        inland_state.routing_elevation_m,
+    )
+    np.testing.assert_array_equal(
+        marine_state.fill_elevation_m,
+        inland_state.fill_elevation_m,
+    )
+    np.testing.assert_array_equal(
+        marine_state.flow_accumulation_km2,
+        inland_state.flow_accumulation_km2,
+    )
+    assert marine_state.continuous_routing is not None
+    assert inland_state.continuous_routing is not None
+    np.testing.assert_array_equal(
+        marine_state.continuous_routing.flow_angle_rad,
+        inland_state.continuous_routing.flow_angle_rad,
+    )
+    np.testing.assert_array_equal(
+        marine_state.continuous_routing.fractions,
+        inland_state.continuous_routing.fractions,
     )
 
 
