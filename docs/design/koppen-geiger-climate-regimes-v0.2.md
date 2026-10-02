@@ -78,6 +78,40 @@ Public scheme id:
 koppen_geiger_local_season_v1
 ```
 
+## 2A. Universality boundary
+
+C4 climate generation and C5 climate classification are intentionally separate concerns.
+
+C4 does **not** hard-code a northern-hemisphere or Earth-regional season:
+- `temperature_peak_month` is explicit input;
+- `temperature_seasonal_amplitude_c` is explicit input;
+- `precipitation_peak_month` is explicit input;
+- `precipitation_seasonality_log_amplitude` is explicit input;
+- none of those values has a hidden default when seasonality is enabled.
+
+Therefore the same generator contract can represent, for example:
+- a cold northern-style regional climate;
+- a hot arid regional climate;
+- a winter-wet or summer-wet climate;
+- an equatorial low-seasonality climate;
+- an inverted or otherwise fictional seasonal phase.
+
+C5 does **not** constrain those inputs. It only interprets already generated monthly climate when explicitly requested.
+
+Köppen–Geiger itself is Earth-derived and its thresholds are not universal laws of climate or ecology. Therefore:
+
+> `koppen_geiger_local_season_v1` is an optional named interpretation scheme, not canonical Core climate semantics.
+
+Consequences:
+- no Köppen classifier is enabled by default;
+- absence of `surface.climate.classification` means no climate-regime categorical field exists;
+- a non-Earthlike fantasy world may use C1/C4 climate without any Köppen classification;
+- future classifiers may coexist under different explicit scheme ids;
+- biome generation must not assume Köppen classes exist;
+- climate generation must never be retuned to make Köppen output look more familiar.
+
+The generator is universal at the contract/composition level, not a claim that the current physical model already contains every real-world process. For example, current C1/C4 do not yet model oceanic circulation, latitude-driven insolation, migrating monsoons, groundwater, or daily weather unless future bounded layers add those semantics explicitly.
+
 ## 3. Opt-in contract
 
 C5-A must not silently add new output to every previously accepted C4 request.
@@ -550,4 +584,6 @@ Implementation may be accepted only if:
 - Do not add soils/groundwater to C5.
 - Do not classify hydrologic permanence in C5.
 - Do not silently introduce a second climate-classification scheme.
+- Do not make Köppen classification mandatory for Core 0.2/C4 worlds.
+- Do not use Köppen thresholds to alter or validate the generated climate itself.
 - If the local warm/cold half-year adaptation proves visibly inadequate, reject/redesign that adaptation rather than altering accepted monthly climate fields.
