@@ -12,7 +12,11 @@ from domain_generator.application import (
     load_preset_catalog,
     registry_for_request,
 )
-from domain_generator.compiler import compile_domain_spec, semantic_plan_fingerprint
+from domain_generator.compiler import (
+    compile_domain_spec,
+    domain_spec_fingerprint,
+    semantic_plan_fingerprint,
+)
 from domain_generator.contracts import GenerationRequest
 from domain_generator.contracts.data import FieldRole, RiverNetwork
 from domain_generator.contracts.layout import LayoutCandidate, SourcePlanRef
@@ -279,12 +283,30 @@ def test_s09_enabling_seasonality_does_not_change_annual_c1_c2_c3_fields() -> No
     )
 
 
-def test_s10_absent_seasonality_preserves_annual_only_runtime_contract() -> None:
+def test_s10_absent_seasonality_preserves_frozen_prealpha_contract() -> None:
     state = _surface(_plan(seasonality=False))
     assert state.annual_mean_temperature_c is not None
     assert state.annual_precipitation_mm is not None
     assert state.monthly_mean_temperature_c is None
     assert state.monthly_precipitation_mm is None
+
+    request = GenerationRequest.model_validate(
+        json.loads((A08 / "request.json").read_text(encoding="utf-8"))
+    )
+    catalog = load_preset_catalog(A08 / "presets.json")
+    registry = registry_for_request(request, catalog)
+    plan = compile_domain_spec(
+        request.domain_spec,
+        registry=registry,
+        generator_version="0.2.0.dev0",
+    )
+
+    assert domain_spec_fingerprint(request.domain_spec) == (
+        "sha256:ae27f9151850fe61e789a182aeaa055cb2c511c2f352bd093c21283901e67bb9"
+    )
+    assert semantic_plan_fingerprint(plan) == (
+        "sha256:15970c8b771e049ec958f2182419ee1f8316dd73e4e81e9b1014435ed3d6f1d8"
+    )
 
 
 def test_s11_core_v01_cannot_contain_climate_or_seasonality() -> None:
