@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-post-release-c4-seasonality
-checkpoint: c4-a-environmental-seasonality-ready-for-operator-review
-next_topic: operator-review-c4-a-implementation
+checkpoint: c4-a-environmental-seasonality-accepted
+next_topic: post-c4-dependency-audit
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -757,5 +757,26 @@ Visual review:
 - configured wettest/driest and warmest/coldest months are correct;
 - no hidden monthly spatial noise is visible.
 
-Current gate: **C4-A IMPLEMENTATION — OPERATOR REVIEW**.
-Do not merge PR #93 before explicit ACCEPT / REJECT.
+Operator decision: **C4-A IMPLEMENTATION ACCEPTED**.
+
+Implementation PR #93 merged into `dev/0.2`:
+`570a5c4730419d17bce69f9e804b805125343fa5`
+
+Accepted post-release C4-A semantics:
+- optional explicit 12-month climatological envelope;
+- 12 derived monthly temperature fields;
+- 12 derived monthly precipitation fields;
+- annual C1 climate remains canonical;
+- exact annual conservation within persisted float32 tolerance;
+- C2 moisture and C3 vegetation remain annual and unchanged;
+- no hidden latitude/hemisphere inference;
+- no monthly climate noise;
+- no seasonal wind rotation;
+- no biome or flow-permanence classification;
+- no-seasonality requests preserve frozen prealpha annual-only behavior and fingerprints.
+
+C4-A is complete.
+
+Next gate: perform a fresh dependency audit before selecting the next post-release semantic layer. Do not infer that biome labels or flow-permanence are automatically next simply because seasonality now exists; each still needs its remaining dependencies checked.
+
+`release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
