@@ -1067,3 +1067,16 @@ Therefore:
 - Placement algorithms remain unchanged, although existing water-dependent metric values may observe the new marine water.
 
 This resolves an internal contradiction in the original H12 design text; it is not a new ecological model.
+
+
+### H12-A implementation clarification — coastal dependency propagation
+
+C2 uses distance to canonical water. Therefore adding marine water can change C2 moisture on nearby non-marine coastal land, and C3 can change through accepted C2 moisture.
+
+Correct isolation rule:
+- Terrain exact-unchanged;
+- C1/C4/C5 climate exact-unchanged;
+- C2/C3 algorithms and parameters unchanged;
+- Placement algorithms unchanged;
+- C2/C3/Placement values may change only through already accepted dependencies whose inputs changed because marine water became canonical;
+- no new marine-specific ecology term is allowed in H12-A.
