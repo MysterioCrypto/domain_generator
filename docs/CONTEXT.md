@@ -1125,3 +1125,31 @@ Current action:
 - schema snapshots only after runtime semantics are stable.
 
 PR #97 remains draft/unmerged.
+
+
+### H12-A recovery checkpoint — targeted gate GREEN
+
+Implementation PR #97 targeted workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36978575264`
+
+Current implementation head at this gate:
+`b891da9eb0d4ddea9c765ddde43d5a61f1729621`
+
+Resolved recovery defects:
+- absent additive `marine=None` no longer changes Core 0.1 / pre-H12 fingerprints;
+- marine terminal mask is now passed consistently into Strahler hierarchy;
+- H12 preserves accepted no-marine routing/accumulation as the upstream authority;
+- C1 precipitation normalization uses an internal pre-marine water baseline, keeping C1 forcing exact-unchanged;
+- C2/C3 still consume canonical marine water through their already accepted dependencies;
+- generated v0.2 JSON Schema snapshots are synchronized.
+
+Targeted result:
+```text
+schema snapshots   GREEN
+O01-O13            GREEN
+```
+
+Next:
+- finish full pytest gate;
+- render dedicated H12 coastal/archipelago operator checkpoint;
+- keep PR #97 draft/unmerged until explicit implementation ACCEPT / REJECT.
