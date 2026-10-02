@@ -358,3 +358,11 @@ H12 implementation clarification:
 - new marine cells therefore inherit accepted canonical-water semantics: moisture=1, vegetation=0;
 - outside marine support C2/C3 stay exact-unchanged;
 - C1/C4/C5 climate remains unchanged.
+
+
+Further H12 clarification:
+- C2 distance-to-water means marine water can affect nearby coastal land moisture;
+- C3 may then change via accepted C2 moisture;
+- algorithms/parameters stay unchanged; only deterministic dependency propagation is allowed;
+- C1/C4/C5 climate remains exact-unchanged;
+- no marine-specific ecological formula is part of H12.
