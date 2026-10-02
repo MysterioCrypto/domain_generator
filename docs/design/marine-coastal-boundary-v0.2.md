@@ -267,16 +267,21 @@ If evidence shows accepted routing itself produces incorrect land drainage once 
 
 ## 13. Relationship to climate and surface
 
-C1/C2/C3/C4/C5 are unchanged in H12-A.
+H12-A does not change the algorithms or parameters of C1/C2/C3/C4/C5.
 
 In particular:
 - marine water does not automatically change C1 precipitation;
 - no ocean moderation of temperature is added;
 - no sea-breeze or monsoon model is added;
-- C2 continues its already accepted canonical-water semantics unless a later bounded design distinguishes marine influence;
-- C3 vegetation on marine cells is reported as an integration issue if present; H12-A must not silently redesign C3.
+- C4/C5 climate outputs remain independent of the new marine topology;
+- C2 continues its already accepted canonical-water semantics;
+- therefore newly marine cells become canonical water and receive the already accepted C2 water value exactly 1;
+- C3 likewise applies its already accepted canonical-water rule and yields vegetation 0 on those marine cells;
+- outside marine-affected canonical-water support, C2/C3 outputs must remain exact-unchanged.
 
-First establish correct marine topology/geometry; only then decide which environmental layers should consume it.
+This is propagation of an accepted input semantic, not a redesign of C2/C3.
+
+First establish correct marine topology/geometry; only then decide whether later layers need explicit marine-vs-freshwater distinctions.
 
 ## 14. Relationship to delta / estuary semantics
 
@@ -373,9 +378,14 @@ When marine is enabled:
 
 For cells/features not affected by marine support:
 - terrain exact-unchanged;
-- accepted climate exact-unchanged;
-- C2/C3/C4/C5 exact-unchanged;
-- Placement logic unchanged.
+- accepted C1/C4/C5 climate exact-unchanged;
+- C2/C3 exact-unchanged;
+- Placement algorithms unchanged.
+
+On newly marine cells, accepted downstream canonical-water semantics are allowed and required to propagate:
+- C2 moisture = 1 exactly;
+- C3 vegetation = 0 exactly;
+- water-dependent Placement metric values may observe the new canonical water, without changing Placement algorithms.
 
 Hydrology differences are limited to the explicitly marine-affected boundary:
 - marine/lake classification;
@@ -454,3 +464,19 @@ PR #96 merged into `dev/0.2` at:
 `f8efae6e24cdda68fb10960f13ca69d342a61a7b`.
 
 Implementation is authorized only for the bounded marine/coastline semantics above. Inland compatibility and the absence of hidden sea-level assumptions remain mandatory.
+
+
+## 20. Implementation clarification — canonical-water propagation
+
+During implementation preparation, an internal contradiction in the accepted text was identified.
+
+Marine water is explicitly part of canonical `water_depth`. Accepted C2/C3 semantics already depend on canonical water. Therefore it would be impossible and incorrect to require C2/C3 values on newly marine cells to remain equal to the no-marine world.
+
+Normative clarification:
+- no C2/C3 algorithm or parameter is changed by H12-A;
+- newly marine cells use existing canonical-water semantics: C2 moisture = 1 and C3 vegetation = 0;
+- C2/C3 remain exact-unchanged outside marine-affected support;
+- C1/C4/C5 climate remains exact-unchanged everywhere;
+- Placement algorithms remain unchanged, while existing water-dependent metrics may observe the newly canonical marine water.
+
+This clarification resolves a contract contradiction and does not introduce a new environmental model.
