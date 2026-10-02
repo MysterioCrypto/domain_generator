@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **C5-A Köppen–Geiger Climate Regimes — formally accepted / merged**.
+Current checkpoint: **H12-A Marine / Coastal Boundary — design operator review**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -313,3 +313,33 @@ Immediate next step:
 - select exactly one next bounded semantic layer;
 - open a new design gate before implementation;
 - keep `release/0.2-prealpha` frozen.
+
+
+## Post-C5 audit / H12-A
+
+Post-C5 audit found:
+- direct biome labels still deferred;
+- channel permanence still blocked by groundwater/baseflow/storage;
+- basin permanence/type still blocked by water balance/infiltration;
+- delta/estuary/fan still blocked by receiving-environment/process context.
+
+Universality audit exposed a more fundamental missing capability: no sea/ocean/coastline semantics exist.
+
+Design PR #96:
+`https://github.com/MysterioCrypto/domain_generator/pull/96`
+
+Proposal:
+- optional explicit `hydrology.marine.sea_level_m`;
+- no hidden sea level;
+- marine = boundary-connected below-sea terrain using 4-neighbour connectivity;
+- enclosed below-sea basins remain inland;
+- derived `marine_mask`;
+- refined 4× coastline;
+- distinct `MarineFeature`;
+- `marine_outlet` river nodes;
+- regional/potential rivers stop at first coastline intersection;
+- no tides/waves/salinity/delta/estuary semantics yet.
+
+Immediate next step:
+- explicit H12-A design ACCEPT / REJECT;
+- no runtime implementation before design acceptance.
