@@ -1956,8 +1956,8 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         climate_normalization_water_depth_m = baseline.water_depth_m
     else:
         surfaces = priority_flood_surfaces(elevation)
-        routing_elevation_m = routing_elevation_m
-        fill_elevation_m = fill_elevation_m
+        routing_elevation_m = surfaces.routing_elevation_m
+        fill_elevation_m = surfaces.fill_elevation_m
         field = continuous_routing_field(
             routing_elevation_m,
             cell_size_km=plan.grid.cell_size_km,
