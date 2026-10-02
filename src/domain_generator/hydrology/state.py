@@ -90,3 +90,7 @@ class HydrologyState:
     marine_mask: np.ndarray | None = None
     marine_candidates: tuple[MarineCandidate, ...] = ()
     marine_features: dict[str, MarineFeature] = field(default_factory=dict)
+    # H12-only internal compatibility input for C1 precipitation normalization.
+    # When marine is enabled this stores the exact pre-marine accepted
+    # water-depth state; it is never serialized as a public field.
+    climate_normalization_water_depth_m: np.ndarray | None = None
