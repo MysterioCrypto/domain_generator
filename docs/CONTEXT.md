@@ -1037,14 +1037,19 @@ H12-A intentionally does not add:
 
 The known marine receiving environment is intended to remove one prerequisite blocker for later coastal-process design.
 
-Current gate:
+H12-A design status:
 ```text
-H12-A design             OPERATOR REVIEW
-runtime implementation   NOT STARTED
+design PR #96           ACCEPTED / MERGED
+runtime implementation  NEXT
 ```
 
+Design merge commit:
+`f8efae6e24cdda68fb10960f13ca69d342a61a7b`
+
 Immediate next action:
-1. explicit H12-A design ACCEPT / REJECT;
-2. ACCEPT → merge PR #96;
-3. only then implement marine contract/runtime/coastline/outlet semantics + O01–O13;
-4. require a dedicated coastal/archipelago checkpoint before implementation acceptance.
+1. create separate H12-A implementation branch;
+2. implement opt-in marine contract/runtime/coastline/outlet semantics;
+3. add O01–O13;
+4. run full pytest;
+5. render dedicated coastal/archipelago checkpoint;
+6. do not merge implementation before explicit ACCEPT / REJECT.
