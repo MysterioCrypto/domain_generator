@@ -84,13 +84,12 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. operator review C5-A design PR #94
-2. explicit design ACCEPT / REJECT
-3. ACCEPT → merge design
-4. implement opt-in Köppen–Geiger climate regime + K01–K15
-5. representative operator-visible climate-regime checkpoint
-6. explicit implementation ACCEPT / REJECT
-7. keep release/0.2-prealpha frozen
+1. create C5-A implementation branch
+2. implement opt-in Köppen–Geiger climate regime + K01–K15
+3. full pytest
+4. representative operator-visible climate-regime checkpoint
+5. explicit implementation ACCEPT / REJECT
+6. keep release/0.2-prealpha frozen
 ```
 
 Do not bundle all deferred hydrology finishing into one change.
@@ -148,3 +147,7 @@ C5-A climate regionalization   DESIGN OPERATOR REVIEW
 
 C5-A design PR:
 `https://github.com/MysterioCrypto/domain_generator/pull/94`
+
+
+C5-A design PR #94 — ACCEPTED / MERGED
+`d75b2f6f55b53a14b048a38bb2a69d339c8cf44e`
