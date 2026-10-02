@@ -151,42 +151,25 @@ def _terrain() -> np.ndarray:
                     -((x - ix) ** 2 + (y - iy) ** 2) / (2.0 * sigma * sigma)
                 )
 
+            # Smooth ordinary inland depression above sea datum. The annular
+            # positive rim closes the basin without creating raster plateaus.
+            lake_r = np.hypot(x - 24.0, y - 13.0)
+            value -= 62.0 * np.exp(-(lake_r * lake_r) / (2.0 * 1.25 * 1.25))
+            value += 48.0 * np.exp(
+                -((lake_r - 3.4) ** 2) / (2.0 * 0.72 * 0.72)
+            )
+
+            # Smooth enclosed basin with a floor below sea level. Its positive
+            # ring keeps it physically disconnected from the marine component.
+            enclosed_r = np.hypot(x - 18.0, y - 41.0)
+            value -= 182.0 * np.exp(
+                -(enclosed_r * enclosed_r) / (2.0 * 1.15 * 1.15)
+            )
+            value += 78.0 * np.exp(
+                -((enclosed_r - 3.2) ** 2) / (2.0 * 0.68 * 0.68)
+            )
+
             terrain[row, column] = np.float32(value)
-
-    # Ordinary inland closed depression above sea datum.
-    _ring_square(
-        terrain,
-        x_km=24.0,
-        y_km=13.0,
-        inner_radius_cells=2,
-        outer_radius_cells=3,
-        value_m=92.0,
-    )
-    _set_square(
-        terrain,
-        x_km=24.0,
-        y_km=13.0,
-        radius_cells=2,
-        value_m=34.0,
-    )
-
-    # Enclosed basin whose floor lies below sea level. Its positive rim proves
-    # that H12 uses connectivity rather than "elevation < 0 means ocean".
-    _ring_square(
-        terrain,
-        x_km=18.0,
-        y_km=41.0,
-        inner_radius_cells=1,
-        outer_radius_cells=2,
-        value_m=88.0,
-    )
-    _set_square(
-        terrain,
-        x_km=18.0,
-        y_km=41.0,
-        radius_cells=1,
-        value_m=-22.0,
-    )
 
     return terrain
 
