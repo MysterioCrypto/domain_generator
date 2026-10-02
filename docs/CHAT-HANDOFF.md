@@ -350,3 +350,11 @@ Immediate next step:
 - separate H12-A implementation branch;
 - O01–O13 + dedicated coastal/archipelago checkpoint;
 - no implementation merge before explicit ACCEPT.
+
+
+H12 implementation clarification:
+- marine enters canonical water_depth;
+- no C2/C3 algorithm changes;
+- new marine cells therefore inherit accepted canonical-water semantics: moisture=1, vegetation=0;
+- outside marine support C2/C3 stay exact-unchanged;
+- C1/C4/C5 climate remains unchanged.
