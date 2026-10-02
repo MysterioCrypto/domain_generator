@@ -1993,6 +1993,7 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         potential_skeleton.mask,
         lake_candidates=lakes,
         lake_outlets=outlets,
+        excluded_mask=marine_mask,
     )
 
     river_network, stream_mask = build_continuous_river_network(
