@@ -8,9 +8,9 @@ historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
-current_milestone: v0.2-post-release-c4-seasonality
-checkpoint: c5-a-koppen-geiger-climate-regimes-design-accepted
-next_topic: implement-c5-a-koppen-geiger-climate-regimes
+current_milestone: v0.2-post-release-c5-climate-regimes
+checkpoint: c5-a-koppen-geiger-climate-regimes-ready-for-operator-review
+next_topic: operator-review-c5-a-implementation
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -29,6 +29,7 @@ accepted_designs:
   - potential-drainage-public-export-v0.2
   - placement-environmental-site-metrics-v0.2
   - environmental-seasonality-v0.2
+  - koppen-geiger-climate-regimes-v0.2
 completed:
   - core-0.1-prealpha-infrastructure
   - core-0.1-m11-acceptance-suite
@@ -820,4 +821,54 @@ Accepted clarification:
 - climate generation must not be tuned to fit Köppen labels;
 - exact Beck/Peel group boundary retained: C/D require `Thot > 10 C`, E uses `Thot <= 10 C`.
 
-Next: implement C5-A separately with K01–K15 and operator-visible checkpoint.
+Implementation PR #95:
+`https://github.com/MysterioCrypto/domain_generator/pull/95`
+
+Semantic head:
+`43519587fac92e94cb8bbbb64222c876d7579882`
+
+C5-A checkpoint:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36968143576`
+
+Artifact:
+`surface-v02-c5`
+
+Automation:
+- K01–K15 GREEN;
+- JSON Schema snapshots GREEN;
+- push full pytest GREEN:
+  `https://github.com/MysterioCrypto/domain_generator/actions/runs/36968139972`;
+- PR full pytest GREEN:
+  `https://github.com/MysterioCrypto/domain_generator/actions/runs/36968143609`;
+- representative C5-A checkpoint GREEN.
+
+Implemented boundary:
+- classification remains opt-in;
+- requires explicit C4 seasonality;
+- output is one derived `uint8` field `climate_regime_koppen_geiger`;
+- fixed code range 1..30;
+- C1/C4 climate generation remains independent from the classifier;
+- C2/C3, features, networks and every pre-existing C4 field remain exact-unchanged.
+
+Representative diagnostic classes:
+```text
+Csb  76.93%
+Dsc  10.40%
+Dsb   7.40%
+Dfc   3.24%
+ET    1.49%
+Cfb   0.33%
+Dfb   0.22%
+```
+
+The Csb dominance is expected for the deliberately winter-wet / warm-season-dry diagnostic recipe and is not a Core default.
+
+Visual review:
+- climate classes track accepted temperature/orographic gradients;
+- mountain belts transition coherently C → D → ET;
+- boundaries are categorical/threshold-like but not random/noisy;
+- the raster is visibly climate regionalization rather than C3 vegetation;
+- classification does not feed back into climate generation.
+
+Current gate: **C5-A IMPLEMENTATION — OPERATOR REVIEW**.
+Do not merge PR #95 before explicit ACCEPT / REJECT.
