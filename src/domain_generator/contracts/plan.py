@@ -386,6 +386,8 @@ class GenerationPlan(FrozenStrictModel):
             raise ValueError("GenerationPlan 0.2 requires terrain synthesis plan")
         if self.plan_version == "0.1" and self.terrain is not None:
             raise ValueError("GenerationPlan 0.1 cannot contain terrain synthesis plan")
+        if self.plan_version == "0.1" and self.hydrology.marine is not None:
+            raise ValueError("GenerationPlan 0.1 cannot contain hydrology.marine")
         if self.plan_version == "0.2" and self.surface.climate is None:
             raise ValueError("GenerationPlan 0.2 requires surface climate plan")
         if self.plan_version == "0.1" and self.surface.climate is not None:
