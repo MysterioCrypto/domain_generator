@@ -1120,7 +1120,12 @@ def _strahler_order_field(
                 add_edge(source, cell_node(target))
             elif not _is_edge(cell, shape):
                 raise HydrologyCapabilityError(
-                    "potential skeleton has an interior downstream discontinuity"
+                    "potential skeleton has an interior downstream discontinuity: "
+                    f"cell={cell}, target={target}, "
+                    f"target_skeleton={bool(skeleton_mask[target])}, "
+                    f"target_excluded={bool(excluded[target])}, "
+                    f"target_lake={target_lake!r}, "
+                    f"target_edge={_is_edge(target, shape)}"
                 )
 
     for outlet in lake_outlets:
