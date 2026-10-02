@@ -28,6 +28,10 @@ from ..pipeline.attempts import AttemptContext, CandidateState
 from ..pipeline.rng import RngFactory, RngKey, RngStage
 from ..pipeline.sampling import SamplingCapabilityError, sample_resolved_parameter
 from ..terrain.state import TerrainState
+from .climate_regimes import (
+    KOPPEN_GEIGER_SCHEME_ID,
+    classify_koppen_geiger_local_season,
+)
 from .derive import (
     SurfaceCapabilityError,
     annual_mean_temperature_field,
@@ -235,6 +239,7 @@ def _build_surface(
     precipitation64: np.ndarray | None = None
     monthly_temperature64: np.ndarray | None = None
     monthly_precipitation64: np.ndarray | None = None
+    climate_regime: np.ndarray | None = None
     if plan.plan_version == "0.2":
         climate = plan.surface.climate
         if climate is None:
@@ -278,6 +283,21 @@ def _build_surface(
                 ),
                 precipitation_peak_month=seasonality.precipitation_peak_month,
             )
+            if climate.classification is not None:
+                if (
+                    climate.classification.scheme
+                    != KOPPEN_GEIGER_SCHEME_ID
+                ):
+                    raise SurfaceCapabilityError(
+                        "unsupported Core 0.2 climate classification scheme"
+                    )
+                climate_regime = classify_koppen_geiger_local_season(
+                    monthly_mean_temperature_c=monthly_temperature64,
+                    monthly_precipitation_mm=monthly_precipitation64,
+                    annual_mean_temperature_c=temperature64,
+                    annual_precipitation_mm=precipitation64,
+                    temperature_peak_month=seasonality.temperature_peak_month,
+                )
 
     water_mask = water_depth > 0.0
     legacy_moisture64: np.ndarray | None = None
@@ -359,6 +379,11 @@ def _build_surface(
             monthly_precipitation_mm=(
                 monthly_precipitation64.astype(np.float32)
                 if monthly_precipitation64 is not None
+                else None
+            ),
+            climate_regime_koppen_geiger=(
+                climate_regime.astype(np.uint8)
+                if climate_regime is not None
                 else None
             ),
         ),
@@ -455,6 +480,16 @@ def _recomputed_surface_matches(
                 expected.monthly_precipitation_mm,
             )
         )
+        and (
+            surface.climate_regime_koppen_geiger is None
+            and expected.climate_regime_koppen_geiger is None
+            or isinstance(surface.climate_regime_koppen_geiger, np.ndarray)
+            and isinstance(expected.climate_regime_koppen_geiger, np.ndarray)
+            and np.array_equal(
+                surface.climate_regime_koppen_geiger,
+                expected.climate_regime_koppen_geiger,
+            )
+        )
     )
 
 
@@ -495,6 +530,10 @@ def validate_surface(
     monthly_temperature_dtype = monthly_precipitation_dtype = False
     monthly_temperature_finite = monthly_precipitation_finite = False
     monthly_precipitation_positive = False
+    classification_contract = False
+    classification_shape = False
+    classification_dtype = False
+    classification_range = False
     deterministic_recompute = False
 
     if terrain_exists:
@@ -588,6 +627,28 @@ def validate_surface(
             monthly_temperature_dtype = monthly_precipitation_dtype = True
             monthly_temperature_finite = monthly_precipitation_finite = True
             monthly_precipitation_positive = True
+
+        classification = surface.climate_regime_koppen_geiger
+        classification_expected = (
+            plan.plan_version == "0.2"
+            and plan.surface.climate is not None
+            and plan.surface.climate.classification is not None
+        )
+        if classification_expected:
+            classification_contract = isinstance(classification, np.ndarray)
+            if classification_contract:
+                classification_shape = classification.shape == expected_shape
+                classification_dtype = (
+                    classification.dtype == np.dtype(np.uint8)
+                )
+                classification_range = bool(
+                    np.all((classification >= 1) & (classification <= 30))
+                )
+        else:
+            classification_contract = classification is None
+            classification_shape = True
+            classification_dtype = True
+            classification_range = True
 
         if hydrology_exists and water_shape and moisture_shape and vegetation_shape:
             water_mask = hydrology.water_depth_m > 0.0
@@ -689,6 +750,22 @@ def validate_surface(
         EngineInvariantResult(
             id="surface-monthly-precipitation-positive",
             passed=monthly_precipitation_positive,
+        ),
+        EngineInvariantResult(
+            id="surface-climate-classification-contract-matches-plan",
+            passed=classification_contract,
+        ),
+        EngineInvariantResult(
+            id="surface-climate-classification-shape-matches-plan",
+            passed=classification_shape,
+        ),
+        EngineInvariantResult(
+            id="surface-climate-classification-dtype-uint8",
+            passed=classification_dtype,
+        ),
+        EngineInvariantResult(
+            id="surface-climate-classification-code-range",
+            passed=classification_range,
         ),
         EngineInvariantResult(
             id="surface-feature-effects-applied-exactly",
