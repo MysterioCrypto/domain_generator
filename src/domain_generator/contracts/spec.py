@@ -62,6 +62,17 @@ class HydrologySpec(FrozenStrictModel):
     river_depth_exponent: Annotated[StrictFloat, Field(ge=0.0, allow_inf_nan=False)]
 
 
+class ClimateSeasonalitySpec(FrozenStrictModel):
+    temperature_seasonal_amplitude_c: Annotated[
+        StrictFloat, Field(ge=0.0, allow_inf_nan=False)
+    ]
+    temperature_peak_month: Annotated[StrictInt, Field(ge=1, le=12)]
+    precipitation_seasonality_log_amplitude: Annotated[
+        StrictFloat, Field(ge=0.0, allow_inf_nan=False)
+    ]
+    precipitation_peak_month: Annotated[StrictInt, Field(ge=1, le=12)]
+
+
 class ClimateSpec(FrozenStrictModel):
     mean_temperature_c: Annotated[StrictFloat, Field(allow_inf_nan=False)]
     north_minus_south_temperature_c: Annotated[StrictFloat, Field(allow_inf_nan=False)]
@@ -76,6 +87,7 @@ class ClimateSpec(FrozenStrictModel):
         StrictFloat, Field(ge=0.0, allow_inf_nan=False)
     ]
     climate_noise_scale_km: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
+    seasonality: ClimateSeasonalitySpec | None = None
 
 
 class SurfaceSpec(FrozenStrictModel):
