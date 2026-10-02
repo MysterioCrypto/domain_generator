@@ -41,6 +41,9 @@ def domain_spec_fingerprint(spec: DomainSpec) -> str:
     if spec.schema_version == "0.1":
         payload = spec.model_dump(mode="json", by_alias=True, exclude_none=False)
         payload.pop("terrain", None)
+        hydrology = payload.get("hydrology")
+        if isinstance(hydrology, dict) and hydrology.get("marine") is None:
+            hydrology.pop("marine", None)
         if isinstance(payload.get("surface"), dict):
             payload["surface"].pop("climate", None)
     else:
