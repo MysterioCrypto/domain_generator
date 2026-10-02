@@ -68,10 +68,14 @@ Core 0.2 release candidate — ACCEPTED / FROZEN
 ├─ release/0.2-prealpha — CREATED
 └─ freeze commit — c69c1af010a085fb80d248af703a77471fc6c9d7
 
-Post-release C4-A Environmental Seasonality — IMPLEMENTATION NEXT
+Post-release C4-A Environmental Seasonality — OPERATOR REVIEW
 ├─ dependency audit — DONE
 ├─ design PR #92 — ACCEPTED / MERGED
-└─ runtime implementation — NOT STARTED
+├─ implementation PR #93 — draft/open
+├─ S01–S13 — GREEN
+├─ schema snapshots — GREEN
+├─ push/PR full pytest — GREEN
+└─ C4-A representative checkpoint — GREEN
 ```
 
 Accepted hydrology routing/network remains frozen.
@@ -79,11 +83,10 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. create C4-A implementation branch
-2. implement optional monthly seasonality contract/runtime/export
-3. S01–S13 + full pytest
-4. representative seasonal checkpoint
-5. explicit implementation ACCEPT / REJECT
+1. explicit C4-A implementation ACCEPT / REJECT
+2. ACCEPT → freeze/merge PR #93
+3. REJECT → identify one concrete C4 component before retuning
+4. keep release/0.2-prealpha frozen
 ```
 
 Do not bundle all deferred hydrology finishing into one change.
@@ -123,3 +126,7 @@ P08-A design PR:
 
 P08-A checkpoint:
 `https://github.com/MysterioCrypto/domain_generator/actions/runs/36849780012`
+
+
+C4-A checkpoint:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36959449118`
