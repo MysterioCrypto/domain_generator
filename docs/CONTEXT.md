@@ -859,14 +859,31 @@ surface.climate.classification:
 
 Classification requires C4 seasonality. Existing C4 requests without classification remain unchanged.
 
-Current gate:
+C5-A design status:
 ```text
-C5-A design             OPERATOR REVIEW
-runtime implementation  NOT STARTED
+design PR #94           ACCEPTED / MERGED
+runtime implementation  NEXT
 ```
 
+Design merge commit:
+`d75b2f6f55b53a14b048a38bb2a69d339c8cf44e`
+
+Accepted universality boundary:
+- C4 seasonal parameters remain explicit inputs;
+- no hidden north/south hemisphere assumption;
+- Köppen classification is optional and Earth-derived;
+- non-Earthlike worlds can use C1/C4 without any categorical classifier;
+- future alternative classifiers may use different explicit scheme ids.
+
+Scientific boundary:
+- exact Beck/Peel C/D/E thermal threshold retained;
+- `Thot > 10 C` for C/D;
+- `Thot <= 10 C` for E.
+
 Immediate next action:
-1. explicit C5-A design ACCEPT / REJECT;
-2. ACCEPT → merge PR #94;
-3. only then implement classification contract/runtime/export + K01–K15;
-4. require representative operator-visible class map before implementation acceptance.
+1. create separate C5-A implementation branch;
+2. implement optional classification contract/runtime/export only;
+3. add K01–K15;
+4. run full pytest;
+5. render representative climate-regime checkpoint;
+6. do not merge implementation before explicit ACCEPT / REJECT.
