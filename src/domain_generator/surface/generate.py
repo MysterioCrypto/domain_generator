@@ -175,6 +175,21 @@ def _build_surface(
     if not np.isfinite(water_depth).all() or bool(np.any(water_depth < 0.0)):
         raise SurfaceCapabilityError("hydrology water depth must be finite and non-negative")
 
+    climate_normalization_water_depth = (
+        hydrology.climate_normalization_water_depth_m
+        if hydrology.climate_normalization_water_depth_m is not None
+        else water_depth
+    )
+    if (
+        not isinstance(climate_normalization_water_depth, np.ndarray)
+        or climate_normalization_water_depth.shape != expected_shape
+        or not np.isfinite(climate_normalization_water_depth).all()
+        or bool(np.any(climate_normalization_water_depth < 0.0))
+    ):
+        raise SurfaceCapabilityError(
+            "climate normalization water depth must be finite, non-negative, and match grid"
+        )
+
     adapter = GridAdapter.from_plan(plan)
     legacy_moisture_potential: np.ndarray | None = None
     if plan.plan_version == "0.1":
@@ -257,7 +272,7 @@ def _build_surface(
         precipitation64 = annual_precipitation_field(
             adapter=adapter,
             elevation_m=elevation,
-            water_depth_m=water_depth,
+            water_depth_m=climate_normalization_water_depth,
             mean_annual_precipitation_mm=climate.mean_annual_precipitation_mm,
             moisture_transport_bearing_deg=climate.moisture_transport_bearing_deg,
             orographic_scale_km=climate.orographic_scale_km,
