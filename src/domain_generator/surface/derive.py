@@ -661,3 +661,83 @@ def climate_aware_vegetation_components(
         thermal_suitability=thermal_suitability,
         vegetation_potential=vegetation_potential,
     )
+
+
+
+def monthly_temperature_fields(
+    *,
+    annual_mean_temperature_c: np.ndarray,
+    temperature_seasonal_amplitude_c: float,
+    temperature_peak_month: int,
+) -> np.ndarray:
+    """Expand accepted annual temperature into 12 deterministic climatological means."""
+    if not isinstance(annual_mean_temperature_c, np.ndarray) or annual_mean_temperature_c.ndim != 2:
+        raise SurfaceCapabilityError("annual_mean_temperature_c must be a 2D numpy array")
+    if not bool(np.isfinite(annual_mean_temperature_c).all()):
+        raise SurfaceCapabilityError("annual_mean_temperature_c must be finite")
+    if (
+        not isfinite(temperature_seasonal_amplitude_c)
+        or temperature_seasonal_amplitude_c < 0.0
+    ):
+        raise SurfaceCapabilityError(
+            "temperature_seasonal_amplitude_c must be finite and >= 0"
+        )
+    if (
+        isinstance(temperature_peak_month, bool)
+        or not isinstance(temperature_peak_month, int)
+        or not 1 <= temperature_peak_month <= 12
+    ):
+        raise SurfaceCapabilityError("temperature_peak_month must be an integer in [1, 12]")
+
+    months = np.arange(1, 13, dtype=np.float64)
+    phase = 2.0 * np.pi * (months - float(temperature_peak_month)) / 12.0
+    offsets = float(temperature_seasonal_amplitude_c) * np.cos(phase)
+    offsets -= float(np.mean(offsets, dtype=np.float64))
+
+    annual = annual_mean_temperature_c.astype(np.float64, copy=False)
+    result = annual[np.newaxis, :, :] + offsets[:, np.newaxis, np.newaxis]
+    if not bool(np.isfinite(result).all()):
+        raise SurfaceCapabilityError("monthly temperature must be finite")
+    return result
+
+
+def monthly_precipitation_fields(
+    *,
+    annual_precipitation_mm: np.ndarray,
+    precipitation_seasonality_log_amplitude: float,
+    precipitation_peak_month: int,
+) -> np.ndarray:
+    """Redistribute accepted annual precipitation through 12 climatological months."""
+    if not isinstance(annual_precipitation_mm, np.ndarray) or annual_precipitation_mm.ndim != 2:
+        raise SurfaceCapabilityError("annual_precipitation_mm must be a 2D numpy array")
+    if not bool(np.isfinite(annual_precipitation_mm).all()):
+        raise SurfaceCapabilityError("annual_precipitation_mm must be finite")
+    if bool(np.any(annual_precipitation_mm <= 0.0)):
+        raise SurfaceCapabilityError("annual_precipitation_mm must be positive")
+    if (
+        not isfinite(precipitation_seasonality_log_amplitude)
+        or precipitation_seasonality_log_amplitude < 0.0
+    ):
+        raise SurfaceCapabilityError(
+            "precipitation_seasonality_log_amplitude must be finite and >= 0"
+        )
+    if (
+        isinstance(precipitation_peak_month, bool)
+        or not isinstance(precipitation_peak_month, int)
+        or not 1 <= precipitation_peak_month <= 12
+    ):
+        raise SurfaceCapabilityError("precipitation_peak_month must be an integer in [1, 12]")
+
+    months = np.arange(1, 13, dtype=np.float64)
+    phase = 2.0 * np.pi * (months - float(precipitation_peak_month)) / 12.0
+    raw = np.exp(float(precipitation_seasonality_log_amplitude) * np.cos(phase))
+    total = float(np.sum(raw, dtype=np.float64))
+    if not isfinite(total) or total <= 0.0:
+        raise SurfaceCapabilityError("monthly precipitation weights collapsed")
+    fractions = raw / total
+
+    annual = annual_precipitation_mm.astype(np.float64, copy=False)
+    result = fractions[:, np.newaxis, np.newaxis] * annual[np.newaxis, :, :]
+    if not bool(np.isfinite(result).all()) or bool(np.any(result <= 0.0)):
+        raise SurfaceCapabilityError("monthly precipitation must be finite and positive")
+    return result

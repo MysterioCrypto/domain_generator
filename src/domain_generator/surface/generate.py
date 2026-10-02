@@ -34,6 +34,8 @@ from .derive import (
     annual_precipitation_field,
     climate_aware_vegetation_components,
     effective_surface_moisture_components,
+    monthly_precipitation_fields,
+    monthly_temperature_fields,
     moisture_potential_field,
     slope_degrees,
     vegetation_potential_field,
@@ -231,6 +233,8 @@ def _build_surface(
 
     temperature64: np.ndarray | None = None
     precipitation64: np.ndarray | None = None
+    monthly_temperature64: np.ndarray | None = None
+    monthly_precipitation64: np.ndarray | None = None
     if plan.plan_version == "0.2":
         climate = plan.surface.climate
         if climate is None:
@@ -258,6 +262,22 @@ def _build_surface(
             rng_factory=rng_factory,
             attempt_index=attempt_index,
         )
+        if climate.seasonality is not None:
+            seasonality = climate.seasonality
+            monthly_temperature64 = monthly_temperature_fields(
+                annual_mean_temperature_c=temperature64,
+                temperature_seasonal_amplitude_c=(
+                    seasonality.temperature_seasonal_amplitude_c
+                ),
+                temperature_peak_month=seasonality.temperature_peak_month,
+            )
+            monthly_precipitation64 = monthly_precipitation_fields(
+                annual_precipitation_mm=precipitation64,
+                precipitation_seasonality_log_amplitude=(
+                    seasonality.precipitation_seasonality_log_amplitude
+                ),
+                precipitation_peak_month=seasonality.precipitation_peak_month,
+            )
 
     water_mask = water_depth > 0.0
     legacy_moisture64: np.ndarray | None = None
@@ -330,6 +350,16 @@ def _build_surface(
             ),
             annual_precipitation_mm=(
                 precipitation64.astype(np.float32) if precipitation64 is not None else None
+            ),
+            monthly_mean_temperature_c=(
+                monthly_temperature64.astype(np.float32)
+                if monthly_temperature64 is not None
+                else None
+            ),
+            monthly_precipitation_mm=(
+                monthly_precipitation64.astype(np.float32)
+                if monthly_precipitation64 is not None
+                else None
             ),
         ),
         applied_feature_ids=tuple(applied),
@@ -405,6 +435,26 @@ def _recomputed_surface_matches(
                 expected.annual_precipitation_mm,
             )
         )
+        and (
+            surface.monthly_mean_temperature_c is None
+            and expected.monthly_mean_temperature_c is None
+            or isinstance(surface.monthly_mean_temperature_c, np.ndarray)
+            and isinstance(expected.monthly_mean_temperature_c, np.ndarray)
+            and np.array_equal(
+                surface.monthly_mean_temperature_c,
+                expected.monthly_mean_temperature_c,
+            )
+        )
+        and (
+            surface.monthly_precipitation_mm is None
+            and expected.monthly_precipitation_mm is None
+            or isinstance(surface.monthly_precipitation_mm, np.ndarray)
+            and isinstance(expected.monthly_precipitation_mm, np.ndarray)
+            and np.array_equal(
+                surface.monthly_precipitation_mm,
+                expected.monthly_precipitation_mm,
+            )
+        )
     )
 
 
@@ -440,6 +490,11 @@ def validate_surface(
     temperature_dtype = precipitation_dtype = False
     temperature_finite = precipitation_finite = False
     precipitation_positive = False
+    seasonality_contract = False
+    monthly_temperature_shape = monthly_precipitation_shape = False
+    monthly_temperature_dtype = monthly_precipitation_dtype = False
+    monthly_temperature_finite = monthly_precipitation_finite = False
+    monthly_precipitation_positive = False
     deterministic_recompute = False
 
     if terrain_exists:
@@ -489,6 +544,50 @@ def validate_surface(
             temperature_dtype = precipitation_dtype = True
             temperature_finite = precipitation_finite = True
             precipitation_positive = True
+
+        monthly_temperature = surface.monthly_mean_temperature_c
+        monthly_precipitation = surface.monthly_precipitation_mm
+        seasonality_expected = (
+            plan.plan_version == "0.2"
+            and plan.surface.climate is not None
+            and plan.surface.climate.seasonality is not None
+        )
+        if seasonality_expected:
+            seasonality_contract = isinstance(
+                monthly_temperature, np.ndarray
+            ) and isinstance(monthly_precipitation, np.ndarray)
+            if seasonality_contract:
+                expected_monthly_shape = (12, *expected_shape)
+                monthly_temperature_shape = (
+                    monthly_temperature.shape == expected_monthly_shape
+                )
+                monthly_precipitation_shape = (
+                    monthly_precipitation.shape == expected_monthly_shape
+                )
+                monthly_temperature_dtype = (
+                    monthly_temperature.dtype == np.dtype(np.float32)
+                )
+                monthly_precipitation_dtype = (
+                    monthly_precipitation.dtype == np.dtype(np.float32)
+                )
+                monthly_temperature_finite = bool(
+                    np.isfinite(monthly_temperature).all()
+                )
+                monthly_precipitation_finite = bool(
+                    np.isfinite(monthly_precipitation).all()
+                )
+                monthly_precipitation_positive = (
+                    monthly_precipitation_finite
+                    and bool(np.all(monthly_precipitation > 0.0))
+                )
+        else:
+            seasonality_contract = (
+                monthly_temperature is None and monthly_precipitation is None
+            )
+            monthly_temperature_shape = monthly_precipitation_shape = True
+            monthly_temperature_dtype = monthly_precipitation_dtype = True
+            monthly_temperature_finite = monthly_precipitation_finite = True
+            monthly_precipitation_positive = True
 
         if hydrology_exists and water_shape and moisture_shape and vegetation_shape:
             water_mask = hydrology.water_depth_m > 0.0
@@ -559,6 +658,38 @@ def validate_surface(
         EngineInvariantResult(id="surface-precipitation-dtype-float32", passed=precipitation_dtype),
         EngineInvariantResult(id="surface-precipitation-finite", passed=precipitation_finite),
         EngineInvariantResult(id="surface-precipitation-positive", passed=precipitation_positive),
+        EngineInvariantResult(
+            id="surface-seasonality-contract-matches-plan",
+            passed=seasonality_contract,
+        ),
+        EngineInvariantResult(
+            id="surface-monthly-temperature-shape-matches-plan",
+            passed=monthly_temperature_shape,
+        ),
+        EngineInvariantResult(
+            id="surface-monthly-temperature-dtype-float32",
+            passed=monthly_temperature_dtype,
+        ),
+        EngineInvariantResult(
+            id="surface-monthly-temperature-finite",
+            passed=monthly_temperature_finite,
+        ),
+        EngineInvariantResult(
+            id="surface-monthly-precipitation-shape-matches-plan",
+            passed=monthly_precipitation_shape,
+        ),
+        EngineInvariantResult(
+            id="surface-monthly-precipitation-dtype-float32",
+            passed=monthly_precipitation_dtype,
+        ),
+        EngineInvariantResult(
+            id="surface-monthly-precipitation-finite",
+            passed=monthly_precipitation_finite,
+        ),
+        EngineInvariantResult(
+            id="surface-monthly-precipitation-positive",
+            passed=monthly_precipitation_positive,
+        ),
         EngineInvariantResult(
             id="surface-feature-effects-applied-exactly",
             passed=applied_complete,

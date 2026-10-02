@@ -1,0 +1,97 @@
+name: surface-v02-c4-checkpoint
+
+on:
+  pull_request:
+    paths:
+      - "src/domain_generator/contracts/spec.py"
+      - "src/domain_generator/contracts/plan.py"
+      - "src/domain_generator/surface/**"
+      - "src/domain_generator/assembly.py"
+      - "tests/test_surface_seasonality_v02.py"
+      - "schemas/v0.2/**"
+      - "scripts/render_surface_seasonality_checkpoint_v02.py"
+      - "examples/terrain-v02/checkpoint/**"
+      - ".github/workflows/surface-v02-c4-checkpoint.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  render-c4:
+    if: github.event.pull_request.head.ref == 'impl/v0.2-environmental-seasonality'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact implementation revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install checked-out generator with render dependencies
+        run: python -m pip install -e ".[dev,render]"
+
+      - name: Verify generated JSON Schema snapshots
+        run: |
+          python -m domain_generator.schema_export
+          if ! git diff --quiet -- schemas/v0.2; then
+            for path in $(git diff --name-only -- schemas/v0.2); do
+              echo "SCHEMA_SNAPSHOT_BEGIN:$path"
+              base64 -w0 "$path"
+              echo
+              echo "SCHEMA_SNAPSHOT_END:$path"
+            done
+            git diff --exit-code -- schemas/v0.2
+          fi
+
+      - name: Run C4 S01-S13 guardrails
+        run: python -m pytest tests/test_surface_seasonality_v02.py
+
+      - name: Render C4-A seasonal checkpoint
+        run: |
+          python scripts/render_surface_seasonality_checkpoint_v02.py \
+            examples/terrain-v02/checkpoint/request.json \
+            examples/terrain-v02/checkpoint/presets.json \
+            "$RUNNER_TEMP/surface-v02-c4"
+
+      - name: Emit compact operator previews
+        run: |
+          python - <<'PY'
+          import base64
+          import io
+          import os
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "surface-v02-c4"
+          selected = (
+              "02-warmest-month-07.png",
+              "03-coldest-month-01.png",
+              "05-wettest-month-01.png",
+              "06-driest-month-07.png",
+              "07-temperature-curves.png",
+              "08-precipitation-fractions.png",
+          )
+          for name in selected:
+              image = Image.open(root / name).convert("RGB")
+              image.thumbnail((1200, 800))
+              buffer = io.BytesIO()
+              image.save(buffer, format="JPEG", quality=76, optimize=True)
+              payload = base64.b64encode(buffer.getvalue()).decode("ascii")
+              print(f"OPERATOR_PREVIEW_BEGIN:{name}")
+              print(payload)
+              print(f"OPERATOR_PREVIEW_END:{name}")
+          PY
+
+      - name: Upload C4-A operator checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: surface-v02-c4
+          path: ${{ runner.temp }}/surface-v02-c4
+          if-no-files-found: error
+          retention-days: 14

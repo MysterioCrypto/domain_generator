@@ -210,6 +210,7 @@ def _field_descriptors(
     shape: tuple[int, int],
     *,
     include_climate: bool,
+    include_seasonality: bool,
 ) -> dict[str, FieldDescriptor]:
     fields = {
         "elevation": FieldDescriptor(role=FieldRole.CANONICAL, path="fields/elevation.npy", dtype="float32", shape=shape, unit="m"),
@@ -232,6 +233,25 @@ def _field_descriptors(
             shape=shape,
             unit="mm/year",
         )
+    if include_seasonality:
+        for month in range(1, 13):
+            suffix = f"{month:02d}"
+            temperature_id = f"temperature_month_{suffix}"
+            precipitation_id = f"precipitation_month_{suffix}"
+            fields[temperature_id] = FieldDescriptor(
+                role=FieldRole.DERIVED,
+                path=f"fields/{temperature_id}.npy",
+                dtype="float32",
+                shape=shape,
+                unit="degC",
+            )
+            fields[precipitation_id] = FieldDescriptor(
+                role=FieldRole.DERIVED,
+                path=f"fields/{precipitation_id}.npy",
+                dtype="float32",
+                shape=shape,
+                unit="mm/month",
+            )
     return fields
 
 
@@ -267,6 +287,11 @@ def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: Generatio
         "vegetation_density": _readonly_payload(state.surface.vegetation_density, field_id="vegetation_density", shape=shape),
     }
     include_climate = plan.plan_version == "0.2"
+    include_seasonality = (
+        include_climate
+        and plan.surface.climate is not None
+        and plan.surface.climate.seasonality is not None
+    )
     if include_climate:
         if (
             state.surface.annual_mean_temperature_c is None
@@ -283,6 +308,40 @@ def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: Generatio
             field_id="annual_precipitation",
             shape=shape,
         )
+        if include_seasonality:
+            monthly_temperature = state.surface.monthly_mean_temperature_c
+            monthly_precipitation = state.surface.monthly_precipitation_mm
+            expected_monthly_shape = (12, *shape)
+            if (
+                not isinstance(monthly_temperature, np.ndarray)
+                or monthly_temperature.shape != expected_monthly_shape
+                or monthly_temperature.dtype != np.dtype(np.float32)
+            ):
+                raise DomainAssemblyError(
+                    "Core 0.2 seasonality monthly temperature is missing or invalid"
+                )
+            if (
+                not isinstance(monthly_precipitation, np.ndarray)
+                or monthly_precipitation.shape != expected_monthly_shape
+                or monthly_precipitation.dtype != np.dtype(np.float32)
+            ):
+                raise DomainAssemblyError(
+                    "Core 0.2 seasonality monthly precipitation is missing or invalid"
+                )
+            for month_index in range(12):
+                suffix = f"{month_index + 1:02d}"
+                temperature_id = f"temperature_month_{suffix}"
+                precipitation_id = f"precipitation_month_{suffix}"
+                payloads[temperature_id] = _readonly_payload(
+                    monthly_temperature[month_index],
+                    field_id=temperature_id,
+                    shape=shape,
+                )
+                payloads[precipitation_id] = _readonly_payload(
+                    monthly_precipitation[month_index],
+                    field_id=precipitation_id,
+                    shape=shape,
+                )
 
     final = candidate.final_validation
     assert final.ranking is not None
@@ -302,7 +361,11 @@ def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: Generatio
             ),
             domain=DomainExtent(width_km=plan.domain.width_km, height_km=plan.domain.height_km),
             grid={"cell_size_km": plan.grid.cell_size_km, "rows": plan.grid.rows, "columns": plan.grid.columns},
-            fields=_field_descriptors(shape, include_climate=include_climate),
+            fields=_field_descriptors(
+                shape,
+                include_climate=include_climate,
+                include_seasonality=include_seasonality,
+            ),
             features=features,
             networks=networks,
             validation=ValidationSummary(
