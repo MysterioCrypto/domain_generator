@@ -10,6 +10,7 @@ import numpy as np
 from ..contracts.data import (
     BoundarySide,
     HydroFeature,
+    MarineFeature,
     RiverNetwork,
     RiverNode,
     RiverNodeKind,
@@ -31,6 +32,11 @@ from ..grid import GridAdapter
 from ..terrain.state import TerrainState
 from .classification import classify_stream_mask, extract_lake_candidates
 from .ids import lake_feature_id
+from .marine import (
+    accepted_marine_cell_map,
+    classify_marine_components,
+    materialize_marine_features,
+)
 from .materialize import materialize_lake_features, validate_river_lake_references
 from .routing import HydrologyCapabilityError, priority_flood_surfaces
 from .state import (
@@ -39,6 +45,7 @@ from .state import (
     HydrologyState,
     LakeCandidate,
     LakeOutlet,
+    MarineCandidate,
 )
 from .water import accepted_lake_cell_map, build_water_depth_m
 
@@ -47,6 +54,24 @@ _TWO_PI = 2.0 * pi
 _EIGHTH_TURN = pi / 4.0
 _EPS = 1e-12
 _POTENTIAL_STREAM_THRESHOLD_FACTOR = 0.40
+
+
+def _normalized_excluded_mask(
+    excluded_mask: np.ndarray | None,
+    shape: tuple[int, int],
+) -> np.ndarray:
+    if excluded_mask is None:
+        return np.zeros(shape, dtype=np.bool_)
+    if (
+        not isinstance(excluded_mask, np.ndarray)
+        or excluded_mask.shape != shape
+        or excluded_mask.dtype != np.dtype(np.bool_)
+    ):
+        raise HydrologyCapabilityError(
+            "excluded channel mask must be a bool array matching grid shape"
+        )
+    return excluded_mask
+
 
 # Counter-clockwise world-space order from +x/east. row 0 is north, therefore
 # negative raster row is positive world y.
@@ -596,6 +621,7 @@ def _dominant_channel_receiver_index(
     *,
     lake_candidates: tuple[LakeCandidate, ...],
     lake_outlets: tuple[LakeOutlet, ...],
+    excluded_mask: np.ndarray | None = None,
 ) -> np.ndarray:
     """Project diffuse MFD flux onto one deterministic receiver for channel topology."""
     shape = field.flow_angle_rad.shape
@@ -603,6 +629,7 @@ def _dominant_channel_receiver_index(
         raise HydrologyCapabilityError("dominant channel projection arrays must share shape")
 
     rows, columns = shape
+    excluded = _normalized_excluded_mask(excluded_mask, shape)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
     outlet_receiver_to_lake = {
         outlet.receiver_cell: outlet.lake_id for outlet in lake_outlets
@@ -612,7 +639,7 @@ def _dominant_channel_receiver_index(
     for row in range(rows):
         for column in range(columns):
             cell = (row, column)
-            if _is_edge(cell, shape) or cell in lake_by_cell:
+            if _is_edge(cell, shape) or cell in lake_by_cell or bool(excluded[cell]):
                 continue
 
             current_support = bool(channel_support[cell])
@@ -633,6 +660,7 @@ def _dominant_channel_receiver_index(
 
                 preferred = int(
                     target_lake is not None
+                    or bool(excluded[target])
                     or (current_support and bool(channel_support[target]))
                 )
                 transmitted_area = float(accumulation[cell]) * fraction
@@ -656,12 +684,14 @@ def _dominant_channel_area_km2(
     *,
     cell_size_km: float,
     lake_candidates: tuple[LakeCandidate, ...],
+    excluded_mask: np.ndarray | None = None,
 ) -> np.ndarray:
     """Accumulate unique upstream area on the single-receiver channel projection."""
     if receiver_index.ndim != 2:
         raise HydrologyCapabilityError("dominant receiver index must be a 2D array")
     shape = receiver_index.shape
     rows, columns = shape
+    excluded = _normalized_excluded_mask(excluded_mask, shape)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
     cell_count = rows * columns
 
@@ -674,7 +704,7 @@ def _dominant_channel_area_km2(
         for column in range(columns):
             cell = (row, column)
             node = _flat_index(cell, columns)
-            if cell in lake_by_cell:
+            if cell in lake_by_cell or bool(excluded[cell]):
                 active[node] = False
                 continue
             area[node] = cell_area
@@ -682,7 +712,7 @@ def _dominant_channel_area_km2(
             if target_index < 0:
                 continue
             target = _cell_from_index(target_index, columns)
-            if target in lake_by_cell:
+            if target in lake_by_cell or bool(excluded[target]):
                 continue
             indegree[target_index] += 1
 
@@ -698,7 +728,7 @@ def _dominant_channel_area_km2(
         if target_index < 0:
             continue
         target = _cell_from_index(target_index, columns)
-        if target in lake_by_cell:
+        if target in lake_by_cell or bool(excluded[target]):
             continue
         area[target_index] += area[node]
         indegree[target_index] -= 1
@@ -768,10 +798,12 @@ def _dominant_topological_order(
     receiver_index: np.ndarray,
     *,
     lake_candidates: tuple[LakeCandidate, ...],
+    excluded_mask: np.ndarray | None = None,
 ) -> tuple[Cell, ...]:
     """Stable topological order for the single-downstream dominant graph."""
     shape = receiver_index.shape
     rows, columns = shape
+    excluded = _normalized_excluded_mask(excluded_mask, shape)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
     indegree = np.zeros(shape, dtype=np.int32)
     active_count = 0
@@ -779,14 +811,14 @@ def _dominant_topological_order(
     for row in range(rows):
         for column in range(columns):
             cell = (row, column)
-            if cell in lake_by_cell:
+            if cell in lake_by_cell or bool(excluded[cell]):
                 continue
             active_count += 1
             target_index = int(receiver_index[cell])
             if target_index < 0:
                 continue
             target = _cell_from_index(target_index, columns)
-            if target in lake_by_cell:
+            if target in lake_by_cell or bool(excluded[target]):
                 continue
             indegree[target] += 1
 
@@ -794,7 +826,9 @@ def _dominant_topological_order(
         (row, column)
         for row in range(rows)
         for column in range(columns)
-        if (row, column) not in lake_by_cell and int(indegree[row, column]) == 0
+        if (row, column) not in lake_by_cell
+        and not bool(excluded[row, column])
+        and int(indegree[row, column]) == 0
     )
     order: list[Cell] = []
     while queue:
@@ -804,7 +838,7 @@ def _dominant_topological_order(
         if target_index < 0:
             continue
         target = _cell_from_index(target_index, columns)
-        if target in lake_by_cell:
+        if target in lake_by_cell or bool(excluded[target]):
             continue
         indegree[target] -= 1
         if indegree[target] == 0:
@@ -824,17 +858,24 @@ def _activate_channel_skeleton(
     *,
     lake_candidates: tuple[LakeCandidate, ...],
     lake_outlets: tuple[LakeOutlet, ...],
+    excluded_mask: np.ndarray | None = None,
 ) -> tuple[np.ndarray, set[Cell], set[Cell]]:
     """Activate eligible headwaters once, then propagate merge-only channels downstream."""
     shape = receiver_index.shape
     rows, columns = shape
     if eligible.shape != shape:
         raise HydrologyCapabilityError("source eligibility must match dominant graph shape")
+    excluded = _normalized_excluded_mask(excluded_mask, shape)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
-    outlet_receiver_cells = {outlet.receiver_cell for outlet in lake_outlets}
+    outlet_receiver_cells = {
+        outlet.receiver_cell
+        for outlet in lake_outlets
+        if not bool(excluded[outlet.receiver_cell])
+    }
     order = _dominant_topological_order(
         receiver_index,
         lake_candidates=lake_candidates,
+        excluded_mask=excluded,
     )
 
     skeleton = np.zeros(shape, dtype=np.bool_)
@@ -842,7 +883,7 @@ def _activate_channel_skeleton(
     sources: set[Cell] = set()
 
     for cell in order:
-        if cell in lake_by_cell:
+        if cell in lake_by_cell or bool(excluded[cell]):
             continue
         is_outlet_start = cell in outlet_receiver_cells
         has_active_upstream = int(active_upstream[cell]) > 0
@@ -864,7 +905,7 @@ def _activate_channel_skeleton(
         if target_index < 0:
             continue
         target = _cell_from_index(target_index, columns)
-        if target in lake_by_cell:
+        if target in lake_by_cell or bool(excluded[target]):
             continue
         active_upstream[target] += 1
 
@@ -882,7 +923,10 @@ def _activate_channel_skeleton(
                 skeleton_indegree[target] += 1
 
     for outlet in lake_outlets:
-        if bool(skeleton[outlet.receiver_cell]):
+        if (
+            not bool(excluded[outlet.receiver_cell])
+            and bool(skeleton[outlet.receiver_cell])
+        ):
             skeleton_indegree[outlet.receiver_cell] += 1
 
     confluences = {
@@ -892,6 +936,7 @@ def _activate_channel_skeleton(
         if bool(skeleton[row, column])
         and int(skeleton_indegree[row, column]) >= 2
         and (row, column) not in lake_by_cell
+        and not bool(excluded[row, column])
     }
     sources.difference_update(confluences)
     return skeleton, sources, confluences
@@ -904,9 +949,12 @@ def _build_channel_skeleton(
     channel_support: np.ndarray,
     lake_candidates: tuple[LakeCandidate, ...],
     lake_outlets: tuple[LakeOutlet, ...],
+    *,
+    excluded_mask: np.ndarray | None = None,
 ) -> _ChannelSkeleton:
     """Extract terrain-aware one-cell-wide channel topology from diffuse MFD transport."""
     shape = channel_support.shape
+    excluded = _normalized_excluded_mask(excluded_mask, shape)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
     receiver_index = _dominant_channel_receiver_index(
         field,
@@ -914,11 +962,13 @@ def _build_channel_skeleton(
         channel_support,
         lake_candidates=lake_candidates,
         lake_outlets=lake_outlets,
+        excluded_mask=excluded,
     )
     channel_area = _dominant_channel_area_km2(
         receiver_index,
         cell_size_km=plan.grid.cell_size_km,
         lake_candidates=lake_candidates,
+        excluded_mask=excluded,
     )
 
     convergence, initiation_score, eligible = _terrain_aware_initiation(
@@ -929,12 +979,14 @@ def _build_channel_skeleton(
     eligible = eligible.copy()
     for cell in lake_by_cell:
         eligible[cell] = False
+    eligible[excluded] = False
 
     skeleton, source_cells, confluence_cells = _activate_channel_skeleton(
         receiver_index,
         eligible,
         lake_candidates=lake_candidates,
         lake_outlets=lake_outlets,
+        excluded_mask=excluded,
     )
 
     return _ChannelSkeleton(
@@ -954,9 +1006,12 @@ def _build_potential_channel_skeleton(
     regional: _ChannelSkeleton,
     lake_candidates: tuple[LakeCandidate, ...],
     lake_outlets: tuple[LakeOutlet, ...],
+    *,
+    excluded_mask: np.ndarray | None = None,
 ) -> _ChannelSkeleton:
     """Build a denser potential drainage scaffold without changing regional rivers."""
     shape = regional.mask.shape
+    excluded = _normalized_excluded_mask(excluded_mask, shape)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
     potential_threshold = (
         float(plan.hydrology.stream_threshold_km2) * _POTENTIAL_STREAM_THRESHOLD_FACTOR
@@ -968,12 +1023,14 @@ def _build_potential_channel_skeleton(
     eligible = eligible.copy()
     for cell in lake_by_cell:
         eligible[cell] = False
+    eligible[excluded] = False
 
     skeleton, source_cells, confluence_cells = _activate_channel_skeleton(
         regional.receiver_index,
         eligible,
         lake_candidates=lake_candidates,
         lake_outlets=lake_outlets,
+        excluded_mask=excluded,
     )
     if not bool(np.all(~regional.mask | skeleton)):
         raise HydrologyCapabilityError(
@@ -1005,6 +1062,7 @@ def _strahler_order_field(
     *,
     lake_candidates: tuple[LakeCandidate, ...],
     lake_outlets: tuple[LakeOutlet, ...],
+    excluded_mask: np.ndarray | None = None,
 ) -> _StrahlerHierarchy:
     """Compute Strahler order on a merge-only skeleton with lakes as supernodes."""
     if receiver_index.shape != skeleton_mask.shape:
@@ -1014,6 +1072,7 @@ def _strahler_order_field(
 
     shape = skeleton_mask.shape
     rows, columns = shape
+    excluded = _normalized_excluded_mask(excluded_mask, shape)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
 
     # Mixed graph keys keep accepted lakes as transparent topology supernodes.
@@ -1044,7 +1103,7 @@ def _strahler_order_field(
     for row in range(rows):
         for column in range(columns):
             cell = (row, column)
-            if not bool(skeleton_mask[cell]):
+            if not bool(skeleton_mask[cell]) or bool(excluded[cell]):
                 continue
             source = cell_node(cell)
             add_node(source)
@@ -1055,6 +1114,8 @@ def _strahler_order_field(
             target_lake = lake_by_cell.get(target)
             if target_lake is not None:
                 add_edge(source, lake_node(target_lake))
+            elif bool(excluded[target]):
+                continue
             elif bool(skeleton_mask[target]):
                 add_edge(source, cell_node(target))
             elif not _is_edge(cell, shape):
@@ -1065,7 +1126,10 @@ def _strahler_order_field(
     for outlet in lake_outlets:
         lake = lake_node(outlet.lake_id)
         add_node(lake)
-        if bool(skeleton_mask[outlet.receiver_cell]):
+        if (
+            not bool(excluded[outlet.receiver_cell])
+            and bool(skeleton_mask[outlet.receiver_cell])
+        ):
             add_edge(lake, cell_node(outlet.receiver_cell))
 
     def node_sort_key(node: tuple[object, ...]) -> tuple[object, ...]:
