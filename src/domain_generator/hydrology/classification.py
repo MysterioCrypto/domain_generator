@@ -55,6 +55,7 @@ def extract_lake_candidates(
     cell_size_km: float,
     lake_min_area_km2: float,
     lake_min_depth_m: float,
+    excluded_mask: np.ndarray | None = None,
 ) -> tuple[LakeCandidate, ...]:
     if not isinstance(terrain_elevation_m, np.ndarray) or terrain_elevation_m.ndim != 2:
         raise HydrologyCapabilityError("terrain_elevation_m must be a 2D numpy array")
@@ -76,6 +77,16 @@ def extract_lake_candidates(
 
     depth = fill - terrain
     depression_mask = depth > 0.0
+    if excluded_mask is not None:
+        if (
+            not isinstance(excluded_mask, np.ndarray)
+            or excluded_mask.shape != terrain.shape
+            or excluded_mask.dtype != np.dtype(np.bool_)
+        ):
+            raise HydrologyCapabilityError(
+                "excluded_mask must be a bool array matching terrain shape"
+            )
+        depression_mask = depression_mask & ~excluded_mask
     visited = np.zeros(depression_mask.shape, dtype=np.bool_)
     cell_area_km2 = float(cell_size_km) * float(cell_size_km)
     candidates: list[LakeCandidate] = []
