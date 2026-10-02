@@ -84,13 +84,12 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. operator review H12-A design PR #96
-2. explicit design ACCEPT / REJECT
-3. ACCEPT → merge design
-4. implement marine/coastline semantics + O01–O13
-5. dedicated coastal/archipelago checkpoint
-6. explicit implementation ACCEPT / REJECT
-7. keep release/0.2-prealpha frozen
+1. create H12-A implementation branch
+2. implement marine/coastline semantics + O01–O13
+3. full pytest
+4. dedicated coastal/archipelago checkpoint
+5. explicit implementation ACCEPT / REJECT
+6. keep release/0.2-prealpha frozen
 ```
 
 Do not bundle all deferred hydrology finishing into one change.
@@ -183,3 +182,7 @@ marine/coastline semantics      DESIGN OPERATOR REVIEW
 
 H12-A design PR:
 `https://github.com/MysterioCrypto/domain_generator/pull/96`
+
+
+H12-A design PR #96 — ACCEPTED / MERGED
+`f8efae6e24cdda68fb10960f13ca69d342a61a7b`
