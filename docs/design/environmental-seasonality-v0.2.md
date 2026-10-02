@@ -1,6 +1,6 @@
 # Environmental Seasonality v0.2
 
-Status: **PROPOSED — INV-006 design gate; no runtime implementation yet**
+Status: **ACCEPTED design gate; runtime implementation authorized but not yet accepted**
 Target development line: `dev/0.2`
 Checkpoint: C4-A
 Depends on: accepted C1 annual climate + frozen Core 0.2 prealpha release
@@ -403,3 +403,13 @@ C4-A implementation may be accepted only if:
 - explicit implementation ACCEPT / REJECT is recorded.
 
 Green CI alone is not acceptance.
+
+
+## 15. Design acceptance
+
+Operator decision: **ACCEPTED**.
+
+PR #92 merged into `dev/0.2` at:
+`e729d836d29df790fa1c0056e7b686d6189703f9`.
+
+Implementation is authorized only for the bounded optional seasonality layer above. The frozen `release/0.2-prealpha` line remains unchanged at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
