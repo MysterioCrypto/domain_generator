@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-post-release-h12-marine-coast
-checkpoint: h12-a-marine-coastal-boundary-design-review
-next_topic: operator-review-h12-a-design
+checkpoint: h12-a-marine-coastal-boundary-design-accepted
+next_topic: implement-h12-a-marine-coastal-boundary
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -926,4 +926,22 @@ Proposed H12-A:
 
 H12-A does not add tides, waves, salinity, submarine channels, estuaries or deltas.
 
-Current gate: **H12-A DESIGN — OPERATOR REVIEW**.
+Operator decision: **H12-A DESIGN ACCEPTED**.
+
+Design PR #96 merged:
+`f8efae6e24cdda68fb10960f13ca69d342a61a7b`
+
+Accepted scope:
+- explicit opt-in `hydrology.marine.sea_level_m`;
+- no hidden sea-level datum;
+- boundary-connected below-sea marine semantics using fixed 4-neighbour connectivity;
+- enclosed below-sea basins remain inland;
+- marine/lake/channel semantics remain distinct;
+- canonical water depth may include marine depth;
+- coastline refinement is semantic;
+- distinct `MarineFeature`;
+- `marine_outlet` nodes terminate regional/potential drainage at coastline;
+- no tides/waves/salinity/submarine channels/delta/estuary morphology;
+- inland worlds without marine recipe remain exact-compatible.
+
+Next: implement H12-A separately with O01–O13 and a dedicated coastal/archipelago checkpoint.
