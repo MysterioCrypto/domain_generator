@@ -1916,7 +1916,26 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
     marine_candidates: tuple[MarineCandidate, ...] = ()
     marine_features: dict[str, MarineFeature] = {}
     sea_level_m: float | None = None
+    climate_normalization_water_depth_m: np.ndarray | None = None
+
     if plan.hydrology.marine is not None:
+        # H12 changes marine/lake/channel materialization, not the accepted
+        # terrain-conditioned routing/accumulation authority. Reproduce the
+        # exact no-marine hydrology once and use it as the frozen upstream
+        # baseline for routing, accumulation and C1 land-mean normalization.
+        baseline_plan = plan.model_copy(
+            update={
+                "hydrology": plan.hydrology.model_copy(
+                    update={"marine": None}
+                )
+            }
+        )
+        baseline = generate_hydrology_v02(baseline_plan, terrain)
+        if baseline.continuous_routing is None:
+            raise HydrologyCapabilityError(
+                "marine baseline requires continuous routing state"
+            )
+
         sea_level_m = float(plan.hydrology.marine.sea_level_m)
         marine_mask, marine_candidates = classify_marine_components(
             elevation,
@@ -1930,14 +1949,42 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
             subdivision=4,
         )
 
-    surfaces = priority_flood_surfaces(elevation)
-    field = continuous_routing_field(
-        surfaces.routing_elevation_m,
-        cell_size_km=plan.grid.cell_size_km,
-    )
+        routing_elevation_m = baseline.routing_elevation_m
+        fill_elevation_m = baseline.fill_elevation_m
+        field = baseline.continuous_routing
+        accumulation = baseline.flow_accumulation_km2
+        climate_normalization_water_depth_m = baseline.water_depth_m
+    else:
+        surfaces = priority_flood_surfaces(elevation)
+        routing_elevation_m = routing_elevation_m
+        fill_elevation_m = fill_elevation_m
+        field = continuous_routing_field(
+            routing_elevation_m,
+            cell_size_km=plan.grid.cell_size_km,
+        )
+        baseline_lakes = extract_lake_candidates(
+            elevation,
+            fill_elevation_m,
+            cell_size_km=plan.grid.cell_size_km,
+            lake_min_area_km2=plan.hydrology.lake_min_area_km2,
+            lake_min_depth_m=plan.hydrology.lake_min_depth_m,
+        )
+        baseline_outlets = choose_lake_outlets(
+            elevation,
+            routing_elevation_m,
+            field,
+            baseline_lakes,
+        )
+        accumulation = distributed_flow_accumulation_km2(
+            field,
+            cell_size_km=plan.grid.cell_size_km,
+            lake_candidates=baseline_lakes,
+            lake_outlets=baseline_outlets,
+        )
+
     lakes = extract_lake_candidates(
         elevation,
-        surfaces.fill_elevation_m,
+        fill_elevation_m,
         cell_size_km=plan.grid.cell_size_km,
         lake_min_area_km2=plan.hydrology.lake_min_area_km2,
         lake_min_depth_m=plan.hydrology.lake_min_depth_m,
@@ -1945,15 +1992,9 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
     )
     outlets = choose_lake_outlets(
         elevation,
-        surfaces.routing_elevation_m,
+        routing_elevation_m,
         field,
         lakes,
-    )
-    accumulation = distributed_flow_accumulation_km2(
-        field,
-        cell_size_km=plan.grid.cell_size_km,
-        lake_candidates=lakes,
-        lake_outlets=outlets,
     )
     lake_by_cell = accepted_lake_cell_map(expected_shape, lakes)
     support = classify_stream_mask(
@@ -2039,7 +2080,7 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
     )
     water_depth = build_water_depth_m(
         elevation,
-        surfaces.fill_elevation_m,
+        fill_elevation_m,
         accumulation,
         stream_mask,
         lakes,
@@ -2050,8 +2091,8 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         sea_level_m=sea_level_m,
     )
     return HydrologyState(
-        routing_elevation_m=surfaces.routing_elevation_m,
-        fill_elevation_m=surfaces.fill_elevation_m,
+        routing_elevation_m=routing_elevation_m,
+        fill_elevation_m=fill_elevation_m,
         flow_direction=_legacy_direction_projection(field),
         flow_accumulation_km2=accumulation,
         stream_mask=stream_mask,
@@ -2074,6 +2115,7 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         marine_mask=marine_mask,
         marine_candidates=marine_candidates,
         marine_features=marine_features,
+        climate_normalization_water_depth_m=climate_normalization_water_depth_m,
     )
 
 
