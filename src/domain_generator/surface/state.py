@@ -13,3 +13,5 @@ class SurfaceState:
     vegetation_density: np.ndarray
     annual_mean_temperature_c: np.ndarray | None = None
     annual_precipitation_mm: np.ndarray | None = None
+    monthly_mean_temperature_c: np.ndarray | None = None
+    monthly_precipitation_mm: np.ndarray | None = None
