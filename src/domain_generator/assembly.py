@@ -190,16 +190,22 @@ def _networks_for_output(plan: GenerationPlan, hydrology) -> dict[str, object]:
     return networks
 
 
-def _readonly_payload(array: np.ndarray, *, field_id: str, shape: tuple[int, int]) -> np.ndarray:
+def _readonly_payload(
+    array: np.ndarray,
+    *,
+    field_id: str,
+    shape: tuple[int, int],
+    dtype: np.dtype = np.dtype(np.float32),
+) -> np.ndarray:
     if not isinstance(array, np.ndarray):
         raise DomainAssemblyError(f"field {field_id!r} payload must be numpy ndarray")
     if array.shape != shape:
         raise DomainAssemblyError(
             f"field {field_id!r} shape must be {shape}, got {array.shape}"
         )
-    if array.dtype != np.dtype(np.float32):
+    if array.dtype != dtype:
         raise DomainAssemblyError(
-            f"field {field_id!r} dtype must be float32, got {array.dtype}"
+            f"field {field_id!r} dtype must be {dtype}, got {array.dtype}"
         )
     payload = np.array(array, copy=True, order="C", subok=False)
     payload.setflags(write=False)
@@ -211,6 +217,7 @@ def _field_descriptors(
     *,
     include_climate: bool,
     include_seasonality: bool,
+    include_classification: bool,
 ) -> dict[str, FieldDescriptor]:
     fields = {
         "elevation": FieldDescriptor(role=FieldRole.CANONICAL, path="fields/elevation.npy", dtype="float32", shape=shape, unit="m"),
@@ -252,6 +259,14 @@ def _field_descriptors(
                 shape=shape,
                 unit="mm/month",
             )
+    if include_classification:
+        fields["climate_regime_koppen_geiger"] = FieldDescriptor(
+            role=FieldRole.DERIVED,
+            path="fields/climate_regime_koppen_geiger.npy",
+            dtype="uint8",
+            shape=shape,
+            unit="koppen_geiger_local_season_v1",
+        )
     return fields
 
 
@@ -291,6 +306,11 @@ def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: Generatio
         include_climate
         and plan.surface.climate is not None
         and plan.surface.climate.seasonality is not None
+    )
+    include_classification = (
+        include_seasonality
+        and plan.surface.climate is not None
+        and plan.surface.climate.classification is not None
     )
     if include_climate:
         if (
@@ -342,6 +362,22 @@ def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: Generatio
                     field_id=precipitation_id,
                     shape=shape,
                 )
+            if include_classification:
+                classification = state.surface.climate_regime_koppen_geiger
+                if (
+                    not isinstance(classification, np.ndarray)
+                    or classification.shape != shape
+                    or classification.dtype != np.dtype(np.uint8)
+                ):
+                    raise DomainAssemblyError(
+                        "Core 0.2 climate classification is missing or invalid"
+                    )
+                payloads["climate_regime_koppen_geiger"] = _readonly_payload(
+                    classification,
+                    field_id="climate_regime_koppen_geiger",
+                    shape=shape,
+                    dtype=np.dtype(np.uint8),
+                )
 
     final = candidate.final_validation
     assert final.ranking is not None
@@ -365,6 +401,7 @@ def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: Generatio
                 shape,
                 include_climate=include_climate,
                 include_seasonality=include_seasonality,
+                include_classification=include_classification,
             ),
             features=features,
             networks=networks,
