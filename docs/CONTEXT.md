@@ -1053,3 +1053,17 @@ Immediate next action:
 4. run full pytest;
 5. render dedicated coastal/archipelago checkpoint;
 6. do not merge implementation before explicit ACCEPT / REJECT.
+
+
+### H12-A implementation clarification — canonical-water propagation
+
+Marine is part of canonical `water_depth`, while accepted C2/C3 already consume canonical water.
+
+Therefore:
+- H12-A does not change C2/C3 algorithms or parameters;
+- newly marine cells use existing semantics: C2 moisture = 1 exactly, C3 vegetation = 0 exactly;
+- outside marine-affected water support, C2/C3 remain exact-unchanged;
+- C1/C4/C5 climate remains exact-unchanged everywhere;
+- Placement algorithms remain unchanged, although existing water-dependent metric values may observe the new marine water.
+
+This resolves an internal contradiction in the original H12 design text; it is not a new ecological model.
