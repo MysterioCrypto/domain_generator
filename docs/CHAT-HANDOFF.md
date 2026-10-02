@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **C5-A Köppen–Geiger Climate Regimes — design accepted, implementation next**.
+Current checkpoint: **C5-A Köppen–Geiger Climate Regimes — implementation operator review**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -292,7 +292,19 @@ Important:
 - fantasy/non-Earthlike worlds may omit classification entirely;
 - exact Beck/Peel 10 C boundary retained.
 
+C5-A implementation:
+- draft PR #95: `https://github.com/MysterioCrypto/domain_generator/pull/95`;
+- semantic head: `43519587fac92e94cb8bbbb64222c876d7579882`;
+- K01–K15 GREEN;
+- schema snapshots GREEN;
+- push/PR full pytest GREEN;
+- representative checkpoint GREEN:
+  `https://github.com/MysterioCrypto/domain_generator/actions/runs/36968143576`;
+- all pre-existing C4 fields/features/networks exact-unchanged;
+- output is one optional derived uint8 climate-regime field.
+
+Representative map uses 7 of the 30 possible classes and is dominated by Csb because the diagnostic input is intentionally winter-wet / warm-season-dry. This is test input behavior, not a hidden default.
+
 Immediate next step:
-- separate implementation branch;
-- K01–K15 + representative checkpoint;
-- no implementation merge before explicit ACCEPT.
+- explicit C5-A implementation ACCEPT / REJECT;
+- no merge before that decision.
