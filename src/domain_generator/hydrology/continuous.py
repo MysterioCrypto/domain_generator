@@ -2167,6 +2167,10 @@ def validate_hydrology_v02(
     network_ok = False
     potential_hierarchy_ok = False
     water_ok = False
+    marine_contract_ok = False
+    marine_geometry_ok = False
+    marine_lake_exclusive = False
+    marine_endpoint_ok = False
     if state_ok and hydrology is not None:
         accumulation_ok = (
             hydrology.flow_accumulation_km2.shape == shape
@@ -2175,10 +2179,61 @@ def validate_hydrology_v02(
             and bool(np.all(hydrology.flow_accumulation_km2 >= cell_area - 1e-10))
         )
         lake_by_cell = accepted_lake_cell_map(shape, hydrology.lake_candidates)
+
+        marine_expected = plan.hydrology.marine is not None
+        marine_mask = hydrology.marine_mask
+        if marine_expected and terrain is not None:
+            try:
+                assert plan.hydrology.marine is not None
+                expected_marine_mask, expected_marine_candidates = classify_marine_components(
+                    terrain.elevation_m,
+                    sea_level_m=plan.hydrology.marine.sea_level_m,
+                    cell_size_km=plan.grid.cell_size_km,
+                )
+                expected_marine_features = materialize_marine_features(
+                    plan,
+                    expected_marine_candidates,
+                    terrain.elevation_m,
+                    subdivision=4,
+                )
+                marine_contract_ok = (
+                    isinstance(marine_mask, np.ndarray)
+                    and marine_mask.shape == shape
+                    and marine_mask.dtype == np.dtype(np.bool_)
+                    and np.array_equal(marine_mask, expected_marine_mask)
+                    and hydrology.marine_candidates == expected_marine_candidates
+                )
+                marine_geometry_ok = (
+                    hydrology.marine_features == expected_marine_features
+                )
+            except (HydrologyCapabilityError, ValueError, TypeError):
+                marine_contract_ok = False
+                marine_geometry_ok = False
+        else:
+            marine_contract_ok = (
+                marine_mask is None
+                and hydrology.marine_candidates == ()
+                and hydrology.marine_features == {}
+            )
+            marine_geometry_ok = marine_contract_ok
+
+        marine_cells = set()
+        if isinstance(marine_mask, np.ndarray) and marine_mask.shape == shape:
+            marine_cells = {
+                (row, column)
+                for row in range(shape[0])
+                for column in range(shape[1])
+                if bool(marine_mask[row, column])
+            }
+        marine_lake_exclusive = all(cell not in marine_cells for cell in lake_by_cell)
+
         if hydrology.channel_support_mask is not None and hydrology.channel_support_mask.shape == shape:
             expected_support = hydrology.flow_accumulation_km2 >= plan.hydrology.stream_threshold_km2
             for cell in lake_by_cell:
                 expected_support[cell] = False
+            if marine_cells:
+                for cell in marine_cells:
+                    expected_support[cell] = False
             support_ok = hydrology.channel_support_mask.dtype == np.dtype(np.bool_) and np.array_equal(hydrology.channel_support_mask, expected_support)
         if hydrology.channel_skeleton_mask is not None:
             diagnostic_arrays_ok = (
@@ -2196,6 +2251,7 @@ def validate_hydrology_v02(
                 hydrology.channel_skeleton_mask.shape == shape
                 and hydrology.channel_skeleton_mask.dtype == np.dtype(np.bool_)
                 and all(not bool(hydrology.channel_skeleton_mask[cell]) for cell in lake_by_cell)
+                and all(not bool(hydrology.channel_skeleton_mask[cell]) for cell in marine_cells)
                 and diagnostic_arrays_ok
             )
         lakes_ok = (
@@ -2240,6 +2296,38 @@ def validate_hydrology_v02(
                     break
 
         network_ok = _network_invariants(hydrology.river_network)
+
+        marine_endpoint_ok = True
+        networks_for_marine = [hydrology.river_network]
+        if hydrology.potential_river_network is not None:
+            networks_for_marine.append(hydrology.potential_river_network)
+        for network in networks_for_marine:
+            for node in network.nodes.values():
+                if node.kind is not RiverNodeKind.MARINE_OUTLET:
+                    continue
+                if (
+                    node.feature_id is None
+                    or node.feature_id not in hydrology.marine_features
+                    or node.boundary_side is not None
+                ):
+                    marine_endpoint_ok = False
+                    break
+                distance = region_set_boundary_distance_km(
+                    hydrology.marine_features[node.feature_id].geometry,
+                    node.position,
+                )
+                if distance > 1e-8:
+                    marine_endpoint_ok = False
+                    break
+            if not marine_endpoint_ok:
+                break
+        if not marine_expected:
+            marine_endpoint_ok = marine_endpoint_ok and all(
+                node.kind is not RiverNodeKind.MARINE_OUTLET
+                for network in networks_for_marine
+                for node in network.nodes.values()
+            )
+
         if (
             hydrology.potential_channel_skeleton_mask is not None
             and hydrology.channel_strahler_order is not None
@@ -2256,6 +2344,7 @@ def validate_hydrology_v02(
                 and bool(np.all(order_field[~potential_mask] == 0))
                 and bool(np.all(~hydrology.channel_skeleton_mask | potential_mask))
                 and all(not bool(potential_mask[cell]) for cell in lake_by_cell)
+                and all(not bool(potential_mask[cell]) for cell in marine_cells)
                 and _network_invariants(hydrology.potential_river_network)
                 and set(hydrology.potential_segment_strahler_order)
                     == set(hydrology.potential_river_network.segments)
@@ -2270,6 +2359,27 @@ def validate_hydrology_v02(
             and bool(np.isfinite(hydrology.water_depth_m).all())
             and bool(np.all(hydrology.water_depth_m >= 0.0))
         )
+        if water_ok and terrain is not None:
+            try:
+                expected_water = build_water_depth_m(
+                    terrain.elevation_m,
+                    hydrology.fill_elevation_m,
+                    hydrology.flow_accumulation_km2,
+                    hydrology.stream_mask,
+                    hydrology.lake_candidates,
+                    stream_threshold_km2=plan.hydrology.stream_threshold_km2,
+                    river_depth_at_threshold_m=plan.hydrology.river_depth_at_threshold_m,
+                    river_depth_exponent=plan.hydrology.river_depth_exponent,
+                    marine_mask=hydrology.marine_mask,
+                    sea_level_m=(
+                        plan.hydrology.marine.sea_level_m
+                        if plan.hydrology.marine is not None
+                        else None
+                    ),
+                )
+                water_ok = np.array_equal(hydrology.water_depth_m, expected_water)
+            except HydrologyCapabilityError:
+                water_ok = False
 
     results = (
         EngineInvariantResult(id="hydrology-v02-upstream-terrain-valid", passed=terrain_ok),
@@ -2287,6 +2397,22 @@ def validate_hydrology_v02(
         EngineInvariantResult(id="hydrology-v02-river-network-invariants", passed=network_ok),
         EngineInvariantResult(id="hydrology-v02-potential-hierarchy-valid", passed=potential_hierarchy_ok),
         EngineInvariantResult(id="hydrology-v02-water-depth-valid", passed=water_ok),
+        EngineInvariantResult(
+            id="hydrology-v02-marine-contract-valid",
+            passed=marine_contract_ok,
+        ),
+        EngineInvariantResult(
+            id="hydrology-v02-refined-marine-geometry-valid",
+            passed=marine_geometry_ok,
+        ),
+        EngineInvariantResult(
+            id="hydrology-v02-marine-lake-exclusive",
+            passed=marine_lake_exclusive,
+        ),
+        EngineInvariantResult(
+            id="hydrology-v02-marine-endpoints-on-coastline",
+            passed=marine_endpoint_ok,
+        ),
     )
     passed = all(result.passed for result in results)
     return ValidationResult(
