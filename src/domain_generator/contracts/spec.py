@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 import re
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import Field, StrictFloat, StrictInt, StrictStr, model_validator
 
