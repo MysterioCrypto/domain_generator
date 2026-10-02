@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **C4-A Environmental Seasonality — design operator review**.
+Current checkpoint: **C4-A Environmental Seasonality — design accepted, implementation next**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -216,8 +216,16 @@ Proposal:
 - no biome or stream-permanence labels yet;
 - no seasonality recipe means frozen prealpha-compatible annual behavior.
 
+C4-A design PR #92 ACCEPTED / merged:
+`https://github.com/MysterioCrypto/domain_generator/pull/92`
+
+Merge commit:
+`e729d836d29df790fa1c0056e7b686d6189703f9`
+
 Immediate next step:
-- explicit C4-A design ACCEPT / REJECT;
-- no runtime implementation before design acceptance.
+- separate C4-A implementation branch;
+- implement optional monthly seasonality + S01–S13;
+- representative seasonal checkpoint;
+- no implementation merge before explicit ACCEPT.
 
 `release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
