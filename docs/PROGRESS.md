@@ -205,3 +205,15 @@ implementation acceptance BLOCKED
 
 PR:
 `https://github.com/MysterioCrypto/domain_generator/pull/97`
+
+
+H12-A implementation recovery:
+```text
+PR #97                       DRAFT / UNMERGED
+O01-O13 module               PRESENT
+last full pytest             489 PASS / 13 FAIL
+legacy fingerprint fix       DONE on implementation branch
+topology discontinuity       IN DIAGNOSIS
+schema snapshots             PENDING after runtime fix
+coastal checkpoint           NOT YET ACCEPTANCE-READY
+```
