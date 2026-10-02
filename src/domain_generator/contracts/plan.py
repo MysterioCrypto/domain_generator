@@ -323,6 +323,10 @@ class PlanClimateSeasonality(FrozenStrictModel):
     precipitation_peak_month: Annotated[StrictInt, Field(ge=1, le=12)]
 
 
+class PlanClimateClassification(FrozenStrictModel):
+    scheme: Literal["koppen_geiger_local_season_v1"]
+
+
 class PlanClimate(FrozenStrictModel):
     mean_temperature_c: Annotated[StrictFloat, Field(allow_inf_nan=False)]
     north_minus_south_temperature_c: Annotated[StrictFloat, Field(allow_inf_nan=False)]
@@ -338,6 +342,13 @@ class PlanClimate(FrozenStrictModel):
     ]
     climate_noise_scale_km: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
     seasonality: PlanClimateSeasonality | None = None
+    classification: PlanClimateClassification | None = None
+
+    @model_validator(mode="after")
+    def validate_classification_dependencies(self) -> "PlanClimate":
+        if self.classification is not None and self.seasonality is None:
+            raise ValueError("climate classification requires climate.seasonality")
+        return self
 
 
 class PlanSurface(FrozenStrictModel):

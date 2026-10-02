@@ -46,8 +46,11 @@ def domain_spec_fingerprint(spec: DomainSpec) -> str:
         surface = payload.get("surface")
         if isinstance(surface, dict):
             climate = surface.get("climate")
-            if isinstance(climate, dict) and climate.get("seasonality") is None:
-                climate.pop("seasonality", None)
+            if isinstance(climate, dict):
+                if climate.get("seasonality") is None:
+                    climate.pop("seasonality", None)
+                if climate.get("classification") is None:
+                    climate.pop("classification", None)
     return "sha256:" + sha256(_canonical_json_bytes(payload)).hexdigest()
 
 
@@ -81,11 +84,11 @@ def semantic_plan_fingerprint(plan: GenerationPlan) -> str:
         exclude_none=False,
     )
     climate_payload = surface_payload.get("climate")
-    if (
-        isinstance(climate_payload, dict)
-        and climate_payload.get("seasonality") is None
-    ):
-        climate_payload.pop("seasonality", None)
+    if isinstance(climate_payload, dict):
+        if climate_payload.get("seasonality") is None:
+            climate_payload.pop("seasonality", None)
+        if climate_payload.get("classification") is None:
+            climate_payload.pop("classification", None)
 
     payload = {
         "plan_version": plan.plan_version,
