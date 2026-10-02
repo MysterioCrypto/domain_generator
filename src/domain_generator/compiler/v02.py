@@ -39,6 +39,15 @@ def domain_spec_fingerprint(spec: DomainSpec) -> str:
             payload["surface"].pop("climate", None)
     else:
         payload = spec.model_dump(mode="json", by_alias=True, exclude_none=False)
+        # C4 compatibility: the frozen prealpha 0.2 contract had no
+        # climate.seasonality key. Preserve the exact historical fingerprint
+        # when the additive seasonality recipe is absent, while retaining the
+        # key as semantic input when it is explicitly configured.
+        surface = payload.get("surface")
+        if isinstance(surface, dict):
+            climate = surface.get("climate")
+            if isinstance(climate, dict) and climate.get("seasonality") is None:
+                climate.pop("seasonality", None)
     return "sha256:" + sha256(_canonical_json_bytes(payload)).hexdigest()
 
 
@@ -66,6 +75,18 @@ def semantic_plan_fingerprint(plan: GenerationPlan) -> str:
     if plan.terrain is None:
         raise CompilerError("GenerationPlan 0.2 requires terrain plan")
 
+    surface_payload = plan.surface.model_dump(
+        mode="json",
+        by_alias=True,
+        exclude_none=False,
+    )
+    climate_payload = surface_payload.get("climate")
+    if (
+        isinstance(climate_payload, dict)
+        and climate_payload.get("seasonality") is None
+    ):
+        climate_payload.pop("seasonality", None)
+
     payload = {
         "plan_version": plan.plan_version,
         "seed": plan.seed,
@@ -73,7 +94,7 @@ def semantic_plan_fingerprint(plan: GenerationPlan) -> str:
         "grid": plan.grid.model_dump(mode="json"),
         "terrain": plan.terrain.model_dump(mode="json"),
         "hydrology": plan.hydrology.model_dump(mode="json"),
-        "surface": plan.surface.model_dump(mode="json"),
+        "surface": surface_payload,
         "features": features,
         "constraints": constraints,
     }
