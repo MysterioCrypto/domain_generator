@@ -1,0 +1,98 @@
+name: surface-v02-c5-checkpoint
+
+on:
+  pull_request:
+    paths:
+      - "src/domain_generator/contracts/spec.py"
+      - "src/domain_generator/contracts/plan.py"
+      - "src/domain_generator/compiler/v02.py"
+      - "src/domain_generator/surface/**"
+      - "src/domain_generator/assembly.py"
+      - "tests/test_climate_regimes_v02.py"
+      - "schemas/v0.2/**"
+      - "scripts/render_climate_regimes_checkpoint_v02.py"
+      - "examples/terrain-v02/checkpoint/**"
+      - ".github/workflows/surface-v02-c5-checkpoint.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  render-c5:
+    if: github.event.pull_request.head.ref == 'impl/v0.2-koppen-geiger-climate-regimes'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact implementation revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install checked-out generator with render dependencies
+        run: python -m pip install -e ".[dev,render]"
+
+      - name: Verify generated JSON Schema snapshots
+        run: |
+          python -m domain_generator.schema_export
+          if ! git diff --quiet -- schemas/v0.2; then
+            for path in $(git diff --name-only -- schemas/v0.2); do
+              echo "SCHEMA_SNAPSHOT_BEGIN:$path"
+              base64 -w0 "$path"
+              echo
+              echo "SCHEMA_SNAPSHOT_END:$path"
+            done
+            git diff --exit-code -- schemas/v0.2
+          fi
+
+      - name: Run C5 K01-K15 guardrails
+        run: python -m pytest tests/test_climate_regimes_v02.py
+
+      - name: Render C5-A climate-regime checkpoint
+        run: |
+          python scripts/render_climate_regimes_checkpoint_v02.py \
+            examples/terrain-v02/checkpoint/request.json \
+            examples/terrain-v02/checkpoint/presets.json \
+            "$RUNNER_TEMP/surface-v02-c5"
+
+      - name: Emit compact operator previews
+        run: |
+          python - <<'PY'
+          import base64
+          import io
+          import os
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "surface-v02-c5"
+          selected = (
+              "01-climate-regimes.png",
+              "02-climate-regimes-hillshade.png",
+              "03-annual-temperature.png",
+              "04-annual-precipitation.png",
+              "05-vegetation-density.png",
+              "08-class-area-histogram.png",
+          )
+          for name in selected:
+              image = Image.open(root / name).convert("RGB")
+              image.thumbnail((1200, 800))
+              buffer = io.BytesIO()
+              image.save(buffer, format="JPEG", quality=76, optimize=True)
+              payload = base64.b64encode(buffer.getvalue()).decode("ascii")
+              print(f"OPERATOR_PREVIEW_BEGIN:{name}")
+              print(payload)
+              print(f"OPERATOR_PREVIEW_END:{name}")
+          PY
+
+      - name: Upload C5-A operator checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: surface-v02-c5
+          path: ${{ runner.temp }}/surface-v02-c5
+          if-no-files-found: error
+          retention-days: 14
