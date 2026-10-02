@@ -1080,3 +1080,48 @@ Correct isolation rule:
 - Placement algorithms unchanged;
 - C2/C3/Placement values may change only through already accepted dependencies whose inputs changed because marine water became canonical;
 - no new marine-specific ecology term is allowed in H12-A.
+
+
+### H12-A recovery checkpoint after interrupted implementation
+
+Implementation PR #97:
+`https://github.com/MysterioCrypto/domain_generator/pull/97`
+
+Recovered implementation branch:
+`impl/v0.2-marine-coastal-boundary`
+
+The interrupted iteration had already completed more work than the visible chat showed:
+- marine contract/compiler/runtime/public feature work exists;
+- O01–O13 test module exists;
+- marine-aware runtime invariants exist;
+- draft PR #97 exists.
+
+Last completed failing CI before recovery:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36974958442`
+
+Result:
+```text
+489 passed
+13 failed
+```
+
+Failure groups:
+1. compatibility/snapshot:
+   - Core 0.1 acceptance fingerprints changed because absent additive `marine=None` leaked into legacy fingerprint payloads;
+   - C5 K15 reconstruction needed the same omission;
+   - generated schema snapshots are not yet aligned.
+2. runtime:
+   - O08/O11/O12/O13 fail at one H12 topology point:
+     `potential skeleton has an interior downstream discontinuity`.
+
+Recovery changes already written to implementation branch:
+- absent marine removed from legacy 0.1 spec/plan fingerprints;
+- C5 K15 updated to reconstruct the same additive-field omission;
+- detailed coordinates added to the skeleton discontinuity error for deterministic diagnosis.
+
+Current action:
+- rerun CI at implementation head;
+- use exact `cell -> target` diagnostic to fix the topology defect without weakening the invariant;
+- schema snapshots only after runtime semantics are stable.
+
+PR #97 remains draft/unmerged.
