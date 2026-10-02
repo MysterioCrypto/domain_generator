@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-post-release-h12-marine-coast
-checkpoint: h12-a-marine-coastal-boundary-design-accepted
-next_topic: implement-h12-a-marine-coastal-boundary
+checkpoint: h12-a-marine-coastal-boundary-implementation-in-progress
+next_topic: stabilize-h12-a-o01-o13-and-coastal-checkpoint
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -945,3 +945,40 @@ Accepted scope:
 - inland worlds without marine recipe remain exact-compatible.
 
 Next: implement H12-A separately with O01–O13 and a dedicated coastal/archipelago checkpoint.
+
+
+## H12-A implementation in progress
+
+Draft PR #97:
+`https://github.com/MysterioCrypto/domain_generator/pull/97`
+
+Implementation branch:
+`impl/v0.2-marine-coastal-boundary`
+
+Implemented so far:
+- optional marine spec/plan contract with frozen-fingerprint normalization when absent;
+- Core 0.1 marine rejection;
+- deterministic 4-neighbour boundary-connected marine classification;
+- deterministic `marine-XXXX` component identity;
+- distinct `MarineFeature` public contract;
+- refined 4× coastline geometry;
+- marine exclusion from lake support;
+- marine canonical water depth;
+- marine exclusion from regional/potential semantic channel topology;
+- `marine_outlet` nodes on refined coastline;
+- public derived `marine_mask`;
+- marine-aware hydrology invariants.
+
+First regression run found one bounded implementation error:
+- marine exclusion was accidentally passed into MFD accumulation;
+- this contradicted accepted H12 routing boundary;
+- the argument was removed; MFD routing/accumulation remains unchanged.
+
+O01–O13 guardrails are now added and under CI.
+
+Further accepted clarification:
+- C2/C3 algorithms are unchanged, but marine canonical water may alter C2/C3 values wherever their already accepted water-distance/moisture dependencies change;
+- C1/C4/C5 climate remains exact-unchanged;
+- no marine-specific ecology term is added.
+
+PR #97 remains draft/unmerged.
