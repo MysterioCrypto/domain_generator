@@ -1,6 +1,6 @@
 # Marine / Coastal Boundary Semantics v0.2
 
-Status: **PROPOSED — INV-006 design gate; no runtime implementation yet**
+Status: **ACCEPTED design gate; runtime implementation authorized but not yet accepted**
 Target development line: dev/0.2
 Checkpoint: H12-A
 Depends on: accepted Terrain 0.2 + Hydrology 0.2 + H10 refined shoreline geometry
@@ -444,3 +444,13 @@ H12-A implementation may be accepted only if:
 - Do not change C1 climate or C2/C3 ecology to make coastlines look familiar.
 - Do not reopen accepted inland Hydrology globally if the defect is confined to marine-enabled routing.
 - If sea-level boundary conditions require a different routing algorithm, stop and design that separately.
+
+
+## 19. Design acceptance
+
+Operator decision: **ACCEPTED**.
+
+PR #96 merged into `dev/0.2` at:
+`f8efae6e24cdda68fb10960f13ca69d342a61a7b`.
+
+Implementation is authorized only for the bounded marine/coastline semantics above. Inland compatibility and the absence of hidden sea-level assumptions remain mandatory.
