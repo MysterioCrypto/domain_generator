@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from ..contracts.data import HydroFeature, RiverNetwork
+from ..contracts.data import HydroFeature, MarineFeature, RiverNetwork
 
 
 Cell = tuple[int, int]
@@ -18,6 +18,16 @@ class LakeCandidate:
     area_km2: float
     max_depth_m: float
     surface_elevation_m: float
+
+
+@dataclass(frozen=True, slots=True)
+class MarineCandidate:
+    """One boundary-connected below-sea marine component."""
+
+    cells: tuple[Cell, ...]
+    raster_area_km2: float
+    sea_level_m: float
+    max_depth_m: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,3 +87,6 @@ class HydrologyState:
     potential_river_network: RiverNetwork | None = None
     potential_segment_strahler_order: dict[str, int] = field(default_factory=dict)
     lake_outlets: tuple[LakeOutlet, ...] = ()
+    marine_mask: np.ndarray | None = None
+    marine_candidates: tuple[MarineCandidate, ...] = ()
+    marine_features: dict[str, MarineFeature] = field(default_factory=dict)
