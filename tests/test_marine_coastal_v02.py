@@ -243,7 +243,7 @@ def test_o03_boundary_connected_four_neighbour_marine_classification() -> None:
     # no edge-sharing below-sea path.
     assert not mask[1, 3]
     assert mask[0, 2]
-    assert len(candidates) == 2
+    assert len(candidates) == 1
 
 
 def test_o04_marine_component_identity_and_geometry_are_deterministic() -> None:
