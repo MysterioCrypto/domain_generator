@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **C4-A Environmental Seasonality — design accepted, implementation next**.
+Current checkpoint: **C4-A Environmental Seasonality — implementation operator review**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -222,10 +222,30 @@ C4-A design PR #92 ACCEPTED / merged:
 Merge commit:
 `e729d836d29df790fa1c0056e7b686d6189703f9`
 
+C4-A implementation:
+- draft PR #93: `https://github.com/MysterioCrypto/domain_generator/pull/93`;
+- semantic head: `5b9b4e7341bfb3c8b496f25b3e9f741128f31b2a`;
+- S01–S13 GREEN;
+- schema snapshots GREEN;
+- push/PR full pytest GREEN;
+- representative checkpoint GREEN:
+  `https://github.com/MysterioCrypto/domain_generator/actions/runs/36959449118`;
+- exactly 24 monthly derived fields;
+- annual C1/C2/C3 canonical outputs exact-unchanged;
+- features/networks unchanged.
+
+Important compatibility fix:
+- absent seasonality initially altered frozen A08 fingerprints because the new optional field serialized as null;
+- this was fixed by omitting only absent seasonality from fingerprint payloads;
+- frozen A08 fingerprints are explicitly pinned by S10;
+- explicit seasonality still changes semantic fingerprint.
+
+Representative conservation after float32 persistence:
+- temperature max error ~4.77e-7 C;
+- precipitation max error ~1.91e-4 mm.
+
 Immediate next step:
-- separate C4-A implementation branch;
-- implement optional monthly seasonality + S01–S13;
-- representative seasonal checkpoint;
-- no implementation merge before explicit ACCEPT.
+- explicit C4-A implementation ACCEPT / REJECT;
+- no merge before that decision.
 
 `release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
