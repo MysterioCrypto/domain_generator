@@ -1,6 +1,6 @@
 # Köppen–Geiger Climate Regimes v0.2
 
-Status: **PROPOSED — INV-006 design gate; no runtime implementation yet**
+Status: **ACCEPTED design gate; runtime implementation authorized but not yet accepted**
 Target development line: `dev/0.2`
 Checkpoint: C5-A
 Depends on: accepted C1 annual climate + accepted C4-A monthly seasonality
@@ -587,3 +587,14 @@ Implementation may be accepted only if:
 - Do not make Köppen classification mandatory for Core 0.2/C4 worlds.
 - Do not use Köppen thresholds to alter or validate the generated climate itself.
 - If the local warm/cold half-year adaptation proves visibly inadequate, reject/redesign that adaptation rather than altering accepted monthly climate fields.
+
+
+## 19. Design acceptance
+
+Operator decision: **ACCEPTED**.
+
+PR #94 merged into `dev/0.2` at:
+`d75b2f6f55b53a14b048a38bb2a69d339c8cf44e`.
+
+Acceptance explicitly includes the universality boundary:
+Köppen–Geiger is an optional Earth-derived classifier and never a mandatory canonical climate representation.
