@@ -8,9 +8,9 @@ historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
-current_milestone: v0.2-post-release-c5-climate-regimes
-checkpoint: c5-a-koppen-geiger-climate-regimes-accepted
-next_topic: post-c5-dependency-audit
+current_milestone: v0.2-post-release-h12-marine-coast
+checkpoint: h12-a-marine-coastal-boundary-design-review
+next_topic: operator-review-h12-a-design
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -889,3 +889,41 @@ C5-A is complete.
 Next gate: perform a fresh post-C5 dependency audit before selecting the next semantic layer. Re-evaluate biome readiness and the still-deferred hydrology candidates using the now-accepted C5 climate-regime context, but do not assume any candidate is automatically ready.
 
 `release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
+
+
+## Post-C5 dependency audit / H12-A design
+
+Audit result:
+- direct biome labels remain deferred: C5 is optional Earth-derived climate regionalization, not a universal biome truth; C3 is ecological potential rather than literal land cover; soil/substrate/disturbance remain absent;
+- perennial/seasonal/dry channel classification remains blocked by groundwater/baseflow/storage;
+- lake/wetland/playa/dry-basin classification remains blocked by basin water balance/infiltration/permanence;
+- delta/estuary/fan remains blocked by known receiving-environment/process context.
+
+A more fundamental universality gap was found:
+- Core has no sea/ocean/coastline semantics;
+- negative elevation is currently just terrain;
+- archipelago/coastal worlds cannot distinguish marine water from inland depressions;
+- rivers only terminate at lakes or generic domain outlets.
+
+Selected next bounded layer: **H12-A Marine / Coastal Boundary Semantics**.
+
+Design PR #96:
+`https://github.com/MysterioCrypto/domain_generator/pull/96`
+
+Proposed H12-A:
+- optional explicit `hydrology.marine.sea_level_m`;
+- no hidden sea level;
+- marine = below-sea terrain connected to domain boundary;
+- fixed 4-neighbour connectivity avoids diagonal point-contact flooding;
+- enclosed below-sea depressions remain inland;
+- marine cells excluded from lake/channel support;
+- canonical water depth includes sea depth;
+- derived `marine_mask`;
+- refined 4× coastline geometry;
+- distinct `MarineFeature`;
+- new `marine_outlet` river node;
+- regional and potential river networks terminate at first coastline intersection.
+
+H12-A does not add tides, waves, salinity, submarine channels, estuaries or deltas.
+
+Current gate: **H12-A DESIGN — OPERATOR REVIEW**.
