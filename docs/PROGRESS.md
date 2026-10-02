@@ -84,10 +84,13 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. post-C4 dependency audit
-2. select one bounded next semantic layer
-3. open INV-006 design gate
-4. keep release/0.2-prealpha frozen
+1. operator review C5-A design PR #94
+2. explicit design ACCEPT / REJECT
+3. ACCEPT → merge design
+4. implement opt-in Köppen–Geiger climate regime + K01–K15
+5. representative operator-visible climate-regime checkpoint
+6. explicit implementation ACCEPT / REJECT
+7. keep release/0.2-prealpha frozen
 ```
 
 Do not bundle all deferred hydrology finishing into one change.
@@ -131,3 +134,17 @@ P08-A checkpoint:
 
 C4-A checkpoint:
 `https://github.com/MysterioCrypto/domain_generator/actions/runs/36959449118`
+
+
+Post-C4 dependency audit — DONE
+
+```text
+channel permanence             BLOCKED: groundwater/baseflow/storage
+basin permanence/type          BLOCKED: water balance/infiltration
+delta/estuary/fan              BLOCKED: receiving-environment context
+direct biome labels            DEFERRED
+C5-A climate regionalization   DESIGN OPERATOR REVIEW
+```
+
+C5-A design PR:
+`https://github.com/MysterioCrypto/domain_generator/pull/94`
