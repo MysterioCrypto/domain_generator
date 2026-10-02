@@ -456,6 +456,13 @@ def test_o12_marine_propagates_only_through_already_accepted_environmental_depen
 
     mask = marine_assembly.field_payloads["marine_mask"].astype(bool)
     assert np.any(mask)
+    historical_water = inland_assembly.field_payloads["water_depth"] > 0.0
+    print(
+        "H12_O12_DIAGNOSTIC "
+        f"marine_cells={int(np.count_nonzero(mask))} "
+        f"historical_water_inside_future_marine={int(np.count_nonzero(historical_water & mask))} "
+        f"historical_water_total={int(np.count_nonzero(historical_water))}"
+    )
     np.testing.assert_array_equal(
         marine_assembly.field_payloads["moisture"][mask],
         np.ones(int(np.count_nonzero(mask)), dtype=np.float32),
