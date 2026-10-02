@@ -68,10 +68,11 @@ Core 0.2 release candidate — ACCEPTED / FROZEN
 ├─ release/0.2-prealpha — CREATED
 └─ freeze commit — c69c1af010a085fb80d248af703a77471fc6c9d7
 
-Post-release C4-A Environmental Seasonality — OPERATOR REVIEW
+Post-release C4-A Environmental Seasonality — ACCEPTED / DONE
 ├─ dependency audit — DONE
 ├─ design PR #92 — ACCEPTED / MERGED
-├─ implementation PR #93 — draft/open
+├─ implementation PR #93 — ACCEPTED / MERGED
+├─ implementation merge — 570a5c4730419d17bce69f9e804b805125343fa5
 ├─ S01–S13 — GREEN
 ├─ schema snapshots — GREEN
 ├─ push/PR full pytest — GREEN
@@ -83,9 +84,9 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. explicit C4-A implementation ACCEPT / REJECT
-2. ACCEPT → freeze/merge PR #93
-3. REJECT → identify one concrete C4 component before retuning
+1. post-C4 dependency audit
+2. select one bounded next semantic layer
+3. open INV-006 design gate
 4. keep release/0.2-prealpha frozen
 ```
 
