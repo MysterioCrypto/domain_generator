@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **H12-A Marine / Coastal Boundary — design operator review**.
+Current checkpoint: **H12-A Marine / Coastal Boundary — design accepted, implementation next**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -340,6 +340,13 @@ Proposal:
 - regional/potential rivers stop at first coastline intersection;
 - no tides/waves/salinity/delta/estuary semantics yet.
 
+H12-A design PR #96 ACCEPTED / merged:
+`https://github.com/MysterioCrypto/domain_generator/pull/96`
+
+Merge commit:
+`f8efae6e24cdda68fb10960f13ca69d342a61a7b`
+
 Immediate next step:
-- explicit H12-A design ACCEPT / REJECT;
-- no runtime implementation before design acceptance.
+- separate H12-A implementation branch;
+- O01–O13 + dedicated coastal/archipelago checkpoint;
+- no implementation merge before explicit ACCEPT.
