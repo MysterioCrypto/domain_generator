@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **C4-A Environmental Seasonality — formally accepted / merged**.
+Current checkpoint: **C5-A Köppen–Geiger Climate Regimes — design operator review**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -254,3 +254,27 @@ Immediate next step:
 - do not assume biome or flow-permanence is ready without checking its remaining dependencies.
 
 `release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
+
+
+## Post-C4 audit / C5-A
+
+After C4:
+- channel permanence is still blocked by groundwater/baseflow/storage;
+- lake/wetland/playa/dry-basin semantics are still blocked by basin permanence/water balance;
+- delta/estuary/fan remains blocked by receiving-environment context;
+- direct biome labels remain deferred.
+
+Selected next bounded layer:
+**C5-A Köppen–Geiger climate regionalization**.
+
+Design PR #94:
+`https://github.com/MysterioCrypto/domain_generator/pull/94`
+
+Proposal:
+- opt-in scheme `koppen_geiger_local_season_v1`;
+- derived `uint8` field `climate_regime_koppen_geiger`;
+- fixed 30-class codebook;
+- local warm/cold half-year anchored on explicit C4 temperature peak month;
+- climate classification only, not biome classification.
+
+No runtime implementation before explicit C5-A design ACCEPT.
