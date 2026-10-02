@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-post-release-c5-climate-regimes
-checkpoint: c5-a-koppen-geiger-climate-regimes-ready-for-operator-review
-next_topic: operator-review-c5-a-implementation
+checkpoint: c5-a-koppen-geiger-climate-regimes-accepted
+next_topic: post-c5-dependency-audit
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -870,5 +870,22 @@ Visual review:
 - the raster is visibly climate regionalization rather than C3 vegetation;
 - classification does not feed back into climate generation.
 
-Current gate: **C5-A IMPLEMENTATION — OPERATOR REVIEW**.
-Do not merge PR #95 before explicit ACCEPT / REJECT.
+Operator decision: **C5-A IMPLEMENTATION ACCEPTED**.
+
+Implementation PR #95 merged into `dev/0.2`:
+`8af34da0c66c48b62172b8654edc5876d9414085`
+
+Accepted C5-A semantics:
+- Köppen–Geiger remains opt-in and Earth-derived;
+- no classification is generated unless explicitly requested;
+- classification requires explicit C4 seasonality;
+- C1/C4 climate generation remains independent and configurable;
+- output is exactly one derived `uint8` field with fixed codes 1..30;
+- C1/C2/C3/C4, Terrain, Hydrology, features, networks, and Placement remain unchanged;
+- no biome labels or hydrologic-permanence semantics were added.
+
+C5-A is complete.
+
+Next gate: perform a fresh post-C5 dependency audit before selecting the next semantic layer. Re-evaluate biome readiness and the still-deferred hydrology candidates using the now-accepted C5 climate-regime context, but do not assume any candidate is automatically ready.
+
+`release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
