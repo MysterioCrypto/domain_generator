@@ -702,19 +702,92 @@ Compatibility:
 - no seasonality recipe → frozen annual-only prealpha behavior;
 - release branch remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
 
-C4-A design status:
+C4-A status:
 ```text
 design PR #92           ACCEPTED / MERGED
-runtime implementation  NEXT
+implementation PR #93   OPERATOR REVIEW
 ```
 
 Design merge commit:
 `e729d836d29df790fa1c0056e7b686d6189703f9`
 
+Implementation PR #93:
+`https://github.com/MysterioCrypto/domain_generator/pull/93`
+
+Semantic head:
+`5b9b4e7341bfb3c8b496f25b3e9f741128f31b2a`
+
+Implemented:
+- optional `climate.seasonality` contract;
+- deterministic 12-month temperature envelope;
+- deterministic 12-month precipitation redistribution;
+- internal float32 monthly runtime arrays;
+- 24 public derived 2D monthly fields;
+- annual C1 fields remain canonical;
+- C2/C3 unchanged;
+- no biome or flow-permanence classification.
+
+S10 compatibility correction:
+- first full-suite run showed that the newly modeled absent value `seasonality: null` changed historical Core 0.2 fingerprints;
+- this was rejected as a real compatibility defect rather than accepted as a provenance re-sign;
+- fingerprint payload normalization now omits only absent seasonality, reproducing the frozen A08 spec/plan fingerprints exactly;
+- explicit seasonality remains in the hash and changes semantic plan identity.
+
+Checkpoint:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36959449118`
+
+Artifact:
+`surface-v02-c4`
+
+Automation:
+- S01–S13 GREEN;
+- schema snapshots GREEN;
+- push full pytest GREEN;
+- PR full pytest GREEN;
+- C4-A checkpoint GREEN.
+
+Representative recipe:
+```text
+temperature_seasonal_amplitude_c       7
+temperature_peak_month                 7
+precipitation_seasonality_log_amplitude 1
+precipitation_peak_month               1
+```
+
+Representative evidence:
+```text
+monthly derived descriptors            24
+canonical annual fields unchanged      true
+features unchanged                     true
+networks unchanged                     true
+
+temperature conservation max error     ~4.77e-7 C
+precipitation conservation max error   ~1.91e-4 mm
+
+annual temperature                     ~1.64 .. 11.50 C
+month 07 temperature                    ~8.64 .. 18.50 C
+month 01 temperature                    ~-5.36 .. 4.50 C
+
+precipitation fraction month 01         ~0.17892
+precipitation fraction month 07         ~0.02421
+```
+
+Visual review:
+- spatial climate structure is preserved between months;
+- temperature curves are smooth sinusoidal envelopes;
+- precipitation fractions are smooth and peak/trough at configured months;
+- no additional spatial climate noise appears;
+- fixed regional phase remains visibly a bounded climatological model rather than weather simulation.
+
+Current gate:
+```text
+C4-A implementation   OPERATOR REVIEW
+PR #93                draft/open
+merge                 BLOCKED pending explicit ACCEPT / REJECT
+```
+
 Immediate next action:
-1. create separate C4-A implementation branch from current `dev/0.2`;
-2. implement optional seasonality contract/runtime/export only;
-3. add S01–S13 guardrails;
-4. run full pytest;
-5. generate representative seasonal checkpoint;
-6. do not merge implementation before explicit ACCEPT / REJECT.
+1. explicit C4-A implementation ACCEPT / REJECT;
+2. ACCEPT → freeze/merge PR #93 on `dev/0.2`;
+3. REJECT → identify one concrete seasonality component before retuning;
+4. keep `release/0.2-prealpha` frozen regardless.
