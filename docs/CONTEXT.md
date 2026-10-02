@@ -702,14 +702,19 @@ Compatibility:
 - no seasonality recipe → frozen annual-only prealpha behavior;
 - release branch remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
 
-Current gate:
+C4-A design status:
 ```text
-C4-A design             OPERATOR REVIEW
-runtime implementation  NOT STARTED
+design PR #92           ACCEPTED / MERGED
+runtime implementation  NEXT
 ```
 
+Design merge commit:
+`e729d836d29df790fa1c0056e7b686d6189703f9`
+
 Immediate next action:
-1. explicit C4-A design ACCEPT / REJECT;
-2. ACCEPT → merge PR #92;
-3. only then implement seasonality contract/runtime/export + S01–S13;
-4. require representative operator-visible seasonal checkpoint before implementation acceptance.
+1. create separate C4-A implementation branch from current `dev/0.2`;
+2. implement optional seasonality contract/runtime/export only;
+3. add S01–S13 guardrails;
+4. run full pytest;
+5. generate representative seasonal checkpoint;
+6. do not merge implementation before explicit ACCEPT / REJECT.
