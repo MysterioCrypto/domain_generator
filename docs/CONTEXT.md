@@ -964,3 +964,87 @@ Immediate next action:
 2. select exactly one bounded next semantic layer;
 3. open a new design gate before implementation;
 4. do not reopen accepted C5-A semantics without concrete evidence.
+
+
+## Current checkpoint — H12-A Marine / Coastal Boundary design
+
+Post-C5 dependency audit:
+
+```text
+direct biome labels               DEFERRED
+  C5 is optional Earth-derived classification, not universal biome truth
+  C3 is potential/density, not literal land cover
+  soil/substrate/disturbance remain absent
+
+perennial/seasonal/dry channels  BLOCKED
+  missing groundwater/baseflow/storage
+
+lake/wetland/playa/dry basin     BLOCKED
+  missing basin water balance/infiltration/permanence
+
+delta/estuary/fan                BLOCKED
+  missing known receiving environment/process context
+```
+
+Universality audit exposed a more basic missing world type:
+Core has no explicit sea/ocean/coastline semantics.
+
+Current behavior:
+- negative elevation is just terrain elevation;
+- no explicit sea level exists;
+- edge cells are generic drainage outlets;
+- rivers cannot terminate in a known marine receiving feature;
+- an archipelago/coastal domain is therefore not represented semantically.
+
+Selected next bounded slice:
+**H12-A Marine / Coastal Boundary Semantics**.
+
+Design PR #96:
+`https://github.com/MysterioCrypto/domain_generator/pull/96`
+
+Proposed opt-in contract:
+```text
+hydrology:
+  marine:
+    sea_level_m: <explicit finite float>
+```
+
+Marine classification:
+```text
+below_sea = elevation < sea_level
+
+marine =
+  below-sea components
+  connected to domain boundary
+  by 4-neighbour edge connectivity
+```
+
+Consequences:
+- no hidden 0 m sea level;
+- inland worlds omit the recipe and stay exact-compatible;
+- enclosed below-sea basins are not flooded merely because they are below datum;
+- marine water and lakes remain distinct;
+- canonical water depth gains explicit sea depth;
+- marine coastline is refined at fixed 4× sub-cell resolution;
+- public `MarineFeature` and derived `marine_mask` make the distinction explicit;
+- regional/potential rivers terminate at a new `marine_outlet` on the refined coastline.
+
+H12-A intentionally does not add:
+- tides/waves/salinity;
+- ocean temperature moderation;
+- submarine channels;
+- delta/estuary/fan morphology.
+
+The known marine receiving environment is intended to remove one prerequisite blocker for later coastal-process design.
+
+Current gate:
+```text
+H12-A design             OPERATOR REVIEW
+runtime implementation   NOT STARTED
+```
+
+Immediate next action:
+1. explicit H12-A design ACCEPT / REJECT;
+2. ACCEPT → merge PR #96;
+3. only then implement marine contract/runtime/coastline/outlet semantics + O01–O13;
+4. require a dedicated coastal/archipelago checkpoint before implementation acceptance.
