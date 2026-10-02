@@ -6,7 +6,14 @@ import numpy as np
 from shapely import union_all
 from shapely.geometry import box
 
-from ..contracts.data import GeneratedFeatureSource, HydroFeature, LakeProperties, RiverNetwork
+from ..contracts.data import (
+    GeneratedFeatureSource,
+    HydroFeature,
+    LakeProperties,
+    MarineFeature,
+    RiverNetwork,
+    RiverNodeKind,
+)
 from ..contracts.geometry import AreaGeometry, WorldPoint
 from ..contracts.plan import GenerationPlan
 from ..geometry import (
@@ -196,9 +203,21 @@ def materialize_lake_features(
 def validate_river_lake_references(
     river_network: RiverNetwork,
     lake_features: dict[str, HydroFeature],
+    marine_features: dict[str, MarineFeature] | None = None,
 ) -> None:
+    marine = {} if marine_features is None else marine_features
     for node in river_network.nodes.values():
-        if node.feature_id is not None and node.feature_id not in lake_features:
+        if node.kind in {RiverNodeKind.LAKE_INFLOW, RiverNodeKind.LAKE_OUTLET}:
+            if node.feature_id is None or node.feature_id not in lake_features:
+                raise HydrologyCapabilityError(
+                    f"river node references unknown materialized lake {node.feature_id!r}"
+                )
+        elif node.kind is RiverNodeKind.MARINE_OUTLET:
+            if node.feature_id is None or node.feature_id not in marine:
+                raise HydrologyCapabilityError(
+                    f"river node references unknown materialized marine feature {node.feature_id!r}"
+                )
+        elif node.feature_id is not None:
             raise HydrologyCapabilityError(
-                f"river node references unknown materialized lake {node.feature_id!r}"
+                "only lake and marine river nodes may reference hydro features"
             )

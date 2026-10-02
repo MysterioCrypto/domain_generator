@@ -136,7 +136,11 @@ def normalize_semantic_confluences(network: RiverNetwork) -> RiverNetwork:
             raise HydrologyCapabilityError("semantic confluence normalization did not converge")
         if node.kind is RiverNodeKind.SOURCE and incoming[node_id]:
             raise HydrologyCapabilityError("semantic source has upstream river after normalization")
-        if node.kind not in {RiverNodeKind.DOMAIN_OUTLET, RiverNodeKind.LAKE_INFLOW}:
+        if node.kind not in {
+            RiverNodeKind.DOMAIN_OUTLET,
+            RiverNodeKind.MARINE_OUTLET,
+            RiverNodeKind.LAKE_INFLOW,
+        }:
             if len(outgoing[node_id]) > 1:
                 raise HydrologyCapabilityError("semantic river graph contains downstream bifurcation")
     return normalized

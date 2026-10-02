@@ -307,6 +307,8 @@ def test_k15_absent_classification_preserves_c4_fingerprint_semantics() -> None:
     )
     climate_payload = spec_payload["surface"]["climate"]
     climate_payload.pop("classification", None)
+    hydrology_payload = spec_payload["hydrology"]
+    hydrology_payload.pop("marine", None)
     expected_spec_fingerprint = "sha256:" + sha256(
         _canonical_json_bytes(spec_payload)
     ).hexdigest()
@@ -357,13 +359,19 @@ def test_k15_absent_classification_preserves_c4_fingerprint_semantics() -> None:
     )
     assert isinstance(surface_payload["climate"], dict)
     surface_payload["climate"].pop("classification", None)
+    hydrology_payload = plan.hydrology.model_dump(
+        mode="json",
+        by_alias=True,
+        exclude_none=False,
+    )
+    hydrology_payload.pop("marine", None)
     expected_plan_payload = {
         "plan_version": plan.plan_version,
         "seed": plan.seed,
         "domain": plan.domain.model_dump(mode="json"),
         "grid": plan.grid.model_dump(mode="json"),
         "terrain": plan.terrain.model_dump(mode="json"),
-        "hydrology": plan.hydrology.model_dump(mode="json"),
+        "hydrology": hydrology_payload,
         "surface": surface_payload,
         "features": features,
         "constraints": constraints,

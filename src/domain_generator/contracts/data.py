@@ -125,7 +125,23 @@ class HydroFeature(FrozenStrictModel):
     properties: LakeProperties
 
 
-SemanticFeature = TerrainFeature | SurfaceFeature | PoiFeature | HydroFeature
+class MarineProperties(FrozenStrictModel):
+    area_km2: NonNegativeFloat
+    sea_level_m: Annotated[StrictFloat, Field(allow_inf_nan=False)]
+    max_depth_m: NonNegativeFloat
+
+
+class MarineFeature(FrozenStrictModel):
+    kind: Literal["marine"] = "marine"
+    label: StrictStr | None = None
+    tags: tuple[StrictStr, ...] = ()
+    source: GeneratedFeatureSource
+    family: Literal[OutputFeatureFamily.HYDRO] = OutputFeatureFamily.HYDRO
+    geometry: RegionSet
+    properties: MarineProperties
+
+
+SemanticFeature = TerrainFeature | SurfaceFeature | PoiFeature | HydroFeature | MarineFeature
 
 
 class RiverNodeKind(StrEnum):
@@ -134,6 +150,7 @@ class RiverNodeKind(StrEnum):
     DOMAIN_OUTLET = "domain_outlet"
     LAKE_INFLOW = "lake_inflow"
     LAKE_OUTLET = "lake_outlet"
+    MARINE_OUTLET = "marine_outlet"
 
 
 class BoundarySide(StrEnum):
@@ -158,10 +175,15 @@ class RiverNode(FrozenStrictModel):
             raise ValueError("boundary_side is only valid for domain_outlet nodes")
 
         lake_kind = self.kind in {RiverNodeKind.LAKE_INFLOW, RiverNodeKind.LAKE_OUTLET}
+        marine_kind = self.kind is RiverNodeKind.MARINE_OUTLET
         if lake_kind and not self.feature_id:
             raise ValueError("lake inflow/outlet nodes require feature_id")
-        if not lake_kind and self.feature_id is not None:
-            raise ValueError("feature_id is only valid for lake inflow/outlet nodes")
+        if marine_kind and not self.feature_id:
+            raise ValueError("marine_outlet node requires feature_id")
+        if not lake_kind and not marine_kind and self.feature_id is not None:
+            raise ValueError(
+                "feature_id is only valid for lake inflow/outlet or marine_outlet nodes"
+            )
         return self
 
 
@@ -271,8 +293,21 @@ class DomainData(FrozenStrictModel):
 
         for network in self.networks.values():
             for node in network.nodes.values():
-                if node.feature_id is not None:
-                    feature = self.features.get(node.feature_id)
+                if node.feature_id is None:
+                    continue
+                feature = self.features.get(node.feature_id)
+                if node.kind in {RiverNodeKind.LAKE_INFLOW, RiverNodeKind.LAKE_OUTLET}:
                     if not isinstance(feature, HydroFeature):
-                        raise ValueError("river lake node feature_id must reference a hydro feature")
+                        raise ValueError(
+                            "river lake node feature_id must reference a lake hydro feature"
+                        )
+                elif node.kind is RiverNodeKind.MARINE_OUTLET:
+                    if not isinstance(feature, MarineFeature):
+                        raise ValueError(
+                            "marine_outlet feature_id must reference a MarineFeature"
+                        )
+                else:
+                    raise ValueError(
+                        "only lake and marine river nodes may reference features"
+                    )
         return self
