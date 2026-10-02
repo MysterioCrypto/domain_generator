@@ -366,3 +366,13 @@ Further H12 clarification:
 - algorithms/parameters stay unchanged; only deterministic dependency propagation is allowed;
 - C1/C4/C5 climate remains exact-unchanged;
 - no marine-specific ecological formula is part of H12.
+
+
+H12 implementation is now active:
+- draft PR #97: `https://github.com/MysterioCrypto/domain_generator/pull/97`;
+- branch `impl/v0.2-marine-coastal-boundary`;
+- contract/classification/coastline/marine-depth/marine-outlet/public-mask integration is implemented;
+- first regression exposed and fixed an accidental attempt to pass marine exclusion into MFD accumulation; routing/accumulation remains frozen;
+- O01–O13 tests are added and currently under CI;
+- schema sync and dedicated coastal checkpoint remain pending;
+- PR remains unmerged.
