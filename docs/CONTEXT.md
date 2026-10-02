@@ -862,7 +862,7 @@ Classification requires C4 seasonality. Existing C4 requests without classificat
 C5-A status:
 ```text
 design PR #94           ACCEPTED / MERGED
-implementation PR #95   OPERATOR REVIEW
+implementation PR #95   ACCEPTED / MERGED
 ```
 
 Design merge commit:
@@ -938,15 +938,29 @@ Interpretation:
 - categorical boundaries follow continuous accepted climate rather than stochastic class noise;
 - this result does not become a default world climate.
 
+Operator decision: **C5-A IMPLEMENTATION ACCEPTED**.
+
+Implementation merge commit:
+`8af34da0c66c48b62172b8654edc5876d9414085`
+
+Accepted guarantees:
+- classifier is opt-in;
+- Köppen remains an Earth-derived interpretation rather than canonical climate truth;
+- non-Earthlike/fantasy worlds may omit it entirely;
+- the classifier consumes accepted C4 climate and does not alter generation;
+- one derived `uint8` field with fixed codes 1..30 is exported when enabled;
+- C1/C2/C3/C4 and all accepted spatial/network state remain unchanged;
+- no biome labels or hydrologic-permanence semantics are introduced.
+
 Current gate:
 ```text
-C5-A implementation   OPERATOR REVIEW
-PR #95                draft/open
-merge                 BLOCKED pending explicit ACCEPT / REJECT
+C5-A implementation   ACCEPTED / MERGED
+release/0.2-prealpha  STILL FROZEN
+next                  POST-C5 DEPENDENCY AUDIT
 ```
 
 Immediate next action:
-1. explicit C5-A implementation ACCEPT / REJECT;
-2. ACCEPT → freeze/merge PR #95;
-3. REJECT → identify a concrete classifier rule/contract defect;
-4. keep Köppen optional and do not alter generated climate to improve classification aesthetics.
+1. audit remaining dependencies again with accepted C5 available;
+2. select exactly one bounded next semantic layer;
+3. open a new design gate before implementation;
+4. do not reopen accepted C5-A semantics without concrete evidence.
