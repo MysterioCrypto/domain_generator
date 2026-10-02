@@ -84,10 +84,13 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. post-C5 dependency audit
-2. select one bounded next semantic layer
-3. open next design gate
-4. keep release/0.2-prealpha frozen
+1. operator review H12-A design PR #96
+2. explicit design ACCEPT / REJECT
+3. ACCEPT → merge design
+4. implement marine/coastline semantics + O01–O13
+5. dedicated coastal/archipelago checkpoint
+6. explicit implementation ACCEPT / REJECT
+7. keep release/0.2-prealpha frozen
 ```
 
 Do not bundle all deferred hydrology finishing into one change.
@@ -166,3 +169,17 @@ representative checkpoint GREEN
 
 C5-A checkpoint:
 `https://github.com/MysterioCrypto/domain_generator/actions/runs/36968143576`
+
+
+Post-C5 dependency audit — DONE
+
+```text
+direct biome labels             DEFERRED
+channel permanence              BLOCKED: groundwater/baseflow/storage
+basin permanence/type           BLOCKED: water balance/infiltration
+delta/estuary/fan               BLOCKED: receiving-environment/process context
+marine/coastline semantics      DESIGN OPERATOR REVIEW
+```
+
+H12-A design PR:
+`https://github.com/MysterioCrypto/domain_generator/pull/96`
