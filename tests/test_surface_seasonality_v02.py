@@ -13,11 +13,10 @@ from domain_generator.application import (
     registry_for_request,
 )
 from domain_generator.compiler import compile_domain_spec, semantic_plan_fingerprint
-from domain_generator.contracts.config import GenerationConfig
+from domain_generator.contracts import GenerationRequest
 from domain_generator.contracts.data import FieldRole, RiverNetwork
 from domain_generator.contracts.layout import LayoutCandidate, SourcePlanRef
 from domain_generator.contracts.plan import GenerationPlan
-from domain_generator.contracts.request import GenerationRequest
 from domain_generator.contracts.spec import DomainSpec
 from domain_generator.hydrology.state import HydrologyState
 from domain_generator.pipeline.rng import RngFactory
