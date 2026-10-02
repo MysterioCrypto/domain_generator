@@ -84,9 +84,9 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. explicit C5-A implementation ACCEPT / REJECT
-2. ACCEPT → freeze/merge PR #95
-3. REJECT → identify one concrete classifier/contract defect
+1. post-C5 dependency audit
+2. select one bounded next semantic layer
+3. open next design gate
 4. keep release/0.2-prealpha frozen
 ```
 
@@ -140,7 +140,7 @@ channel permanence             BLOCKED: groundwater/baseflow/storage
 basin permanence/type          BLOCKED: water balance/infiltration
 delta/estuary/fan              BLOCKED: receiving-environment context
 direct biome labels            DEFERRED
-C5-A climate regionalization   IMPLEMENTATION OPERATOR REVIEW
+C5-A climate regionalization   ACCEPTED / DONE
 ```
 
 C5-A design PR:
@@ -151,7 +151,10 @@ C5-A design PR #94 — ACCEPTED / MERGED
 `d75b2f6f55b53a14b048a38bb2a69d339c8cf44e`
 
 
-C5-A implementation PR #95 — OPERATOR REVIEW
+C5-A implementation PR #95 — ACCEPTED / MERGED
+
+Implementation merge:
+`8af34da0c66c48b62172b8654edc5876d9414085`
 
 ```text
 K01-K15                 GREEN
