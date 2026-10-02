@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-post-release-c4-seasonality
-checkpoint: c4-a-environmental-seasonality-accepted
-next_topic: post-c4-dependency-audit
+checkpoint: c5-a-koppen-geiger-climate-regimes-design-review
+next_topic: operator-review-c5-a-design
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -780,3 +780,32 @@ C4-A is complete.
 Next gate: perform a fresh dependency audit before selecting the next post-release semantic layer. Do not infer that biome labels or flow-permanence are automatically next simply because seasonality now exists; each still needs its remaining dependencies checked.
 
 `release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
+
+
+## Post-C4 dependency audit / C5-A design
+
+Audit result:
+- perennial / seasonal / dry drainage remains blocked by absent groundwater/baseflow/storage;
+- standing lake vs wetland/playa/dry-basin remains blocked by absent basin water-balance/infiltration/permanence;
+- delta/estuary/fan remains blocked by absent receiving-environment/process context;
+- direct biome labels remain deliberately deferred because they would mix climate regionalization with vegetation/substrate policy.
+
+C4 does fully support one bounded intermediate layer: monthly-temperature/precipitation climate regionalization.
+
+Design PR #94:
+`https://github.com/MysterioCrypto/domain_generator/pull/94`
+
+Proposed C5-A:
+- opt-in `koppen_geiger_local_season_v1`;
+- derived `uint8` field `climate_regime_koppen_geiger`;
+- fixed 30-class Beck/Peel-style codebook;
+- B arid class precedence;
+- explicit 0 C C/D boundary;
+- local warm/cold half-years anchored to the configured C4 temperature peak month because Core has no latitude/hemisphere semantics;
+- no use of C2/C3 to force climate classes;
+- no biome labels;
+- no hydrologic-permanence inference.
+
+This is climate regionalization, not a biome raster.
+
+Current gate: **C5-A DESIGN — OPERATOR REVIEW**.
