@@ -804,3 +804,69 @@ Immediate next action:
 2. select exactly one bounded next semantic layer;
 3. open a new INV-006 design gate before material implementation;
 4. do not reopen accepted C4-A semantics without concrete evidence.
+
+
+## Current checkpoint — C5-A Köppen–Geiger Climate Regimes design
+
+Post-C4 dependency audit:
+
+```text
+perennial/seasonal/dry channels   BLOCKED
+  missing groundwater/baseflow/storage
+
+lake/wetland/playa/dry basin      BLOCKED
+  missing basin water balance/infiltration/permanence
+
+delta/estuary/fan                 BLOCKED
+  missing known receiving environment/process context
+
+direct biome labels               DEFERRED
+  avoid conflating climate regime with vegetation/substrate policy
+```
+
+The newly available C4 monthly climatology does make climate regionalization directly implementable.
+
+Design PR #94:
+`https://github.com/MysterioCrypto/domain_generator/pull/94`
+
+Scientific basis:
+- Peel et al. (2007) Köppen–Geiger criteria;
+- Beck et al. (2018) 30-class ordering.
+
+Core-specific adaptation:
+- published summer/winter half-year tests cannot use map latitude because Core has no geographic hemisphere;
+- C5-A therefore defines a local warm half-year as months `peak-3 .. peak+2` around the explicit C4 temperature peak month;
+- cold half-year is the complementary six months;
+- the adaptation is exposed in scheme id `koppen_geiger_local_season_v1`, not hidden.
+
+Proposed public output:
+```text
+field id   climate_regime_koppen_geiger
+role       derived
+dtype      uint8
+unit       koppen_geiger_local_season_v1
+codes      1..30
+```
+
+The fixed codebook follows the Beck ordering:
+Af, Am, Aw, BWh, BWk, BSh, BSk, Csa..Cfc, Dsa..Dfd, ET, EF.
+
+Contract is opt-in:
+```text
+surface.climate.classification:
+  scheme: koppen_geiger_local_season_v1
+```
+
+Classification requires C4 seasonality. Existing C4 requests without classification remain unchanged.
+
+Current gate:
+```text
+C5-A design             OPERATOR REVIEW
+runtime implementation  NOT STARTED
+```
+
+Immediate next action:
+1. explicit C5-A design ACCEPT / REJECT;
+2. ACCEPT → merge PR #94;
+3. only then implement classification contract/runtime/export + K01–K15;
+4. require representative operator-visible class map before implementation acceptance.
