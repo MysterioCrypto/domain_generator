@@ -1,3 +1,12 @@
+from .climate_regimes import (
+    KOPPEN_GEIGER_CODE_TO_LABEL,
+    KOPPEN_GEIGER_LABEL_TO_CODE,
+    KOPPEN_GEIGER_SCHEME_ID,
+    classify_koppen_geiger_local_season,
+    koppen_geiger_diagnostics,
+    local_cold_half_year_indices,
+    local_warm_half_year_indices,
+)
 from .derive import (
     EffectiveMoistureComponents,
     SurfaceCapabilityError,
@@ -21,6 +30,13 @@ __all__ = [
     "SurfaceCapabilityError",
     "VegetationComponents",
     "annual_mean_temperature_field",
+    "KOPPEN_GEIGER_CODE_TO_LABEL",
+    "KOPPEN_GEIGER_LABEL_TO_CODE",
+    "KOPPEN_GEIGER_SCHEME_ID",
+    "classify_koppen_geiger_local_season",
+    "koppen_geiger_diagnostics",
+    "local_cold_half_year_indices",
+    "local_warm_half_year_indices",
     "annual_precipitation_field",
     "climate_aware_vegetation_components",
     "SurfaceState",
