@@ -240,7 +240,7 @@ C5-A uses the 30-class Beck/Peel vocabulary and therefore does not add a separat
 ### E — polar
 
 ```text
-Thot < 10 C
+Thot <= 10 C
 ```
 
 Subtype:
@@ -253,18 +253,18 @@ EF otherwise
 ### C — temperate
 
 ```text
-Thot >= 10 C
+Thot > 10 C
 and 0 C < Tcold < 18 C
 ```
 
 ### D — cold
 
 ```text
-Thot >= 10 C
+Thot > 10 C
 and Tcold <= 0 C
 ```
 
-The published table commonly writes `Thot > 10`. C5-A uses `>= 10` for C/D and `< 10` for E to make the floating-point boundary exhaustive and deterministic.
+This keeps the Beck/Peel threshold exactly: `Thot = 10 C` belongs to group E rather than being reassigned to C/D.
 
 The C/D boundary follows the Beck/Peel 0 C convention rather than the older -3 C alternative.
 
