@@ -50,3 +50,45 @@ jobs:
 
       - name: Run H12 O01-O13 guardrails
         run: python -m pytest tests/test_marine_coastal_v02.py -q
+
+      - name: Render H12-A coastal / archipelago checkpoint
+        run: |
+          python scripts/render_marine_coastal_checkpoint_v02.py \
+            "$RUNNER_TEMP/hydrology-v02-h12"
+
+      - name: Emit compact operator previews
+        run: |
+          python - <<'PY'
+          import base64
+          import io
+          import os
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "hydrology-v02-h12"
+          selected = (
+              "01-terrain-sea-level.png",
+              "03-refined-coastline.png",
+              "05-regional-rivers-marine.png",
+              "06-potential-drainage-marine.png",
+              "07-marine-mouth-closeups.png",
+              "08-enclosed-below-sea-basin.png",
+          )
+          for name in selected:
+              image = Image.open(root / name).convert("RGB")
+              image.thumbnail((1200, 800))
+              buffer = io.BytesIO()
+              image.save(buffer, format="JPEG", quality=76, optimize=True)
+              payload = base64.b64encode(buffer.getvalue()).decode("ascii")
+              print(f"OPERATOR_PREVIEW_BEGIN:{name}")
+              print(payload)
+              print(f"OPERATOR_PREVIEW_END:{name}")
+          PY
+
+      - name: Upload H12-A operator checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: hydrology-v02-h12
+          path: ${{ runner.temp }}/hydrology-v02-h12
+          if-no-files-found: error
+          retention-days: 14
