@@ -68,9 +68,9 @@ Core 0.2 release candidate — ACCEPTED / FROZEN
 ├─ release/0.2-prealpha — CREATED
 └─ freeze commit — c69c1af010a085fb80d248af703a77471fc6c9d7
 
-Post-release C4-A Environmental Seasonality — DESIGN OPERATOR REVIEW
+Post-release C4-A Environmental Seasonality — IMPLEMENTATION NEXT
 ├─ dependency audit — DONE
-├─ design PR #92 — draft/open
+├─ design PR #92 — ACCEPTED / MERGED
 └─ runtime implementation — NOT STARTED
 ```
 
@@ -79,12 +79,11 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. operator review C4-A design PR #92
-2. explicit design ACCEPT / REJECT
-3. ACCEPT → merge design
-4. implement optional monthly seasonality + S01–S13
-5. representative seasonal checkpoint
-6. explicit implementation ACCEPT / REJECT
+1. create C4-A implementation branch
+2. implement optional monthly seasonality contract/runtime/export
+3. S01–S13 + full pytest
+4. representative seasonal checkpoint
+5. explicit implementation ACCEPT / REJECT
 ```
 
 Do not bundle all deferred hydrology finishing into one change.
