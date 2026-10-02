@@ -1,6 +1,6 @@
 # Environmental Seasonality v0.2
 
-Status: **ACCEPTED design gate; runtime implementation authorized but not yet accepted**
+Status: **ACCEPTED / IMPLEMENTED — C4-A merged into dev/0.2**
 Target development line: `dev/0.2`
 Checkpoint: C4-A
 Depends on: accepted C1 annual climate + frozen Core 0.2 prealpha release
@@ -413,3 +413,32 @@ PR #92 merged into `dev/0.2` at:
 `e729d836d29df790fa1c0056e7b686d6189703f9`.
 
 Implementation is authorized only for the bounded optional seasonality layer above. The frozen `release/0.2-prealpha` line remains unchanged at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
+
+
+## 16. Implementation acceptance
+
+Operator decision: **C4-A IMPLEMENTATION ACCEPTED**.
+
+Implementation PR #93:
+`https://github.com/MysterioCrypto/domain_generator/pull/93`
+
+Accepted semantic head:
+`5b9b4e7341bfb3c8b496f25b3e9f741128f31b2a`
+
+Implementation merge commit:
+`570a5c4730419d17bce69f9e804b805125343fa5`
+
+Acceptance evidence:
+- S01–S13 GREEN;
+- generated JSON Schema snapshots GREEN;
+- push and PR full pytest GREEN;
+- representative seasonal checkpoint GREEN;
+- annual canonical fields, features, and networks remain unchanged between annual-only and seasonal runs;
+- exactly 24 monthly derived field descriptors are exported;
+- frozen annual-only A08 spec/plan fingerprints remain exact when seasonality is absent.
+
+Checkpoint:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36959449118`
+
+The historical release line `release/0.2-prealpha` remains unchanged at
+`c69c1af010a085fb80d248af703a77471fc6c9d7`.
