@@ -277,7 +277,7 @@ In particular:
 - C2 continues its already accepted canonical-water semantics;
 - therefore newly marine cells become canonical water and receive the already accepted C2 water value exactly 1;
 - C3 likewise applies its already accepted canonical-water rule and yields vegetation 0 on those marine cells;
-- outside marine-affected canonical-water support, C2/C3 outputs must remain exact-unchanged.
+- C2/C3 algorithms and parameters remain unchanged, but their outputs may change wherever their already accepted inputs change because marine water becomes canonical water; this includes coastal land affected by accepted distance-to-water semantics.
 
 This is propagation of an accepted input semantic, not a redesign of C2/C3.
 
@@ -376,16 +376,16 @@ When marine is enabled:
 
 ### O12 — upstream immutability outside bounded marine effects
 
-For cells/features not affected by marine support:
-- terrain exact-unchanged;
-- accepted C1/C4/C5 climate exact-unchanged;
-- C2/C3 exact-unchanged;
-- Placement algorithms unchanged.
+H12-A must preserve upstream algorithms and isolate changes by dependency rather than by a simplistic raster mask:
 
-On newly marine cells, accepted downstream canonical-water semantics are allowed and required to propagate:
-- C2 moisture = 1 exactly;
-- C3 vegetation = 0 exactly;
-- water-dependent Placement metric values may observe the new canonical water, without changing Placement algorithms.
+- terrain is exact-unchanged;
+- accepted C1/C4/C5 climate is exact-unchanged everywhere;
+- C2/C3 algorithms and parameters are exact-unchanged;
+- C2/C3 output values may change wherever accepted canonical-water inputs change, including coastal land whose distance to canonical water is reduced by the sea;
+- on marine cells themselves, accepted canonical-water rules require C2 moisture = 1 and C3 vegetation = 0;
+- Placement algorithms are unchanged, while existing water/moisture/vegetation-dependent metric values may change because their accepted upstream inputs changed.
+
+No additional marine-specific moisture or vegetation term may be introduced in H12-A.
 
 Hydrology differences are limited to the explicitly marine-affected boundary:
 - marine/lake classification;
@@ -475,8 +475,31 @@ Marine water is explicitly part of canonical `water_depth`. Accepted C2/C3 seman
 Normative clarification:
 - no C2/C3 algorithm or parameter is changed by H12-A;
 - newly marine cells use existing canonical-water semantics: C2 moisture = 1 and C3 vegetation = 0;
-- C2/C3 remain exact-unchanged outside marine-affected support;
+- C2/C3 algorithms remain exact-unchanged; output changes are allowed only as deterministic propagation of their already accepted dependencies on canonical water/moisture;
 - C1/C4/C5 climate remains exact-unchanged everywhere;
 - Placement algorithms remain unchanged, while existing water-dependent metrics may observe the newly canonical marine water.
 
 This clarification resolves a contract contradiction and does not introduce a new environmental model.
+
+
+## 21. Implementation clarification — coastal dependency propagation
+
+A second dependency audit during O12 test design found that the earlier phrase "C2/C3 exact-unchanged outside marine support" was still too strong.
+
+Accepted C2 contains an explicit distance-to-canonical-water term. Adding marine water can therefore alter C2 moisture on nearby coastal land even when that land cell is not itself marine. C3 may then change through accepted C2 moisture.
+
+The correct H12-A isolation rule is:
+
+```text
+Terrain                     exact unchanged
+C1 / C4 / C5 climate        exact unchanged
+C2 algorithm + parameters   exact unchanged
+C3 algorithm + parameters   exact unchanged
+Placement algorithms        exact unchanged
+
+C2/C3/Placement values
+  may change only through already accepted dependencies
+  whose inputs changed because marine water became canonical
+```
+
+H12-A must not introduce a new marine-specific ecological formula merely to produce those changes.
