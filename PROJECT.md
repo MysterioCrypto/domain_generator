@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-post-release-c4-seasonality
-checkpoint: c4-a-environmental-seasonality-design-review
-next_topic: operator-review-c4-a-design
+checkpoint: c4-a-environmental-seasonality-design-accepted
+next_topic: implement-c4-a-environmental-seasonality
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -28,6 +28,7 @@ accepted_designs:
   - vegetation-biome-readiness-v0.2
   - potential-drainage-public-export-v0.2
   - placement-environmental-site-metrics-v0.2
+  - environmental-seasonality-v0.2
 completed:
   - core-0.1-prealpha-infrastructure
   - core-0.1-m11-acceptance-suite
@@ -693,4 +694,20 @@ Compatibility:
 - absence of `climate.seasonality` preserves frozen prealpha annual-only behavior;
 - `release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
 
-Current gate: **C4-A DESIGN — OPERATOR REVIEW**.
+Operator decision: **C4-A DESIGN ACCEPTED**.
+
+Design PR #92 merged into `dev/0.2`:
+`e729d836d29df790fa1c0056e7b686d6189703f9`
+
+Accepted scope:
+- optional explicit monthly climatological envelope for Core 0.2;
+- exact annual temperature-mean and precipitation-total conservation;
+- explicit peak months/amplitudes only;
+- no latitude/hemisphere inference;
+- no monthly climate noise or seasonal wind rotation;
+- accepted annual C1 remains canonical;
+- C2/C3 remain unchanged during C4-A;
+- no biome or flow-permanence classification yet;
+- absence of seasonality recipe preserves frozen prealpha annual-only behavior.
+
+Next: implement C4-A on a separate branch with S01–S13 and an operator-visible seasonal checkpoint.
