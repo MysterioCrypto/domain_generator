@@ -217,3 +217,17 @@ topology discontinuity       IN DIAGNOSIS
 schema snapshots             PENDING after runtime fix
 coastal checkpoint           NOT YET ACCEPTANCE-READY
 ```
+
+
+H12-A targeted recovery gate:
+```text
+schema snapshots             GREEN
+O01-O13                      GREEN
+routing/accumulation freeze  PINNED
+C1 exact isolation           PINNED
+full pytest                  RUNNING
+coastal checkpoint           NEXT
+```
+
+Workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36978575264`
