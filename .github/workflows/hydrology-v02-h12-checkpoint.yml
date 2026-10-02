@@ -1,0 +1,39 @@
+name: hydrology-v02-h12-checkpoint
+
+on:
+  pull_request:
+    paths:
+      - "src/domain_generator/compiler/**"
+      - "src/domain_generator/contracts/**"
+      - "src/domain_generator/hydrology/**"
+      - "src/domain_generator/assembly.py"
+      - "tests/test_marine_coastal_v02.py"
+      - "schemas/v0.2/**"
+      - "scripts/render_marine_coastal_checkpoint_v02.py"
+      - ".github/workflows/hydrology-v02-h12-checkpoint.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  h12-guardrails:
+    if: github.event.pull_request.head.ref == 'impl/v0.2-marine-coastal-boundary'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact implementation revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install checked-out generator
+        run: python -m pip install -e ".[dev,render]"
+
+      - name: Run H12 O01-O13 guardrails
+        run: python -m pytest tests/test_marine_coastal_v02.py -q
