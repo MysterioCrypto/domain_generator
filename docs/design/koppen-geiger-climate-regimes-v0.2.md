@@ -1,6 +1,6 @@
 # Köppen–Geiger Climate Regimes v0.2
 
-Status: **ACCEPTED design gate; runtime implementation authorized but not yet accepted**
+Status: **ACCEPTED / IMPLEMENTED — C5-A merged into dev/0.2**
 Target development line: `dev/0.2`
 Checkpoint: C5-A
 Depends on: accepted C1 annual climate + accepted C4-A monthly seasonality
@@ -598,3 +598,31 @@ PR #94 merged into `dev/0.2` at:
 
 Acceptance explicitly includes the universality boundary:
 Köppen–Geiger is an optional Earth-derived classifier and never a mandatory canonical climate representation.
+
+
+## 20. Implementation acceptance
+
+Operator decision: **C5-A IMPLEMENTATION ACCEPTED**.
+
+Implementation PR #95:
+`https://github.com/MysterioCrypto/domain_generator/pull/95`
+
+Accepted semantic head:
+`43519587fac92e94cb8bbbb64222c876d7579882`
+
+Implementation merge commit:
+`8af34da0c66c48b62172b8654edc5876d9414085`
+
+Acceptance evidence:
+- K01–K15 GREEN;
+- generated JSON Schema snapshots GREEN;
+- push and PR full pytest GREEN;
+- representative C5-A checkpoint GREEN;
+- all pre-existing C4 fields, features, and networks remain exact-unchanged when classification is enabled;
+- output remains one optional derived `uint8` field.
+
+Checkpoint:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36968143576`
+
+The historical release line `release/0.2-prealpha` remains unchanged at
+`c69c1af010a085fb80d248af703a77471fc6c9d7`.
