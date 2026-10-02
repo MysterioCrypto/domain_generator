@@ -1926,7 +1926,6 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         cell_size_km=plan.grid.cell_size_km,
         lake_candidates=lakes,
         lake_outlets=outlets,
-        excluded_mask=marine_mask,
     )
     lake_by_cell = accepted_lake_cell_map(expected_shape, lakes)
     support = classify_stream_mask(
