@@ -109,7 +109,7 @@ class _NodeDescriptor:
 
 @dataclass(frozen=True, slots=True)
 class _TraceTerminal:
-    kind: Literal["confluence", "lake_inflow", "domain_outlet"]
+    kind: Literal["confluence", "lake_inflow", "marine_outlet", "domain_outlet"]
     position: WorldPoint
     anchor_cell: Cell | None = None
     feature_id: str | None = None
@@ -1319,9 +1319,12 @@ def _trace_continuous(
     confluence_cells: set[Cell],
     lake_by_cell: dict[Cell, str],
     lake_features: dict[str, HydroFeature] | None = None,
+    marine_by_cell: dict[Cell, str] | None = None,
+    marine_features: dict[str, MarineFeature] | None = None,
 ) -> _TraceResult:
     step = adapter.cell_size_km * 0.22
     max_steps = max(200, (adapter.rows + adapter.columns) * 40)
+    marine_cells = {} if marine_by_cell is None else marine_by_cell
     points: list[WorldPoint] = [start_position]
     traversed: list[Cell] = [start_cell]
     x = float(start_position.x_km)
@@ -1381,6 +1384,43 @@ def _trace_continuous(
             )
 
         next_cell = adapter.containing_cell(nx, ny)
+        target_marine = marine_cells.get(next_cell)
+        if target_marine is not None and next_cell != start_cell:
+            ax, ay = x, y
+            bx, by = nx, ny
+            for _ in range(40):
+                mx = (ax + bx) / 2.0
+                my = (ay + by) / 2.0
+                cell_at_midpoint = adapter.containing_cell(
+                    min(adapter.width_km, max(0.0, mx)),
+                    min(adapter.height_km, max(0.0, my)),
+                )
+                if cell_at_midpoint in marine_cells:
+                    bx, by = mx, my
+                else:
+                    ax, ay = mx, my
+            raster_boundary = WorldPoint(
+                x_km=(ax + bx) / 2.0,
+                y_km=(ay + by) / 2.0,
+            )
+            boundary = raster_boundary
+            if marine_features is not None and target_marine in marine_features:
+                boundary = region_set_nearest_boundary_point(
+                    marine_features[target_marine].geometry,
+                    raster_boundary,
+                )
+            points.append(boundary)
+            return _TraceResult(
+                points=tuple(points),
+                terminal=_TraceTerminal(
+                    kind="marine_outlet",
+                    position=boundary,
+                    feature_id=target_marine,
+                ),
+                traversed_cells=tuple(dict.fromkeys(traversed)),
+                catchment_area_km2=max_catchment,
+            )
+
         target_lake = lake_by_cell.get(next_cell)
         if target_lake is not None and next_cell != start_cell:
             boundary = _lake_boundary_point(
@@ -1573,6 +1613,8 @@ def build_continuous_river_network(
     skeleton: _ChannelSkeleton | None = None,
     normalize_false_confluences: bool = False,
     lake_features: dict[str, HydroFeature] | None = None,
+    marine_candidates: tuple[MarineCandidate, ...] = (),
+    marine_features: dict[str, MarineFeature] | None = None,
 ) -> tuple[RiverNetwork, np.ndarray]:
     shape = (plan.grid.rows, plan.grid.columns)
     if accumulation.shape != shape or channel_support.shape != shape:
@@ -1582,6 +1624,10 @@ def build_continuous_river_network(
 
     adapter = GridAdapter.from_plan(plan)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
+    marine_by_cell = accepted_marine_cell_map(shape, marine_candidates)
+    marine_mask = np.zeros(shape, dtype=np.bool_)
+    for cell in marine_by_cell:
+        marine_mask[cell] = True
     if skeleton is None:
         skeleton = _build_channel_skeleton(
             plan,
@@ -1590,6 +1636,7 @@ def build_continuous_river_network(
             channel_support,
             lake_candidates,
             lake_outlets,
+            excluded_mask=marine_mask,
         )
     elif skeleton.mask.shape != shape:
         raise HydrologyCapabilityError("provided channel skeleton must match plan grid")
@@ -1634,6 +1681,46 @@ def build_continuous_river_network(
     for start in starts:
         assert start.anchor_cell is not None
 
+        start_marine = marine_by_cell.get(start.anchor_cell)
+        if start_marine is not None:
+            if start.kind is not RiverNodeKind.LAKE_OUTLET:
+                raise HydrologyCapabilityError(
+                    "ordinary channel start cannot originate inside marine support"
+                )
+            boundary = start.position
+            if marine_features is not None and start_marine in marine_features:
+                boundary = region_set_nearest_boundary_point(
+                    marine_features[start_marine].geometry,
+                    start.position,
+                )
+            key = (
+                "marine_outlet",
+                start_marine,
+                round(boundary.x_km, 9),
+                round(boundary.y_km, 9),
+            )
+            descriptors.setdefault(
+                key,
+                _NodeDescriptor(
+                    key=key,
+                    kind=RiverNodeKind.MARINE_OUTLET,
+                    position=boundary,
+                    feature_id=start_marine,
+                ),
+            )
+            target = descriptors[key]
+            points = (start.position, boundary)
+            trace_records.append(
+                (
+                    start,
+                    target,
+                    points,
+                    float(accumulation[start.anchor_cell]),
+                    (),
+                )
+            )
+            continue
+
         if start.kind is RiverNodeKind.LAKE_OUTLET and start.anchor_cell in confluence_cells:
             key = ("confluence", start.anchor_cell[0], start.anchor_cell[1])
             target = descriptors[key]
@@ -1658,6 +1745,8 @@ def build_continuous_river_network(
             confluence_cells=confluence_cells - {start.anchor_cell},
             lake_by_cell=lake_by_cell,
             lake_features=lake_features,
+            marine_by_cell=marine_by_cell,
+            marine_features=marine_features,
         )
         terminal = trace.terminal
         if terminal.kind == "confluence":
@@ -1676,6 +1765,23 @@ def build_continuous_river_network(
                 _NodeDescriptor(
                     key=key,
                     kind=RiverNodeKind.LAKE_INFLOW,
+                    position=terminal.position,
+                    feature_id=terminal.feature_id,
+                ),
+            )
+        elif terminal.kind == "marine_outlet":
+            assert terminal.feature_id is not None
+            key = (
+                "marine_outlet",
+                terminal.feature_id,
+                round(terminal.position.x_km, 9),
+                round(terminal.position.y_km, 9),
+            )
+            descriptors.setdefault(
+                key,
+                _NodeDescriptor(
+                    key=key,
+                    kind=RiverNodeKind.MARINE_OUTLET,
                     position=terminal.position,
                     feature_id=terminal.feature_id,
                 ),
@@ -1742,12 +1848,13 @@ def build_continuous_river_network(
     stream_mask = np.zeros(shape, dtype=np.bool_)
     for _, _, _, _, cells in trace_records:
         for cell in cells:
-            if cell not in lake_by_cell:
+            if cell not in lake_by_cell and cell not in marine_by_cell:
                 stream_mask[cell] = True
     for cell in source_cells | confluence_cells:
         stream_mask[cell] = True
     for outlet in lake_outlets:
-        stream_mask[outlet.receiver_cell] = True
+        if outlet.receiver_cell not in marine_by_cell:
+            stream_mask[outlet.receiver_cell] = True
 
     return RiverNetwork(nodes=nodes, segments=segments), stream_mask
 
@@ -1921,9 +2028,13 @@ def _network_invariants(network: RiverNetwork) -> bool:
             return False
         if node.kind is RiverNodeKind.CONFLUENCE and indegree[node_id] < 2:
             return False
-        if node.kind is RiverNodeKind.DOMAIN_OUTLET and outdegree[node_id] != 0:
+        if node.kind in {RiverNodeKind.DOMAIN_OUTLET, RiverNodeKind.MARINE_OUTLET} and outdegree[node_id] != 0:
             return False
-        if node.kind not in {RiverNodeKind.DOMAIN_OUTLET, RiverNodeKind.LAKE_INFLOW} and outdegree[node_id] > 1:
+        if node.kind not in {
+            RiverNodeKind.DOMAIN_OUTLET,
+            RiverNodeKind.MARINE_OUTLET,
+            RiverNodeKind.LAKE_INFLOW,
+        } and outdegree[node_id] > 1:
             return False
 
     temporary: set[str] = set()
