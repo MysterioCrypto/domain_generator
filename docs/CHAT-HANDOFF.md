@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **C5-A Köppen–Geiger Climate Regimes — design operator review**.
+Current checkpoint: **C5-A Köppen–Geiger Climate Regimes — design accepted, implementation next**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -278,3 +278,21 @@ Proposal:
 - climate classification only, not biome classification.
 
 No runtime implementation before explicit C5-A design ACCEPT.
+
+
+C5-A design PR #94 ACCEPTED / merged:
+`https://github.com/MysterioCrypto/domain_generator/pull/94`
+
+Merge commit:
+`d75b2f6f55b53a14b048a38bb2a69d339c8cf44e`
+
+Important:
+- Köppen remains opt-in Earth-derived interpretation only;
+- C4 climate parameters are explicit inputs, not hard-coded geography;
+- fantasy/non-Earthlike worlds may omit classification entirely;
+- exact Beck/Peel 10 C boundary retained.
+
+Immediate next step:
+- separate implementation branch;
+- K01–K15 + representative checkpoint;
+- no implementation merge before explicit ACCEPT.
