@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-post-release-c4-seasonality
-checkpoint: c5-a-koppen-geiger-climate-regimes-design-review
-next_topic: operator-review-c5-a-design
+checkpoint: c5-a-koppen-geiger-climate-regimes-design-accepted
+next_topic: implement-c5-a-koppen-geiger-climate-regimes
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -808,4 +808,16 @@ Proposed C5-A:
 
 This is climate regionalization, not a biome raster.
 
-Current gate: **C5-A DESIGN — OPERATOR REVIEW**.
+Operator decision: **C5-A DESIGN ACCEPTED**.
+
+Design PR #94 merged:
+`d75b2f6f55b53a14b048a38bb2a69d339c8cf44e`
+
+Accepted clarification:
+- C1/C4 climate generation remains configurable and does not hard-code hemisphere/region;
+- Köppen–Geiger is an optional Earth-derived interpretation layer only;
+- non-Earthlike/fantasy worlds may omit classification entirely;
+- climate generation must not be tuned to fit Köppen labels;
+- exact Beck/Peel group boundary retained: C/D require `Thot > 10 C`, E uses `Thot <= 10 C`.
+
+Next: implement C5-A separately with K01–K15 and operator-visible checkpoint.
