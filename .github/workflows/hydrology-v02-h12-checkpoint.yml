@@ -35,5 +35,18 @@ jobs:
       - name: Install checked-out generator
         run: python -m pip install -e ".[dev,render]"
 
+      - name: Verify generated JSON Schema snapshots
+        run: |
+          python -m domain_generator.schema_export
+          if ! git diff --quiet -- schemas/v0.2; then
+            for path in $(git diff --name-only -- schemas/v0.2); do
+              echo "SCHEMA_SNAPSHOT_BEGIN:$path"
+              base64 -w0 "$path"
+              echo
+              echo "SCHEMA_SNAPSHOT_END:$path"
+            done
+            git diff --exit-code -- schemas/v0.2
+          fi
+
       - name: Run H12 O01-O13 guardrails
         run: python -m pytest tests/test_marine_coastal_v02.py -q
