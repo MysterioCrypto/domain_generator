@@ -186,3 +186,22 @@ H12-A design PR:
 
 H12-A design PR #96 — ACCEPTED / MERGED
 `f8efae6e24cdda68fb10960f13ca69d342a61a7b`
+
+
+H12-A implementation — IN PROGRESS
+
+```text
+PR #97                  draft/open
+marine contract          DONE
+marine classification    DONE
+coastline geometry       DONE
+marine water depth       DONE
+marine outlet topology   DONE
+O01-O13                  ADDED / CI RUNNING
+schema snapshots          PENDING
+coastal checkpoint        PENDING
+implementation acceptance BLOCKED
+```
+
+PR:
+`https://github.com/MysterioCrypto/domain_generator/pull/97`
