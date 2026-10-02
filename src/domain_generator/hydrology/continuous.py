@@ -1884,6 +1884,24 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
     if not np.isfinite(elevation).all():
         raise HydrologyCapabilityError("terrain elevation must contain only finite values")
 
+    marine_mask: np.ndarray | None = None
+    marine_candidates: tuple[MarineCandidate, ...] = ()
+    marine_features: dict[str, MarineFeature] = {}
+    sea_level_m: float | None = None
+    if plan.hydrology.marine is not None:
+        sea_level_m = float(plan.hydrology.marine.sea_level_m)
+        marine_mask, marine_candidates = classify_marine_components(
+            elevation,
+            sea_level_m=sea_level_m,
+            cell_size_km=plan.grid.cell_size_km,
+        )
+        marine_features = materialize_marine_features(
+            plan,
+            marine_candidates,
+            elevation,
+            subdivision=4,
+        )
+
     surfaces = priority_flood_surfaces(elevation)
     field = continuous_routing_field(
         surfaces.routing_elevation_m,
@@ -1895,6 +1913,7 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         cell_size_km=plan.grid.cell_size_km,
         lake_min_area_km2=plan.hydrology.lake_min_area_km2,
         lake_min_depth_m=plan.hydrology.lake_min_depth_m,
+        excluded_mask=marine_mask,
     )
     outlets = choose_lake_outlets(
         elevation,
@@ -1907,6 +1926,7 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         cell_size_km=plan.grid.cell_size_km,
         lake_candidates=lakes,
         lake_outlets=outlets,
+        excluded_mask=marine_mask,
     )
     lake_by_cell = accepted_lake_cell_map(expected_shape, lakes)
     support = classify_stream_mask(
@@ -1916,6 +1936,8 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
     if lake_by_cell:
         for cell in lake_by_cell:
             support[cell] = False
+    if marine_mask is not None:
+        support[marine_mask] = False
 
     lake_features = materialize_lake_features(
         plan,
@@ -1930,12 +1952,14 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         support,
         lakes,
         outlets,
+        excluded_mask=marine_mask,
     )
     potential_skeleton = _build_potential_channel_skeleton(
         plan,
         channel_skeleton,
         lakes,
         outlets,
+        excluded_mask=marine_mask,
     )
     strahler = _strahler_order_field(
         potential_skeleton.receiver_index,
@@ -1953,6 +1977,8 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         outlets,
         skeleton=channel_skeleton,
         lake_features=lake_features,
+        marine_candidates=marine_candidates,
+        marine_features=marine_features,
     )
     potential_river_network, _ = build_continuous_river_network(
         plan,
@@ -1964,6 +1990,8 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         skeleton=potential_skeleton,
         normalize_false_confluences=True,
         lake_features=lake_features,
+        marine_candidates=marine_candidates,
+        marine_features=marine_features,
     )
     potential_segment_orders = _segment_strahler_orders(
         plan,
@@ -1971,8 +1999,16 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         strahler,
         outlets,
     )
-    validate_river_lake_references(river_network, lake_features)
-    validate_river_lake_references(potential_river_network, lake_features)
+    validate_river_lake_references(
+        river_network,
+        lake_features,
+        marine_features,
+    )
+    validate_river_lake_references(
+        potential_river_network,
+        lake_features,
+        marine_features,
+    )
     water_depth = build_water_depth_m(
         elevation,
         surfaces.fill_elevation_m,
@@ -1982,6 +2018,8 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         stream_threshold_km2=plan.hydrology.stream_threshold_km2,
         river_depth_at_threshold_m=plan.hydrology.river_depth_at_threshold_m,
         river_depth_exponent=plan.hydrology.river_depth_exponent,
+        marine_mask=marine_mask,
+        sea_level_m=sea_level_m,
     )
     return HydrologyState(
         routing_elevation_m=surfaces.routing_elevation_m,
@@ -2005,6 +2043,9 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         potential_river_network=potential_river_network,
         potential_segment_strahler_order=potential_segment_orders,
         lake_outlets=outlets,
+        marine_mask=marine_mask,
+        marine_candidates=marine_candidates,
+        marine_features=marine_features,
     )
 
 
