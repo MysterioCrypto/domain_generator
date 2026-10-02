@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-post-release-c4-seasonality
-checkpoint: c4-a-environmental-seasonality-design-accepted
-next_topic: implement-c4-a-environmental-seasonality
+checkpoint: c4-a-environmental-seasonality-ready-for-operator-review
+next_topic: operator-review-c4-a-implementation
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -710,4 +710,52 @@ Accepted scope:
 - no biome or flow-permanence classification yet;
 - absence of seasonality recipe preserves frozen prealpha annual-only behavior.
 
-Next: implement C4-A on a separate branch with S01–S13 and an operator-visible seasonal checkpoint.
+Implementation PR #93:
+`https://github.com/MysterioCrypto/domain_generator/pull/93`
+
+Semantic head:
+`5b9b4e7341bfb3c8b496f25b3e9f741128f31b2a`
+
+C4-A workflow:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36959449118`
+
+Artifact:
+`surface-v02-c4`
+
+Automation:
+- S01–S13 GREEN;
+- JSON Schema snapshots GREEN;
+- push full pytest GREEN;
+- PR full pytest GREEN;
+- C4-A checkpoint GREEN.
+
+Compatibility issue found and fixed during implementation:
+- adding optional `seasonality=None` initially changed frozen annual-only spec/plan fingerprints;
+- the historical A08 baseline was NOT re-signed;
+- fingerprint canonicalization now omits only absent seasonality, restoring exact frozen prealpha fingerprints;
+- explicitly configured seasonality remains semantic and changes the plan fingerprint.
+
+Representative C4-A recipe:
+```text
+temperature amplitude = 7 C
+temperature peak      = month 07
+precip log amplitude  = 1
+precip peak            = month 01
+```
+
+Checkpoint evidence:
+- all accepted canonical annual fields exact-equal between annual-only and seasonal runs;
+- features exact-equal;
+- networks exact-equal;
+- exactly 24 monthly derived descriptors exported;
+- temperature annual-mean max abs conservation error ~4.77e-7 C after float32 persistence;
+- precipitation annual-total max abs conservation error ~1.91e-4 mm after float32 persistence.
+
+Visual review:
+- month 07 / month 01 temperature fields preserve the same accepted spatial climate pattern with the configured ±7 C seasonal offset;
+- monthly precipitation preserves the accepted annual spatial pattern and changes only the climatological fraction;
+- configured wettest/driest and warmest/coldest months are correct;
+- no hidden monthly spatial noise is visible.
+
+Current gate: **C4-A IMPLEMENTATION — OPERATOR REVIEW**.
+Do not merge PR #93 before explicit ACCEPT / REJECT.
