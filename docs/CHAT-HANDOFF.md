@@ -18,7 +18,7 @@ docs/design/effective-surface-moisture-v0.2.md
 docs/design/vegetation-biome-readiness-v0.2.md
 ```
 
-Current checkpoint: **C4-A Environmental Seasonality — implementation operator review**.
+Current checkpoint: **C4-A Environmental Seasonality — formally accepted / merged**.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -223,8 +223,9 @@ Merge commit:
 `e729d836d29df790fa1c0056e7b686d6189703f9`
 
 C4-A implementation:
-- draft PR #93: `https://github.com/MysterioCrypto/domain_generator/pull/93`;
-- semantic head: `5b9b4e7341bfb3c8b496f25b3e9f741128f31b2a`;
+- PR #93 ACCEPTED / merged: `https://github.com/MysterioCrypto/domain_generator/pull/93`;
+- accepted semantic head: `5b9b4e7341bfb3c8b496f25b3e9f741128f31b2a`;
+- merge commit: `570a5c4730419d17bce69f9e804b805125343fa5`;
 - S01–S13 GREEN;
 - schema snapshots GREEN;
 - push/PR full pytest GREEN;
@@ -244,8 +245,12 @@ Representative conservation after float32 persistence:
 - temperature max error ~4.77e-7 C;
 - precipitation max error ~1.91e-4 mm.
 
+Operator formally ACCEPTED C4-A implementation.
+
 Immediate next step:
-- explicit C4-A implementation ACCEPT / REJECT;
-- no merge before that decision.
+- perform a fresh post-C4 dependency audit;
+- choose exactly one next bounded semantic layer;
+- open a new INV-006 design gate before implementation;
+- do not assume biome or flow-permanence is ready without checking its remaining dependencies.
 
 `release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
