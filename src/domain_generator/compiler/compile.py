@@ -124,6 +124,9 @@ def _canonical_json_bytes(value: object) -> bytes:
 
 def domain_spec_fingerprint(spec: DomainSpec) -> str:
     payload = spec.model_dump(mode="json", by_alias=True, exclude_none=False)
+    hydrology = payload.get("hydrology")
+    if isinstance(hydrology, dict) and hydrology.get("marine") is None:
+        hydrology.pop("marine", None)
     return "sha256:" + sha256(_canonical_json_bytes(payload)).hexdigest()
 
 
@@ -148,12 +151,19 @@ def semantic_plan_fingerprint(plan: GenerationPlan) -> str:
 
     surface_payload = plan.surface.model_dump(mode="json")
     surface_payload.pop("climate", None)
+    hydrology_payload = plan.hydrology.model_dump(
+        mode="json",
+        by_alias=True,
+        exclude_none=False,
+    )
+    if hydrology_payload.get("marine") is None:
+        hydrology_payload.pop("marine", None)
     payload = {
         "plan_version": plan.plan_version,
         "seed": plan.seed,
         "domain": plan.domain.model_dump(mode="json"),
         "grid": plan.grid.model_dump(mode="json"),
-        "hydrology": plan.hydrology.model_dump(mode="json"),
+        "hydrology": hydrology_payload,
         "surface": surface_payload,
         "features": features,
         "constraints": constraints,
