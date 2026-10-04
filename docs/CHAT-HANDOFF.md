@@ -376,3 +376,29 @@ H12 implementation is now active:
 - O01–O13 tests are added and currently under CI;
 - schema sync and dedicated coastal checkpoint remain pending;
 - PR remains unmerged.
+
+
+H12-A implementation recovery is complete.
+
+Current implementation:
+- draft PR #97: `https://github.com/MysterioCrypto/domain_generator/pull/97`;
+- semantic head: `4dc897906d2e67ae7c3bccb2c9ef49934339f4a6`;
+- O01-O13 GREEN;
+- schema snapshots GREEN;
+- PR and push full pytest: 502 passed;
+- dedicated coastal/archipelago checkpoint GREEN:
+  `https://github.com/MysterioCrypto/domain_generator/actions/runs/36979161098`.
+
+Checkpoint observations:
+- marine fraction ≈42.64%;
+- one marine component with one island hole;
+- two inland lakes;
+- enclosed below-sea basin remains non-marine;
+- regional/potential drainage terminates at refined coastline;
+- no visible channels continue through marine interior;
+- fixed 4× refinement is visibly stepped at ~250 m, as accepted by design.
+
+Current gate:
+**H12-A IMPLEMENTATION — OPERATOR REVIEW**
+
+Do not merge PR #97 before explicit ACCEPT / REJECT.
