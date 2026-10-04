@@ -1153,3 +1153,75 @@ Next:
 - finish full pytest gate;
 - render dedicated H12 coastal/archipelago operator checkpoint;
 - keep PR #97 draft/unmerged until explicit implementation ACCEPT / REJECT.
+
+
+### H12-A implementation — operator review gate
+
+Implementation PR #97:
+`https://github.com/MysterioCrypto/domain_generator/pull/97`
+
+Semantic head:
+`4dc897906d2e67ae7c3bccb2c9ef49934339f4a6`
+
+Final technical evidence:
+```text
+schema snapshots          GREEN
+O01-O13                  GREEN
+PR full pytest            502 passed
+push full pytest          502 passed
+coastal/archipelago render GREEN
+```
+
+Workflows:
+- H12 checkpoint: `https://github.com/MysterioCrypto/domain_generator/actions/runs/36979161098`
+- PR full pytest: `https://github.com/MysterioCrypto/domain_generator/actions/runs/36979161043`
+- push full pytest: `https://github.com/MysterioCrypto/domain_generator/actions/runs/36979156078`
+
+Artifact:
+`hydrology-v02-h12`
+
+Representative report:
+```text
+domain area                         4536 km²
+marine component count             1
+marine raster area                 1934 km²
+marine refined area                1922.25 km²
+marine fraction                    42.64%
+island holes                       1
+shoreline length                   294 km
+lakes                              2
+regional marine outlets            35
+potential marine outlets           101
+enclosed below-sea basin marine?   false
+engine invariants                  GREEN
+hard constraints                   GREEN
+```
+
+Operator-visible assessment:
+- coastline is refined below 1 km cells and follows terrain;
+- fixed 4× design produces visible ~250 m stair steps, but not 1 km cell-block coastline;
+- island hole remains intact;
+- enclosed below-sea basin remains inland;
+- regional/potential channels terminate at marine shoreline;
+- no channel continues through open marine support;
+- marine and lake geometry remain contractually/visually distinct.
+
+Implementation recovery is complete:
+- historical no-marine fingerprints restored;
+- Strahler receives marine terminal support consistently;
+- routing/accumulation remains the accepted no-marine upstream authority;
+- C1 forcing remains exact-isolated through pre-marine normalization baseline;
+- C2/C3 changes are limited to accepted canonical-water dependency propagation.
+
+Current gate:
+```text
+H12-A implementation   OPERATOR REVIEW
+PR #97                draft/open/unmerged
+merge                 BLOCKED pending explicit ACCEPT / REJECT
+```
+
+Immediate next action:
+1. explicit H12-A implementation ACCEPT / REJECT;
+2. ACCEPT → freeze and merge PR #97;
+3. REJECT → identify a concrete marine/coastline/topology defect;
+4. do not expand H12-A into tides, waves, salinity, estuary or delta morphology.
