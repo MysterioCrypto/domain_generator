@@ -231,3 +231,24 @@ coastal checkpoint           NEXT
 
 Workflow:
 `https://github.com/MysterioCrypto/domain_generator/actions/runs/36978575264`
+
+
+H12-A implementation — OPERATOR REVIEW
+```text
+PR #97                       DRAFT / UNMERGED
+semantic head                4dc897906d2e67ae7c3bccb2c9ef49934339f4a6
+schema snapshots             GREEN
+O01-O13                      GREEN
+PR full pytest               502 passed
+push full pytest             502 passed
+coastal checkpoint           GREEN
+implementation acceptance    PENDING OPERATOR
+```
+
+Checkpoint:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36979161098`
+
+Next:
+1. explicit H12-A implementation ACCEPT / REJECT;
+2. ACCEPT → merge PR #97;
+3. keep `release/0.2-prealpha` frozen.
