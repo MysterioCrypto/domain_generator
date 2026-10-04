@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-post-release-h12-marine-coast
-checkpoint: h12-a-marine-coastal-boundary-implementation-in-progress
-next_topic: stabilize-h12-a-o01-o13-and-coastal-checkpoint
+checkpoint: h12-a-marine-coastal-boundary-ready-for-operator-review
+next_topic: operator-review-h12-a-implementation
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -30,6 +30,7 @@ accepted_designs:
   - placement-environmental-site-metrics-v0.2
   - environmental-seasonality-v0.2
   - koppen-geiger-climate-regimes-v0.2
+  - marine-coastal-boundary-v0.2
 completed:
   - core-0.1-prealpha-infrastructure
   - core-0.1-m11-acceptance-suite
@@ -982,3 +983,61 @@ Further accepted clarification:
 - no marine-specific ecology term is added.
 
 PR #97 remains draft/unmerged.
+
+
+## H12-A implementation checkpoint — OPERATOR REVIEW
+
+Implementation PR #97:
+`https://github.com/MysterioCrypto/domain_generator/pull/97`
+
+Semantic head:
+`4dc897906d2e67ae7c3bccb2c9ef49934339f4a6`
+
+Technical gate:
+```text
+O01-O13                  GREEN
+schema snapshots          GREEN
+PR full pytest            502 passed
+push full pytest          502 passed
+coastal checkpoint        GREEN
+```
+
+Full pytest:
+- PR: `https://github.com/MysterioCrypto/domain_generator/actions/runs/36979161043`
+- push: `https://github.com/MysterioCrypto/domain_generator/actions/runs/36979156078`
+
+H12 checkpoint:
+`https://github.com/MysterioCrypto/domain_generator/actions/runs/36979161098`
+
+Artifact:
+`hydrology-v02-h12`
+
+Representative checkpoint:
+- domain 84×54 at 1 km;
+- one boundary-connected marine component;
+- marine fraction ≈ 42.64%;
+- one preserved island hole;
+- two inland lakes;
+- enclosed below-sea diagnostic basin is not marine;
+- regional marine outlets = 35;
+- potential-drainage marine outlets = 101;
+- engine invariants and hard constraints GREEN.
+
+Visual review:
+- coastline follows accepted 4× sub-cell reconstruction, not raw 1 km raster union;
+- 250 m stair-stepping remains visible, which is expected from the accepted fixed 4× refinement;
+- island geometry is preserved;
+- enclosed below-sea basin remains disconnected from marine water;
+- regional/potential drainage terminates at coastline;
+- no visible channel continues through marine interior;
+- lake and marine semantics remain distinct.
+
+Recovery fixes retained:
+- absent additive `marine=None` does not alter frozen pre-H12 fingerprints;
+- marine terminal support is propagated consistently through Strahler hierarchy;
+- accepted no-marine routing/accumulation remains upstream authority;
+- C1 climate normalization uses pre-marine baseline water state;
+- C2/C3 only respond through already accepted canonical-water dependencies.
+
+Current gate: **H12-A IMPLEMENTATION — OPERATOR REVIEW**.
+Do not merge PR #97 before explicit ACCEPT / REJECT.
