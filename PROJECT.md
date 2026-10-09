@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-post-release-h12-marine-coast
-checkpoint: h12-a-marine-coastal-boundary-ready-for-operator-review
-next_topic: operator-review-h12-a-implementation
+checkpoint: h12-a-marine-coastal-boundary-accepted
+next_topic: post-h12-dependency-audit
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -46,6 +46,9 @@ completed:
   - core-0.2-placement-environmental-site-metrics
   - core-0.2-integrated-acceptance
   - core-0.2-release-metadata-hardening
+  - core-0.2-c4-environmental-seasonality
+  - core-0.2-c5-koppen-geiger-climate-regimes
+  - core-0.2-h12-marine-coastal-boundary
 rejected_or_superseded:
   - core-0.1-world-generation-semantics
   - guide-renderer-as-fix-for-upstream-world-state
@@ -1039,5 +1042,28 @@ Recovery fixes retained:
 - C1 climate normalization uses pre-marine baseline water state;
 - C2/C3 only respond through already accepted canonical-water dependencies.
 
-Current gate: **H12-A IMPLEMENTATION — OPERATOR REVIEW**.
-Do not merge PR #97 before explicit ACCEPT / REJECT.
+Historical H12-A checkpoint: **IMPLEMENTATION — OPERATOR REVIEW**, now closed by explicit operator ACCEPT.
+
+## H12-A implementation acceptance — DONE
+
+Operator formally accepted H12-A implementation on 2026-10-09.
+
+- Implementation PR #97: https://github.com/MysterioCrypto/domain_generator/pull/97 — **MERGED** into `dev/0.2`.
+- Accepted implementation head: `4dc897906d2e67ae7c3bccb2c9ef49934339f4a6`.
+- Merge commit: `3d275466ec5bfdb74f5dcb88bea6c8b641347f70`.
+- O01–O13, schema snapshots, coastal operator checkpoint: GREEN.
+- Push and PR full pytest: **502 passed** on accepted implementation head.
+- Operator workflow: https://github.com/MysterioCrypto/domain_generator/actions/runs/36979161098
+
+Frozen H12-A semantics:
+- optional explicit `hydrology.marine.sea_level_m`, never an implicit sea-level datum;
+- boundary-connected (4-neighbour) below-sea marine components; enclosed below-sea depressions remain inland;
+- separate `MarineFeature`, derived `marine_mask`, 4× refined coastline, canonical marine depth;
+- lake/marine separation, `marine_outlet` for regional and potential drainage; no submarine rivers;
+- accepted Terrain/MFD and no-marine behavior stay stable; C1/C4/C5 climate remains unaffected;
+- C2/C3 algorithms unchanged, but values can change on coastal land via existing water proximity/moisture dependencies;
+- no tides, waves, salinity, coastal erosion, delta or estuary processes.
+
+Current checkpoint: **POST-H12 DEPENDENCY AUDIT — NEXT**.
+Reassess previously deferred candidates against the new marine receiving-environment capability; choose one bounded design only after an explicit dependency audit.
+`release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
