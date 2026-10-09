@@ -8,9 +8,9 @@ historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
-current_milestone: v0.2-post-release-h12-marine-coast
-checkpoint: h12-a-marine-coastal-boundary-accepted
-next_topic: post-h12-dependency-audit
+current_milestone: v0.2-post-release-h13-catchment-precipitation
+checkpoint: h13-a-gross-catchment-precipitation-design-review
+next_topic: operator-review-h13-a-design
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -1074,4 +1074,46 @@ Frozen H12-A semantics:
 
 Current checkpoint: **POST-H12 DEPENDENCY AUDIT — NEXT**.
 Reassess previously deferred candidates against the new marine receiving-environment capability; choose one bounded design only after an explicit dependency audit.
+`release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
+
+
+## Post-H12 dependency audit — DONE / H13-A design gate
+
+Dependency audit after accepted H12-A:
+- delta/estuary: a known marine receiving environment is now available, but actual discharge, sediment supply and coastal processes are still missing — **BLOCKED**;
+- perennial/seasonal/dry channels: monthly precipitation from C4 exists when explicitly requested, but runoff formation, infiltration, groundwater/baseflow and storage are absent — **BLOCKED**;
+- lake/wetland/playa/dry basin: basin water balance and permanence/infiltration still absent — **BLOCKED**;
+- direct biome labels: C3 potential + optional Earth-derived C5 climate classes are not a substrate/ecological classification policy — **DEFERRED**;
+- **gross annual precipitation input per contributing catchment**: C1 spatial precipitation and the accepted MFD weighted DAG/lake supernodes are already available — **DESIGN-READY**.
+
+Selected bounded slice: **H13-A Gross Catchment Precipitation Input**.
+
+Design-only draft PR #98:
+https://github.com/MysterioCrypto/domain_generator/pull/98
+
+Proposal (NOT ACCEPTED, NOT IMPLEMENTED):
+```yaml
+hydrology:
+  climatic_input:
+    scheme: gross_mfd_precipitation_v1
+```
+
+Proposed optional derived float64 field:
+`gross_upstream_precipitation_m3_per_year` (m³/year).
+
+Interpretation: precipitation volume entering a cell's MFD contributing area **before any evaporation, infiltration, runoff generation, groundwater storage or residence-time effects**. Never label it river discharge, actual runoff, permanence or a delta predictor.
+
+Dependency proposal (dashed; not an accepted architecture edge):
+```text
+accepted C1 annual precipitation ─┐
+                                  ├─[PROPOSED H13-A read-only diagnostic]
+accepted MFD + lake supernodes ───┤         └→ gross upstream precipitation field
+accepted optional H12 marine ─────┘
+```
+
+Normative draft exists only on `design/v0.2-gross-catchment-precipitation` until accepted. Guardrails G01–G15 include uniform-precipitation equivalence to accepted area accumulation, volume conservation, marine absorption and exact off/on world immutability.
+
+Current gate: **H13-A DESIGN — OPERATOR REVIEW**.
+PR #98 is draft/open, not merged. Runtime implementation MUST NOT begin before explicit design ACCEPT / REJECT.
+
 `release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
