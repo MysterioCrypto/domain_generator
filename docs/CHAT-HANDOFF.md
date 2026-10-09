@@ -14,11 +14,19 @@ First read, in order:
 PROJECT.md
 docs/CONTEXT.md
 docs/PROGRESS.md
-docs/design/effective-surface-moisture-v0.2.md
-docs/design/vegetation-biome-readiness-v0.2.md
+docs/design/marine-coastal-boundary-v0.2.md
+docs/design/environmental-seasonality-v0.2.md
+docs/design/koppen-geiger-climate-regimes-v0.2.md
 ```
 
-Current checkpoint: **H12-A Marine / Coastal Boundary — design accepted, implementation next**.
+Current checkpoint: **POST-H12 DEPENDENCY AUDIT — H12-A implementation ACCEPTED / MERGED**.
+
+- PR #97: https://github.com/MysterioCrypto/domain_generator/pull/97
+- Merge: `3d275466ec5bfdb74f5dcb88bea6c8b641347f70`
+- Accepted tests: O01–O13 GREEN, schema sync GREEN, 502 full tests passing, coastal workflow GREEN.
+- Marine is opt-in; negative elevation alone does not imply sea. Boundary-connected 4-neighbour marine, refined shoreline and `marine_outlet` are accepted.
+- Canonical dependency map: **see the beginning of `docs/CONTEXT.md`**. This handoff is not authoritative if they disagree.
+- Next: dependency audit and selection of one bounded next design, not H12 implementation/merge.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -398,7 +406,7 @@ Checkpoint observations:
 - no visible channels continue through marine interior;
 - fixed 4× refinement is visibly stepped at ~250 m, as accepted by design.
 
-Current gate:
-**H12-A IMPLEMENTATION — OPERATOR REVIEW**
+Historical operator-review gate was closed by formal ACCEPT on 2026-10-09.
 
-Do not merge PR #97 before explicit ACCEPT / REJECT.
+Current gate: **POST-H12 DEPENDENCY AUDIT**. PR #97 is merged, not draft or pending.
+Read the top-level dependency map in `docs/CONTEXT.md` before choosing the next slice.
