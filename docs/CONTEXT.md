@@ -14,6 +14,63 @@ PROJECT.md
 
 Active development line: `dev/0.2`. Do not infer current state from `main`.
 
+## Current context map — 2026-10-09
+
+**Active branch:** `dev/0.2`. **Current checkpoint:** `POST-H12 DEPENDENCY AUDIT`.
+**H12-A:** ACCEPTED / MERGED as PR #97, merge `3d275466ec5bfdb74f5dcb88bea6c8b641347f70`.
+**Frozen release:** `release/0.2-prealpha` at `c69c1af010a085fb80d248af703a77471fc6c9d7`; do not backport post-release semantics without a new gate.
+
+### Implemented dependency map
+
+```text
+DomainSpec / explicit opt-in recipes
+  → Compiler / immutable GenerationPlan
+  → Layout / Terrain 0.2 [ACCEPTED]
+      ├→ Hydrology 0.2 [ACCEPTED]
+      │    Priority Flood → MFD p=1.1 → regional rivers / potential drainage
+      │    → Strahler → lakes (H10 shoreline)
+      │    → H12 marine [ACCEPTED, opt-in]
+      │       sea level → edge-connected marine → refined coast / marine outlets
+      ├→ C1 annual atmospheric forcing [ACCEPTED]
+      │    explicit temperature/precipitation + windward/lee
+      │    └→ C4 monthly climate [ACCEPTED, opt-in]
+      │       └→ C5 Köppen–Geiger [ACCEPTED, opt-in, Earth-derived]
+      └→ C2 effective moisture [ACCEPTED]
+           reads climate + canonical hydro water/drainage
+           └→ C3 vegetation potential [ACCEPTED]
+  → Placement / P08 environmental metrics [ACCEPTED]
+  → validation / replay / DomainData / bundle
+```
+
+Dependencies and isolation:
+- H12 modifies canonical water on marine cells, marine/lake/channel topology and receiving-environment geometry; it **does not** alter accepted Terrain, MFD accumulation or C1/C4/C5 climate algorithms/results.
+- C2 can respond on coastal **land** through existing distance-to-water; C3 can then respond through accepted moisture. No marine-specific ecology formula was added.
+- C4 phases/amplitudes and H12 sea level are explicit input values, not hard-coded Earth geography. C5 is an optional Earth-derived **climate** classifier, not a universal biome truth.
+- `marine_mask` is derived; `water_depth` remains canonical; regional `rivers` and `potential_drainage` terminate at `marine_outlet` on the refined coast.
+
+### Post-H12 unresolved dependency map
+
+| Candidate | Status after H12 | Missing evidence/semantics |
+| --- | --- | --- |
+| perennial / seasonal / dry channels | BLOCKED | groundwater, baseflow, storage and discharge/permanence |
+| lake / wetland / playa / dry basin | BLOCKED | basin water balance, infiltration, retention/permanence |
+| delta / estuary | PARTIALLY UNBLOCKED | marine receiver now exists; sediment, discharge and coastal-process regime still absent |
+| fan morphology | DEFERRED | sediment/process context and appropriate receiving terrain |
+| direct biome labels | DEFERRED | classification policy, substrate/soil, ecological history/disturbance; C5 is optional |
+| detailed coastal physics | DEFERRED | tides, waves, salinity, sea/land climatic feedback |
+
+**Next:** audit dependencies and select exactly one bounded candidate for a design-only gate. Do not silently implement a candidate, retune accepted upstream semantics, or treat a green CI result as operator acceptance.
+
+### H12 acceptance evidence
+
+PR: https://github.com/MysterioCrypto/domain_generator/pull/97  
+Accepted head: `4dc897906d2e67ae7c3bccb2c9ef49934339f4a6`  
+Merge: `3d275466ec5bfdb74f5dcb88bea6c8b641347f70`  
+O01–O13, schema sync, 502 passing tests, and dedicated visual checkpoint: GREEN.  
+Workflow: https://github.com/MysterioCrypto/domain_generator/actions/runs/36979161098
+
+The detailed H12 checkpoints below are historical; this top-level map is authoritative for the **current** checkpoint. Accepted design contract: `docs/design/marine-coastal-boundary-v0.2.md`.
+
 ## Stable accepted base
 
 ### Terrain 0.2 — ACCEPTED
@@ -1213,15 +1270,6 @@ Implementation recovery is complete:
 - C1 forcing remains exact-isolated through pre-marine normalization baseline;
 - C2/C3 changes are limited to accepted canonical-water dependency propagation.
 
-Current gate:
-```text
-H12-A implementation   OPERATOR REVIEW
-PR #97                draft/open/unmerged
-merge                 BLOCKED pending explicit ACCEPT / REJECT
-```
+Historical gate closed: **H12-A IMPLEMENTATION ACCEPTED / MERGED**, PR #97 merge `3d275466ec5bfdb74f5dcb88bea6c8b641347f70`.
 
-Immediate next action:
-1. explicit H12-A implementation ACCEPT / REJECT;
-2. ACCEPT → freeze and merge PR #97;
-3. REJECT → identify a concrete marine/coastline/topology defect;
-4. do not expand H12-A into tides, waves, salinity, estuary or delta morphology.
+Active gate: **POST-H12 DEPENDENCY AUDIT**. Refer to the current context map at the top for the dependency graph, remaining blockers, and next action.
