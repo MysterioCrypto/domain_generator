@@ -16,7 +16,7 @@ Active development line: `dev/0.2`. Do not infer current state from `main`.
 
 ## Current context map — 2026-10-09
 
-**Active branch:** `dev/0.2`. **Current checkpoint:** `POST-H12 DEPENDENCY AUDIT`.
+**Active branch:** `dev/0.2`. **Current checkpoint:** `H13-A GROSS CATCHMENT PRECIPITATION — DESIGN OPERATOR REVIEW`.
 **H12-A:** ACCEPTED / MERGED as PR #97, merge `3d275466ec5bfdb74f5dcb88bea6c8b641347f70`.
 **Frozen release:** `release/0.2-prealpha` at `c69c1af010a085fb80d248af703a77471fc6c9d7`; do not backport post-release semantics without a new gate.
 
@@ -48,6 +48,20 @@ Dependencies and isolation:
 - C4 phases/amplitudes and H12 sea level are explicit input values, not hard-coded Earth geography. C5 is an optional Earth-derived **climate** classifier, not a universal biome truth.
 - `marine_mask` is derived; `water_depth` remains canonical; regional `rivers` and `potential_drainage` terminate at `marine_outlet` on the refined coast.
 
+### Proposed next dependency edge — NOT ACCEPTED
+
+```text
+C1 annual precipitation [ACCEPTED] ───┐
+MFD routing + lake supernodes [ACCEPTED]├─ H13-A [PROPOSED, design PR #98]
+H12 marine terminal (optional) [ACCEPTED]┘  └─ derived gross precipitation input
+```
+
+`gross_upstream_precipitation_m3_per_year` is **gross atmospheric supply routed over a catchment**, not river discharge, runoff, channel permanence or groundwater recharge. Precipitation falling on marine cells is excluded from the proposed land-catchment diagnostic. The field must have no feedback into climate, water depth, drainage geometry, vegetation or Placement.
+
+Design proposal: https://github.com/MysterioCrypto/domain_generator/pull/98  
+Branch: `design/v0.2-gross-catchment-precipitation`  
+Normative draft path (not yet merged): `docs/design/gross-catchment-precipitation-input-v0.2.md`
+
 ### Post-H12 unresolved dependency map
 
 | Candidate | Status after H12 | Missing evidence/semantics |
@@ -58,8 +72,9 @@ Dependencies and isolation:
 | fan morphology | DEFERRED | sediment/process context and appropriate receiving terrain |
 | direct biome labels | DEFERRED | classification policy, substrate/soil, ecological history/disturbance; C5 is optional |
 | detailed coastal physics | DEFERRED | tides, waves, salinity, sea/land climatic feedback |
+| gross catchment precipitation | DESIGN REVIEW | accepted C1 and MFD already provide necessary inputs; runoff/losses intentionally excluded |
 
-**Next:** audit dependencies and select exactly one bounded candidate for a design-only gate. Do not silently implement a candidate, retune accepted upstream semantics, or treat a green CI result as operator acceptance.
+**Post-H12 audit is complete.** H13-A is the selected **design-only** candidate. No other deferred physical classification was silently unblocked. Explicit H13-A design ACCEPT / REJECT is the next decision. Do not silently implement a candidate, retune accepted upstream semantics, or treat a green CI result as operator acceptance.
 
 ### H12 acceptance evidence
 
@@ -69,7 +84,7 @@ Merge: `3d275466ec5bfdb74f5dcb88bea6c8b641347f70`
 O01–O13, schema sync, 502 passing tests, and dedicated visual checkpoint: GREEN.  
 Workflow: https://github.com/MysterioCrypto/domain_generator/actions/runs/36979161098
 
-The detailed H12 checkpoints below are historical; this top-level map is authoritative for the **current** checkpoint. Accepted design contract: `docs/design/marine-coastal-boundary-v0.2.md`.
+The detailed H12 checkpoints below are historical; this top-level map is authoritative for the **current** checkpoint. H13-A is proposed only and is not part of the implemented DAG. Accepted design contract: `docs/design/marine-coastal-boundary-v0.2.md`.
 
 ## Stable accepted base
 
@@ -1273,3 +1288,16 @@ Implementation recovery is complete:
 Historical gate closed: **H12-A IMPLEMENTATION ACCEPTED / MERGED**, PR #97 merge `3d275466ec5bfdb74f5dcb88bea6c8b641347f70`.
 
 Active gate: **POST-H12 DEPENDENCY AUDIT**. Refer to the current context map at the top for the dependency graph, remaining blockers, and next action.
+
+
+## H13-A design-only handoff / post-H12 audit completion
+
+Post-H12 dependency audit completed. Selected candidate is an opt-in, **read-only** gross annual catchment precipitation diagnostic, calculated from accepted C1 and frozen weighted MFD/lake supernodes with optional marine absorption. It introduces no infiltration, storage, evaporation or discharge modeling.
+
+PR #98: https://github.com/MysterioCrypto/domain_generator/pull/98  
+Design branch: `design/v0.2-gross-catchment-precipitation`  
+Status: **DESIGN — OPERATOR REVIEW; runtime NOT STARTED**.
+
+Next action: obtain explicit design ACCEPT/REJECT. On ACCEPT, merge the design first, update this context map and progress tree, then develop implementation in a separate branch with G01–G15 and representative wet/dry/coastal checkpoints. On REJECT, revise the design without writing runtime code.
+
+Historical `release/0.2-prealpha` remains untouched.
