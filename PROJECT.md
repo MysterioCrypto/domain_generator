@@ -181,6 +181,14 @@ implementation
 
 Green CI не заменяет human visual acceptance. Визуально удачный render также не отменяет failed invariants.
 
+**Context-map freshness invariant (working rule):** после каждого принятого дизайна, merge, диагностически значимого исправления или смены checkpoint синхронизировать оба вида внешнего состояния:
+- **план/статус:** `PROJECT.md`, `docs/PROGRESS.md` (DONE / IN PROGRESS / NEXT, PR/SHA);
+- **семантическая карта:** `docs/CONTEXT.md` (dependency DAG, инварианты, причины решений, оставшиеся blockers, следующий gate);
+- при изменении контрактной архитектуры — `docs/architecture.md` и нормативный `docs/design/*`;
+- `docs/CHAT-HANDOFF.md` обновлять вместе с checkpoint, но он всегда ниже по приоритету, чем три канонических документа.
+
+Не накапливать в начале канонических файлов устаревший `CURRENT`: исторические checkpoint-блоки должны быть явно помечены как исторические. При потере чата допустима потеря максимум одного незавершённого смыслового шага.
+
 
 ## Surface / Climate 0.2 — C1 ACCEPTED
 
