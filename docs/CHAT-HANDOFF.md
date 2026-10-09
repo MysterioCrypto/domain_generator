@@ -19,14 +19,22 @@ docs/design/environmental-seasonality-v0.2.md
 docs/design/koppen-geiger-climate-regimes-v0.2.md
 ```
 
-Current checkpoint: **POST-H12 DEPENDENCY AUDIT — H12-A implementation ACCEPTED / MERGED**.
+Current checkpoint: **H13-A GROSS CATCHMENT PRECIPITATION — DESIGN OPERATOR REVIEW**.
+
+Post-H12 dependency audit is DONE. H13-A draft design is in PR #98:
+https://github.com/MysterioCrypto/domain_generator/pull/98
+
+Design branch: `design/v0.2-gross-catchment-precipitation`.
+Draft document: `docs/design/gross-catchment-precipitation-input-v0.2.md` (only on design branch before ACCEPT).
+Proposal: opt-in gross upstream atmospheric precipitation input (m³/year) from accepted C1 annual precipitation + accepted weighted MFD/lakes + optional H12 marine absorption. This is **not runoff/discharge/permanence**.
+G01–G15 are proposed; runtime has NOT started. Do not merge design without explicit ACCEPT / REJECT.
 
 - PR #97: https://github.com/MysterioCrypto/domain_generator/pull/97
 - Merge: `3d275466ec5bfdb74f5dcb88bea6c8b641347f70`
 - Accepted tests: O01–O13 GREEN, schema sync GREEN, 502 full tests passing, coastal workflow GREEN.
 - Marine is opt-in; negative elevation alone does not imply sea. Boundary-connected 4-neighbour marine, refined shoreline and `marine_outlet` are accepted.
 - Canonical dependency map: **see the beginning of `docs/CONTEXT.md`**. This handoff is not authoritative if they disagree.
-- Next: dependency audit and selection of one bounded next design, not H12 implementation/merge.
+- Next: formal H13-A design ACCEPT / REJECT, not H12 implementation/merge or unapproved H13 runtime code.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -410,3 +418,19 @@ Historical operator-review gate was closed by formal ACCEPT on 2026-10-09.
 
 Current gate: **POST-H12 DEPENDENCY AUDIT**. PR #97 is merged, not draft or pending.
 Read the top-level dependency map in `docs/CONTEXT.md` before choosing the next slice.
+
+
+## Latest checkpoint: H13-A design review
+
+- PR #98: https://github.com/MysterioCrypto/domain_generator/pull/98
+- Branch: `design/v0.2-gross-catchment-precipitation`
+- Runtime: NOT STARTED.
+- Status: awaiting explicit design ACCEPT / REJECT.
+- Accepted upstream: C1 annual precipitation; Hydrology 0.2 MFD weighted DAG and lake supernodes; H12 marine is optional.
+- Proposed output: one derived float64 `gross_upstream_precipitation_m3_per_year` field.
+- Key semantic limit: atmospheric supply prior to hydrologic losses; not real runoff, discharge, water-balance closure or stream permanence.
+- Explicitly still blocked: perennial/seasonal/dry flow (baseflow/storage/infiltration), delta/estuary (sediment/discharge/coastal processes), lake/wetland/playa permanence, direct biome labels.
+- Context-map source of truth: top of `docs/CONTEXT.md`, which now shows H13 as PROPOSED, not part of accepted DAG.
+- Next: operator design decision; ACCEPT allows design merge and a **separate** implementation branch, not implementation merge.
+
+Frozen `release/0.2-prealpha`: `c69c1af010a085fb80d248af703a77471fc6c9d7`.
