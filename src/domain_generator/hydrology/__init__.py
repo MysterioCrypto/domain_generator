@@ -1,3 +1,9 @@
+from .marine import (
+    accepted_marine_cell_map,
+    classify_marine_components,
+    materialize_marine_features,
+    refined_marine_region_set,
+)
 from dataclasses import replace
 
 from .channelization import normalize_semantic_confluences
@@ -14,7 +20,7 @@ from .generate import (
     generate_hydrology as _generate_hydrology_v01,
     validate_hydrology as _validate_hydrology_v01,
 )
-from .ids import lake_feature_id
+from .ids import lake_feature_id, marine_feature_id
 from .materialize import materialize_lake_features, validate_river_lake_references
 from .network import build_river_network
 from .routing import (
@@ -26,7 +32,7 @@ from .routing import (
     priority_flood_routing_surface,
     priority_flood_surfaces,
 )
-from .state import ContinuousRoutingField, HydrologyState, LakeCandidate, LakeOutlet
+from .state import ContinuousRoutingField, HydrologyState, LakeCandidate, LakeOutlet, MarineCandidate
 from .water import accepted_lake_cell_map, build_water_depth_m, river_depth_proxy_m
 
 
@@ -103,12 +109,15 @@ __all__ = [
     "HydrologyState",
     "LakeCandidate",
     "LakeOutlet",
+    "MarineCandidate",
     "PriorityFloodSurfaces",
     "accepted_lake_cell_map",
+    "accepted_marine_cell_map",
     "build_continuous_river_network",
     "build_river_network",
     "build_water_depth_m",
     "choose_lake_outlets",
+    "classify_marine_components",
     "classify_stream_mask",
     "continuous_routing_field",
     "d8_flow_direction",
@@ -119,10 +128,13 @@ __all__ = [
     "generate_hydrology_v02",
     "hydrology_stage",
     "lake_feature_id",
+    "marine_feature_id",
     "materialize_lake_features",
+    "materialize_marine_features",
     "normalize_semantic_confluences",
     "priority_flood_routing_surface",
     "priority_flood_surfaces",
+    "refined_marine_region_set",
     "river_depth_proxy_m",
     "validate_hydrology",
     "validate_hydrology_v02",

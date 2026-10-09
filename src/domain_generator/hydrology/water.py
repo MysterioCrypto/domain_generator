@@ -64,6 +64,8 @@ def build_water_depth_m(
     stream_threshold_km2: float,
     river_depth_at_threshold_m: float,
     river_depth_exponent: float,
+    marine_mask: np.ndarray | None = None,
+    sea_level_m: float | None = None,
 ) -> np.ndarray:
     if not isinstance(terrain_elevation_m, np.ndarray) or terrain_elevation_m.ndim != 2:
         raise HydrologyCapabilityError("terrain_elevation_m must be a 2D numpy array")
@@ -89,12 +91,47 @@ def build_water_depth_m(
     if not bool(np.all(fill >= terrain)):
         raise HydrologyCapabilityError("fill elevation must not fall below terrain")
 
+    if marine_mask is None:
+        if sea_level_m is not None:
+            raise HydrologyCapabilityError(
+                "sea_level_m requires marine_mask"
+            )
+    else:
+        if (
+            not isinstance(marine_mask, np.ndarray)
+            or marine_mask.shape != shape
+            or marine_mask.dtype != np.dtype(np.bool_)
+        ):
+            raise HydrologyCapabilityError(
+                "marine_mask must be a bool array matching terrain shape"
+            )
+        if sea_level_m is None or not np.isfinite(sea_level_m):
+            raise HydrologyCapabilityError(
+                "marine_mask requires finite sea_level_m"
+            )
+        if bool(np.any(marine_mask & ~(terrain < float(sea_level_m)))):
+            raise HydrologyCapabilityError(
+                "marine_mask may only contain terrain below sea level"
+            )
+
     lake_cells = accepted_lake_cell_map(shape, lake_candidates)
+    if marine_mask is not None and any(bool(marine_mask[cell]) for cell in lake_cells):
+        raise HydrologyCapabilityError("marine and lake support must not overlap")
+
     result = np.zeros(shape, dtype=np.float64)
 
     for row in range(shape[0]):
         for column in range(shape[1]):
             cell = (row, column)
+            if marine_mask is not None and bool(marine_mask[cell]):
+                assert sea_level_m is not None
+                depth = float(sea_level_m) - float(terrain[cell])
+                if depth <= 0.0:
+                    raise HydrologyCapabilityError(
+                        "marine depth must be strictly positive"
+                    )
+                result[cell] = depth
+                continue
             if cell in lake_cells:
                 result[cell] = float(fill[cell] - terrain[cell])
                 continue

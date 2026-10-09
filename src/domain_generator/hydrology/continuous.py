@@ -10,6 +10,7 @@ import numpy as np
 from ..contracts.data import (
     BoundarySide,
     HydroFeature,
+    MarineFeature,
     RiverNetwork,
     RiverNode,
     RiverNodeKind,
@@ -31,6 +32,11 @@ from ..grid import GridAdapter
 from ..terrain.state import TerrainState
 from .classification import classify_stream_mask, extract_lake_candidates
 from .ids import lake_feature_id
+from .marine import (
+    accepted_marine_cell_map,
+    classify_marine_components,
+    materialize_marine_features,
+)
 from .materialize import materialize_lake_features, validate_river_lake_references
 from .routing import HydrologyCapabilityError, priority_flood_surfaces
 from .state import (
@@ -39,6 +45,7 @@ from .state import (
     HydrologyState,
     LakeCandidate,
     LakeOutlet,
+    MarineCandidate,
 )
 from .water import accepted_lake_cell_map, build_water_depth_m
 
@@ -47,6 +54,24 @@ _TWO_PI = 2.0 * pi
 _EIGHTH_TURN = pi / 4.0
 _EPS = 1e-12
 _POTENTIAL_STREAM_THRESHOLD_FACTOR = 0.40
+
+
+def _normalized_excluded_mask(
+    excluded_mask: np.ndarray | None,
+    shape: tuple[int, int],
+) -> np.ndarray:
+    if excluded_mask is None:
+        return np.zeros(shape, dtype=np.bool_)
+    if (
+        not isinstance(excluded_mask, np.ndarray)
+        or excluded_mask.shape != shape
+        or excluded_mask.dtype != np.dtype(np.bool_)
+    ):
+        raise HydrologyCapabilityError(
+            "excluded channel mask must be a bool array matching grid shape"
+        )
+    return excluded_mask
+
 
 # Counter-clockwise world-space order from +x/east. row 0 is north, therefore
 # negative raster row is positive world y.
@@ -84,7 +109,7 @@ class _NodeDescriptor:
 
 @dataclass(frozen=True, slots=True)
 class _TraceTerminal:
-    kind: Literal["confluence", "lake_inflow", "domain_outlet"]
+    kind: Literal["confluence", "lake_inflow", "marine_outlet", "domain_outlet"]
     position: WorldPoint
     anchor_cell: Cell | None = None
     feature_id: str | None = None
@@ -596,6 +621,7 @@ def _dominant_channel_receiver_index(
     *,
     lake_candidates: tuple[LakeCandidate, ...],
     lake_outlets: tuple[LakeOutlet, ...],
+    excluded_mask: np.ndarray | None = None,
 ) -> np.ndarray:
     """Project diffuse MFD flux onto one deterministic receiver for channel topology."""
     shape = field.flow_angle_rad.shape
@@ -603,6 +629,7 @@ def _dominant_channel_receiver_index(
         raise HydrologyCapabilityError("dominant channel projection arrays must share shape")
 
     rows, columns = shape
+    excluded = _normalized_excluded_mask(excluded_mask, shape)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
     outlet_receiver_to_lake = {
         outlet.receiver_cell: outlet.lake_id for outlet in lake_outlets
@@ -612,7 +639,7 @@ def _dominant_channel_receiver_index(
     for row in range(rows):
         for column in range(columns):
             cell = (row, column)
-            if _is_edge(cell, shape) or cell in lake_by_cell:
+            if _is_edge(cell, shape) or cell in lake_by_cell or bool(excluded[cell]):
                 continue
 
             current_support = bool(channel_support[cell])
@@ -633,6 +660,7 @@ def _dominant_channel_receiver_index(
 
                 preferred = int(
                     target_lake is not None
+                    or bool(excluded[target])
                     or (current_support and bool(channel_support[target]))
                 )
                 transmitted_area = float(accumulation[cell]) * fraction
@@ -656,12 +684,14 @@ def _dominant_channel_area_km2(
     *,
     cell_size_km: float,
     lake_candidates: tuple[LakeCandidate, ...],
+    excluded_mask: np.ndarray | None = None,
 ) -> np.ndarray:
     """Accumulate unique upstream area on the single-receiver channel projection."""
     if receiver_index.ndim != 2:
         raise HydrologyCapabilityError("dominant receiver index must be a 2D array")
     shape = receiver_index.shape
     rows, columns = shape
+    excluded = _normalized_excluded_mask(excluded_mask, shape)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
     cell_count = rows * columns
 
@@ -674,7 +704,7 @@ def _dominant_channel_area_km2(
         for column in range(columns):
             cell = (row, column)
             node = _flat_index(cell, columns)
-            if cell in lake_by_cell:
+            if cell in lake_by_cell or bool(excluded[cell]):
                 active[node] = False
                 continue
             area[node] = cell_area
@@ -682,7 +712,7 @@ def _dominant_channel_area_km2(
             if target_index < 0:
                 continue
             target = _cell_from_index(target_index, columns)
-            if target in lake_by_cell:
+            if target in lake_by_cell or bool(excluded[target]):
                 continue
             indegree[target_index] += 1
 
@@ -698,7 +728,7 @@ def _dominant_channel_area_km2(
         if target_index < 0:
             continue
         target = _cell_from_index(target_index, columns)
-        if target in lake_by_cell:
+        if target in lake_by_cell or bool(excluded[target]):
             continue
         area[target_index] += area[node]
         indegree[target_index] -= 1
@@ -768,10 +798,12 @@ def _dominant_topological_order(
     receiver_index: np.ndarray,
     *,
     lake_candidates: tuple[LakeCandidate, ...],
+    excluded_mask: np.ndarray | None = None,
 ) -> tuple[Cell, ...]:
     """Stable topological order for the single-downstream dominant graph."""
     shape = receiver_index.shape
     rows, columns = shape
+    excluded = _normalized_excluded_mask(excluded_mask, shape)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
     indegree = np.zeros(shape, dtype=np.int32)
     active_count = 0
@@ -779,14 +811,14 @@ def _dominant_topological_order(
     for row in range(rows):
         for column in range(columns):
             cell = (row, column)
-            if cell in lake_by_cell:
+            if cell in lake_by_cell or bool(excluded[cell]):
                 continue
             active_count += 1
             target_index = int(receiver_index[cell])
             if target_index < 0:
                 continue
             target = _cell_from_index(target_index, columns)
-            if target in lake_by_cell:
+            if target in lake_by_cell or bool(excluded[target]):
                 continue
             indegree[target] += 1
 
@@ -794,7 +826,9 @@ def _dominant_topological_order(
         (row, column)
         for row in range(rows)
         for column in range(columns)
-        if (row, column) not in lake_by_cell and int(indegree[row, column]) == 0
+        if (row, column) not in lake_by_cell
+        and not bool(excluded[row, column])
+        and int(indegree[row, column]) == 0
     )
     order: list[Cell] = []
     while queue:
@@ -804,7 +838,7 @@ def _dominant_topological_order(
         if target_index < 0:
             continue
         target = _cell_from_index(target_index, columns)
-        if target in lake_by_cell:
+        if target in lake_by_cell or bool(excluded[target]):
             continue
         indegree[target] -= 1
         if indegree[target] == 0:
@@ -824,17 +858,24 @@ def _activate_channel_skeleton(
     *,
     lake_candidates: tuple[LakeCandidate, ...],
     lake_outlets: tuple[LakeOutlet, ...],
+    excluded_mask: np.ndarray | None = None,
 ) -> tuple[np.ndarray, set[Cell], set[Cell]]:
     """Activate eligible headwaters once, then propagate merge-only channels downstream."""
     shape = receiver_index.shape
     rows, columns = shape
     if eligible.shape != shape:
         raise HydrologyCapabilityError("source eligibility must match dominant graph shape")
+    excluded = _normalized_excluded_mask(excluded_mask, shape)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
-    outlet_receiver_cells = {outlet.receiver_cell for outlet in lake_outlets}
+    outlet_receiver_cells = {
+        outlet.receiver_cell
+        for outlet in lake_outlets
+        if not bool(excluded[outlet.receiver_cell])
+    }
     order = _dominant_topological_order(
         receiver_index,
         lake_candidates=lake_candidates,
+        excluded_mask=excluded,
     )
 
     skeleton = np.zeros(shape, dtype=np.bool_)
@@ -842,7 +883,7 @@ def _activate_channel_skeleton(
     sources: set[Cell] = set()
 
     for cell in order:
-        if cell in lake_by_cell:
+        if cell in lake_by_cell or bool(excluded[cell]):
             continue
         is_outlet_start = cell in outlet_receiver_cells
         has_active_upstream = int(active_upstream[cell]) > 0
@@ -864,7 +905,7 @@ def _activate_channel_skeleton(
         if target_index < 0:
             continue
         target = _cell_from_index(target_index, columns)
-        if target in lake_by_cell:
+        if target in lake_by_cell or bool(excluded[target]):
             continue
         active_upstream[target] += 1
 
@@ -882,7 +923,10 @@ def _activate_channel_skeleton(
                 skeleton_indegree[target] += 1
 
     for outlet in lake_outlets:
-        if bool(skeleton[outlet.receiver_cell]):
+        if (
+            not bool(excluded[outlet.receiver_cell])
+            and bool(skeleton[outlet.receiver_cell])
+        ):
             skeleton_indegree[outlet.receiver_cell] += 1
 
     confluences = {
@@ -892,8 +936,32 @@ def _activate_channel_skeleton(
         if bool(skeleton[row, column])
         and int(skeleton_indegree[row, column]) >= 2
         and (row, column) not in lake_by_cell
+        and not bool(excluded[row, column])
     }
     sources.difference_update(confluences)
+
+    order_position = {cell: index for index, cell in enumerate(order)}
+    for row in range(rows):
+        for column in range(columns):
+            cell = (row, column)
+            if not bool(skeleton[cell]):
+                continue
+            target_index = int(receiver_index[cell])
+            if target_index < 0:
+                continue
+            target = _cell_from_index(target_index, columns)
+            if target in lake_by_cell or bool(excluded[target]) or bool(skeleton[target]):
+                continue
+            raise HydrologyCapabilityError(
+                "activated channel skeleton is not downstream-closed: "
+                f"cell={cell}, target={target}, "
+                f"cell_order={order_position.get(cell)}, "
+                f"target_order={order_position.get(target)}, "
+                f"target_active_upstream={int(active_upstream[target])}, "
+                f"target_eligible={bool(eligible[target])}, "
+                f"target_edge={_is_edge(target, shape)}"
+            )
+
     return skeleton, sources, confluences
 
 
@@ -904,9 +972,12 @@ def _build_channel_skeleton(
     channel_support: np.ndarray,
     lake_candidates: tuple[LakeCandidate, ...],
     lake_outlets: tuple[LakeOutlet, ...],
+    *,
+    excluded_mask: np.ndarray | None = None,
 ) -> _ChannelSkeleton:
     """Extract terrain-aware one-cell-wide channel topology from diffuse MFD transport."""
     shape = channel_support.shape
+    excluded = _normalized_excluded_mask(excluded_mask, shape)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
     receiver_index = _dominant_channel_receiver_index(
         field,
@@ -914,11 +985,13 @@ def _build_channel_skeleton(
         channel_support,
         lake_candidates=lake_candidates,
         lake_outlets=lake_outlets,
+        excluded_mask=excluded,
     )
     channel_area = _dominant_channel_area_km2(
         receiver_index,
         cell_size_km=plan.grid.cell_size_km,
         lake_candidates=lake_candidates,
+        excluded_mask=excluded,
     )
 
     convergence, initiation_score, eligible = _terrain_aware_initiation(
@@ -929,12 +1002,14 @@ def _build_channel_skeleton(
     eligible = eligible.copy()
     for cell in lake_by_cell:
         eligible[cell] = False
+    eligible[excluded] = False
 
     skeleton, source_cells, confluence_cells = _activate_channel_skeleton(
         receiver_index,
         eligible,
         lake_candidates=lake_candidates,
         lake_outlets=lake_outlets,
+        excluded_mask=excluded,
     )
 
     return _ChannelSkeleton(
@@ -954,9 +1029,12 @@ def _build_potential_channel_skeleton(
     regional: _ChannelSkeleton,
     lake_candidates: tuple[LakeCandidate, ...],
     lake_outlets: tuple[LakeOutlet, ...],
+    *,
+    excluded_mask: np.ndarray | None = None,
 ) -> _ChannelSkeleton:
     """Build a denser potential drainage scaffold without changing regional rivers."""
     shape = regional.mask.shape
+    excluded = _normalized_excluded_mask(excluded_mask, shape)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
     potential_threshold = (
         float(plan.hydrology.stream_threshold_km2) * _POTENTIAL_STREAM_THRESHOLD_FACTOR
@@ -968,12 +1046,14 @@ def _build_potential_channel_skeleton(
     eligible = eligible.copy()
     for cell in lake_by_cell:
         eligible[cell] = False
+    eligible[excluded] = False
 
     skeleton, source_cells, confluence_cells = _activate_channel_skeleton(
         regional.receiver_index,
         eligible,
         lake_candidates=lake_candidates,
         lake_outlets=lake_outlets,
+        excluded_mask=excluded,
     )
     if not bool(np.all(~regional.mask | skeleton)):
         raise HydrologyCapabilityError(
@@ -1005,6 +1085,7 @@ def _strahler_order_field(
     *,
     lake_candidates: tuple[LakeCandidate, ...],
     lake_outlets: tuple[LakeOutlet, ...],
+    excluded_mask: np.ndarray | None = None,
 ) -> _StrahlerHierarchy:
     """Compute Strahler order on a merge-only skeleton with lakes as supernodes."""
     if receiver_index.shape != skeleton_mask.shape:
@@ -1014,6 +1095,7 @@ def _strahler_order_field(
 
     shape = skeleton_mask.shape
     rows, columns = shape
+    excluded = _normalized_excluded_mask(excluded_mask, shape)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
 
     # Mixed graph keys keep accepted lakes as transparent topology supernodes.
@@ -1044,7 +1126,7 @@ def _strahler_order_field(
     for row in range(rows):
         for column in range(columns):
             cell = (row, column)
-            if not bool(skeleton_mask[cell]):
+            if not bool(skeleton_mask[cell]) or bool(excluded[cell]):
                 continue
             source = cell_node(cell)
             add_node(source)
@@ -1055,17 +1137,27 @@ def _strahler_order_field(
             target_lake = lake_by_cell.get(target)
             if target_lake is not None:
                 add_edge(source, lake_node(target_lake))
+            elif bool(excluded[target]):
+                continue
             elif bool(skeleton_mask[target]):
                 add_edge(source, cell_node(target))
             elif not _is_edge(cell, shape):
                 raise HydrologyCapabilityError(
-                    "potential skeleton has an interior downstream discontinuity"
+                    "potential skeleton has an interior downstream discontinuity: "
+                    f"cell={cell}, target={target}, "
+                    f"target_skeleton={bool(skeleton_mask[target])}, "
+                    f"target_excluded={bool(excluded[target])}, "
+                    f"target_lake={target_lake!r}, "
+                    f"target_edge={_is_edge(target, shape)}"
                 )
 
     for outlet in lake_outlets:
         lake = lake_node(outlet.lake_id)
         add_node(lake)
-        if bool(skeleton_mask[outlet.receiver_cell]):
+        if (
+            not bool(excluded[outlet.receiver_cell])
+            and bool(skeleton_mask[outlet.receiver_cell])
+        ):
             add_edge(lake, cell_node(outlet.receiver_cell))
 
     def node_sort_key(node: tuple[object, ...]) -> tuple[object, ...]:
@@ -1255,9 +1347,12 @@ def _trace_continuous(
     confluence_cells: set[Cell],
     lake_by_cell: dict[Cell, str],
     lake_features: dict[str, HydroFeature] | None = None,
+    marine_by_cell: dict[Cell, str] | None = None,
+    marine_features: dict[str, MarineFeature] | None = None,
 ) -> _TraceResult:
     step = adapter.cell_size_km * 0.22
     max_steps = max(200, (adapter.rows + adapter.columns) * 40)
+    marine_cells = {} if marine_by_cell is None else marine_by_cell
     points: list[WorldPoint] = [start_position]
     traversed: list[Cell] = [start_cell]
     x = float(start_position.x_km)
@@ -1317,6 +1412,43 @@ def _trace_continuous(
             )
 
         next_cell = adapter.containing_cell(nx, ny)
+        target_marine = marine_cells.get(next_cell)
+        if target_marine is not None and next_cell != start_cell:
+            ax, ay = x, y
+            bx, by = nx, ny
+            for _ in range(40):
+                mx = (ax + bx) / 2.0
+                my = (ay + by) / 2.0
+                cell_at_midpoint = adapter.containing_cell(
+                    min(adapter.width_km, max(0.0, mx)),
+                    min(adapter.height_km, max(0.0, my)),
+                )
+                if cell_at_midpoint in marine_cells:
+                    bx, by = mx, my
+                else:
+                    ax, ay = mx, my
+            raster_boundary = WorldPoint(
+                x_km=(ax + bx) / 2.0,
+                y_km=(ay + by) / 2.0,
+            )
+            boundary = raster_boundary
+            if marine_features is not None and target_marine in marine_features:
+                boundary = region_set_nearest_boundary_point(
+                    marine_features[target_marine].geometry,
+                    raster_boundary,
+                )
+            points.append(boundary)
+            return _TraceResult(
+                points=tuple(points),
+                terminal=_TraceTerminal(
+                    kind="marine_outlet",
+                    position=boundary,
+                    feature_id=target_marine,
+                ),
+                traversed_cells=tuple(dict.fromkeys(traversed)),
+                catchment_area_km2=max_catchment,
+            )
+
         target_lake = lake_by_cell.get(next_cell)
         if target_lake is not None and next_cell != start_cell:
             boundary = _lake_boundary_point(
@@ -1509,6 +1641,8 @@ def build_continuous_river_network(
     skeleton: _ChannelSkeleton | None = None,
     normalize_false_confluences: bool = False,
     lake_features: dict[str, HydroFeature] | None = None,
+    marine_candidates: tuple[MarineCandidate, ...] = (),
+    marine_features: dict[str, MarineFeature] | None = None,
 ) -> tuple[RiverNetwork, np.ndarray]:
     shape = (plan.grid.rows, plan.grid.columns)
     if accumulation.shape != shape or channel_support.shape != shape:
@@ -1518,6 +1652,10 @@ def build_continuous_river_network(
 
     adapter = GridAdapter.from_plan(plan)
     lake_by_cell = accepted_lake_cell_map(shape, lake_candidates)
+    marine_by_cell = accepted_marine_cell_map(shape, marine_candidates)
+    marine_mask = np.zeros(shape, dtype=np.bool_)
+    for cell in marine_by_cell:
+        marine_mask[cell] = True
     if skeleton is None:
         skeleton = _build_channel_skeleton(
             plan,
@@ -1526,6 +1664,7 @@ def build_continuous_river_network(
             channel_support,
             lake_candidates,
             lake_outlets,
+            excluded_mask=marine_mask,
         )
     elif skeleton.mask.shape != shape:
         raise HydrologyCapabilityError("provided channel skeleton must match plan grid")
@@ -1570,6 +1709,46 @@ def build_continuous_river_network(
     for start in starts:
         assert start.anchor_cell is not None
 
+        start_marine = marine_by_cell.get(start.anchor_cell)
+        if start_marine is not None:
+            if start.kind is not RiverNodeKind.LAKE_OUTLET:
+                raise HydrologyCapabilityError(
+                    "ordinary channel start cannot originate inside marine support"
+                )
+            boundary = start.position
+            if marine_features is not None and start_marine in marine_features:
+                boundary = region_set_nearest_boundary_point(
+                    marine_features[start_marine].geometry,
+                    start.position,
+                )
+            key = (
+                "marine_outlet",
+                start_marine,
+                round(boundary.x_km, 9),
+                round(boundary.y_km, 9),
+            )
+            descriptors.setdefault(
+                key,
+                _NodeDescriptor(
+                    key=key,
+                    kind=RiverNodeKind.MARINE_OUTLET,
+                    position=boundary,
+                    feature_id=start_marine,
+                ),
+            )
+            target = descriptors[key]
+            points = (start.position, boundary)
+            trace_records.append(
+                (
+                    start,
+                    target,
+                    points,
+                    float(accumulation[start.anchor_cell]),
+                    (),
+                )
+            )
+            continue
+
         if start.kind is RiverNodeKind.LAKE_OUTLET and start.anchor_cell in confluence_cells:
             key = ("confluence", start.anchor_cell[0], start.anchor_cell[1])
             target = descriptors[key]
@@ -1594,6 +1773,8 @@ def build_continuous_river_network(
             confluence_cells=confluence_cells - {start.anchor_cell},
             lake_by_cell=lake_by_cell,
             lake_features=lake_features,
+            marine_by_cell=marine_by_cell,
+            marine_features=marine_features,
         )
         terminal = trace.terminal
         if terminal.kind == "confluence":
@@ -1612,6 +1793,23 @@ def build_continuous_river_network(
                 _NodeDescriptor(
                     key=key,
                     kind=RiverNodeKind.LAKE_INFLOW,
+                    position=terminal.position,
+                    feature_id=terminal.feature_id,
+                ),
+            )
+        elif terminal.kind == "marine_outlet":
+            assert terminal.feature_id is not None
+            key = (
+                "marine_outlet",
+                terminal.feature_id,
+                round(terminal.position.x_km, 9),
+                round(terminal.position.y_km, 9),
+            )
+            descriptors.setdefault(
+                key,
+                _NodeDescriptor(
+                    key=key,
+                    kind=RiverNodeKind.MARINE_OUTLET,
                     position=terminal.position,
                     feature_id=terminal.feature_id,
                 ),
@@ -1678,12 +1876,13 @@ def build_continuous_river_network(
     stream_mask = np.zeros(shape, dtype=np.bool_)
     for _, _, _, _, cells in trace_records:
         for cell in cells:
-            if cell not in lake_by_cell:
+            if cell not in lake_by_cell and cell not in marine_by_cell:
                 stream_mask[cell] = True
     for cell in source_cells | confluence_cells:
         stream_mask[cell] = True
     for outlet in lake_outlets:
-        stream_mask[outlet.receiver_cell] = True
+        if outlet.receiver_cell not in marine_by_cell:
+            stream_mask[outlet.receiver_cell] = True
 
     return RiverNetwork(nodes=nodes, segments=segments), stream_mask
 
@@ -1713,29 +1912,89 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
     if not np.isfinite(elevation).all():
         raise HydrologyCapabilityError("terrain elevation must contain only finite values")
 
-    surfaces = priority_flood_surfaces(elevation)
-    field = continuous_routing_field(
-        surfaces.routing_elevation_m,
-        cell_size_km=plan.grid.cell_size_km,
-    )
+    marine_mask: np.ndarray | None = None
+    marine_candidates: tuple[MarineCandidate, ...] = ()
+    marine_features: dict[str, MarineFeature] = {}
+    sea_level_m: float | None = None
+    climate_normalization_water_depth_m: np.ndarray | None = None
+
+    if plan.hydrology.marine is not None:
+        # H12 changes marine/lake/channel materialization, not the accepted
+        # terrain-conditioned routing/accumulation authority. Reproduce the
+        # exact no-marine hydrology once and use it as the frozen upstream
+        # baseline for routing, accumulation and C1 land-mean normalization.
+        baseline_plan = plan.model_copy(
+            update={
+                "hydrology": plan.hydrology.model_copy(
+                    update={"marine": None}
+                )
+            }
+        )
+        baseline = generate_hydrology_v02(baseline_plan, terrain)
+        if baseline.continuous_routing is None:
+            raise HydrologyCapabilityError(
+                "marine baseline requires continuous routing state"
+            )
+
+        sea_level_m = float(plan.hydrology.marine.sea_level_m)
+        marine_mask, marine_candidates = classify_marine_components(
+            elevation,
+            sea_level_m=sea_level_m,
+            cell_size_km=plan.grid.cell_size_km,
+        )
+        marine_features = materialize_marine_features(
+            plan,
+            marine_candidates,
+            elevation,
+            subdivision=4,
+        )
+
+        routing_elevation_m = baseline.routing_elevation_m
+        fill_elevation_m = baseline.fill_elevation_m
+        field = baseline.continuous_routing
+        accumulation = baseline.flow_accumulation_km2
+        climate_normalization_water_depth_m = baseline.water_depth_m
+    else:
+        surfaces = priority_flood_surfaces(elevation)
+        routing_elevation_m = surfaces.routing_elevation_m
+        fill_elevation_m = surfaces.fill_elevation_m
+        field = continuous_routing_field(
+            routing_elevation_m,
+            cell_size_km=plan.grid.cell_size_km,
+        )
+        baseline_lakes = extract_lake_candidates(
+            elevation,
+            fill_elevation_m,
+            cell_size_km=plan.grid.cell_size_km,
+            lake_min_area_km2=plan.hydrology.lake_min_area_km2,
+            lake_min_depth_m=plan.hydrology.lake_min_depth_m,
+        )
+        baseline_outlets = choose_lake_outlets(
+            elevation,
+            routing_elevation_m,
+            field,
+            baseline_lakes,
+        )
+        accumulation = distributed_flow_accumulation_km2(
+            field,
+            cell_size_km=plan.grid.cell_size_km,
+            lake_candidates=baseline_lakes,
+            lake_outlets=baseline_outlets,
+        )
+
     lakes = extract_lake_candidates(
         elevation,
-        surfaces.fill_elevation_m,
+        fill_elevation_m,
         cell_size_km=plan.grid.cell_size_km,
         lake_min_area_km2=plan.hydrology.lake_min_area_km2,
         lake_min_depth_m=plan.hydrology.lake_min_depth_m,
+        excluded_mask=marine_mask,
     )
     outlets = choose_lake_outlets(
         elevation,
-        surfaces.routing_elevation_m,
+        routing_elevation_m,
         field,
         lakes,
-    )
-    accumulation = distributed_flow_accumulation_km2(
-        field,
-        cell_size_km=plan.grid.cell_size_km,
-        lake_candidates=lakes,
-        lake_outlets=outlets,
     )
     lake_by_cell = accepted_lake_cell_map(expected_shape, lakes)
     support = classify_stream_mask(
@@ -1745,6 +2004,8 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
     if lake_by_cell:
         for cell in lake_by_cell:
             support[cell] = False
+    if marine_mask is not None:
+        support[marine_mask] = False
 
     lake_features = materialize_lake_features(
         plan,
@@ -1759,18 +2020,21 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         support,
         lakes,
         outlets,
+        excluded_mask=marine_mask,
     )
     potential_skeleton = _build_potential_channel_skeleton(
         plan,
         channel_skeleton,
         lakes,
         outlets,
+        excluded_mask=marine_mask,
     )
     strahler = _strahler_order_field(
         potential_skeleton.receiver_index,
         potential_skeleton.mask,
         lake_candidates=lakes,
         lake_outlets=outlets,
+        excluded_mask=marine_mask,
     )
 
     river_network, stream_mask = build_continuous_river_network(
@@ -1782,6 +2046,8 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         outlets,
         skeleton=channel_skeleton,
         lake_features=lake_features,
+        marine_candidates=marine_candidates,
+        marine_features=marine_features,
     )
     potential_river_network, _ = build_continuous_river_network(
         plan,
@@ -1793,6 +2059,8 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         skeleton=potential_skeleton,
         normalize_false_confluences=True,
         lake_features=lake_features,
+        marine_candidates=marine_candidates,
+        marine_features=marine_features,
     )
     potential_segment_orders = _segment_strahler_orders(
         plan,
@@ -1800,21 +2068,31 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         strahler,
         outlets,
     )
-    validate_river_lake_references(river_network, lake_features)
-    validate_river_lake_references(potential_river_network, lake_features)
+    validate_river_lake_references(
+        river_network,
+        lake_features,
+        marine_features,
+    )
+    validate_river_lake_references(
+        potential_river_network,
+        lake_features,
+        marine_features,
+    )
     water_depth = build_water_depth_m(
         elevation,
-        surfaces.fill_elevation_m,
+        fill_elevation_m,
         accumulation,
         stream_mask,
         lakes,
         stream_threshold_km2=plan.hydrology.stream_threshold_km2,
         river_depth_at_threshold_m=plan.hydrology.river_depth_at_threshold_m,
         river_depth_exponent=plan.hydrology.river_depth_exponent,
+        marine_mask=marine_mask,
+        sea_level_m=sea_level_m,
     )
     return HydrologyState(
-        routing_elevation_m=surfaces.routing_elevation_m,
-        fill_elevation_m=surfaces.fill_elevation_m,
+        routing_elevation_m=routing_elevation_m,
+        fill_elevation_m=fill_elevation_m,
         flow_direction=_legacy_direction_projection(field),
         flow_accumulation_km2=accumulation,
         stream_mask=stream_mask,
@@ -1834,6 +2112,10 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         potential_river_network=potential_river_network,
         potential_segment_strahler_order=potential_segment_orders,
         lake_outlets=outlets,
+        marine_mask=marine_mask,
+        marine_candidates=marine_candidates,
+        marine_features=marine_features,
+        climate_normalization_water_depth_m=climate_normalization_water_depth_m,
     )
 
 
@@ -1857,9 +2139,13 @@ def _network_invariants(network: RiverNetwork) -> bool:
             return False
         if node.kind is RiverNodeKind.CONFLUENCE and indegree[node_id] < 2:
             return False
-        if node.kind is RiverNodeKind.DOMAIN_OUTLET and outdegree[node_id] != 0:
+        if node.kind in {RiverNodeKind.DOMAIN_OUTLET, RiverNodeKind.MARINE_OUTLET} and outdegree[node_id] != 0:
             return False
-        if node.kind not in {RiverNodeKind.DOMAIN_OUTLET, RiverNodeKind.LAKE_INFLOW} and outdegree[node_id] > 1:
+        if node.kind not in {
+            RiverNodeKind.DOMAIN_OUTLET,
+            RiverNodeKind.MARINE_OUTLET,
+            RiverNodeKind.LAKE_INFLOW,
+        } and outdegree[node_id] > 1:
             return False
 
     temporary: set[str] = set()
@@ -1951,6 +2237,10 @@ def validate_hydrology_v02(
     network_ok = False
     potential_hierarchy_ok = False
     water_ok = False
+    marine_contract_ok = False
+    marine_geometry_ok = False
+    marine_lake_exclusive = False
+    marine_endpoint_ok = False
     if state_ok and hydrology is not None:
         accumulation_ok = (
             hydrology.flow_accumulation_km2.shape == shape
@@ -1959,10 +2249,61 @@ def validate_hydrology_v02(
             and bool(np.all(hydrology.flow_accumulation_km2 >= cell_area - 1e-10))
         )
         lake_by_cell = accepted_lake_cell_map(shape, hydrology.lake_candidates)
+
+        marine_expected = plan.hydrology.marine is not None
+        marine_mask = hydrology.marine_mask
+        if marine_expected and terrain is not None:
+            try:
+                assert plan.hydrology.marine is not None
+                expected_marine_mask, expected_marine_candidates = classify_marine_components(
+                    terrain.elevation_m,
+                    sea_level_m=plan.hydrology.marine.sea_level_m,
+                    cell_size_km=plan.grid.cell_size_km,
+                )
+                expected_marine_features = materialize_marine_features(
+                    plan,
+                    expected_marine_candidates,
+                    terrain.elevation_m,
+                    subdivision=4,
+                )
+                marine_contract_ok = (
+                    isinstance(marine_mask, np.ndarray)
+                    and marine_mask.shape == shape
+                    and marine_mask.dtype == np.dtype(np.bool_)
+                    and np.array_equal(marine_mask, expected_marine_mask)
+                    and hydrology.marine_candidates == expected_marine_candidates
+                )
+                marine_geometry_ok = (
+                    hydrology.marine_features == expected_marine_features
+                )
+            except (HydrologyCapabilityError, ValueError, TypeError):
+                marine_contract_ok = False
+                marine_geometry_ok = False
+        else:
+            marine_contract_ok = (
+                marine_mask is None
+                and hydrology.marine_candidates == ()
+                and hydrology.marine_features == {}
+            )
+            marine_geometry_ok = marine_contract_ok
+
+        marine_cells = set()
+        if isinstance(marine_mask, np.ndarray) and marine_mask.shape == shape:
+            marine_cells = {
+                (row, column)
+                for row in range(shape[0])
+                for column in range(shape[1])
+                if bool(marine_mask[row, column])
+            }
+        marine_lake_exclusive = all(cell not in marine_cells for cell in lake_by_cell)
+
         if hydrology.channel_support_mask is not None and hydrology.channel_support_mask.shape == shape:
             expected_support = hydrology.flow_accumulation_km2 >= plan.hydrology.stream_threshold_km2
             for cell in lake_by_cell:
                 expected_support[cell] = False
+            if marine_cells:
+                for cell in marine_cells:
+                    expected_support[cell] = False
             support_ok = hydrology.channel_support_mask.dtype == np.dtype(np.bool_) and np.array_equal(hydrology.channel_support_mask, expected_support)
         if hydrology.channel_skeleton_mask is not None:
             diagnostic_arrays_ok = (
@@ -1980,6 +2321,7 @@ def validate_hydrology_v02(
                 hydrology.channel_skeleton_mask.shape == shape
                 and hydrology.channel_skeleton_mask.dtype == np.dtype(np.bool_)
                 and all(not bool(hydrology.channel_skeleton_mask[cell]) for cell in lake_by_cell)
+                and all(not bool(hydrology.channel_skeleton_mask[cell]) for cell in marine_cells)
                 and diagnostic_arrays_ok
             )
         lakes_ok = (
@@ -2024,6 +2366,38 @@ def validate_hydrology_v02(
                     break
 
         network_ok = _network_invariants(hydrology.river_network)
+
+        marine_endpoint_ok = True
+        networks_for_marine = [hydrology.river_network]
+        if hydrology.potential_river_network is not None:
+            networks_for_marine.append(hydrology.potential_river_network)
+        for network in networks_for_marine:
+            for node in network.nodes.values():
+                if node.kind is not RiverNodeKind.MARINE_OUTLET:
+                    continue
+                if (
+                    node.feature_id is None
+                    or node.feature_id not in hydrology.marine_features
+                    or node.boundary_side is not None
+                ):
+                    marine_endpoint_ok = False
+                    break
+                distance = region_set_boundary_distance_km(
+                    hydrology.marine_features[node.feature_id].geometry,
+                    node.position,
+                )
+                if distance > 1e-8:
+                    marine_endpoint_ok = False
+                    break
+            if not marine_endpoint_ok:
+                break
+        if not marine_expected:
+            marine_endpoint_ok = marine_endpoint_ok and all(
+                node.kind is not RiverNodeKind.MARINE_OUTLET
+                for network in networks_for_marine
+                for node in network.nodes.values()
+            )
+
         if (
             hydrology.potential_channel_skeleton_mask is not None
             and hydrology.channel_strahler_order is not None
@@ -2040,6 +2414,7 @@ def validate_hydrology_v02(
                 and bool(np.all(order_field[~potential_mask] == 0))
                 and bool(np.all(~hydrology.channel_skeleton_mask | potential_mask))
                 and all(not bool(potential_mask[cell]) for cell in lake_by_cell)
+                and all(not bool(potential_mask[cell]) for cell in marine_cells)
                 and _network_invariants(hydrology.potential_river_network)
                 and set(hydrology.potential_segment_strahler_order)
                     == set(hydrology.potential_river_network.segments)
@@ -2054,6 +2429,27 @@ def validate_hydrology_v02(
             and bool(np.isfinite(hydrology.water_depth_m).all())
             and bool(np.all(hydrology.water_depth_m >= 0.0))
         )
+        if water_ok and terrain is not None:
+            try:
+                expected_water = build_water_depth_m(
+                    terrain.elevation_m,
+                    hydrology.fill_elevation_m,
+                    hydrology.flow_accumulation_km2,
+                    hydrology.stream_mask,
+                    hydrology.lake_candidates,
+                    stream_threshold_km2=plan.hydrology.stream_threshold_km2,
+                    river_depth_at_threshold_m=plan.hydrology.river_depth_at_threshold_m,
+                    river_depth_exponent=plan.hydrology.river_depth_exponent,
+                    marine_mask=hydrology.marine_mask,
+                    sea_level_m=(
+                        plan.hydrology.marine.sea_level_m
+                        if plan.hydrology.marine is not None
+                        else None
+                    ),
+                )
+                water_ok = np.array_equal(hydrology.water_depth_m, expected_water)
+            except HydrologyCapabilityError:
+                water_ok = False
 
     results = (
         EngineInvariantResult(id="hydrology-v02-upstream-terrain-valid", passed=terrain_ok),
@@ -2071,6 +2467,22 @@ def validate_hydrology_v02(
         EngineInvariantResult(id="hydrology-v02-river-network-invariants", passed=network_ok),
         EngineInvariantResult(id="hydrology-v02-potential-hierarchy-valid", passed=potential_hierarchy_ok),
         EngineInvariantResult(id="hydrology-v02-water-depth-valid", passed=water_ok),
+        EngineInvariantResult(
+            id="hydrology-v02-marine-contract-valid",
+            passed=marine_contract_ok,
+        ),
+        EngineInvariantResult(
+            id="hydrology-v02-refined-marine-geometry-valid",
+            passed=marine_geometry_ok,
+        ),
+        EngineInvariantResult(
+            id="hydrology-v02-marine-lake-exclusive",
+            passed=marine_lake_exclusive,
+        ),
+        EngineInvariantResult(
+            id="hydrology-v02-marine-endpoints-on-coastline",
+            passed=marine_endpoint_ok,
+        ),
     )
     passed = all(result.passed for result in results)
     return ValidationResult(

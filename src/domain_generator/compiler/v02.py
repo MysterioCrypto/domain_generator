@@ -8,7 +8,7 @@ from .compile import (
     compile_domain_spec as _compile_domain_spec_v01,
     semantic_plan_fingerprint as _semantic_plan_fingerprint_v01,
 )
-from ..contracts.plan import GenerationPlan, PlanClimate
+from ..contracts.plan import GenerationPlan, PlanClimate, PlanMarine
 from ..contracts.spec import DomainSpec
 from ..contracts.terrain import PlanTerrain, PlanTerrainNoiseLayer
 from ..presets import PresetRegistry
@@ -26,8 +26,14 @@ def _canonical_json_bytes(value: object) -> bytes:
 
 def _legacy_shadow(spec: DomainSpec) -> DomainSpec:
     legacy_surface = spec.surface.model_copy(update={"climate": None})
+    legacy_hydrology = spec.hydrology.model_copy(update={"marine": None})
     return spec.model_copy(
-        update={"schema_version": "0.1", "terrain": None, "surface": legacy_surface}
+        update={
+            "schema_version": "0.1",
+            "terrain": None,
+            "hydrology": legacy_hydrology,
+            "surface": legacy_surface,
+        }
     )
 
 
@@ -35,6 +41,9 @@ def domain_spec_fingerprint(spec: DomainSpec) -> str:
     if spec.schema_version == "0.1":
         payload = spec.model_dump(mode="json", by_alias=True, exclude_none=False)
         payload.pop("terrain", None)
+        hydrology = payload.get("hydrology")
+        if isinstance(hydrology, dict) and hydrology.get("marine") is None:
+            hydrology.pop("marine", None)
         if isinstance(payload.get("surface"), dict):
             payload["surface"].pop("climate", None)
     else:
@@ -43,6 +52,9 @@ def domain_spec_fingerprint(spec: DomainSpec) -> str:
         # climate.seasonality key. Preserve the exact historical fingerprint
         # when the additive seasonality recipe is absent, while retaining the
         # key as semantic input when it is explicitly configured.
+        hydrology = payload.get("hydrology")
+        if isinstance(hydrology, dict) and hydrology.get("marine") is None:
+            hydrology.pop("marine", None)
         surface = payload.get("surface")
         if isinstance(surface, dict):
             climate = surface.get("climate")
@@ -90,13 +102,21 @@ def semantic_plan_fingerprint(plan: GenerationPlan) -> str:
         if climate_payload.get("classification") is None:
             climate_payload.pop("classification", None)
 
+    hydrology_payload = plan.hydrology.model_dump(
+        mode="json",
+        by_alias=True,
+        exclude_none=False,
+    )
+    if hydrology_payload.get("marine") is None:
+        hydrology_payload.pop("marine", None)
+
     payload = {
         "plan_version": plan.plan_version,
         "seed": plan.seed,
         "domain": plan.domain.model_dump(mode="json"),
         "grid": plan.grid.model_dump(mode="json"),
         "terrain": plan.terrain.model_dump(mode="json"),
-        "hydrology": plan.hydrology.model_dump(mode="json"),
+        "hydrology": hydrology_payload,
         "surface": surface_payload,
         "features": features,
         "constraints": constraints,
@@ -137,6 +157,12 @@ def compile_domain_spec(
     )
     climate = PlanClimate(**spec.surface.climate.model_dump(mode="python"))
     surface = legacy.surface.model_copy(update={"climate": climate})
+    marine = (
+        PlanMarine(**spec.hydrology.marine.model_dump(mode="python"))
+        if spec.hydrology.marine is not None
+        else None
+    )
+    hydrology = legacy.hydrology.model_copy(update={"marine": marine})
     source = legacy.source.model_copy(
         update={
             "spec_schema_version": "0.2",
@@ -149,6 +175,7 @@ def compile_domain_spec(
             "plan_version": "0.2",
             "source": source,
             "terrain": terrain,
+            "hydrology": hydrology,
             "surface": surface,
         }
     )

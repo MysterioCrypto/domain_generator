@@ -20,6 +20,7 @@ from .contracts.data import (
     FieldRole,
     GeneratorIdentity,
     HydroFeature,
+    MarineFeature,
     PoiFeature,
     SpecifiedFeatureSource,
     SurfaceFeature,
@@ -163,15 +164,20 @@ def _specified_features(plan: GenerationPlan, geometries: Mapping[str, object]) 
     return output
 
 
-def _merge_features(specified: dict[str, object], hydro: Mapping[str, HydroFeature]) -> dict[str, object]:
+def _merge_features(
+    specified: dict[str, object],
+    hydro: Mapping[str, HydroFeature | MarineFeature],
+) -> dict[str, object]:
     overlap = set(specified) & set(hydro)
     if overlap:
         raise DomainAssemblyError(f"specified/generated feature ids collide: {sorted(overlap)}")
     output = dict(specified)
     for feature_id in sorted(hydro):
         feature = hydro[feature_id]
-        if not isinstance(feature, HydroFeature):
-            raise DomainAssemblyError(f"hydrology feature {feature_id!r} is not HydroFeature")
+        if not isinstance(feature, (HydroFeature, MarineFeature)):
+            raise DomainAssemblyError(
+                f"hydrology feature {feature_id!r} has unsupported feature type"
+            )
         output[feature_id] = feature
     return output
 
@@ -218,6 +224,7 @@ def _field_descriptors(
     include_climate: bool,
     include_seasonality: bool,
     include_classification: bool,
+    include_marine: bool,
 ) -> dict[str, FieldDescriptor]:
     fields = {
         "elevation": FieldDescriptor(role=FieldRole.CANONICAL, path="fields/elevation.npy", dtype="float32", shape=shape, unit="m"),
@@ -267,6 +274,14 @@ def _field_descriptors(
             shape=shape,
             unit="koppen_geiger_local_season_v1",
         )
+    if include_marine:
+        fields["marine_mask"] = FieldDescriptor(
+            role=FieldRole.DERIVED,
+            path="fields/marine_mask.npy",
+            dtype="uint8",
+            shape=shape,
+            unit="binary",
+        )
     return fields
 
 
@@ -291,7 +306,11 @@ def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: Generatio
 
     geometries = _final_geometry_by_id(plan, state)
     specified = _specified_features(plan, geometries)
-    features = _merge_features(specified, state.hydrology.lake_features)
+    generated_hydro: dict[str, HydroFeature | MarineFeature] = {
+        **state.hydrology.lake_features,
+        **state.hydrology.marine_features,
+    }
+    features = _merge_features(specified, generated_hydro)
     networks = _networks_for_output(plan, state.hydrology)
 
     shape = (plan.grid.rows, plan.grid.columns)
@@ -312,6 +331,24 @@ def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: Generatio
         and plan.surface.climate is not None
         and plan.surface.climate.classification is not None
     )
+    include_marine = (
+        plan.plan_version == "0.2"
+        and plan.hydrology.marine is not None
+    )
+    if include_marine:
+        marine_mask = state.hydrology.marine_mask
+        if (
+            not isinstance(marine_mask, np.ndarray)
+            or marine_mask.shape != shape
+            or marine_mask.dtype != np.dtype(np.bool_)
+        ):
+            raise DomainAssemblyError("Core 0.2 marine mask is missing or invalid")
+        payloads["marine_mask"] = _readonly_payload(
+            marine_mask.astype(np.uint8),
+            field_id="marine_mask",
+            shape=shape,
+            dtype=np.dtype(np.uint8),
+        )
     if include_climate:
         if (
             state.surface.annual_mean_temperature_c is None
@@ -402,6 +439,7 @@ def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: Generatio
                 include_climate=include_climate,
                 include_seasonality=include_seasonality,
                 include_classification=include_classification,
+                include_marine=include_marine,
             ),
             features=features,
             networks=networks,

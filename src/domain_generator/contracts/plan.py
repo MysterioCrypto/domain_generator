@@ -304,12 +304,17 @@ class PlanGrid(FrozenStrictModel):
     columns: Annotated[StrictInt, Field(gt=0)]
 
 
+class PlanMarine(FrozenStrictModel):
+    sea_level_m: Annotated[StrictFloat, Field(allow_inf_nan=False)]
+
+
 class PlanHydrology(FrozenStrictModel):
     stream_threshold_km2: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
     lake_min_area_km2: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
     lake_min_depth_m: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
     river_depth_at_threshold_m: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
     river_depth_exponent: Annotated[StrictFloat, Field(ge=0.0, allow_inf_nan=False)]
+    marine: PlanMarine | None = None
 
 
 class PlanClimateSeasonality(FrozenStrictModel):
@@ -381,6 +386,8 @@ class GenerationPlan(FrozenStrictModel):
             raise ValueError("GenerationPlan 0.2 requires terrain synthesis plan")
         if self.plan_version == "0.1" and self.terrain is not None:
             raise ValueError("GenerationPlan 0.1 cannot contain terrain synthesis plan")
+        if self.plan_version == "0.1" and self.hydrology.marine is not None:
+            raise ValueError("GenerationPlan 0.1 cannot contain hydrology.marine")
         if self.plan_version == "0.2" and self.surface.climate is None:
             raise ValueError("GenerationPlan 0.2 requires surface climate plan")
         if self.plan_version == "0.1" and self.surface.climate is not None:

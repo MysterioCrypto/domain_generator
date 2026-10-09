@@ -19,6 +19,7 @@ from .common import (
 
 
 _GENERATED_LAKE_ID_RE = re.compile(r"^lake-[0-9]{4,}$")
+_GENERATED_MARINE_ID_RE = re.compile(r"^marine-[0-9]{4,}$")
 
 
 class DomainSize(FrozenStrictModel):
@@ -54,12 +55,17 @@ class TerrainSpec(FrozenStrictModel):
         return self
 
 
+class MarineSpec(FrozenStrictModel):
+    sea_level_m: Annotated[StrictFloat, Field(allow_inf_nan=False)]
+
+
 class HydrologySpec(FrozenStrictModel):
     stream_threshold_km2: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
     lake_min_area_km2: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
     lake_min_depth_m: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
     river_depth_at_threshold_m: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
     river_depth_exponent: Annotated[StrictFloat, Field(ge=0.0, allow_inf_nan=False)]
+    marine: MarineSpec | None = None
 
 
 class ClimateSeasonalitySpec(FrozenStrictModel):
@@ -260,6 +266,8 @@ class DomainSpec(StrictModel):
             raise ValueError("DomainSpec 0.2 requires terrain configuration")
         if self.schema_version == "0.1" and self.terrain is not None:
             raise ValueError("terrain configuration is only valid for DomainSpec 0.2")
+        if self.schema_version == "0.1" and self.hydrology.marine is not None:
+            raise ValueError("hydrology.marine is only valid for DomainSpec 0.2")
         if self.schema_version == "0.2" and self.surface.climate is None:
             raise ValueError("DomainSpec 0.2 requires surface.climate configuration")
         if self.schema_version == "0.1" and self.surface.climate is not None:
@@ -283,7 +291,12 @@ class DomainSpec(StrictModel):
         feature_ids = [feature.id for feature in self.features]
         if len(feature_ids) != len(set(feature_ids)):
             raise ValueError("feature ids must be unique")
-        reserved = sorted(feature_id for feature_id in feature_ids if _GENERATED_LAKE_ID_RE.fullmatch(feature_id))
+        reserved = sorted(
+            feature_id
+            for feature_id in feature_ids
+            if _GENERATED_LAKE_ID_RE.fullmatch(feature_id)
+            or _GENERATED_MARINE_ID_RE.fullmatch(feature_id)
+        )
         if reserved:
             raise ValueError(
                 f"feature ids use reserved generated hydro namespace: {reserved}"
