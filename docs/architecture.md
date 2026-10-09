@@ -63,14 +63,16 @@ Core 0.2 сохраняет инфраструктурную архитекту�
 ```text
 continuous Terrain 0.2
 → Hydrology 0.2
-   → MFD p=1.1 contributing area
-   → regional rivers
-   → potential_drainage
+   → Priority Flood / MFD p=1.1 contributing area
+   → regional rivers / potential_drainage / Strahler
+   → H10 refined lake shoreline
+   → H12 optional marine coastline + marine outlets
 → Surface / Climate
-   → annual temperature
-   → annual precipitation
-   → effective moisture
-   → climate-aware vegetation
+   → C1 canonical annual temperature / precipitation
+   → C4 optional 12-month climatology (derived)
+   → C5 optional Earth-derived Köppen climate classifier (derived)
+   → C2 effective moisture from accepted climate + canonical water
+   → C3 vegetation potential from accepted moisture + thermal suitability
 → dependent Placement
    → Core 0.2 environmental site metrics
 → DomainData / bundle
@@ -84,6 +86,11 @@ Accepted Core 0.2 boundaries:
 - moisture и vegetation имеют отдельные диагностируемые semantics;
 - Placement читает upstream environment, но не мутирует его;
 - Core 0.1 inputs сохраняют historical compatibility path.
+- H12 `hydrology.marine.sea_level_m` — **явный opt-in**: 4-связные с границей компоненты ниже заданного уровня становятся marine; замкнутые below-sea basin не становятся морем.
+- H12 добавляет `MarineFeature`, `marine_mask`, marine depth в canonical `water_depth`, refined 4× coastline, `marine_outlet`; downstream rivers не продолжаются через море.
+- C4 сезонные фазы и амплитуды явные, не зависят от скрытого полушария; C5 Köppen–Geiger необязателен и не является biome классификацией.
+- H12 не меняет C1/C4/C5 climate; C2/C3 могут получить изменения на морской и соседней прибрежной суше только по старым зависимостям от canonical water/moisture.
+- `release/0.2-prealpha` заморожен; принятые post-release C4, C5, H12 живут в `dev/0.2`.
 
 Явные упоминания Core 0.1 ниже описывают сохранённую инфраструктурную/contract baseline там, где этот раздел не переопределён Core 0.2 design-документами.
 
@@ -231,7 +238,9 @@ elevation
 -> canonical water_depth
 ```
 
-Routing surface, flow direction и flow accumulation — derived/internal data. River network, lakes и `water_depth` — canonical result. Граница domain открыта и не считается автоматически морем.
+Routing surface, flow direction и flow accumulation — derived/internal data. River network, lakes и `water_depth` — canonical result.
+
+**Core 0.2 / H12 opt-in:** открытая граница **не считается автоматически морем**. Только заданный `sea_level_m` и 4-связность below-sea клеток с границей формируют marine. Для marine создаются отдельные features/mask, уточнённая береговая линия и терминальные узлы `marine_outlet`; принимаемые lakes не перекрывают marine cells. При отсутствии marine-рецепта старое inland-поведение сохраняется. Это не модель приливов, течений, эстуариев и дельт.
 
 ## Базовая модель Surface
 
@@ -288,16 +297,34 @@ Python `hash()` и имена module/function не являются persistence 
 
 ```text
 DomainSpec
-  -> Compiler
-  -> GenerationPlan
-  -> Layout
+  -> Compiler -> GenerationPlan -> Layout
   -> Terrain -> derived slope
-  -> Hydrology
-  -> Surface
+  -> Hydrology (regional/potential drainage, lakes, optional H12 marine)
+  -> C1 annual climate (canonical)
+       -> optional C4 monthly climatology
+            -> optional C5 climate regime classifier
+  -> C2 moisture (reads canonical water + accepted climate)
+  -> C3 vegetation potential (reads moisture + thermal suitability)
   -> Dependent Placement
   -> Final Validation
   -> DomainData Assembly
 ```
+
+**Map of accepted optional dependencies:**
+
+```text
+hydrology.marine? → water_depth + marine_mask + MarineFeature + marine_outlet
+                                   ↓
+                           canonical water changed
+                                   ↓
+C1 annual climate ------------→ C2 moisture → C3 vegetation → Placement
+        ↓
+    seasonality? → monthly climate → classification? → C5 (derived only)
+```
+
+H12 marine topology is an opt-in hydrologic boundary, not a new climate source. C1/C4/C5 remain unchanged when the marine recipe is toggled with all other inputs fixed. C2/C3 may change on coastal land because distance to canonical water changes; they are not frozen per-cell outside marine support. Köppen labels never feed back into biome/vegetation semantics.
+
+This dependency map tracks accepted layers; the **current checkpoint and still-blocked layers** are maintained in `docs/CONTEXT.md`.
 
 Каждая stage читает только объявленные upstream outputs и не мутирует outputs предыдущих стадий. Validator — наблюдатель, а не исправляющий механизм. Renderer читает `DomainData`, но не изменяет состояние мира.
 
@@ -338,6 +365,13 @@ Core 0.2 добавляет:
 Core 0.2 public networks:
 - `rivers` — accepted regional/canonical river network;
 - `potential_drainage` — accepted denser drainage scaffold.
+
+Core 0.2 optional **derived** fields:
+- C4: `temperature_month_01..12`, `precipitation_month_01..12` (float32);
+- C5: `climate_regime_koppen_geiger` (uint8, fixed 1..30; only if classification enabled);
+- H12: `marine_mask` (uint8, binary; only if marine enabled).
+
+Marine is a distinct `MarineFeature`, not a lake; river networks may contain terminal `marine_outlet` nodes. Core's canonical water-depth field includes sea depth on marine cells.
 
 Binary water mask остаётся derived от `water_depth`. Крупные arrays хранятся отдельными `.npy`; `domain.json` содержит descriptors/references. Semantic lakes остаются area features; river networks хранят явную направленную topology upstream -> downstream.
 
