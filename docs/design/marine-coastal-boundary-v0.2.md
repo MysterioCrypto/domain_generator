@@ -1,6 +1,6 @@
 # Marine / Coastal Boundary Semantics v0.2
 
-Status: **ACCEPTED design gate; runtime implementation authorized but not yet accepted**
+Status: **ACCEPTED / IMPLEMENTED — H12-A merged into dev/0.2**
 Target development line: dev/0.2
 Checkpoint: H12-A
 Depends on: accepted Terrain 0.2 + Hydrology 0.2 + H10 refined shoreline geometry
@@ -503,3 +503,22 @@ C2/C3/Placement values
 ```
 
 H12-A must not introduce a new marine-specific ecological formula merely to produce those changes.
+
+
+## 22. Implementation acceptance
+
+Operator decision on 2026-10-09: **H12-A IMPLEMENTATION ACCEPTED**.
+
+- Implementation PR #97: https://github.com/MysterioCrypto/domain_generator/pull/97
+- Accepted head: `4dc897906d2e67ae7c3bccb2c9ef49934339f4a6`
+- Merge into `dev/0.2`: `3d275466ec5bfdb74f5dcb88bea6c8b641347f70`
+- O01–O13 and generated schema snapshots: GREEN
+- Full push and PR pytest: 502 passed
+- Dedicated coastal/archipelago operator checkpoint: GREEN
+- Operator workflow: https://github.com/MysterioCrypto/domain_generator/actions/runs/36979161098
+
+Acceptance retains the bounded implementation and previously recorded C1/C2/C3 dependency clarifications. No tides, waves, salinity, coastal-process modeling, delta/estuary classification or biome inference are authorized by this acceptance.
+
+The historical release `release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
+
+Next: post-H12 dependency audit before selecting any new design.
