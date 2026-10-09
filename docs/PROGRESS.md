@@ -2,7 +2,7 @@
 
 Purpose: **current** DONE / IN PROGRESS / NEXT tree for chat recovery. For the dependency/context map and rejected hypotheses read `docs/CONTEXT.md`; for normative semantics read accepted `docs/design/*`.
 
-**Active line:** `dev/0.2` · **checkpoint:** POST-H12 DEPENDENCY AUDIT · **H12-A:** ACCEPTED / MERGED PR #97 (`3d275466ec5bfdb74f5dcb88bea6c8b641347f70`).
+**Active line:** `dev/0.2` · **checkpoint:** H13-A DESIGN — OPERATOR REVIEW · **H12-A:** ACCEPTED / MERGED PR #97 (`3d275466ec5bfdb74f5dcb88bea6c8b641347f70`).
 Historical checkpoint notes below are not current gates.
 
 ## DONE
@@ -52,11 +52,15 @@ PR #85 merge:
 ## IN PROGRESS
 
 ```text
-Post-H12 dependency audit
+Post-H12 dependency audit — DONE
 ├─ H12-A implementation acceptance / merge — DONE
 ├─ updated context/dependency map — DONE
-├─ review deferred candidates against marine receiving environment — NEXT
-└─ choose exactly one bounded next design gate — NEXT
+├─ review deferred candidates against marine receiving environment — DONE
+├─ choose exactly one bounded next design — DONE: H13-A
+└─ H13-A gross catchment precipitation design PR #98 — OPERATOR REVIEW
+   ├─ INV-006 design document — PROPOSED
+   ├─ runtime implementation — NOT STARTED
+   └─ formal design ACCEPT / REJECT — PENDING
 ```
 
 Historical already-completed milestones below (not current work):
@@ -106,14 +110,11 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. complete post-H12 dependency audit
-   - delta/estuary marine receiver is now known, but discharge/sediment/coastal processes are not
-   - stream permanence still needs groundwater/baseflow/storage
-   - wetland/playa/dry-basin still needs basin water balance and infiltration
-   - biome categories still need an explicit policy; C5 is optional Earth-derived climate
-2. choose exactly one bounded design-only slice, if dependencies are sufficient
-3. implementation only after design ACCEPT, automated guardrails and a representative checkpoint
-4. keep release/0.2-prealpha frozen at c69c1af010a085fb80d248af703a77471fc6c9d7
+1. operator review of H13-A design PR #98
+2. explicit design ACCEPT / REJECT
+3. ACCEPT → merge design, update context DAG, open separate implementation branch
+4. H13 implementation only with G01–G15, full pytest, wet/dry + coastal operator checkpoint and separate implementation ACCEPT
+5. keep release/0.2-prealpha frozen at c69c1af010a085fb80d248af703a77471fc6c9d7
 ```
 
 Do not bundle all deferred hydrology finishing into one change.
@@ -295,3 +296,21 @@ next gate                        POST-H12 DEPENDENCY AUDIT
 Operator workflow: https://github.com/MysterioCrypto/domain_generator/actions/runs/36979161098
 
 No further implementation is authorized implicitly by H12 acceptance.
+
+
+## Latest design gate — H13-A
+
+```text
+Post-H12 dependency audit     DONE
+H13-A chosen design           PROPOSED / OPERATOR REVIEW
+PR #98                        DRAFT / OPEN / UNMERGED
+G01–G15                       DESIGNED, NOT IMPLEMENTED
+runtime implementation        NOT STARTED
+release/0.2-prealpha          UNCHANGED
+```
+
+Draft design: https://github.com/MysterioCrypto/domain_generator/pull/98
+
+Meaning: gross annual atmospheric precipitation volume routed over accepted MFD contributing catchments. **Not runoff, actual discharge, storage, groundwater or channel permanence.** Its design branch is separate and not part of the accepted architecture until formal acceptance.
+
+Full dependency rationale lives in the **current context map at the start of `docs/CONTEXT.md`**.
