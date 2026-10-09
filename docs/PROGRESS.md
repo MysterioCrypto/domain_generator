@@ -1,6 +1,9 @@
 # Project Progress Tree
 
-Purpose: compact handoff state. For reasoning read `docs/CONTEXT.md`; for normative semantics read accepted `docs/design/*`.
+Purpose: **current** DONE / IN PROGRESS / NEXT tree for chat recovery. For the dependency/context map and rejected hypotheses read `docs/CONTEXT.md`; for normative semantics read accepted `docs/design/*`.
+
+**Active line:** `dev/0.2` · **checkpoint:** POST-H12 DEPENDENCY AUDIT · **H12-A:** ACCEPTED / MERGED PR #97 (`3d275466ec5bfdb74f5dcb88bea6c8b641347f70`).
+Historical checkpoint notes below are not current gates.
 
 ## DONE
 
@@ -29,6 +32,15 @@ Core 0.2
    ├─ implementation PR #85
    ├─ V01–V11 GREEN
    └─ C3-A operator checkpoint ACCEPTED
+
+Post-release (dev/0.2)
+├─ C4-A Environmental Seasonality — ACCEPTED / MERGED #93
+├─ C5-A optional Köppen–Geiger climate regimes — ACCEPTED / MERGED #95
+└─ H12-A optional marine/coastal boundary — ACCEPTED / MERGED #97
+   ├─ O01–O13 + schema sync — GREEN
+   ├─ full push/PR pytest — 502 passed
+   ├─ coastal/archipelago operator checkpoint — GREEN
+   └─ merge 3d275466ec5bfdb74f5dcb88bea6c8b641347f70
 ```
 
 C3-A workflow:
@@ -38,6 +50,16 @@ PR #85 merge:
 `37e213ebf5f82ebfae149d21088c07e08d836549`
 
 ## IN PROGRESS
+
+```text
+Post-H12 dependency audit
+├─ H12-A implementation acceptance / merge — DONE
+├─ updated context/dependency map — DONE
+├─ review deferred candidates against marine receiving environment — NEXT
+└─ choose exactly one bounded next design gate — NEXT
+```
+
+Historical already-completed milestones below (not current work):
 
 ```text
 Hydro-surface finishing — DONE
@@ -84,12 +106,14 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. create H12-A implementation branch
-2. implement marine/coastline semantics + O01–O13
-3. full pytest
-4. dedicated coastal/archipelago checkpoint
-5. explicit implementation ACCEPT / REJECT
-6. keep release/0.2-prealpha frozen
+1. complete post-H12 dependency audit
+   - delta/estuary marine receiver is now known, but discharge/sediment/coastal processes are not
+   - stream permanence still needs groundwater/baseflow/storage
+   - wetland/playa/dry-basin still needs basin water balance and infiltration
+   - biome categories still need an explicit policy; C5 is optional Earth-derived climate
+2. choose exactly one bounded design-only slice, if dependencies are sufficient
+3. implementation only after design ACCEPT, automated guardrails and a representative checkpoint
+4. keep release/0.2-prealpha frozen at c69c1af010a085fb80d248af703a77471fc6c9d7
 ```
 
 Do not bundle all deferred hydrology finishing into one change.
@@ -114,6 +138,8 @@ accepted design
 = accepted spatial semantic layer
 ```
 
+
+## Historical checkpoint log (not current gates)
 
 H11-A design PR:
 `https://github.com/MysterioCrypto/domain_generator/pull/86`
@@ -252,3 +278,20 @@ Next:
 1. explicit H12-A implementation ACCEPT / REJECT;
 2. ACCEPT → merge PR #97;
 3. keep `release/0.2-prealpha` frozen.
+
+
+## Latest accepted checkpoint — H12-A
+
+```text
+H12-A design #96                 ACCEPTED / MERGED
+H12-A implementation #97         ACCEPTED / MERGED
+merge SHA                        3d275466ec5bfdb74f5dcb88bea6c8b641347f70
+O01–O13 / schema                 GREEN
+full pytest push/PR              502 passed
+coastal/archipelago workflow     GREEN
+next gate                        POST-H12 DEPENDENCY AUDIT
+```
+
+Operator workflow: https://github.com/MysterioCrypto/domain_generator/actions/runs/36979161098
+
+No further implementation is authorized implicitly by H12 acceptance.
