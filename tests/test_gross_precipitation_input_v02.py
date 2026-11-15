@@ -12,7 +12,6 @@ from domain_generator.bundle_export import export_domain_bundle
 from domain_generator.compiler import compile_domain_spec, domain_spec_fingerprint, semantic_plan_fingerprint
 from domain_generator.contracts import GenerationRequest
 from domain_generator.contracts.data import DomainData, FieldRole
-from domain_generator.contracts.plan import GenerationPlan
 from domain_generator.contracts.spec import DomainSpec
 from domain_generator.hydrology.continuous import distributed_flow_accumulation_km2
 from domain_generator.hydrology.gross_input import accumulate_gross_precipitation_input
@@ -95,8 +94,6 @@ def test_g02_scheme_version_and_core_01_boundary():
     payload["surface"]["climate"] = None
     with pytest.raises(ValidationError, match="hydrology.climatic_input"):
         DomainSpec.model_validate(payload)
-    plan = GenerationPlan.model_validate(_request().domain_spec.model_dump(mode="python")) if False else None
-    assert plan is None
 
 
 def test_g03_millimetre_km2_volume_conversion():
