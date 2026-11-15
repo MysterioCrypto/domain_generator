@@ -7,6 +7,8 @@ on:
   pull_request:
     paths:
       - "scripts/render_moisture_gradient_audit_v02.py"
+      - "scripts/render_c2_water_proximity_sensitivity_v02.py"
+      - "scripts/render_c2_three_scene_map_checkpoint_v02.py"
       - ".github/workflows/moisture-gradient-visual-experiment-v02.yml"
 
 permissions:
@@ -47,6 +49,11 @@ jobs:
           python scripts/render_c2_water_proximity_sensitivity_v02.py \
             "$RUNNER_TEMP/c2-water-proximity-audit-v02"
 
+      - name: Three-scene dry, wet and coastal map checkpoint
+        run: |
+          python scripts/render_c2_three_scene_map_checkpoint_v02.py \
+            "$RUNNER_TEMP/tabletop-c2-maps-v02"
+
       - name: Emit compact operator image previews
         run: |
           python - <<'PY'
@@ -69,6 +76,12 @@ jobs:
               (root_c2, "01-c2-moisture-4ways.png"),
               (root_c2, "04-c2-adjacent-cell-gradient-statistics.png"),
           )
+          root_maps = Path(os.environ["RUNNER_TEMP"]) / "tabletop-c2-maps-v02"
+          selected += (
+              (root_maps, "01-dry_inland-moisture-before-after.png"),
+              (root_maps, "01-coastal-moisture-before-after.png"),
+              (root_maps, "03-coastal-cartographic-preview.png"),
+          )
           for root_dir, filename in selected:
               picture = Image.open(root_dir / filename).convert("RGB")
               picture.thumbnail((1250, 900))
@@ -86,5 +99,13 @@ jobs:
           path: |
             ${{ runner.temp }}/moisture-gradient-audit-v02
             ${{ runner.temp }}/c2-water-proximity-audit-v02
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload direct tabletop C2 map comparison
+        uses: actions/upload-artifact@v4
+        with:
+          name: tabletop-c2-maps-v02
+          path: ${{ runner.temp }}/tabletop-c2-maps-v02
           if-no-files-found: error
           retention-days: 14
