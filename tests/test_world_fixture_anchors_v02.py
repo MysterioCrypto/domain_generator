@@ -21,7 +21,10 @@ def test_fixture_is_explicitly_noncanonical_and_not_a_domainspec():
     assert x["status"] == "SOURCE_ANCHORED_NON_CANONICAL"
     assert x["source_availability"]["original_a8_a10_a12_rasters"] == "SOURCE_ZIPS_LOCATED_NOT_EXTRACTED"
     assert x["source_availability"]["source_archives_found_in_drive"] is True
-    assert x["source_availability"]["archive_contents_verified"] is False
+    assert x["source_availability"]["archive_contents_verified"] == {"A8": True, "A12": True, "A10": False, "A11": False}
+    assert x["source_availability"]["geographic_alignment"]["A8_to_A12_required_transform"] == "reverse_rows"
+    assert x["source_availability"]["geographic_alignment"]["elevation_match_after_reverse_exact"] is True
+    assert x["source_availability"]["geographic_alignment"]["land_mask_match_after_reverse_exact"] is True
     assert set(x["source_availability"]["archives"]) == {"A8", "A10", "A11", "A12", "atlas_png"}
     assert not x["source_availability"]["georeferenced_original_imported"]
     assert not x["source_availability"]["source_data_imported"]

@@ -449,5 +449,8 @@ Frozen `release/0.2-prealpha`: `c69c1af010a085fb80d248af703a77471fc6c9d7`.
 ## New active product route — 2026-11-15
 
 - One-click repo navigation at START_HERE.md; P0–P6 roadmap in docs/PRODUCT_ROADMAP.md; non-Earth D’Акхар source at docs/world-fixtures/dakhar-first-arc.md with JSON source-only fixture and stdlib tests.
-- Original A1–A11 and A12 Drive archives plus georeferenced PNG atlas ARE PRESENT: direct Google_Drive.fetch folder lists them even when search returned empty. ZIP bytes/arrays are still unparsed and not imported. Do not claim import; working Atlas A/B/C proposed not canon, short planetary year 202.755 Earth days; mm/planetary year not automatically Earth mm/year.
+- Original A1–A11 and A12 Drive archives plus georeferenced PNG atlas ARE PRESENT: direct Google_Drive.fetch folder lists them even when search returned empty. A8/A12 NumPy arrays are now parsed, SHA-256 verified, A8 north→south versus A12 south→north orientation reconciled (reverse A8 raster rows exact). A10/A11 ZIPs found but their content not inspected; no Core import. Do not claim import; working Atlas A/B/C proposed not canon, short planetary year 202.755 Earth days; mm/planetary year not automatically Earth mm/year.
 - Next bounded visible step: three actually different regional terrain/hydrology scenes. Follow with opt-in world-defined land cover; no more unneeded parchment physics. Preserve dev/0.2 accepted contracts, three unmerged PRs #99/100/101 and frozen release.
+
+
+- **Live source QA evidence:** A8 ZIP SHA `6824ccf2...`, A12 ZIP SHA `db9f0f91...`, A12_inputs NPZ SHA `f2d6c446...` (complete in docs/reviews/dakhar-a8-a12-source-alignment-audit-2026-11-15.md). Original 600×1200 arrays identical for elevation+land after A8 row reversal. User-visible source-derived diagnostic map created outside repo from private Drive archives; do not commit private ZIP or rendered crops to public repo without explicit consent.

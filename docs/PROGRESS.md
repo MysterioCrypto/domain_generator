@@ -115,7 +115,8 @@ Accepted hydrology routing/network remains frozen.
 
 ```text
 P0  navigation + provenance of non-Earth source materials   DOCS BRANCH
-P1  inspect located A8/A10/A12 ZIPs and geo-atlas      FILES FOUND / CONTENT NOT PARSED
+P1  A8/A12 SHA+NPZ+axis alignment QA                 VERIFIED; NOT IMPORTED
+    A10/A11 binary content and source adapter       NEXT
     or select explicitly NEW generated regional geography    NOT YET SELECTED
 P2  3 genuinely distinct topographic/hydrologic regions      NEXT VISIBLE PNG GATE
 P3  opt-in world-defined land cover categories               NOT IMPLEMENTED
@@ -344,3 +345,8 @@ frozen release       c69c1af010a085fb80d248af703a77471fc6c9d7
 ```
 
 Why H13: C1 gross precipitation is already known and the MFD weighted DAG supports strictly mathematical accumulation without inventing runoff or permanence. Keep lake supernode identity, marine absorption, exact upstream field stability, and no delta/biome shortcut. See `docs/CONTEXT.md` and accepted design.
+
+
+## Actual world-source QA (2026-11-15)
+
+A8/A12 ZIPs found in the connected Drive folder and locally opened. Exact SHA-256 matches archived README; exact 600×1200 DEM/land match after A8 north-south axis reversal; A12 global climate/biome arrays and A12 annual Q snapshot read, not used as accepted DomainData. See [A8/A12 audit](reviews/dakhar-a8-a12-source-alignment-audit-2026-11-15.md). **Next work:** implement explicit non-Earth geogrid import/adapter and work from source candidate A instead of unrelated random terrain. No author canon or Core runtime contract was modified.
