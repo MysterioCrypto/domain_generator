@@ -331,8 +331,12 @@ def _write_layers(assembly, out: Path, *, ppm: int, request: GenerationRequest) 
                        ppm=ppm, data=assembly.data)
     preview.save(out / "08-atlas-preview.png")
     parchment = _terrain_layer(fields, size, parchment=True)
-    for layer in layers[1:]:
+    # Art-friendly source excludes labels so a stylization model cannot
+    # silently rewrite settlement names; restore fixed label geometry later.
+    for layer in layers[1:-1]:
         parchment.alpha_composite(layer)
+    parchment.convert("RGB").save(out / "11-parchment-no-labels.png")
+    parchment.alpha_composite(layers[-1])
     parchment.convert("RGB").save(out / "09-parchment-palette.png")
 
     manifest = {
@@ -365,6 +369,39 @@ def _write_layers(assembly, out: Path, *, ppm: int, request: GenerationRequest) 
             "Elevation contour spacing and icon shapes are visual encodings; user-authored tags, not inferred settlement types.",
         ],
     }
+    # A compact, reproducible handoff for an OPTIONAL artistic image pass.
+    # If an image model changes geography, the authentic RGBA layers remain
+    # available for a deterministic final composite.
+    named = "; ".join(
+        f"{poi['label']} ({poi['x_km']:.2f}, {poi['y_km']:.2f} km)"
+        for poi in pois
+    )
+    art_handoff = (
+        f"DOMAIN: {request.domain_spec.label or request.domain_spec.id}\n"
+        f"WORLD: {w_km:g} × {h_km:g} km; origin southwest; north is image top.\n"
+        f"LANDMARKS: {named}\n\n"
+        "STYLE BRIEF (optional, never authoritative geometry):\n"
+        "Create an elegant hand-painted fantasy tabletop atlas on warm parchment. "
+        "Keep the original coastlines, lake polygons, mountain masses, river "
+        "centerlines and settlement coordinates fixed. Improve paper texture, "
+        "relief rendering, restrained mountain engraving and color harmony. "
+        "Do not invent extra rivers, roads, villages, political boundaries, "
+        "biomes or text. Prefer broad artistic texture rather than changing "
+        "the geography.\n\n"
+        "LAYERS FOR RECOMPOSITING: 01-terrain.png, 10-relief-contours.png, "
+        "02-water.png, 03-rivers.png, 04-poi-markers.png, 05-labels.png.\n"
+        "BASE FOR STYLIZATION: 11-parchment-no-labels.png; optional clean "
+        "color base: 07-map-no-labels.png.\n"
+        "CRITICAL: image generation does not guarantee precise geometry. "
+        "Compare against 06-map-full.png, and restore original water, rivers, "
+        "markers and names from the aligned RGBA layers if needed.\n"
+    )
+    (out / "12-stylization-brief.txt").write_text(art_handoff, encoding="utf-8")
+    manifest["art_direction_files"] = [
+        "07-map-no-labels.png",
+        "11-parchment-no-labels.png",
+        "12-stylization-brief.txt",
+    ]
     return manifest
 
 
