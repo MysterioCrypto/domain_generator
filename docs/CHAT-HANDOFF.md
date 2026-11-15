@@ -444,3 +444,16 @@ Frozen `release/0.2-prealpha`: `c69c1af010a085fb80d248af703a77471fc6c9d7`.
 - Physical interpretation: **annual gross upstream source allocation under MFD**, not actual delivered water/discharge/runoff. C4/C5 not dependencies; H12 optional.
 - Implementation must protect baseline MFD/lake supernode behavior, coastline terminal ledger, exact opt-out fingerprint, float64 derived field, deterministic replay, and stable canonical stages; G01–G15 + wet/dry/coastal evidence.
 - After each meaningful milestone, update `PROJECT.md`, `docs/CONTEXT.md`, `docs/PROGRESS.md` and this handoff; keep historical release unchanged.
+
+
+## Parallel visual-only C1/C2 gradient diagnosis — 2026-11-15
+
+- This is an **isolated draft experiment** on `experiment/v0.2-moisture-gradient-checkpoint`, PR #100 based on `dev/0.2`; no accepted algorithm, H13 runtime or release was modified. PR #99 remains draft and unmerged.
+- User-facing review is through [GitHub Actions maps and `report.json`](https://github.com/MysterioCrypto/domain_generator/actions/runs/43727764619) in artifact `moisture-gradient-comparison-v02` (C1/C2 comparison 12 PNGs; C2-only test 5 PNGs). See `docs/reviews/moisture-gradient-visual-audit-2026-11-15.md`.
+- Core distinction: preceding H13 updates to shared renderer scales **did not** soften C1 or C2 physics. The new visual experiments vary *explicit existing parameters in temporary request fixtures*, never blur the stored raster or silently alter accepted defaults.
+- C1 experiment: reduce orographic strength 1.20→0.75 (scale fixed 18 km). p95 adjacent 1-km land-cell precipitation jump 28.071→19.264 mm/year (−31.4%), but C2 moisture jump 0.04610→0.04407 (−4.4%). Longer upwind scale 18→27 km alone made C1 p95 jumps 6.1% greater.
+- Accepted C2 components show local p95 jumps: climatic wetness 0.01085; water proximity 0.09138; climate-gated MFD catchment 0.10108; slope retention 0.00107. Components combine nonlinearly (max+product); numbers cannot be directly summed.
+- C2-only experiment: changing water-moisture decay 2→4 km, holding boost 0.55, lowers p95 land-land jumps 0.04610→0.03517 (−23.7%) and p95 all-neighbor including water 0.27288→0.23709 (−13.1%); however raises land-mean effective moisture 0.64462→0.68413. Changing both boost to 0.40 and decay to 4 km lowers p95 land-land jumps 40.2% but **increases** p95 including-water jumps ~2.9%. This supports evaluating longer decay as one candidate, **not acceptance**.
+- Scientific limitation: synthetic 64×48 km A08 parameter sensitivity is neither global calibration nor independent evidence of correct soil/groundwater physics. C1, C2 and C3 accepted formulas and all Terrain/Hydro fields/networks were exact unchanged across same-source scenarios.
+- **Gate:** no hidden implementation merge or physical reinterpretation; defer operator questions to seeing the maps. Record any future parameter adoption as an explicit new design/review segment. Existing H13 runtime PR #99 and experimental PR #100 remain DRAFT/OPEN/UNMERGED.
+
