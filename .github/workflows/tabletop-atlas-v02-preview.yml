@@ -1,0 +1,89 @@
+name: tabletop-atlas-v02-preview
+
+on:
+  push:
+    branches:
+      - feature/v0.2-tabletop-map-compositor
+  pull_request:
+    paths:
+      - "scripts/render_tabletop_domain_map_v02.py"
+      - "examples/tabletop-map/**"
+      - ".github/workflows/tabletop-atlas-v02-preview.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  atlas-export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact map-compositor revision
+        uses: actions/checkout@v4
+        with:
+          ref: \${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install generator and renderer
+        run: python -m pip install -e ".[dev,render]"
+
+      - name: Existing placement and DomainSpec guardrails
+        run: |
+          python -m pytest \
+            tests/test_spec.py \
+            tests/test_dependent_placement_candidate_filtering.py \
+            tests/test_dependent_placement_final_selection.py \
+            tests/test_placement_reservations.py \
+            tests/test_placement_environmental_metrics_v02.py -q
+
+      - name: Generate editable-spec example atlas and georeferenced presentation layers
+        run: |
+          python scripts/render_tabletop_domain_map_v02.py \
+            --request examples/tabletop-map/domain-request.json \
+            --presets tests/acceptance/cases/a08-core-v02-integrated/presets.json \
+            --pixels-per-km 24 \
+            --output "$RUNNER_TEMP/tabletop-atlas-v02"
+
+      - name: Verify generated map layers, named settlements and exact alignment
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from PIL import Image
+
+          folder = Path(os.environ["RUNNER_TEMP"]) / "tabletop-atlas-v02"
+          report = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+          expected = report["pixel_size"]
+          size = (expected["width"], expected["height"])
+          expected_names = {"Тихий Брод", "Зелёная Стража", "Луговая Пристань"}
+          observed = {x["label"] for x in report["settlements_and_poi"]}
+          assert observed == expected_names, (observed, expected_names)
+          assert report["spec_editable"]["surface.water_moisture_decay_km"] == 4.0
+          assert report["spec_editable"]["constraints"] == 3
+          for filename in report["aligned_layers"]:
+              with Image.open(folder / filename) as im:
+                  assert im.size == size, (filename, im.size, size)
+                  assert im.mode == "RGBA", (filename, im.mode)
+          for filename in ("06-map-full.png", "07-map-no-labels.png", "09-parchment-palette.png"):
+              with Image.open(folder / filename) as im:
+                  assert im.size == size
+          for filename in ("02-water.png", "03-rivers.png", "04-poi-markers.png", "05-labels.png"):
+              with Image.open(folder / filename) as im:
+                  assert im.getchannel("A").getbbox(), f"empty visual layer: {filename}"
+          print(f"CHECKPOINT OK: 3 named settlements, {len(report['aligned_layers'])} aligned RGBA layers, {size} pixels")
+          for point in report["settlements_and_poi"]:
+              print("POI", point["id"], point["label"], point["x_km"], point["y_km"], "label:", point["label_drawn"])
+          PY
+
+      - name: Upload editable DomainSpec atlas and layered maps
+        uses: actions/upload-artifact@v4
+        with:
+          name: tabletop-atlas-v02
+          path: \${{ runner.temp }}/tabletop-atlas-v02
+          if-no-files-found: error
+          retention-days: 14
