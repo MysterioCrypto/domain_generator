@@ -16,6 +16,11 @@ from matplotlib.colors import TwoSlopeNorm
 
 from domain_generator.application import generate_domain, load_preset_catalog, registry_for_request
 from domain_generator.contracts import GenerationRequest
+from domain_generator.compiler import compile_domain_spec
+from domain_generator.grid import GridAdapter
+from domain_generator.hydrology import generate_hydrology
+from domain_generator.surface import effective_surface_moisture_components, slope_degrees
+from domain_generator.terrain.state import TerrainState
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,11 +87,72 @@ def _plot_four(
         ax.set_xlabel("x (km)")
         ax.set_ylabel("y (km)")
         ax.set_aspect("equal")
-    fig.colorbar(im, ax=axes.ravel().tolist(), shrink=0.76, pad=0.012,
+    # Explicit right margin: never obscure the right-hand comparison panels.
+    cax = fig.add_axes((0.90, 0.16, 0.019, 0.64))
+    fig.colorbar(im, cax=cax,
                  label=("log10 " if log else "") + label + " — SAME COLOR SCALE")
     fig.suptitle(title + "\nIdentical terrain, seed, stream topology; atmospheric parameters only", fontsize=13)
-    fig.subplots_adjust(top=0.88, bottom=0.07, left=0.07, right=0.89, hspace=0.23, wspace=0.14)
+    fig.subplots_adjust(top=0.88, bottom=0.07, left=0.07, right=0.87, hspace=0.23, wspace=0.14)
     fig.savefig(path, dpi=145)
+    plt.close(fig)
+
+
+
+def _baseline_c2_components(assembly, request: GenerationRequest):
+    """Reconstruct accepted C2 components read-only for explaining C1's limited effect."""
+    catalog = load_preset_catalog(A08 / "presets.json")
+    plan = compile_domain_spec(
+        request.domain_spec,
+        registry=registry_for_request(request, catalog),
+        generator_version="0.2.0.dev0",
+    )
+    elevation = np.asarray(assembly.field_payloads["elevation"], dtype=np.float64)
+    terrain = TerrainState(elevation_m=elevation)
+    hydrology = generate_hydrology(plan, terrain)
+    water_depth = np.asarray(assembly.field_payloads["water_depth"], dtype=np.float64)
+    np.testing.assert_array_equal(hydrology.water_depth_m.astype(np.float32), water_depth.astype(np.float32))
+    components = effective_surface_moisture_components(
+        adapter=GridAdapter.from_plan(plan),
+        annual_mean_temperature_c=np.asarray(assembly.field_payloads["temperature"], dtype=np.float64),
+        annual_precipitation_mm=np.asarray(assembly.field_payloads["annual_precipitation"], dtype=np.float64),
+        flow_accumulation_km2=hydrology.flow_accumulation_km2,
+        water_depth_m=water_depth,
+        slope_deg=slope_degrees(elevation, cell_size_km=plan.grid.cell_size_km),
+        stream_threshold_km2=plan.hydrology.stream_threshold_km2,
+        water_moisture_boost=plan.surface.water_moisture_boost,
+        water_moisture_decay_km=plan.surface.water_moisture_decay_km,
+    )
+    np.testing.assert_allclose(
+        assembly.field_payloads["moisture"],
+        components.effective_moisture.astype(np.float32),
+        rtol=0.0, atol=1e-6,
+    )
+    return components
+
+
+def _plot_c2_mechanisms(path: Path, components) -> None:
+    layers = (
+        ("C1→C2 climate wetness (P vs PET proxy)", components.climatic_wetness),
+        ("Water proximity boost", components.water_proximity_signal),
+        ("Climate-gated MFD catchment signal", components.climate_gated_catchment),
+        ("Slope retention", components.slope_retention),
+        ("C2 before slope", components.pre_slope_moisture),
+        ("C2 effective moisture", components.effective_moisture),
+    )
+    fig, axes = plt.subplots(2, 3, figsize=(17, 9), sharex=True, sharey=True)
+    for ax, (title, arr) in zip(axes.flat, layers):
+        rows, cols = arr.shape
+        im = ax.imshow(
+            arr, origin="upper", extent=(0, cols, 0, rows),
+            interpolation="nearest", cmap="YlGnBu", vmin=0.0, vmax=1.0,
+        )
+        ax.set(title=title, xlabel="x (km)", ylabel="y (km)")
+        ax.set_aspect("equal")
+    cax = fig.add_axes((0.915, 0.18, 0.018, 0.63))
+    fig.colorbar(im, cax=cax, label="0–1 normalized component scale")
+    fig.suptitle("Why C2's gradients survive changes to C1: accepted component decomposition", fontsize=13)
+    fig.subplots_adjust(top=0.88, bottom=0.07, left=0.07, right=0.89, hspace=0.2, wspace=0.12)
+    fig.savefig(path, dpi=160)
     plt.close(fig)
 
 
@@ -277,6 +343,9 @@ def main() -> None:
         title="C2 maximum local jump to land neighbor (water boundaries excluded)",
         label="absolute neighbor difference (normalized)", cmap="magma",
     )
+    components = _baseline_c2_components(original, requests["baseline"])
+    _plot_c2_mechanisms(root / "12-c2-component-decomposition.png", components)
+
 
     relative_p95 = {
         name: {
@@ -305,7 +374,15 @@ def main() -> None:
         "baseline_world_and_hydrology_unchanged": True,
         "statistics": metric,
         "p95_ratio_to_baseline": relative_p95,
-        "figure_count": 11,
+        "figure_count": 12,
+        "baseline_c2_component_gradient_p95": {
+            key: float(np.percentile(_land_gradients(getattr(components, key), land), 95))
+            for key in (
+                "climatic_wetness", "water_proximity_signal",
+                "climate_gated_catchment", "pre_slope_moisture",
+                "slope_retention", "effective_moisture",
+            )
+        },
         "scientific_caveat": "Parameter sensitivity only: no atmospheric conservation model, no hydrological runoff, no universal optimum or claim of increased physical accuracy",
         "operator_action": "Compare shared-scale 01 and 02, then 06/07 metrics; decide visually if recipe deserves a separate later change",
     }
