@@ -334,3 +334,28 @@ frozen release       c69c1af010a085fb80d248af703a77471fc6c9d7
 ```
 
 Why H13: C1 gross precipitation is already known and the MFD weighted DAG supports strictly mathematical accumulation without inventing runoff or permanence. Keep lake supernode identity, marine absorption, exact upstream field stability, and no delta/biome shortcut. See `docs/CONTEXT.md` and accepted design.
+
+
+## Parallel visual-only C1/C2 gradient diagnosis — 2026-11-15
+
+- This is an **isolated draft experiment** on `experiment/v0.2-moisture-gradient-checkpoint`, PR #100 based on `dev/0.2`; no accepted algorithm, H13 runtime or release was modified. PR #99 remains draft and unmerged.
+- User-facing review is through [GitHub Actions maps and `report.json`](https://github.com/MysterioCrypto/domain_generator/actions/runs/43727764619) in artifact `moisture-gradient-comparison-v02` (C1/C2 comparison 12 PNGs; C2-only test 5 PNGs). See `docs/reviews/moisture-gradient-visual-audit-2026-11-15.md`.
+- Core distinction: preceding H13 updates to shared renderer scales **did not** soften C1 or C2 physics. The new visual experiments vary *explicit existing parameters in temporary request fixtures*, never blur the stored raster or silently alter accepted defaults.
+- C1 experiment: reduce orographic strength 1.20→0.75 (scale fixed 18 km). p95 adjacent 1-km land-cell precipitation jump 28.071→19.264 mm/year (−31.4%), but C2 moisture jump 0.04610→0.04407 (−4.4%). Longer upwind scale 18→27 km alone made C1 p95 jumps 6.1% greater.
+- Accepted C2 components show local p95 jumps: climatic wetness 0.01085; water proximity 0.09138; climate-gated MFD catchment 0.10108; slope retention 0.00107. Components combine nonlinearly (max+product); numbers cannot be directly summed.
+- C2-only experiment: changing water-moisture decay 2→4 km, holding boost 0.55, lowers p95 land-land jumps 0.04610→0.03517 (−23.7%) and p95 all-neighbor including water 0.27288→0.23709 (−13.1%); however raises land-mean effective moisture 0.64462→0.68413. Changing both boost to 0.40 and decay to 4 km lowers p95 land-land jumps 40.2% but **increases** p95 including-water jumps ~2.9%. This supports evaluating longer decay as one candidate, **not acceptance**.
+- Scientific limitation: synthetic 64×48 km A08 parameter sensitivity is neither global calibration nor independent evidence of correct soil/groundwater physics. C1, C2 and C3 accepted formulas and all Terrain/Hydro fields/networks were exact unchanged across same-source scenarios.
+- **Gate:** no hidden implementation merge or physical reinterpretation; defer operator questions to seeing the maps. Record any future parameter adoption as an explicit new design/review segment. Existing H13 runtime PR #99 and experimental PR #100 remain DRAFT/OPEN/UNMERGED.
+
+
+
+## Pragmatic C2 3-scene checkpoint + first tabletop map compositing (2026-11-15)
+
+**Purpose:** user goal is expressive, plausible-enough, parameter-driven maps for TTRPG/literature and optional later artistic stylization—not a climate-science thesis. Test a **single** C2 visual-readability candidate and then stop tuning unless a map visibly fails. Branch `experiment/v0.2-moisture-gradient-checkpoint`, draft PR #100; neither this experiment nor draft H13 implementation PR #99 has been merged. Frozen release unchanged.
+
+- Existing explicit C2 parameter `water_moisture_decay_km`: baseline **2 km**, candidate **4 km**. Boost remains `0.55`. No core code, default, C1 climate, terrain, stream geometry or physical simulation changed. A08 64×48 km fixture, same terrain and seed, with three conditions: dry inland 180 mm/year, wet inland 1500 mm/year, coastal 800 mm/year with H12 sea level 0 m. **These are not three independent terrain seeds.**
+- p95 land-to-land C2 moisture neighbor jumps baseline→candidate: dry `0.07181→0.05805` (−19.2%), wet `0.03416→0.02494` (−27.0%), coastal `0.04799→0.03710` (−22.7%). Including water-edge jumps: dry `0.51306→0.44013` (−14.2%), wet `0.18436→0.16190` (−12.2%), coastal `0.28441→0.24493` (−13.9%). Water cells remain exactly moisture 1.0.
+- **Tradeoff:** mean land moisture increases dry `0.32928→0.41135`, wet `0.75675→0.78222`, coast `0.63277→0.67493`. This is NOT proof of scientific improvement, and in dry regions may reduce intended aridity. Keep 2 km supported. Consider 4 km as **optional map-art-direction recipe** only, no global default change.
+- The Actions checkpoint additionally exports 10 PNGs: paired moisture/vegetation maps per scenario, three first-look tabletop composites, and p95 bar chart, plus JSON metrics. Composite is renderer-only hillshade + continuous greenness + vector accepted rivers, actual lake polygons and H12 marine mask; it does NOT classify vegetation into biomes or claim runoff. An initial cartographic draft rendered 1-km river pixels as blue blobs; revised renderer separates river paths from lake polygons and sea. An escaped-comment bug hid marine fill and was corrected with an explicit palette invariant.
+- Final visual Actions run: https://github.com/MysterioCrypto/domain_generator/actions/runs/43730764902 (check workflow GREEN on recovery) → artifact `tabletop-c2-maps-v02`, 10 PNGs + `report.json`. Review `docs/reviews/c2-three-scene-tabletop-maps-2026-11-15.md`. No operator approval requested for internal math; request judgement only for visible cartographic output, and do not ask endless parameter sweeps.
+- Next design/product-facing slice: a proper map composer and art-ready layered exports (terrain, water, rivers, settlements/labels/legend), preserving deterministic geometry and source fields. Further climate/hydrology complexity only if it visibly adds value to map usability.

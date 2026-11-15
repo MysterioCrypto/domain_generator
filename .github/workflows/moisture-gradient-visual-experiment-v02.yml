@@ -1,0 +1,111 @@
+name: moisture-gradient-visual-experiment-v02
+
+on:
+  push:
+    branches:
+      - experiment/v0.2-moisture-gradient-checkpoint
+  pull_request:
+    paths:
+      - "scripts/render_moisture_gradient_audit_v02.py"
+      - "scripts/render_c2_water_proximity_sensitivity_v02.py"
+      - "scripts/render_c2_three_scene_map_checkpoint_v02.py"
+      - ".github/workflows/moisture-gradient-visual-experiment-v02.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  gradient-checkpoint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact experiment revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install development and rendering dependencies
+        run: python -m pip install -e ".[dev,render]"
+
+      - name: Regression tests for accepted C1/C2 boundaries
+        run: |
+          python -m pytest \
+            tests/test_surface_climate_v02.py \
+            tests/test_surface_moisture_v02.py \
+            tests/test_surface_vegetation_v02.py -q
+
+      - name: Render controlled C1/C2 moisture-gradient comparison
+        run: |
+          python scripts/render_moisture_gradient_audit_v02.py \
+            "$RUNNER_TEMP/moisture-gradient-audit-v02"
+
+      - name: Render C2-only water proximity boost/decay sensitivity
+        run: |
+          python scripts/render_c2_water_proximity_sensitivity_v02.py \
+            "$RUNNER_TEMP/c2-water-proximity-audit-v02"
+
+      - name: Three-scene dry, wet and coastal map checkpoint
+        run: |
+          python scripts/render_c2_three_scene_map_checkpoint_v02.py \
+            "$RUNNER_TEMP/tabletop-c2-maps-v02"
+
+      - name: Emit compact operator image previews
+        run: |
+          python - <<'PY'
+          import base64
+          import io
+          import os
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "moisture-gradient-audit-v02"
+          selected = (
+              "01-precipitation-4ways-shared-scale.png",
+              "02-moisture-4ways-shared-scale.png",
+              "07-c2-neighbor-jump-percentiles.png",
+              "12-c2-component-decomposition.png",
+          )
+          # Both experiments share the same workflow/checkpoint.
+          root_c2 = Path(os.environ["RUNNER_TEMP"]) / "c2-water-proximity-audit-v02"
+          selected = tuple((root, filename) for filename in selected) + (
+              (root_c2, "01-c2-moisture-4ways.png"),
+              (root_c2, "04-c2-adjacent-cell-gradient-statistics.png"),
+          )
+          root_maps = Path(os.environ["RUNNER_TEMP"]) / "tabletop-c2-maps-v02"
+          selected += (
+              (root_maps, "01-dry_inland-moisture-before-after.png"),
+              (root_maps, "01-coastal-moisture-before-after.png"),
+              (root_maps, "03-coastal-cartographic-preview.png"),
+          )
+          for root_dir, filename in selected:
+              picture = Image.open(root_dir / filename).convert("RGB")
+              picture.thumbnail((1250, 900))
+              buffer = io.BytesIO()
+              picture.save(buffer, format="JPEG", quality=72, optimize=True)
+              print(f"GRADIENT_PREVIEW_BEGIN:{filename}")
+              print(base64.b64encode(buffer.getvalue()).decode("ascii"))
+              print(f"GRADIENT_PREVIEW_END:{filename}")
+          PY
+
+      - name: Upload C1 and C2-only gradient comparisons for operator
+        uses: actions/upload-artifact@v4
+        with:
+          name: moisture-gradient-comparison-v02
+          path: |
+            ${{ runner.temp }}/moisture-gradient-audit-v02
+            ${{ runner.temp }}/c2-water-proximity-audit-v02
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload direct tabletop C2 map comparison
+        uses: actions/upload-artifact@v4
+        with:
+          name: tabletop-c2-maps-v02
+          path: ${{ runner.temp }}/tabletop-c2-maps-v02
+          if-no-files-found: error
+          retention-days: 14
