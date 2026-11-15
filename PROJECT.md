@@ -1101,7 +1101,9 @@ hydrology:
 Proposed optional derived float64 field:
 `gross_upstream_precipitation_m3_per_year` (m³/year).
 
-Interpretation: precipitation volume entering a cell's MFD contributing area **before any evaporation, infiltration, runoff generation, groundwater storage or residence-time effects**. Never label it river discharge, actual runoff, permanence or a delta predictor.
+Interpretation: gross precipitation volume **falling on upstream cells and mathematically allocated by MFD fractions** before evaporation, infiltration, storage or runoff generation. It is NOT physically delivered water, actual river discharge, runoff, channel permanence or a delta predictor.
+
+Design clarification on 2026-11-15: compute the optional diagnostic within the accepted `SURFACE` stage after C1 rainfall is available, without adding a ValidationStage, mutating upstream state or calculating new physics in assembly. The design-only PR #98 includes this clarification (commit `5fbd6b5904071feefc38a0ab66f093e68845e81e`).
 
 Dependency proposal (dashed; not an accepted architecture edge):
 ```text
