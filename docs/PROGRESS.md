@@ -58,7 +58,9 @@ Post-H12 dependency audit — DONE
 ├─ review deferred candidates against marine receiving environment — DONE
 ├─ choose exactly one bounded next design — DONE: H13-A
 └─ H13-A gross catchment precipitation design PR #98 — OPERATOR REVIEW
-   ├─ INV-006 design document — PROPOSED
+   ├─ INV-006 design document — PROPOSED / amended 2026-11-15
+   ├─ no-loss gross atmospheric allocation, NOT delivered runoff/discharge
+   ├─ existing SURFACE stage boundary defined; no new ValidationStage
    ├─ runtime implementation — NOT STARTED
    └─ formal design ACCEPT / REJECT — PENDING
 ```
