@@ -56,6 +56,7 @@ jobs:
               "01-precipitation-4ways-shared-scale.png",
               "02-moisture-4ways-shared-scale.png",
               "07-c2-neighbor-jump-percentiles.png",
+              "12-c2-component-decomposition.png",
           )
           for filename in selected:
               picture = Image.open(root / filename).convert("RGB")
