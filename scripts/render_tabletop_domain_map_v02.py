@@ -1,0 +1,316 @@
+from __future__ import annotations
+
+"""Deterministic, geometry-faithful presentation layers for tabletop/literary maps.
+
+Reads DomainSpec and catalog; generates one accepted DomainData; never edits
+world semantics. All map layers align pixel-for-pixel for later stylization.
+"""
+
+import argparse
+from hashlib import sha256
+import json
+from pathlib import Path
+
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+
+from domain_generator.application import generate_domain, load_preset_catalog, registry_for_request
+from domain_generator.contracts import GenerationRequest
+from domain_generator.contracts.data import HydroFeature, PoiFeature
+
+
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_REQUEST = ROOT / "examples" / "tabletop-map" / "domain-request.json"
+DEFAULT_PRESETS = ROOT / "tests" / "acceptance" / "cases" / "a08-core-v02-integrated" / "presets.json"
+MAP_LAYERS = (
+    "01-terrain.png",
+    "02-water.png",
+    "03-rivers.png",
+    "04-poi-markers.png",
+    "05-labels.png",
+)
+RIVER_COLOR = (225, 245, 245, 250)
+DARK = (38, 50, 43, 245)
+
+
+def _font(size: int) -> ImageFont.ImageFont:
+    candidates = (
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+    )
+    for path in candidates:
+        try:
+            return ImageFont.truetype(path, size)
+        except OSError:
+            continue
+    return ImageFont.load_default()
+
+
+def _terrain_layer(fields: dict, size: tuple[int, int], *, parchment: bool) -> Image.Image:
+    elevation = np.asarray(fields["elevation"], dtype=np.float64)
+    moisture = np.clip(fields["moisture"].astype(np.float64), 0.0, 1.0)
+    vegetation = np.clip(fields["vegetation_density"].astype(np.float64), 0.0, 1.0)
+    # Relief shading is a cartographic visual treatment, not a new physics field.
+    north_south, west_east = np.gradient(elevation)
+    lighting = np.clip(
+        0.86 + 0.11 * west_east / (35.0 + np.abs(west_east))
+             - 0.12 * north_south / (35.0 + np.abs(north_south)),
+        0.65, 1.05,
+    )
+    e_low, e_high = np.percentile(elevation, (2, 98))
+    altitude = np.clip((elevation - e_low) / max(1.0, float(e_high - e_low)), 0.0, 1.0)
+    green = np.clip(0.72 * vegetation + 0.28 * moisture, 0.0, 1.0)
+    if parchment:
+        arid = np.array([0.89, 0.82, 0.66])
+        lush = np.array([0.50, 0.59, 0.43])
+    else:
+        arid = np.array([0.81, 0.75, 0.57])
+        lush = np.array([0.27, 0.52, 0.36])
+    rgb = arid[None, None, :] * (1.0 - green[..., None]) + lush[None, None, :] * green[..., None]
+    highland = np.array([0.77, 0.77, 0.68]) if parchment else np.array([0.60, 0.65, 0.59])
+    alpha = (np.maximum(altitude - 0.61, 0.0) * 0.67)[..., None]
+    rgb = rgb * (1.0 - alpha) + highland[None, None, :] * alpha
+    rgb = np.clip(rgb * lighting[..., None], 0.0, 1.0)
+    native = Image.fromarray(np.round(rgb * 255).astype(np.uint8), "RGB")
+    return native.resize(size, Image.Resampling.BICUBIC).convert("RGBA")
+
+
+def _geo_point(point, *, ppm: int, size: tuple[int, int]) -> tuple[int, int]:
+    return (round(float(point.x_km) * ppm),
+            round(size[1] - float(point.y_km) * ppm))
+
+
+def _water_layer(data, fields: dict, size: tuple[int, int], *, ppm: int) -> Image.Image:
+    out = Image.new("RGBA", size, (0, 0, 0, 0))
+    sea = fields.get("marine_mask")
+    if sea is not None:
+        sea_binary = Image.fromarray(np.asarray(sea, dtype=np.uint8) * 255, "L")
+        mask = sea_binary.resize(size, Image.Resampling.NEAREST)
+        color = Image.new("RGBA", size, (38, 98, 135, 255))
+        out.paste(color, (0, 0), mask)
+    d = ImageDraw.Draw(out, "RGBA")
+    for feature_id, feature in sorted(data.features.items()):
+        if not isinstance(feature, HydroFeature):
+            continue
+        for polygon in feature.geometry.polygons:
+            pts = [_geo_point(p, ppm=ppm, size=size) for p in polygon.outer]
+            if len(pts) < 3:
+                continue
+            d.polygon(pts, fill=(66, 136, 156, 255))
+            d.line(pts + pts[:1], fill=(216, 238, 228, 230), width=max(1, ppm // 14), joint="curve")
+            for hole in polygon.holes:
+                # A hole must not be filled with invented water; preserve transparency.
+                hole_pts = [_geo_point(p, ppm=ppm, size=size) for p in hole]
+                if len(hole_pts) >= 3:
+                    d.polygon(hole_pts, fill=(0, 0, 0, 0))
+    return out
+
+
+def _river_layer(data, size: tuple[int, int], *, ppm: int) -> Image.Image:
+    layer = Image.new("RGBA", size, (0, 0, 0, 0))
+    pen = ImageDraw.Draw(layer, "RGBA")
+    network = data.networks.get("rivers")
+    if network is None:
+        return layer
+    for segment_id, segment in sorted(network.segments.items()):
+        path = [_geo_point(p, ppm=ppm, size=size) for p in segment.centerline]
+        if len(path) < 2:
+            continue
+        width = max(2, ppm // 13)
+        pen.line(path, fill=(38, 93, 119, 220), width=width + 2, joint="curve")
+        pen.line(path, fill=RIVER_COLOR, width=width, joint="curve")
+    return layer
+
+
+def _settlements(data, size: tuple[int, int], *, ppm: int):
+    markers = Image.new("RGBA", size, (0, 0, 0, 0))
+    labels = Image.new("RGBA", size, (0, 0, 0, 0))
+    d_mark = ImageDraw.Draw(markers, "RGBA")
+    d_label = ImageDraw.Draw(labels, "RGBA")
+    candidates = []
+    for feature_id, feature in sorted(data.features.items()):
+        if not isinstance(feature, PoiFeature):
+            continue
+        pos = _geo_point(feature.geometry, ppm=ppm, size=size)
+        if not (0 <= pos[0] < size[0] and 0 <= pos[1] < size[1]):
+            raise RuntimeError("Accepted POI lies outside map support")
+        label = feature.label or feature_id
+        candidates.append((feature_id, label, pos, tuple(feature.tags)))
+
+    font = _font(max(14, round(ppm * 0.52)))
+    seen = []
+    ledger = []
+    offset = max(9, ppm // 3)
+    for feature_id, label, (x, y), tags in candidates:
+        r = max(4, ppm // 5)
+        d_mark.ellipse((x - r - 3, y - r - 3, x + r + 3, y + r + 3),
+                       fill=(238, 220, 164, 255), outline=(43, 48, 36, 255), width=2)
+        d_mark.ellipse((x - 2, y - 2, x + 2, y + 2), fill=(69, 66, 48, 255))
+
+        bbox = d_label.textbbox((0, 0), label, font=font, stroke_width=2)
+        width = bbox[2] - bbox[0]
+        height = bbox[3] - bbox[1]
+        offsets = (
+            (offset, -height // 2),
+            (-offset - width, -height // 2),
+            (-width // 2, offset),
+            (-width // 2, -offset - height),
+            (offset, offset),
+            (-offset - width, offset),
+            (offset, -offset - height),
+            (-offset - width, -offset - height),
+        )
+        chosen = None
+        for dx, dy in offsets:
+            tx, ty = int(x + dx), int(y + dy)
+            b = (tx - 2, ty - 2, tx + width + 3, ty + height + 3)
+            if b[0] < 5 or b[1] < 5 or b[2] > size[0] - 5 or b[3] > size[1] - 5:
+                continue
+            if any(not (b[2] < prior[0] or b[0] > prior[2] or
+                        b[3] < prior[1] or b[1] > prior[3]) for prior in seen):
+                continue
+            chosen = (tx, ty, b)
+            break
+        if chosen is None:
+            # Never move the real settlement; a map may legitimately omit a crowded label.
+            ledger.append({"id": feature_id, "label": label, "x_km": x / ppm,
+                           "y_km": (size[1] - y) / ppm, "label_drawn": False, "tags": tags})
+            continue
+        tx, ty, b = chosen
+        d_label.text((tx, ty), label, font=font, fill=(246, 238, 208, 255),
+                     stroke_fill=DARK, stroke_width=2)
+        seen.append(b)
+        ledger.append({"id": feature_id, "label": label, "x_km": x / ppm,
+                       "y_km": (size[1] - y) / ppm, "label_drawn": True, "tags": tags})
+    return markers, labels, ledger
+
+
+def _preview(base: Image.Image, *, title: str, ppm: int, data) -> Image.Image:
+    width, height = base.size
+    border = max(26, ppm * 2)
+    header = max(62, ppm * 3)
+    footer = max(60, ppm * 2)
+    canvas = Image.new("RGB", (width + 2 * border, height + header + footer),
+                       (236, 225, 197))
+    canvas.paste(base.convert("RGB"), (border, header))
+    draw = ImageDraw.Draw(canvas)
+    draw.rectangle((border - 1, header - 1, border + width, header + height),
+                   outline=(74, 67, 52), width=3)
+    title_font = _font(max(20, round(ppm * 0.85)))
+    annotation_font = _font(max(13, round(ppm * 0.43)))
+    draw.text((border + 6, header // 2 - 14), title, font=title_font, fill=(54, 49, 41))
+    scale_km = 10
+    x0, y = border + 20, header + height + max(15, footer // 3)
+    draw.line((x0, y, x0 + scale_km * ppm, y), fill=(41, 45, 39), width=4)
+    for xx in (x0, x0 + scale_km * ppm):
+        draw.line((xx, y - 6, xx, y + 7), fill=(41, 45, 39), width=2)
+    draw.text((x0 + 2, y + 9), f"{scale_km} km", font=annotation_font, fill=(52, 51, 44))
+    north_x = border + width - 26
+    draw.line((north_x, header + 58, north_x, header + 15), fill=(42, 51, 49), width=3)
+    draw.polygon(((north_x, header + 7), (north_x - 6, header + 21),
+                  (north_x + 6, header + 21)), fill=(42, 51, 49))
+    draw.text((north_x - 7, header + 60), "N", font=annotation_font, fill=(42, 51, 49))
+    note = f"POIs: {sum(isinstance(f, PoiFeature) for f in data.features.values())} · rivers: {len(data.networks['rivers'].segments)}"
+    draw.text((border + width - max(400, len(note) * 11), header + height + footer // 2),
+              note, font=annotation_font, fill=(70, 67, 58))
+    return canvas
+
+
+def _write_layers(assembly, out: Path, *, ppm: int, request: GenerationRequest) -> dict:
+    fields = assembly.field_payloads
+    terrain = np.asarray(fields["elevation"])
+    rows, cols = terrain.shape
+    domain_size = request.domain_spec.domain.size
+    w_km = float(domain_size.width_km)
+    h_km = float(domain_size.height_km)
+    cell_km = float(request.domain_spec.simulation.cell_size_km)
+    if not np.isclose(w_km, cols * cell_km) or not np.isclose(h_km, rows * cell_km):
+        raise RuntimeError("Exported field/grid dimensions do not match DomainSpec")
+    size = (round(w_km * ppm), round(h_km * ppm))
+    if min(size) < 150 or max(size) > 6000:
+        raise ValueError("Map output size out of supported demo range [150, 6000] px")
+
+    layers = [
+        _terrain_layer(fields, size, parchment=False),
+        _water_layer(assembly.data, fields, size, ppm=ppm),
+        _river_layer(assembly.data, size, ppm=ppm),
+    ]
+    marker, labels, pois = _settlements(assembly.data, size, ppm=ppm)
+    layers.extend((marker, labels))
+    for filename, layer in zip(MAP_LAYERS, layers):
+        layer.save(out / filename)
+    composite = layers[0].copy()
+    for layer in layers[1:]:
+        composite.alpha_composite(layer)
+    composite.convert("RGB").save(out / "06-map-full.png")
+    no_labels = layers[0].copy()
+    for layer in layers[1:-1]:
+        no_labels.alpha_composite(layer)
+    no_labels.convert("RGB").save(out / "07-map-no-labels.png")
+    preview = _preview(composite, title=request.domain_spec.label or request.domain_spec.id,
+                       ppm=ppm, data=assembly.data)
+    preview.save(out / "08-atlas-preview.png")
+    parchment = _terrain_layer(fields, size, parchment=True)
+    for layer in layers[1:]:
+        parchment.alpha_composite(layer)
+    parchment.convert("RGB").save(out / "09-parchment-palette.png")
+
+    manifest = {
+        "status": "deterministic user-domain cartographic export; presentation only",
+        "domain_id": request.domain_spec.id,
+        "domain_label": request.domain_spec.label,
+        "spec_editable": {
+            "surface.water_moisture_decay_km":
+                request.domain_spec.surface.water_moisture_decay_km,
+            "surface.water_moisture_boost":
+                request.domain_spec.surface.water_moisture_boost,
+            "features": len(request.domain_spec.features),
+            "constraints": len(request.domain_spec.constraints),
+        },
+        "world_size_km": {"width": w_km, "height": h_km},
+        "pixel_size": {"width": size[0], "height": size[1], "pixels_per_km": ppm},
+        "axis": "x east, y north; image row 0 is north",
+        "aligned_layers": list(MAP_LAYERS),
+        "settlements_and_poi": pois,
+        "river_segments": len(assembly.data.networks["rivers"].segments),
+        "lake_features": sum(isinstance(f, HydroFeature) for f in assembly.data.features.values()),
+        "marine_cells": int(np.count_nonzero(fields.get("marine_mask", 0))),
+        "limitations": [
+            "Color is an artist-oriented continuous moisture/vegetation proxy, not discrete biomes.",
+            "No new physical runoff, groundwater, settlements, roads, or procedural POIs are inferred by renderer.",
+            "Only existing DomainData point features are marked; label collision avoidance never moves features.",
+            "A fully manual fixed-position settlement editor is not implemented by this renderer.",
+        ],
+    }
+    return manifest
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--request", type=Path, default=DEFAULT_REQUEST)
+    parser.add_argument("--presets", type=Path, default=DEFAULT_PRESETS)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--pixels-per-km", type=int, default=24)
+    args = parser.parse_args()
+    if args.pixels_per_km < 8 or args.pixels_per_km > 80:
+        parser.error("pixels-per-km must be in [8, 80]")
+
+    raw = args.request.read_bytes()
+    request = GenerationRequest.model_validate(json.loads(raw.decode("utf-8")))
+    catalog = load_preset_catalog(args.presets)
+    assembly = generate_domain(
+        spec=request.domain_spec,
+        config=request.generation_config,
+        registry=registry_for_request(request, catalog),
+    )
+    args.output.mkdir(parents=True, exist_ok=True)
+    report = _write_layers(assembly, args.output, ppm=args.pixels_per_km, request=request)
+    report["request_sha256"] = sha256(raw).hexdigest()
+    report["generator_does_not_change_world"] = True
+    text = json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    (args.output / "manifest.json").write_text(text, encoding="utf-8")
+    print(text, end="")
+
+
+if __name__ == "__main__":
+    main()
