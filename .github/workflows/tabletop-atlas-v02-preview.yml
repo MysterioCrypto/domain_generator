@@ -65,6 +65,26 @@ jobs:
           assert observed == expected_names, (observed, expected_names)
           assert report["spec_editable"]["surface.water_moisture_decay_km"] == 4.0
           assert report["spec_editable"]["constraints"] == 3
+          assert len(report["aligned_layers"]) == 6
+          assert "10-relief-contours.png" in report["aligned_layers"]
+          assert report["cartographic_elevation_contour_interval_m"] > 0.0
+          expected_symbols = {
+              "Тихий Брод": "village",
+              "Зелёная Стража": "fort",
+              "Луговая Пристань": "village",
+          }
+          assert {p["label"]: p["symbol"] for p in report["settlements_and_poi"]} == expected_symbols
+          assert all(p["label_drawn"] for p in report["settlements_and_poi"])
+          # Presentation-only changes must not move placed features by a pixel.
+          original_positions = {
+              "settlement-01": (14.9166666667, 23.4166666667),
+              "settlement-02": (44.4166666667, 24.2083333333),
+              "settlement-03": (23.1666666667, 3.7083333333),
+          }
+          for poi in report["settlements_and_poi"]:
+              original = original_positions[poi["id"]]
+              assert abs(poi["x_km"] - original[0]) <= 1.0 / expected["pixels_per_km"]
+              assert abs(poi["y_km"] - original[1]) <= 1.0 / expected["pixels_per_km"]
           for filename in report["aligned_layers"]:
               with Image.open(folder / filename) as im:
                   assert im.size == size, (filename, im.size, size)
@@ -72,10 +92,10 @@ jobs:
           for filename in ("06-map-full.png", "07-map-no-labels.png", "09-parchment-palette.png"):
               with Image.open(folder / filename) as im:
                   assert im.size == size
-          for filename in ("02-water.png", "03-rivers.png", "04-poi-markers.png", "05-labels.png"):
+          for filename in ("10-relief-contours.png", "02-water.png", "03-rivers.png", "04-poi-markers.png", "05-labels.png"):
               with Image.open(folder / filename) as im:
                   assert im.getchannel("A").getbbox(), f"empty visual layer: {filename}"
-          print(f"CHECKPOINT OK: 3 named settlements, {len(report['aligned_layers'])} aligned RGBA layers, {size} pixels")
+          print(f"CHECKPOINT OK: 3 correctly tagged and stationary settlements, {len(report['aligned_layers'])} aligned RGBA layers, {size} pixels")
           for point in report["settlements_and_poi"]:
               print("POI", point["id"], point["label"], point["x_km"], point["y_km"], "label:", point["label_drawn"])
           PY
