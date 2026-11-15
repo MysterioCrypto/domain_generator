@@ -83,11 +83,15 @@ def _style_terrain(original: Image.Image, name: str, *, seed: int) -> Image.Imag
                           lightness * 0.78 + 0.14,
                           lightness * 0.61 + 0.21), axis=-1)
         rgb = sepia * 0.83 + tint[None, None, :] * 0.17
-        # Very fine engraving strokes on dark relief only; they must never
-        # represent newly invented forests, roads or watershed boundaries.
+        # Hatching follows terrain tonal gradients, not every dark pixel.
+        # Avoid a uniform screen-pattern across flat lowlands; canonical
+        # contour geometry remains a separate untouched overlay.
+        y_slope, x_slope = np.gradient(lightness)
+        gradient = np.hypot(x_slope, y_slope)
+        significant = max(0.007, float(np.percentile(gradient, 73)))
         yy, xx = np.indices((height, width), dtype=np.int32)
-        ink_mask = (lightness < 0.69) & (((xx + yy) % 9) <= 1)
-        rgb[ink_mask] *= 0.83
+        ink_mask = (gradient > significant) & (lightness < 0.81) & (((xx + yy) % 11) <= 1)
+        rgb[ink_mask] *= 0.76
         texture = _noise(width, height, seed + 9)
         rgb += texture[..., None] * 0.028
     elif name == "illuminated":
