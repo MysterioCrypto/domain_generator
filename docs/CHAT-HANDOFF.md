@@ -428,7 +428,8 @@ Read the top-level dependency map in `docs/CONTEXT.md` before choosing the next 
 - Status: awaiting explicit design ACCEPT / REJECT.
 - Accepted upstream: C1 annual precipitation; Hydrology 0.2 MFD weighted DAG and lake supernodes; H12 marine is optional.
 - Proposed output: one derived float64 `gross_upstream_precipitation_m3_per_year` field.
-- Key semantic limit: atmospheric supply prior to hydrologic losses; not real runoff, discharge, water-balance closure or stream permanence.
+- Key semantic limit: **mathematically allocated gross upstream rainfall input**, NOT water physically delivered to a channel; no runoff, discharge, water-balance closure or stream permanence.
+- Design clarification (2026-11-15), PR #98 head `5fbd6b5904071feefc38a0ab66f093e68845e81e`: compute in the existing SURFACE stage after C1 is available; no new ValidationStage and no assembly-side physics. Keep accepted MFD area outputs unchanged.
 - Explicitly still blocked: perennial/seasonal/dry flow (baseflow/storage/infiltration), delta/estuary (sediment/discharge/coastal processes), lake/wetland/playa permanence, direct biome labels.
 - Context-map source of truth: top of `docs/CONTEXT.md`, which now shows H13 as PROPOSED, not part of accepted DAG.
 - Next: operator design decision; ACCEPT allows design merge and a **separate** implementation branch, not implementation merge.
