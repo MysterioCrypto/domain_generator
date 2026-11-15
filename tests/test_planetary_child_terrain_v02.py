@@ -120,3 +120,28 @@ def test_small_source_window_is_rejected_and_no_extrapolation():
         generate_child(macro, _settings(relief_strength=3.))
     with pytest.raises(ChildTerrainError, match="poles"):
         generate_child(macro, _settings(center_lat_deg=85.))
+
+
+def test_cubic_interpolation_continuously_joins_macro_grid_cells():
+    """No false straight square ridges at 0.3-degree DEM sample boundaries."""
+    macro = _macro()
+    setting = _settings(relief_strength=0)
+    km_per_deg = np.pi * RADIUS / 180
+    boundary_km = .3 * km_per_deg
+    eps = 1e-3  # km
+    xs = np.array([boundary_km - eps, boundary_km, boundary_km + eps])
+    ys = np.array([.17 * km_per_deg] * 3)
+    heights, baseline, details = evaluate_terrain(macro, setting, xs, ys)
+    left_slope = (baseline[1] - baseline[0]) / eps
+    right_slope = (baseline[2] - baseline[1]) / eps
+    assert abs(left_slope - right_slope) < 0.01
+    np.testing.assert_array_equal(heights, baseline)
+    np.testing.assert_array_equal(details, np.zeros_like(details))
+
+
+def test_planet_parameters_cannot_come_from_hidden_default():
+    with pytest.raises(TypeError):
+        ChildTerrainSettings(
+            center_lat_deg=0, center_lon_deg=0,
+            half_width_km=95, half_height_km=95
+        )
