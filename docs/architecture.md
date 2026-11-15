@@ -69,6 +69,7 @@ continuous Terrain 0.2
    → H12 optional marine coastline + marine outlets
 → Surface / Climate
    → C1 canonical annual temperature / precipitation
+   → H13 optional gross MFD precipitation input diagnostic (derived; separate design accepted, implementation review)
    → C4 optional 12-month climatology (derived)
    → C5 optional Earth-derived Köppen climate classifier (derived)
    → C2 effective moisture from accepted climate + canonical water
@@ -301,6 +302,7 @@ DomainSpec
   -> Terrain -> derived slope
   -> Hydrology (regional/potential drainage, lakes, optional H12 marine)
   -> C1 annual climate (canonical)
+       -> optional H13 gross source allocation via accepted weighted MFD/lakes/marine terminal (derived only)
        -> optional C4 monthly climatology
             -> optional C5 climate regime classifier
   -> C2 moisture (reads canonical water + accepted climate)
@@ -370,6 +372,7 @@ Core 0.2 optional **derived** fields:
 - C4: `temperature_month_01..12`, `precipitation_month_01..12` (float32);
 - C5: `climate_regime_koppen_geiger` (uint8, fixed 1..30; only if classification enabled);
 - H12: `marine_mask` (uint8, binary; only if marine enabled).
+- H13 (implementation review, not yet accepted): `gross_upstream_precipitation_m3_per_year` (float64, m3/year; opt-in after C1).
 
 Marine is a distinct `MarineFeature`, not a lake; river networks may contain terminal `marine_outlet` nodes. Core's canonical water-depth field includes sea depth on marine cells.
 
@@ -393,3 +396,12 @@ Pydantic выполняет структурную валидацию и сер�
 Core независим от конкретных сеттингов, кампаний, игровых систем, LLM/agent tooling, GitHub/CI orchestration, UI и renderer-ов. Иллюстративные примеры ненормативны.
 
 Любой смысл, специфичный для конкретного сеттинга, должен поступать через внешний adapter/content layer и компилироваться в универсальные публичные контракты Core. Core не должен содержать special cases, названные в честь конкретного мира, фракции, локации, игровой системы или кампании.
+
+
+## H13-A optional gross precipitation source accounting — implementation under review
+
+Accepted design: `docs/design/gross-catchment-precipitation-input-v0.2.md`, merged as PR #98. Proposed implementation PR #99 is still **DRAFT / NOT ACCEPTED**.
+
+New opt-in recipe `hydrology.climatic_input.scheme=gross_mfd_precipitation_v1` uses the existing **Surface** stage after C1 to read accepted annual precipitation (persisted float32), MFD receiver fractions and accepted inland lake supernodes. A separate deterministic float64 accumulation computes mathematical *no-loss allocation* of local source volumes (`mm/year × km² × 1000`), with land-domain edge terminals and H12 first-entry marine absorbers. The result is a single **derived** `float64` raster. Neither it nor the marine ledger represents river discharge, runoff, groundwater recharge, snow storage or stream permanence.
+
+No changes to public stage sequence, HydrologyState routing authority, channel skeleton, candidate ranking, climate, moisture, vegetation or prior DomainData fields. Assembly copies an already validated field; it does not calculate source contributions. Absence of the recipe must retain exact historical spec/plan fingerprints. The implementation uses a separate read-only traversal because changing the frozen MFD area kernel, or confusing H12 pre-marine accumulation with reclassified inland lake support, would risk historical replay. G01–G15 and dry/wet/coastal operator-visible evidence are prerequisites to separate implementation acceptance.
