@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - "scripts/render_tabletop_domain_map_v02.py"
+      - "scripts/render_tabletop_art_direction_v02.py"
       - "examples/tabletop-map/**"
       - ".github/workflows/tabletop-atlas-v02-preview.yml"
 
@@ -127,6 +128,72 @@ jobs:
               print(base64.b64encode(stream.getvalue()).decode("ascii"))
               print(f"ATLAS_PREVIEW_END:{filename}")
           PY
+
+      - name: Build three art-direction palettes with canonical geometry overlays
+        run: |
+          python scripts/render_tabletop_art_direction_v02.py \
+            --atlas "$RUNNER_TEMP/tabletop-atlas-v02" \
+            --output "$RUNNER_TEMP/tabletop-art-direction-v02"
+
+      - name: Verify art-direction geometry authority and reproducibility
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          from PIL import Image
+
+          source = Path(os.environ["RUNNER_TEMP"]) / "tabletop-atlas-v02"
+          output = Path(os.environ["RUNNER_TEMP"]) / "tabletop-art-direction-v02"
+          original = json.loads((source / "manifest.json").read_text(encoding="utf-8"))
+          record = json.loads((output / "report.json").read_text(encoding="utf-8"))
+          assert record["request_sha256"] == original["request_sha256"]
+          assert record["pixel_size"] == original["pixel_size"]
+          assert record["settlements_and_poi"] == original["settlements_and_poi"]
+          assert record["authoritative_overlays_are_unmodified"]
+          assert not record["imagegen_performed"]
+          assert len(record["styles"]) == 3
+          for name, expected in record["canonical_immutable_overlays_sha256"].items():
+              assert hashlib.sha256((source / name).read_bytes()).hexdigest() == expected
+          size = (original["pixel_size"]["width"], original["pixel_size"]["height"])
+          for style, paths in record["styles"].items():
+              with Image.open(output / paths["map"]) as im:
+                  assert im.size == size, (style, im.size)
+              with Image.open(output / paths["framed"]) as im:
+                  assert im.width > size[0] and im.height > size[1]
+          with Image.open(output / "07-three-style-comparison.png") as im:
+              assert im.width >= 1800 and im.height >= 500
+          print("ART STYLES OK: 3 variants, immutable canonical geometry overlays, identical source point coordinates")
+          PY
+
+      - name: Embed compact art-direction comparison preview
+        run: |
+          python - <<'PY'
+          import base64
+          import io
+          import os
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "tabletop-art-direction-v02"
+          for name in ("07-three-style-comparison.png", "05-engraving-framed.png", "06-illuminated-framed.png"):
+              picture = Image.open(root / name).convert("RGB")
+              picture.thumbnail((1250, 810))
+              buffer = io.BytesIO()
+              picture.save(buffer, format="JPEG", quality=71, optimize=True)
+              print(f"ART_DIRECTION_BEGIN:{name}")
+              print(base64.b64encode(buffer.getvalue()).decode("ascii"))
+              print(f"ART_DIRECTION_END:{name}")
+          PY
+
+      - name: Upload stylized terrain with unmodified geographic overlays
+        uses: actions/upload-artifact@v4
+        with:
+          name: tabletop-art-direction-v02
+          path: ${{ runner.temp }}/tabletop-art-direction-v02
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload editable DomainSpec atlas and layered maps
         uses: actions/upload-artifact@v4
