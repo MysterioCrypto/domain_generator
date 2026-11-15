@@ -37,3 +37,8 @@ All A8/A10/A11/A12 real ZIPs independently passed SHA-256/ZIP CRC checks; A10 an
 ## Next physical boundary (NOT implemented yet)
 
 Develop a controlled parent/child **regional terrain conditioning** adapter. Preserve source macro coast/height/watershed relationships while letting accepted Core MFD generate a finer drainage network. Record origin, local map projection, finite source 0.3-degree resolution and uncertain local detail. Never auto-import A12 ecology as universal Earth biomes; use an explicit per-world profile. Keep DataSpec and old model canon statuses distinct. Original ZIPs and derived crops remain private unless the user explicitly approves publication.
+
+
+## Downstream P2-A: modeled 1-km child terrain
+
+[External conditioning method and CLI](planetary-child-terrain.md) produces finer 1-km generated DEM from the macro source, preserving exact parent station elevations, planet time/radius and coastal mask. It is a separate output from the old macro NPZ; do not confuse its new detail with sourced global geology or a validated child MFD river network.

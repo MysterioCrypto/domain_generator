@@ -463,3 +463,10 @@ Frozen `release/0.2-prealpha`: `c69c1af010a085fb80d248af703a77471fc6c9d7`.
 - Synthetic workflow [GREEN](https://github.com/MysterioCrypto/domain_generator/actions/runs/43742308913) passes 4 targeted tests and writes a demo artifact. No private source ZIP/PNG was committed or uploaded to Actions.
 - [CLI instructions and explicit boundaries](https://github.com/MysterioCrypto/domain_generator/blob/feature/v0.2-planetary-geogrid-source-adapter/docs/world-fixtures/planetary-geogrid-adapter.md). Next meaningful work is source-constrained finer regional terrain and new MFD river generation, followed by non-Earth profile-based land cover; not further parchment filters or full planetary climate science.
 - This is a parallel draft branch. PR #99 H13, #100 C2 tests, #101 atlas composer remain DRAFT/UNMERGED. Frozen release c69c1af010a085fb80d248af703a77471fc6c9d7 remains unchanged.
+
+
+### P2-A 1-km non-Earth child terrain preview (2026-11-15)
+
+- In isolated draft #103, scripts/condition_planetary_child_terrain_v02.py uses the source macro NPZ/manifest and explicit planet-year/radius to synthesize WORLD-LOCKED multiscale local DEM texture, with exact A8 parent elevations and C1 cubic parent interpolation. Outputs new child NPZ/manifest/PNG, NOT Core DomainData or accepted MFD.
+- Original A/B/C private-source regions, 230×230 km each, 231×231 child samples and source elevation anchors 63/49/49 exact. Source assets and real derived images are not in public repo or Actions; only synthetic illustration is in dedicated GitHub Actions [run](https://github.com/MysterioCrypto/domain_generator/actions/runs/43746102251).
+- [Design/bounds](world-fixtures/planetary-child-terrain.md). **Next P2-B:** parent-conditioned MFD, river continuity and outlets, then land cover; never paint old D8 over child and pretend new hydrology validated. No implicit merge of #103/#99/#100/#101.

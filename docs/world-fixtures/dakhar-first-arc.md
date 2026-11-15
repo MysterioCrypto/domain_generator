@@ -60,3 +60,8 @@ A12: рабочий радиус планеты ≈7008,1 км; модельны
 
 
 **А10/А11 дополнительно верифицированы:** А10 задаёт эмпирический сезонный водный баланс (в том числе Q, сток, потенциальные сезонные/постоянные реки); A11 — сценарную чувствительность переноса влаги, а **не проверенную физическую глобальную циркуляцию**. A10/A11/A12 идут юг→север, A8 север→юг. Полное описание и SHA: [аудит источников](../reviews/dakhar-a8-a12-source-alignment-audit-2026-11-15.md).
+
+
+## P2-A child terrain evidence (not canon)
+
+Three private-source original planet areas A/B/C were modeled at 230×230 km on new 1-km grids. The original model DEM macro stations have been preserved exactly (63/49/49 points respectively). The child valleys and hills between them are NEW procedural interpretations; the old A8 D8 rivers and author-proposed mansion/night stop/town/crossing have not yet been converted into connected local MFD geography. The source-derived PNG comparisons remain private in this ChatGPT conversation. [Method](planetary-child-terrain.md).

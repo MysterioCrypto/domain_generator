@@ -366,3 +366,11 @@ A8/A12 ZIPs found in the connected Drive folder and locally opened. Exact SHA-25
 - [PR #103](https://github.com/MysterioCrypto/domain_generator/pull/103): external A8/A12/A10 model crop, exact lat axis reconciliation, D8 flat source→receiver remap, explicit planetary-year/radius, output macro-source NPZ/manifest/PNG. No Core runtime change.
 - [GREEN synthetic Actions](https://github.com/MysterioCrypto/domain_generator/actions/runs/43742308913), 4 tests and end-to-end toy archive; no private user's world data in repository.
 - Next P2: source-constrained child-region elevation and hydrology from macro source. Do not mistake D8 macro or 0.3-degree data for 1-km accepted MFD.
+
+
+### P2-A child terrain (DRAFT #103, not merged)
+
+- Real private 230×230 km A/B/C working-model previews with new 1-km terrain; exact macro elevations at 63/49/49 original parent nodes, zero measured difference. C1 Hermite removes grid artifacts; deterministic world-coordinate fine relief. No private binaries/images committed.
+- [Source-aware child script and limitations](world-fixtures/planetary-child-terrain.md). [Synthetic dedicated Actions](https://github.com/MysterioCrypto/domain_generator/actions/runs/43746102251); full CI at latest PR head must be checked.
+- **NEXT P2-B:** build/verify a fine-grid MFD river network conditioned on macro outlet/major-basin constraints; do not claim old D8 is accepted MFD. Then P3 configurable non-Earth land cover.
+- Keep draft PRs #99/#100/#101/#103 unmerged and release branch frozen.

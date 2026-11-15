@@ -1152,3 +1152,10 @@ PR #98 is draft/open, not merged. Runtime implementation MUST NOT begin before e
 - Synthetic workflow [GREEN](https://github.com/MysterioCrypto/domain_generator/actions/runs/43742308913) passes 4 targeted tests and writes a demo artifact. No private source ZIP/PNG was committed or uploaded to Actions.
 - [CLI instructions and explicit boundaries](https://github.com/MysterioCrypto/domain_generator/blob/feature/v0.2-planetary-geogrid-source-adapter/docs/world-fixtures/planetary-geogrid-adapter.md). Next meaningful work is source-constrained finer regional terrain and new MFD river generation, followed by non-Earth profile-based land cover; not further parchment filters or full planetary climate science.
 - This is a parallel draft branch. PR #99 H13, #100 C2 tests, #101 atlas composer remain DRAFT/UNMERGED. Frozen release c69c1af010a085fb80d248af703a77471fc6c9d7 remains unchanged.
+
+
+### P2-A terrain conditioning (2026-11-15; draft #103, unmerged)
+
+- External adapter chain: planetary macro ZIP → north-first source NPZ → new modeled 1-km child DEM. Source DEM station heights are mathematically preserved by subtracting interpolated stationary noise; baseline is C1 Hermite instead of square-edged bilinear interpolation. World-profile radius/year explicitly required. It neither changes accepted Core 0.2 terrain/hydrology nor asserts physical validity of the novel's historical A8 D8 channels.
+- Private original A/B/C regions generated at 230×230 km, 231×231 samples, original parent anchors 63/49/49, zero observed anchor errors. Real derived images remain private; CI uploads only synthetic world previews. Details: [P2-A notes](docs/world-fixtures/planetary-child-terrain.md).
+- Next P2-B: actual new child MFD routing and basin outlet constraints, then non-Earth per-world land cover. This PR #103 and #99–101 remain draft/unmerged, frozen release unchanged.

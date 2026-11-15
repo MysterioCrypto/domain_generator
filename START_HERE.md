@@ -60,3 +60,6 @@
 - This is a parallel draft branch. PR #99 H13, #100 C2 tests, #101 atlas composer remain DRAFT/UNMERGED. Frozen release c69c1af010a085fb80d248af703a77471fc6c9d7 remains unchanged.
 
 **Новый проверяемый инструмент (ещё не объединён):** [внешний планетарный геоадаптер](https://github.com/MysterioCrypto/domain_generator/pull/103) и [инструкция](https://github.com/MysterioCrypto/domain_generator/blob/feature/v0.2-planetary-geogrid-source-adapter/docs/world-fixtures/planetary-geogrid-adapter.md). Он корректно вырезает источник, не подменяя старые D8 реки принятой Core MFD сетью.
+
+
+**P2-A — новый рельеф регионов (draft PR #103):** из найденных исходных A8/A12 созданы модели A/B/C с шагом 1 км и привязкой к исходным высотам. Убраны прямоугольные следы исходной сетки; исходные узлы неизменны. [Метод и границы достоверности](docs/world-fixtures/planetary-child-terrain.md). На GitHub Actions выкладываются только синтетические демонстрации; три реальные карты показываются приватно в чате. **Новая гидрология ещё не рассчитана.**
