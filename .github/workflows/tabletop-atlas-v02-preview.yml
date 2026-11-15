@@ -80,6 +80,26 @@ jobs:
               print("POI", point["id"], point["label"], point["x_km"], point["y_km"], "label:", point["label_drawn"])
           PY
 
+      - name: Emit compact operator cartographic previews
+        run: |
+          python - <<'PY'
+          import base64
+          from io import BytesIO
+          import os
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "tabletop-atlas-v02"
+          for filename in ("08-atlas-preview.png", "09-parchment-palette.png", "06-map-full.png"):
+              image = Image.open(root / filename).convert("RGB")
+              image.thumbnail((1050, 800))
+              stream = BytesIO()
+              image.save(stream, format="JPEG", quality=72, optimize=True)
+              print(f"ATLAS_PREVIEW_BEGIN:{filename}")
+              print(base64.b64encode(stream.getvalue()).decode("ascii"))
+              print(f"ATLAS_PREVIEW_END:{filename}")
+          PY
+
       - name: Upload editable DomainSpec atlas and layered maps
         uses: actions/upload-artifact@v4
         with:
