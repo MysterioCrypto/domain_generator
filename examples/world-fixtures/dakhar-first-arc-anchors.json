@@ -1,0 +1,105 @@
+{
+  "fixture_schema": "world-source-anchors-v0.1",
+  "id": "dakhar-first-arc",
+  "status": "SOURCE_ANCHORED_NON_CANONICAL",
+  "is_domain_spec": false,
+  "sources": [
+    {
+      "kind": "AUTHOR_CURRENT_BRIEF",
+      "status": "CANON_AND_WORKING_SEPARATED",
+      "url": "https://drive.google.com/file/d/1xYRLhm4R1GzgQWW6D_Ap190QTnjgNaZd/view"
+    },
+    {
+      "kind": "WORKING_ATLAS",
+      "status": "MODEL_NOT_CANON",
+      "url": "https://drive.google.com/file/d/1eT5odktS2L9SBhXT2KDDf5vmMaQsq/view"
+    },
+    {
+      "kind": "ARCHIVE_README",
+      "status": "HISTORICAL_INVENTORY_NOT_ACTUAL_RASTER",
+      "url": "https://drive.google.com/file/d/1q5XUropEnHpIozppSaTQeFZgCFXh_c4n/view"
+    }
+  ],
+  "source_availability": {
+    "original_a8_a10_a12_rasters": "NOT_FOUND_IN_PROVIDED_DRIVE_FOLDERS",
+    "georeferenced_original_imported": false,
+    "source_data_imported": false
+  },
+  "planet_model": {
+    "status": "MODEL_NOT_CANON",
+    "planetary_year_earth_days_approx": 202.755,
+    "planet_radius_km_approx": 7008.1,
+    "obliquity_degrees_approx": 29,
+    "star_model": "close K+K binary draft",
+    "global_grid": {
+      "columns": 1200,
+      "rows": 600,
+      "degree_step": 0.3
+    }
+  },
+  "region_candidates": [
+    {
+      "id": "A",
+      "status": "MODEL_CANDIDATE_NOT_CANON",
+      "lat_deg": -46.95,
+      "lon_deg": -97.95,
+      "temperature_c_approx": 15.2,
+      "precipitation_mm_per_planetary_year_approx": 848,
+      "vegetation_model_class": "humid temperate forest",
+      "author_approved": false
+    },
+    {
+      "id": "B",
+      "status": "MODEL_CANDIDATE_NOT_CANON",
+      "lat_deg": -20.55,
+      "lon_deg": 103.65,
+      "temperature_c_approx": 18.5,
+      "precipitation_mm_per_planetary_year_approx": 1232,
+      "vegetation_model_class": "montane forest",
+      "author_approved": false
+    },
+    {
+      "id": "C",
+      "status": "MODEL_CANDIDATE_NOT_CANON",
+      "lat_deg": 18.15,
+      "lon_deg": 136.65,
+      "temperature_c_approx": 19.1,
+      "precipitation_mm_per_planetary_year_approx": 1401,
+      "vegetation_model_class": "seasonally humid tropical forest",
+      "author_approved": false
+    }
+  ],
+  "narrative_anchors": [
+    {
+      "id": "humid_forested_rocky_foothills",
+      "status": "CANON_OR_WRITTEN",
+      "exact_coordinates_known": false
+    },
+    {
+      "id": "old_crossing_and_ruins",
+      "status": "CANON_OR_WRITTEN",
+      "exact_coordinates_known": false
+    },
+    {
+      "id": "remote_magician_waterfall_lab",
+      "status": "CANON_OR_WRITTEN",
+      "exact_coordinates_known": false
+    },
+    {
+      "id": "protected_courier_route_and_overnight",
+      "status": "CANON_OR_WRITTEN",
+      "exact_coordinates_known": false
+    },
+    {
+      "id": "fortified_settlement_far_from_lab",
+      "status": "CANON_OR_WRITTEN",
+      "exact_coordinates_known": false
+    }
+  ],
+  "unit_boundary": {
+    "source_precipitation_unit": "mm per planetary year",
+    "core_c1_unit": "mm/year",
+    "direct_equivalence_asserted": false,
+    "external_planetary_calendar_adapter_implemented": false
+  }
+}
