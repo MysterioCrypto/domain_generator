@@ -16,7 +16,7 @@ Active development line: `dev/0.2`. Do not infer current state from `main`.
 
 ## Current context map — 2026-11-15
 
-**Active branch:** `dev/0.2`. **Current checkpoint:** `H13-A GROSS CATCHMENT PRECIPITATION — DESIGN OPERATOR REVIEW`.
+**Active branch:** `dev/0.2`. **Current checkpoint:** `H13-A GROSS CATCHMENT PRECIPITATION — IMPLEMENTATION IN PROGRESS (DESIGN ACCEPTED)`.
 **H12-A:** ACCEPTED / MERGED as PR #97, merge `3d275466ec5bfdb74f5dcb88bea6c8b641347f70`.
 **Frozen release:** `release/0.2-prealpha` at `c69c1af010a085fb80d248af703a77471fc6c9d7`; do not backport post-release semantics without a new gate.
 
@@ -48,21 +48,23 @@ Dependencies and isolation:
 - C4 phases/amplitudes and H12 sea level are explicit input values, not hard-coded Earth geography. C5 is an optional Earth-derived **climate** classifier, not a universal biome truth.
 - `marine_mask` is derived; `water_depth` remains canonical; regional `rivers` and `potential_drainage` terminate at `marine_outlet` on the refined coast.
 
-### Proposed next dependency edge — NOT ACCEPTED
+### Accepted H13-A design dependency edge — RUNTIME NOT ACCEPTED
 
 ```text
 C1 annual precipitation [ACCEPTED] ───┐
-MFD routing + lake supernodes [ACCEPTED]├─ H13-A [PROPOSED, design PR #98]
+MFD routing + lake supernodes [ACCEPTED]├─ H13-A [ACCEPTED DESIGN #98; implementation pending]
 H12 marine terminal (optional) [ACCEPTED]┘  └─ derived gross precipitation input
 ```
 
 **Semantics clarification (2026-11-15):** `gross_upstream_precipitation_m3_per_year` means the **mathematical allocation of gross annual precipitation falling on upstream source cells under fixed MFD weights**. It does *not* mean precipitation water physically reaches the downstream cell: losses, snow storage, groundwater, interception and evapotranspiration are not modeled. It is not runoff, discharge, permanence or recharge. Marine source precipitation is excluded, and the diagnostic has no feedback into Terrain, Hydrology, C1–C5, water depth, vegetation, Placement or network geometry.
 
-**Proposed stage boundary:** compute it as an optional read-only diagnostic in the *existing* `SURFACE` stage after C1 rainfall is available; no new public `ValidationStage`/pipeline step and no assembly-side physics. Preserve the exact historical MFD area-accumulation result and lake supernode rules. No H13 implementation has been authorized. Design commit: `5fbd6b5904071feefc38a0ab66f093e68845e81e`.
+**Accepted design stage boundary:** compute it as an optional read-only diagnostic in the *existing* `SURFACE` stage after C1 rainfall is available; no new public `ValidationStage`/pipeline step and no assembly-side physics. Preserve the exact historical MFD area-accumulation result and lake supernode rules. Design accepted, H13 runtime authorized in separate implementation branch but not accepted or merged. Design commit: `5fbd6b5904071feefc38a0ab66f093e68845e81e`.
 
 Design proposal: https://github.com/MysterioCrypto/domain_generator/pull/98  
 Branch: `design/v0.2-gross-catchment-precipitation`  
 Normative draft path (not yet merged): `docs/design/gross-catchment-precipitation-input-v0.2.md`
+
+**Design decision (2026-11-15):** formal operator DESIGN ACCEPT and merge of PR #98 (`0000a208183a2ff3b1d7dc8eee8f93d54f72ef35`). The proposed H13 edge is now a normative **design** contract, not part of implemented world-state until G01–G15 and a separate implementation ACCEPT. CI on design HEAD `5fbd6b5904071feefc38a0ab66f093e68845e81e` was GREEN. No D8/D∞/raw MFD networks, water balance, annual-to-streamflow claims, mandatory Köppen-biomes or frozen releases are reopened. Implementation must account for differences between H12 pre-marine accumulation lake baseline and inland lake candidates; stop if conservation/graph semantics conflict with accepted routing.
 
 ### Post-H12 unresolved dependency map
 
@@ -74,9 +76,9 @@ Normative draft path (not yet merged): `docs/design/gross-catchment-precipitatio
 | fan morphology | DEFERRED | sediment/process context and appropriate receiving terrain |
 | direct biome labels | DEFERRED | classification policy, substrate/soil, ecological history/disturbance; C5 is optional |
 | detailed coastal physics | DEFERRED | tides, waves, salinity, sea/land climatic feedback |
-| gross catchment precipitation | DESIGN REVIEW | accepted C1 and MFD already provide necessary inputs; runoff/losses intentionally excluded |
+| gross catchment precipitation | DESIGN ACCEPTED; IMPLEMENTATION PENDING | accepted C1 and MFD already provide necessary inputs; runoff/losses intentionally excluded |
 
-**Post-H12 audit is complete.** H13-A is the selected **design-only** candidate. No other deferred physical classification was silently unblocked. Explicit H13-A design ACCEPT / REJECT is the next decision. Do not silently implement a candidate, retune accepted upstream semantics, or treat a green CI result as operator acceptance.
+**Post-H12 audit is complete.** H13-A is the selected **accepted design**, awaiting independent implementation acceptance. No other deferred physical classification was silently unblocked. H13-A design accepted; next gate is implementation G01–G15 + operator checkpoint, followed by separate ACCEPT / REJECT. Do not silently implement a candidate, retune accepted upstream semantics, or treat a green CI result as operator acceptance.
 
 ### H12 acceptance evidence
 
@@ -1292,7 +1294,7 @@ Historical gate closed: **H12-A IMPLEMENTATION ACCEPTED / MERGED**, PR #97 merge
 Active gate: **POST-H12 DEPENDENCY AUDIT**. Refer to the current context map at the top for the dependency graph, remaining blockers, and next action.
 
 
-## H13-A design-only handoff / post-H12 audit completion
+## Historical H13-A design-only handoff / post-H12 audit completion (superseded)
 
 Post-H12 dependency audit completed. Selected candidate is an opt-in, **read-only** gross annual catchment precipitation diagnostic, calculated from accepted C1 and frozen weighted MFD/lake supernodes with optional marine absorption. It introduces no infiltration, storage, evaporation or discharge modeling.
 
@@ -1303,3 +1305,12 @@ Status: **DESIGN — OPERATOR REVIEW; runtime NOT STARTED**.
 Next action: obtain explicit design ACCEPT/REJECT. On ACCEPT, merge the design first, update this context map and progress tree, then develop implementation in a separate branch with G01–G15 and representative wet/dry/coastal checkpoints. On REJECT, revise the design without writing runtime code.
 
 Historical `release/0.2-prealpha` remains untouched.
+
+
+## H13-A accepted design — implementation reasoning record (2026-11-15)
+
+**WHY:** accepted C1 heterogeneous precipitation + H09 low-bias weighted MFD and lake supernodes provide a new independently verifiable *source-accounting* diagnostic. The tempting alternatives—dominant river-skeleton accumulation, perennially flowing rivers, direct discharge conversion, biome inference, estuary morphology—remain scientifically underdetermined and are not enabled. **Accepted H13 design is not implemented semantics.**
+
+Operator formal DESIGN ACCEPT -> PR #98 merge `0000a208183a2ff3b1d7dc8eee8f93d54f72ef35` into `dev/0.2` (HEAD pre-merge `63b57ed2f7d73d786c16835350dfd80ea58dd57e`); design HEAD `5fbd6b5904071feefc38a0ab66f093e68845e81e`. Exact 0.2-prealpha freeze preserved. Implementation on separate branch only; run G01–G15, full CI and operator-visible wet/dry/coast contrasts. Next formal decision is **H13-A IMPLEMENTATION ACCEPT/REJECT**, not an implicit merge.
+
+Specific algorithmic risk: H12 preserves accepted *pre-marine* MFD area accumulation while reclassifying marine/lakes; H13 gross allocation must use the accepted MFD fractions, avoid marine local sources, stop at first marine receiver, and preserve existing lake supernode accounting without false equivalence in fixtures involving marine. Nonmarine uniform-input identity with accepted area accumulation is mandatory. This distinction is a reason to prefer a carefully isolated read-only accumulation traversal over mutation of the frozen area kernel.

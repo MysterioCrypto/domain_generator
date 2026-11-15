@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-post-release-h13-catchment-precipitation
-checkpoint: h13-a-gross-catchment-precipitation-design-review
-next_topic: operator-review-h13-a-design
+checkpoint: h13-a-gross-catchment-precipitation-implementation
+next_topic: implementation-g01-g15-and-operator-checkpoint
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -31,6 +31,7 @@ accepted_designs:
   - environmental-seasonality-v0.2
   - koppen-geiger-climate-regimes-v0.2
   - marine-coastal-boundary-v0.2
+  - gross-catchment-precipitation-input-v0.2
 completed:
   - core-0.1-prealpha-infrastructure
   - core-0.1-m11-acceptance-suite
@@ -1077,7 +1078,7 @@ Reassess previously deferred candidates against the new marine receiving-environ
 `release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
 
 
-## Post-H12 dependency audit — DONE / H13-A design gate
+## Historical post-H12 dependency audit — DONE / H13-A design gate (closed by DESIGN ACCEPT)
 
 Dependency audit after accepted H12-A:
 - delta/estuary: a known marine receiving environment is now available, but actual discharge, sediment supply and coastal processes are still missing — **BLOCKED**;
@@ -1119,3 +1120,14 @@ Current gate: **H13-A DESIGN — OPERATOR REVIEW**.
 PR #98 is draft/open, not merged. Runtime implementation MUST NOT begin before explicit design ACCEPT / REJECT.
 
 `release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
+
+
+## H13-A operator DESIGN ACCEPT — 2026-11-15
+
+- Operator explicitly accepted H13-A design (not implementation).
+- PR #98 merged into `dev/0.2` at `0000a208183a2ff3b1d7dc8eee8f93d54f72ef35` after HEAD and both CI checks verified green.
+- Normative design now: `docs/design/gross-catchment-precipitation-input-v0.2.md`.
+- Current checkpoint: separate H13-A implementation; G01–G15, full pytest, contrasting wet/dry/coastal operator-visible checkpoint; no implementation merge until separate explicit ACCEPT.
+- Proposed semantic field is gross no-loss allocated annual atmospheric input, not actual runoff/discharge, basin water balance or stream permanence.
+- Keep `release/0.2-prealpha` exactly at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
+- Earlier statements in historical post-H12 sections saying design is pending are superseded by this decision; consult top-level front matter, `docs/CONTEXT.md` and `docs/PROGRESS.md`.

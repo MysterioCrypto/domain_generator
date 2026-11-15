@@ -14,27 +14,26 @@ First read, in order:
 PROJECT.md
 docs/CONTEXT.md
 docs/PROGRESS.md
+docs/design/gross-catchment-precipitation-input-v0.2.md
 docs/design/marine-coastal-boundary-v0.2.md
-docs/design/environmental-seasonality-v0.2.md
-docs/design/koppen-geiger-climate-regimes-v0.2.md
 ```
 
-Current checkpoint: **H13-A GROSS CATCHMENT PRECIPITATION — DESIGN OPERATOR REVIEW**.
+Current checkpoint: **H13-A IMPLEMENTATION — DESIGN ACCEPTED / MERGED #98, IMPLEMENTATION NOT ACCEPTED**.
 
-Post-H12 dependency audit is DONE. H13-A draft design is in PR #98:
+Post-H12 dependency audit is DONE. H13-A accepted design was merged as PR #98:
 https://github.com/MysterioCrypto/domain_generator/pull/98
 
 Design branch: `design/v0.2-gross-catchment-precipitation`.
-Draft document: `docs/design/gross-catchment-precipitation-input-v0.2.md` (only on design branch before ACCEPT).
+Normative accepted document: `docs/design/gross-catchment-precipitation-input-v0.2.md` (now on dev/0.2).
 Proposal: opt-in gross upstream atmospheric precipitation input (m³/year) from accepted C1 annual precipitation + accepted weighted MFD/lakes + optional H12 marine absorption. This is **not runoff/discharge/permanence**.
-G01–G15 are proposed; runtime has NOT started. Do not merge design without explicit ACCEPT / REJECT.
+G01–G15 are the implementation acceptance plan. Design formally accepted by operator on 2026-11-15 and PR #98 merged at `0000a208183a2ff3b1d7dc8eee8f93d54f72ef35`. Implementation remains unaccepted. Do not merge implementation without separate ACCEPT.
 
 - PR #97: https://github.com/MysterioCrypto/domain_generator/pull/97
 - Merge: `3d275466ec5bfdb74f5dcb88bea6c8b641347f70`
 - Accepted tests: O01–O13 GREEN, schema sync GREEN, 502 full tests passing, coastal workflow GREEN.
 - Marine is opt-in; negative elevation alone does not imply sea. Boundary-connected 4-neighbour marine, refined shoreline and `marine_outlet` are accepted.
 - Canonical dependency map: **see the beginning of `docs/CONTEXT.md`**. This handoff is not authoritative if they disagree.
-- Next: formal H13-A design ACCEPT / REJECT, not H12 implementation/merge or unapproved H13 runtime code.
+- Next: implement H13-A in separate branch, G01–G15 and checkpoint; request separate IMPLEMENTATION ACCEPT / REJECT.
 
 Accepted and frozen:
 - Terrain 0.2;
@@ -420,7 +419,7 @@ Current gate: **POST-H12 DEPENDENCY AUDIT**. PR #97 is merged, not draft or pend
 Read the top-level dependency map in `docs/CONTEXT.md` before choosing the next slice.
 
 
-## Latest checkpoint: H13-A design review
+## Historical checkpoint: H13-A design review (now accepted)
 
 - PR #98: https://github.com/MysterioCrypto/domain_generator/pull/98
 - Branch: `design/v0.2-gross-catchment-precipitation`
@@ -435,3 +434,13 @@ Read the top-level dependency map in `docs/CONTEXT.md` before choosing the next 
 - Next: operator design decision; ACCEPT allows design merge and a **separate** implementation branch, not implementation merge.
 
 Frozen `release/0.2-prealpha`: `c69c1af010a085fb80d248af703a77471fc6c9d7`.
+
+
+## Current checkpoint: H13-A DESIGN ACCEPTED / implementation development
+
+- User formally accepted design on 2026-11-15; PR #98 merged `0000a208183a2ff3b1d7dc8eee8f93d54f72ef35` with successful push and PR CI on design HEAD `5fbd6b5904071feefc38a0ab66f093e68845e81e`.
+- Normative spec on dev: `docs/design/gross-catchment-precipitation-input-v0.2.md`.
+- Active branch: `dev/0.2`, new independent implementation branch forthcoming. No implementation ACCEPT and no implementation merge.
+- Physical interpretation: **annual gross upstream source allocation under MFD**, not actual delivered water/discharge/runoff. C4/C5 not dependencies; H12 optional.
+- Implementation must protect baseline MFD/lake supernode behavior, coastline terminal ledger, exact opt-out fingerprint, float64 derived field, deterministic replay, and stable canonical stages; G01–G15 + wet/dry/coastal evidence.
+- After each meaningful milestone, update `PROJECT.md`, `docs/CONTEXT.md`, `docs/PROGRESS.md` and this handoff; keep historical release unchanged.

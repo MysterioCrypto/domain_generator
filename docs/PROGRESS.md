@@ -2,7 +2,7 @@
 
 Purpose: **current** DONE / IN PROGRESS / NEXT tree for chat recovery. For the dependency/context map and rejected hypotheses read `docs/CONTEXT.md`; for normative semantics read accepted `docs/design/*`.
 
-**Active line:** `dev/0.2` · **checkpoint:** H13-A DESIGN — OPERATOR REVIEW · **H12-A:** ACCEPTED / MERGED PR #97 (`3d275466ec5bfdb74f5dcb88bea6c8b641347f70`).
+**Active line:** `dev/0.2` · **checkpoint:** H13-A IMPLEMENTATION — DESIGN ACCEPTED, IMPLEMENTATION NOT ACCEPTED · **H12-A:** ACCEPTED / MERGED PR #97 (`3d275466ec5bfdb74f5dcb88bea6c8b641347f70`).
 Historical checkpoint notes below are not current gates.
 
 ## DONE
@@ -36,11 +36,13 @@ Core 0.2
 Post-release (dev/0.2)
 ├─ C4-A Environmental Seasonality — ACCEPTED / MERGED #93
 ├─ C5-A optional Köppen–Geiger climate regimes — ACCEPTED / MERGED #95
-└─ H12-A optional marine/coastal boundary — ACCEPTED / MERGED #97
+├─ H12-A optional marine/coastal boundary — ACCEPTED / MERGED #97
    ├─ O01–O13 + schema sync — GREEN
    ├─ full push/PR pytest — 502 passed
    ├─ coastal/archipelago operator checkpoint — GREEN
    └─ merge 3d275466ec5bfdb74f5dcb88bea6c8b641347f70
+└─ H13-A gross catchment precipitation DESIGN — ACCEPTED / MERGED #98
+   └─ merge 0000a208183a2ff3b1d7dc8eee8f93d54f72ef35
 ```
 
 C3-A workflow:
@@ -57,12 +59,12 @@ Post-H12 dependency audit — DONE
 ├─ updated context/dependency map — DONE
 ├─ review deferred candidates against marine receiving environment — DONE
 ├─ choose exactly one bounded next design — DONE: H13-A
-└─ H13-A gross catchment precipitation design PR #98 — OPERATOR REVIEW
-   ├─ INV-006 design document — PROPOSED / amended 2026-11-15
+└─ H13-A gross catchment precipitation implementation — IN PROGRESS
+   ├─ INV-006 design document — ACCEPTED / MERGED #98
    ├─ no-loss gross atmospheric allocation, NOT delivered runoff/discharge
    ├─ existing SURFACE stage boundary defined; no new ValidationStage
-   ├─ runtime implementation — NOT STARTED
-   └─ formal design ACCEPT / REJECT — PENDING
+   ├─ runtime implementation — AUTHORIZED IN SEPARATE BRANCH / IN PROGRESS
+   └─ formal design ACCEPT — DONE; implementation ACCEPT / REJECT — PENDING
 ```
 
 Historical already-completed milestones below (not current work):
@@ -112,10 +114,10 @@ Accepted hydrology routing/network remains frozen.
 ## NEXT
 
 ```text
-1. operator review of H13-A design PR #98
-2. explicit design ACCEPT / REJECT
-3. ACCEPT → merge design, update context DAG, open separate implementation branch
-4. H13 implementation only with G01–G15, full pytest, wet/dry + coastal operator checkpoint and separate implementation ACCEPT
+1. H13 design PR #98 — ACCEPTED / MERGED 0000a208183a2ff3b1d7dc8eee8f93d54f72ef35
+2. separate H13 implementation branch — develop opt-in source-weighted MFD diagnostic and G01–G15
+3. full pytest and wet/dry + coastal operator-visible checkpoint, then separate implementation ACCEPT / REJECT
+4. do not merge implementation before explicit operator decision
 5. keep release/0.2-prealpha frozen at c69c1af010a085fb80d248af703a77471fc6c9d7
 ```
 
@@ -300,7 +302,7 @@ Operator workflow: https://github.com/MysterioCrypto/domain_generator/actions/ru
 No further implementation is authorized implicitly by H12 acceptance.
 
 
-## Latest design gate — H13-A
+## Historical design gate — H13-A (closed by DESIGN ACCEPT)
 
 ```text
 Post-H12 dependency audit     DONE
@@ -316,3 +318,19 @@ Draft design: https://github.com/MysterioCrypto/domain_generator/pull/98
 Meaning: gross annual atmospheric precipitation volume routed over accepted MFD contributing catchments. **Not runoff, actual discharge, storage, groundwater or channel permanence.** Its design branch is separate and not part of the accepted architecture until formal acceptance.
 
 Full dependency rationale lives in the **current context map at the start of `docs/CONTEXT.md`**.
+
+
+## Current active gate — H13-A implementation (2026-11-15)
+
+```text
+H13 design #98       OPERATOR ACCEPTED / MERGED
+merge SHA            0000a208183a2ff3b1d7dc8eee8f93d54f72ef35
+implementation       SEPARATE BRANCH / NOT ACCEPTED
+G01–G15             NEXT TECHNICAL GATE
+full pytest          PENDING IMPLEMENTATION
+operator checkpoint  WET/DRY + COASTAL; PENDING
+implementation merge FORBIDDEN until separate explicit ACCEPT
+frozen release       c69c1af010a085fb80d248af703a77471fc6c9d7
+```
+
+Why H13: C1 gross precipitation is already known and the MFD weighted DAG supports strictly mathematical accumulation without inventing runoff or permanence. Keep lake supernode identity, marine absorption, exact upstream field stability, and no delta/biome shortcut. See `docs/CONTEXT.md` and accepted design.
