@@ -586,6 +586,7 @@ def validate_surface(
     classification_dtype = False
     classification_range = False
     deterministic_recompute = False
+    gross_contract = gross_shape = gross_dtype = gross_finite = gross_nonnegative = gross_marine_zero = False
 
     if terrain_exists:
         elevation = terrain.elevation_m
@@ -700,6 +701,25 @@ def validate_surface(
             classification_shape = True
             classification_dtype = True
             classification_range = True
+
+        gross = surface.gross_upstream_precipitation_m3_per_year
+        gross_expected = plan.plan_version == "0.2" and plan.hydrology.climatic_input is not None
+        if gross_expected:
+            gross_contract = isinstance(gross, np.ndarray)
+            if gross_contract:
+                gross_shape = gross.shape == expected_shape
+                gross_dtype = gross.dtype == np.dtype(np.float64)
+                gross_finite = bool(np.isfinite(gross).all())
+                gross_nonnegative = gross_finite and bool(np.all(gross >= 0.0))
+                gross_marine_zero = (
+                    hydrology_exists and (
+                        hydrology.marine_mask is None
+                        or bool(np.all(gross[hydrology.marine_mask] == 0.0))
+                    )
+                )
+        else:
+            gross_contract = gross is None
+            gross_shape = gross_dtype = gross_finite = gross_nonnegative = gross_marine_zero = True
 
         if hydrology_exists and water_shape and moisture_shape and vegetation_shape:
             water_mask = hydrology.water_depth_m > 0.0
@@ -818,6 +838,12 @@ def validate_surface(
             id="surface-climate-classification-code-range",
             passed=classification_range,
         ),
+        EngineInvariantResult(id="surface-h13-opt-in-contract", passed=gross_contract),
+        EngineInvariantResult(id="surface-h13-shape", passed=gross_shape),
+        EngineInvariantResult(id="surface-h13-dtype-float64", passed=gross_dtype),
+        EngineInvariantResult(id="surface-h13-finite", passed=gross_finite),
+        EngineInvariantResult(id="surface-h13-nonnegative", passed=gross_nonnegative),
+        EngineInvariantResult(id="surface-h13-marine-zero", passed=gross_marine_zero),
         EngineInvariantResult(
             id="surface-feature-effects-applied-exactly",
             passed=applied_complete,
