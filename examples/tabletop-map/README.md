@@ -71,3 +71,28 @@ The latest draft renderer strengthens accepted terrain relief, draws subdued hei
 For an illustrated version, use `11-parchment-no-labels.png` as a **visual reference** and `12-stylization-brief.txt` as instructions. Give any image generator the author's intention to preserve geography, but assume it may distort rivers, lakes, labels or settlements. Use aligned `02-water.png`, `03-rivers.png`, `04-poi-markers.png` and `05-labels.png` as authoritative overlays in the final composite. This avoids asking generative illustration to act as a precise GIS editor.
 
 The current visual version remains in [draft PR #101](https://github.com/MysterioCrypto/domain_generator/pull/101). It is not a new accepted default. The DomainSpec still controls moisture decay, object identity, hard regions and suitability presets; presentation does not affect generated coordinates or hydraulic fields.
+
+
+## Tabletop atlas art-direction proof (2026-11-15; implementation NOT accepted)
+
+- Operator goal: expressive, plausibly consistent, parameter-driven TTRPG/literary maps, with optional future ImageGen art, **not** exhaustive climate modeling. This was a bounded proof of the artistic handoff, without changes to Core 0.2 simulation, DomainSpec, placement, accepted hydrography or existing field geometry.
+- In draft PR #101 branch `feature/v0.2-tabletop-map-compositor`, new `scripts/render_tabletop_art_direction_v02.py` consumes already-generated, aligned atlas PNG layers and the authoritative `manifest.json`. It changes **only the terrain raster presentation**, then composites **unchanged** height contours, water, accepted river paths, original POI markers and labels in that order. Three palette examples: watercolor, antique engraving and illuminated manuscript. A preview contact sheet and three framed exports are provided. This is **deterministic Pillow/NumPy styling, not an ImageGen output**.
+- Visual QA: [GitHub Actions GREEN](https://github.com/MysterioCrypto/domain_generator/actions/runs/43735383533), artifact `tabletop-art-direction-v02`: `07-three-style-comparison.png`, the three full-resolution maps, three framed variants, and a `report.json` with source request SHA-256, exact POI positions and SHA-256 digests for unchanged geographic overlays. Original `tabletop-atlas-v02` remains a separate download in the same run. The dedicated workflow reported 54 placement/DomainSpec tests passed and validated layers/coordinates and art-overlay source checks.
+- Honest boundary: a generative image model is NOT guaranteed to preserve topology, place-name typography or scale. If artistically stylizing with ImageGen later, produce an unlabeled terrain-art candidate and recomposite original authoritative water/rivers/POI/labels; compare it with `06-map-full.png` and keep geographic overlay coordinates fixed. No hidden generated settlements, rivers, roads or biomes.
+- An early engraving preview was too uniformly hatched; revised to place hatch strokes preferentially on stronger terrain tonal gradients. This improves visual readability, not geomorphological science. No further parameter sweep needed unless visual feedback reveals a clear product problem.
+- PR #101, #100 and #99 are **DRAFT / OPEN / UNMERGED** pending explicit appropriate merge direction. `dev/0.2` and frozen `release/0.2-prealpha` unchanged. The scientific constraints and prior technical acceptance checkpoints remain as recorded.
+
+
+### Art-direction checkpoint
+
+To create three illustration-style previews **without changing accepted geography**, run:
+
+```bash
+python scripts/render_tabletop_art_direction_v02.py \
+  --atlas output/tabletop-atlas \
+  --output output/tabletop-art-direction
+```
+
+Download the two Actions artifacts from [the verified art-direction run](https://github.com/MysterioCrypto/domain_generator/actions/runs/43735383533): `tabletop-atlas-v02` for original layers, and `tabletop-art-direction-v02` for three styled maps, framed variants, `07-three-style-comparison.png` and `report.json`.
+
+This script is a controlled **terrain-only palette/texture experiment**, not artificial-intelligence illustration. It deliberately recomposes original contours, lake/marine polygons, river centerlines, exact POI symbols and Cyrillic labels. The report exposes layer SHA-256s and exact source POI positions. A separate image-generation pass can alter those shapes even when instructed not to; if used later, restore original geographic overlays onto the stylized background.
