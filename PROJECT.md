@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-post-release-h13-catchment-precipitation
-checkpoint: h13-a-gross-catchment-precipitation-implementation
-next_topic: implementation-g01-g15-and-operator-checkpoint
+checkpoint: h13-a-implementation-operator-checkpoint-review
+next_topic: implementation-evidence-and-operator-accept-reject
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -1131,3 +1131,13 @@ PR #98 is draft/open, not merged. Runtime implementation MUST NOT begin before e
 - Proposed semantic field is gross no-loss allocated annual atmospheric input, not actual runoff/discharge, basin water balance or stream permanence.
 - Keep `release/0.2-prealpha` exactly at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
 - Earlier statements in historical post-H12 sections saying design is pending are superseded by this decision; consult top-level front matter, `docs/CONTEXT.md` and `docs/PROGRESS.md`.
+
+
+## H13-A implementation PR #99 — operator evidence checkpoint (2026-11-15)
+
+- Branch: `impl/v0.2-h13-gross-catchment-precipitation`; draft PR: https://github.com/MysterioCrypto/domain_generator/pull/99 . No merge or operator implementation ACCEPT.
+- Opt-in `hydrology.climatic_input.scheme=gross_mfd_precipitation_v1`; derived float64 `gross_upstream_precipitation_m3_per_year` in m³/year.
+- A separate read-only MFD source-accounting traversal conserves local land + inland lake precipitation; first marine entries are terminal, no seabed transport, no marine source. Accepted historical area/rivers/climate remain untouched.
+- G01–G15: 15 passed on checkpoint head `e4e12d322fc3ee016e77e4800d1dfeefc58fa452`. Dedicated checkpoint workflow GREEN: https://github.com/MysterioCrypto/domain_generator/actions/runs/43721814406 . Later implementation changes: historical K15 fixture amendment and added MFD trace visualization; rerun latest full/checkpoint CI before operator decision.
+- Representative A08 wet/dry gross-input median ratio ≈18; uniform-rainfall-vs-area maximum error ≈1.19×10⁻⁷ m³/year; coastal ledger relative conservation within float64 tolerance; all pre-existing world fields/networks exactly unchanged with H13 off/on.
+- Present operator-visible images/report from the final green run; NO implementation acceptance or merge before explicit user decision. Frozen `release/0.2-prealpha` still `c69c1af010a085fb80d248af703a77471fc6c9d7`.

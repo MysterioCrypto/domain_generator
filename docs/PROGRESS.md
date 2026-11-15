@@ -2,7 +2,7 @@
 
 Purpose: **current** DONE / IN PROGRESS / NEXT tree for chat recovery. For the dependency/context map and rejected hypotheses read `docs/CONTEXT.md`; for normative semantics read accepted `docs/design/*`.
 
-**Active line:** `dev/0.2` · **checkpoint:** H13-A IMPLEMENTATION — DESIGN ACCEPTED, IMPLEMENTATION NOT ACCEPTED · **H12-A:** ACCEPTED / MERGED PR #97 (`3d275466ec5bfdb74f5dcb88bea6c8b641347f70`).
+**Active line:** `dev/0.2` · **checkpoint:** H13-A IMPLEMENTATION — G01–G15 GREEN ON FIRST CHECKPOINT / FINAL HEAD RECHECK · **H12-A:** ACCEPTED / MERGED PR #97 (`3d275466ec5bfdb74f5dcb88bea6c8b641347f70`).
 Historical checkpoint notes below are not current gates.
 
 ## DONE
@@ -326,11 +326,27 @@ Full dependency rationale lives in the **current context map at the start of `do
 H13 design #98       OPERATOR ACCEPTED / MERGED
 merge SHA            0000a208183a2ff3b1d7dc8eee8f93d54f72ef35
 implementation       SEPARATE BRANCH / NOT ACCEPTED
-G01–G15             NEXT TECHNICAL GATE
-full pytest          PENDING IMPLEMENTATION
-operator checkpoint  WET/DRY + COASTAL; PENDING
+G01–G15             GREEN on e4e12d3; latest head recheck pending
+full pytest          516 PASS / 1 LEGACY K15 ORACLE FAIL at 2aea; fixture patched, new CI pending
+operator checkpoint  WET/DRY + COASTAL first run GREEN; new MFD traces pending recheck
 implementation merge FORBIDDEN until separate explicit ACCEPT
 frozen release       c69c1af010a085fb80d248af703a77471fc6c9d7
 ```
 
 Why H13: C1 gross precipitation is already known and the MFD weighted DAG supports strictly mathematical accumulation without inventing runoff or permanence. Keep lake supernode identity, marine absorption, exact upstream field stability, and no delta/biome shortcut. See `docs/CONTEXT.md` and accepted design.
+
+
+## H13-A implementation evidence checkpoint — PR #99 (2026-11-15)
+
+```text
+implementation branch impl/v0.2-h13-gross-catchment-precipitation
+PR                    #99 DRAFT / OPEN / UNMERGED
+H13 guardrails         G01–G15: 15 PASS on e4e12d3
+H13 workflow           GREEN 43721814406
+full pytest            516 PASS / 1 historical K15 oracle mismatch at 2aea, fixed on later head
+full pytest latest     PENDING FINAL HEAD CONFIRMATION
+MFD trace visualization ADDED; checkpoint rerun pending
+implementation ACCEPT PENDING OPERATOR — DO NOT MERGE
+```
+
+The K15 failure was solely the historical manual fingerprint construction, which had to omit absent `climatic_input=None`; no historic fingerprints were re-signed. Check real GitHub HEAD/CI before resuming. Keep the WHY-map in `docs/CONTEXT.md` synchronized with this state.

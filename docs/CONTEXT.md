@@ -16,7 +16,7 @@ Active development line: `dev/0.2`. Do not infer current state from `main`.
 
 ## Current context map — 2026-11-15
 
-**Active branch:** `dev/0.2`. **Current checkpoint:** `H13-A GROSS CATCHMENT PRECIPITATION — IMPLEMENTATION IN PROGRESS (DESIGN ACCEPTED)`.
+**Active development line:** `dev/0.2`, **implementation:** `impl/v0.2-h13-gross-catchment-precipitation` (draft PR #99, not merged). **Current checkpoint:** `H13-A IMPLEMENTATION — OPERATOR REVIEW / CI CONFIRMATION`; design accepted/merged #98.
 **H12-A:** ACCEPTED / MERGED as PR #97, merge `3d275466ec5bfdb74f5dcb88bea6c8b641347f70`.
 **Frozen release:** `release/0.2-prealpha` at `c69c1af010a085fb80d248af703a77471fc6c9d7`; do not backport post-release semantics without a new gate.
 
@@ -65,6 +65,14 @@ Branch: `design/v0.2-gross-catchment-precipitation`
 Normative draft path (not yet merged): `docs/design/gross-catchment-precipitation-input-v0.2.md`
 
 **Design decision (2026-11-15):** formal operator DESIGN ACCEPT and merge of PR #98 (`0000a208183a2ff3b1d7dc8eee8f93d54f72ef35`). The proposed H13 edge is now a normative **design** contract, not part of implemented world-state until G01–G15 and a separate implementation ACCEPT. CI on design HEAD `5fbd6b5904071feefc38a0ab66f093e68845e81e` was GREEN. No D8/D∞/raw MFD networks, water balance, annual-to-streamflow claims, mandatory Köppen-biomes or frozen releases are reopened. Implementation must account for differences between H12 pre-marine accumulation lake baseline and inland lake candidates; stop if conservation/graph semantics conflict with accepted routing.
+
+### H13 implementation evidence and remaining acceptance gate (2026-11-15)
+
+- Design remains accepted at merge `0000a208183a2ff3b1d7dc8eee8f93d54f72ef35`; implementation PR #99 is a separate **DRAFT, UNMERGED** proposal.
+- Chosen source-accounting traversal is isolated because H12 reuses a pre-marine MFD area baseline but marine/lake support changes. Share accepted receiver fractions and lake outlet semantics, preserve MFD-area bytes, count every local non-marine/lake rain cell once, absorb gross source upon first entry into marine, report land-edge and marine-component ledgers separately. This is algebraic transport, NOT real water delivery/discharge/runoff.
+- Opt-in contract, exact omission of missing fingerprints, one `float64` derived field, unchanged C1/C2/C3/C4/C5 and networks, no new ValidationStage, no new RNG. G01–G15 were GREEN on checkpoint head `e4e12d322fc3ee016e77e4800d1dfeefc58fa452`; full pytest/CI on the latest head and updated visual trace checkpoint must still be checked before operator implementation decision.
+- Representative A08: wet/dry input ratio ≈18 for explicitly varied rain forcing; uniform non-marine source allocation matches accepted flow-area × rain to ~1.19×10⁻⁷ m³/year max absolute error. Off/on canonical/derived existing fields, features and networks exact-equal; coastal conservation error around 4.77×10⁻⁷ m³/year on the representative fixture. These numbers are evidence about the fixture, not universal calibration.
+- Guardrails and operator checkpoint: https://github.com/MysterioCrypto/domain_generator/actions/runs/43721814406 . The current implementation is **NOT ACCEPTED**, regardless of green automation. Explicit IMPLEMENTATION ACCEPT/REJECT is required; do not merge PR #99 or change frozen releases.
 
 ### Post-H12 unresolved dependency map
 

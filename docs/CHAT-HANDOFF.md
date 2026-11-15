@@ -18,7 +18,7 @@ docs/design/gross-catchment-precipitation-input-v0.2.md
 docs/design/marine-coastal-boundary-v0.2.md
 ```
 
-Current checkpoint: **H13-A IMPLEMENTATION — DESIGN ACCEPTED / MERGED #98, IMPLEMENTATION NOT ACCEPTED**.
+Current checkpoint: **H13-A IMPLEMENTATION — DRAFT PR #99 OPERATOR EVIDENCE REVIEW; NO IMPLEMENTATION ACCEPT**.
 
 Post-H12 dependency audit is DONE. H13-A accepted design was merged as PR #98:
 https://github.com/MysterioCrypto/domain_generator/pull/98
@@ -444,3 +444,13 @@ Frozen `release/0.2-prealpha`: `c69c1af010a085fb80d248af703a77471fc6c9d7`.
 - Physical interpretation: **annual gross upstream source allocation under MFD**, not actual delivered water/discharge/runoff. C4/C5 not dependencies; H12 optional.
 - Implementation must protect baseline MFD/lake supernode behavior, coastline terminal ledger, exact opt-out fingerprint, float64 derived field, deterministic replay, and stable canonical stages; G01–G15 + wet/dry/coastal evidence.
 - After each meaningful milestone, update `PROJECT.md`, `docs/CONTEXT.md`, `docs/PROGRESS.md` and this handoff; keep historical release unchanged.
+
+
+## H13-A implementation recovery — 2026-11-15
+
+- Design accepted/merged PR #98 as `0000a208183a2ff3b1d7dc8eee8f93d54f72ef35` and all four canonical context documents synchronized on dev in `c343f925a4ad56b2e76f671432733d42843c5d6a`.
+- Implementation: `impl/v0.2-h13-gross-catchment-precipitation`, PR #99 draft/open: https://github.com/MysterioCrypto/domain_generator/pull/99 . No merge.
+- Implemented opt-in H13 gross atmospheric input accounting (not discharge), MFD/lake/marine terminal ledger, SURFACE-stage derived float64 output, exact 0.1/prealpha fingerprint compatibility, schema/bundle, G01–G15.
+- First dedicated checkpoint GREEN, G01–G15 15 PASS: https://github.com/MysterioCrypto/domain_generator/actions/runs/43721814406 . A08 dry/wet input ratio ~18; uniform-vs-area max absolute error 1.19e-7 m³/year, exact upstream field/network equality, coastal ledger error ~4.77e-7 m³/year.
+- Last full pytest before K15 fixture amendment was 516 PASS / 1 FAIL (historical K15 manual plan fingerprint oracle still serialized absent additive `climatic_input=None`). K15 was fixed in `bdc7438909b94510e45879a6806e725f1b62bc2c`; now await full pytest on latest head. Additional MFD example trace render in later head `a7ba943c599a30473ae2a5b765f4a477793f60d4` requires dedicated checkpoint rerun.
+- On recovery: recheck actual latest PR #99 head and CI before acting. Only update docs after final evidence. Present checkpoint images/links and ask explicit **IMPLEMENTATION ACCEPT/REJECT**, never infer from green tests. Frozen releases untouched.
