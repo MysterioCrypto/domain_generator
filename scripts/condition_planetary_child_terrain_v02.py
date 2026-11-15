@@ -100,6 +100,60 @@ def _bilinear(x: np.ndarray, y: np.ndarray, source_x: np.ndarray,
             + v * ((1 - u) * field[jj + 1, ii] + u * field[jj + 1, ii + 1]))
 
 
+
+def _c1_cubic(x: np.ndarray, y: np.ndarray, sx: np.ndarray,
+              sy: np.ndarray, field: np.ndarray) -> np.ndarray:
+    """Exact-node C1-continuous 2-D Hermite interpolator, no SciPy dependency.
+
+    Plain bilinear DEM resampling leaves artificial 0.3-degree square creases
+    in high-relief regions. Hermite interpolation smooths the FIRST derivative
+    while still pinning original source heights at parent stations.
+    """
+    x, y = np.broadcast_arrays(np.asarray(x, dtype=float),
+                               np.asarray(y, dtype=float))
+    sx, sy = np.asarray(sx, dtype=float), np.asarray(sy, dtype=float)
+    if (np.any(x < sx[0] - 1e-8) or np.any(x > sx[-1] + 1e-8)
+            or np.any(y < sy[0] - 1e-8) or np.any(y > sy[-1] + 1e-8)):
+        raise ChildTerrainError(
+            "child extends beyond source station CENTERS; increase macro crop"
+        )
+    i = np.clip(np.searchsorted(sx, x, side="right") - 1, 0, len(sx) - 2)
+    j = np.clip(np.searchsorted(sy, y, side="right") - 1, 0, len(sy) - 2)
+    dx, dy = sx[i + 1] - sx[i], sy[j + 1] - sy[j]
+    u = np.clip((x - sx[i]) / dx, 0, 1)
+    v = np.clip((y - sy[j]) / dy, 0, 1)
+
+    def hermite(a, b, m0, m1, t, step):
+        return ((2 * t**3 - 3 * t**2 + 1) * a
+                + (t**3 - 2 * t * t + t) * m0 * step
+                + (-2 * t**3 + 3 * t * t) * b
+                + (t**3 - t * t) * m1 * step)
+
+    r0, r1, r2, r3 = (
+        np.maximum(0, j - 1), j, j + 1, np.minimum(len(sy) - 1, j + 2)
+    )
+    i0, i3 = np.maximum(0, i - 1), np.minimum(len(sx) - 1, i + 2)
+
+    def interpolate_row(row):
+        derivative_left = (field[row, i + 1] - field[row, i0]) / (
+            sx[i + 1] - sx[i0]
+        )
+        derivative_right = (field[row, i3] - field[row, i]) / (
+            sx[i3] - sx[i]
+        )
+        return hermite(
+            field[row, i], field[row, i + 1],
+            derivative_left, derivative_right, u, dx
+        )
+
+    f0, f1, f2, f3 = (
+        interpolate_row(r) for r in (r0, r1, r2, r3)
+    )
+    derivative_south = (f2 - f0) / (sy[r2] - sy[r0])
+    derivative_north = (f3 - f1) / (sy[r3] - sy[r1])
+    return hermite(f1, f2, derivative_south, derivative_north, v, dy)
+
+
 def _source_fields(macro: dict[str, np.ndarray]):
     lat = np.asarray(macro["latitude_deg_north_first"], dtype=np.float64)
     lon = np.asarray(macro["longitude_deg_west_to_east"], dtype=np.float64)
@@ -152,7 +206,12 @@ def evaluate_terrain(macro: dict[str, np.ndarray], s: ChildTerrainSettings,
     if (np.any(lat > 80) or np.any(lat < -80)
             or np.any(lon > 180) or np.any(lon < -180)):
         raise ChildTerrainError("child crosses local projection validity bound")
-    baseline = _bilinear(lon, lat, longitude, latitude, heights)
+    linear_reference = _bilinear(lon, lat, longitude, latitude, heights)
+    baseline = _c1_cubic(lon, lat, longitude, latitude, heights)
+    # Keep the source-derived coastal sign; cubic relief must not create
+    # unapproved land/sea connections even if an edge overshoots.
+    baseline = np.where(linear_reference >= 0,
+                        np.maximum(0, baseline), np.minimum(0, baseline))
 
     # Broad parent relief determines maximum local variation. These are
     # artistic/geomorphological priors, not measured sub-grid terrain.
