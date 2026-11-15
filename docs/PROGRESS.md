@@ -2,7 +2,7 @@
 
 Purpose: **current** DONE / IN PROGRESS / NEXT tree for chat recovery. For the dependency/context map and rejected hypotheses read `docs/CONTEXT.md`; for normative semantics read accepted `docs/design/*`.
 
-**Active line:** `dev/0.2` · **checkpoint:** H13-A IMPLEMENTATION — DESIGN ACCEPTED, IMPLEMENTATION NOT ACCEPTED · **H12-A:** ACCEPTED / MERGED PR #97 (`3d275466ec5bfdb74f5dcb88bea6c8b641347f70`).
+**Active line:** `dev/0.2` · **current product checkpoint:** non-Earth source fixtures and [single navigation page](../START_HERE.md). **Parallel technical line:** H13 DESIGN accepted/merged #98, runtime #99 draft/unmerged; #100 C2 experiment and #101 atlas composer also draft/unmerged. **H12-A:** accepted/merged #97.
 Historical checkpoint notes below are not current gates.
 
 ## DONE
@@ -111,15 +111,26 @@ Post-release C4-A Environmental Seasonality — ACCEPTED / DONE
 
 Accepted hydrology routing/network remains frozen.
 
-## NEXT
+## NEXT — active product track
 
 ```text
-1. H13 design PR #98 — ACCEPTED / MERGED 0000a208183a2ff3b1d7dc8eee8f93d54f72ef35
-2. separate H13 implementation branch — develop opt-in source-weighted MFD diagnostic and G01–G15
-3. full pytest and wet/dry + coastal operator-visible checkpoint, then separate implementation ACCEPT / REJECT
-4. do not merge implementation before explicit operator decision
-5. keep release/0.2-prealpha frozen at c69c1af010a085fb80d248af703a77471fc6c9d7
+P0  navigation + provenance of non-Earth source materials   DOCS BRANCH
+P1  A8/A12 SHA+NPZ+axis alignment QA                 VERIFIED; NOT IMPORTED
+    External geogrid source adapter + region downscaling  NEXT
+    or select explicitly NEW generated regional geography    NOT YET SELECTED
+P2  3 genuinely distinct topographic/hydrologic regions      NEXT VISIBLE PNG GATE
+P3  opt-in world-defined land cover categories               NOT IMPLEMENTED
+P4  satellite-like overhead geographic substrate            NOT IMPLEMENTED
+P5  optional ImageGen illustration + restore geo overlays  NOT IMPLEMENTED
+P6  clean new repository after consolidation               USER-LED / NOT NOW
+
+Parallel #99 H13 runtime                                DRAFT / UNMERGED
+Parallel #100 C2 visual sensitivity                      DRAFT / UNMERGED
+Parallel #101 map compositor / art palettes             DRAFT / UNMERGED
+Frozen release/0.2-prealpha                            UNCHANGED
 ```
+
+Historical H13 design PR #98 is **ACCEPTED/MERGED**. On separate PR #99, G01–G15 and wet/dry/coastal checkpoint have already been implemented and validated, but none of that runtime is on dev/0.2. Do not confuse green CI with merge acceptance. See [roadmap](PRODUCT_ROADMAP.md).
 
 Do not bundle all deferred hydrology finishing into one change.
 
@@ -320,17 +331,22 @@ Meaning: gross annual atmospheric precipitation volume routed over accepted MFD 
 Full dependency rationale lives in the **current context map at the start of `docs/CONTEXT.md`**.
 
 
-## Current active gate — H13-A implementation (2026-11-15)
+## Parallel H13-A technical gate (not sole active product track, 2026-11-15)
 
 ```text
 H13 design #98       OPERATOR ACCEPTED / MERGED
 merge SHA            0000a208183a2ff3b1d7dc8eee8f93d54f72ef35
 implementation       SEPARATE BRANCH / NOT ACCEPTED
-G01–G15             NEXT TECHNICAL GATE
-full pytest          PENDING IMPLEMENTATION
-operator checkpoint  WET/DRY + COASTAL; PENDING
+G01–G15             PASSED ON DRAFT #99
+full pytest          517 passed ON DRAFT #99
+operator checkpoint  WET/DRY + COASTAL; GREEN ON DRAFT #99
 implementation merge FORBIDDEN until separate explicit ACCEPT
 frozen release       c69c1af010a085fb80d248af703a77471fc6c9d7
 ```
 
 Why H13: C1 gross precipitation is already known and the MFD weighted DAG supports strictly mathematical accumulation without inventing runoff or permanence. Keep lake supernode identity, marine absorption, exact upstream field stability, and no delta/biome shortcut. See `docs/CONTEXT.md` and accepted design.
+
+
+## Actual world-source QA (2026-11-15)
+
+A8/A12 ZIPs found in the connected Drive folder and locally opened. Exact SHA-256 matches archived README; exact 600×1200 DEM/land match after A8 north-south axis reversal; A12 global climate/biome arrays and A12 annual Q snapshot read, not used as accepted DomainData. See [A8/A12 audit](reviews/dakhar-a8-a12-source-alignment-audit-2026-11-15.md). **Next work:** implement explicit non-Earth geogrid import/adapter and work from source candidate A instead of unrelated random terrain. No author canon or Core runtime contract was modified.

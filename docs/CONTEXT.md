@@ -14,6 +14,11 @@ PROJECT.md
 
 Active development line: `dev/0.2`. Do not infer current state from `main`.
 
+**Current product/recovery track (2026-11-15):** [START_HERE.md](../START_HERE.md) → [roadmap](PRODUCT_ROADMAP.md) → [source-grounded Д’Акхар first-arc constraints](world-fixtures/dakhar-first-arc.md). The H13 dependency map below still describes accepted Core semantics, but is **not** the only active product task. H13 implementation #99, C2 experiment #100 and art compositor #101 remain three separate DRAFT/OPEN/UNMERGED branches; none belongs to dev/0.2. Frozen release unchanged.
+
+**WHY:** the user needs expressive, controlled, non-Earth overhead landscapes. Current C3 vegetation is abstract potential, not land-cover type; pretty renderer colors cannot substitute real forest/rocky/grassland patterns. Literary world data has canonical written constraints and noncanonical A8/A12 geographical candidates. A8/A10/A11/A12 ZIP archives and the georeferenced PNG atlas have now been located by direct Drive-folder fetch (search gave misleading empty results); A8/A12 NPZ are NOW PARSED and ZIP/input SHA-256 verified, with A8→A12 exact north/south row reversal established; they are NOT imported to Core and A10/A11 original ZIP and NPZ fields verified with checksum/CRC, Q matching A12 exact, and the ≈202.755-Earth-day planetary year requires an explicit unit boundary before reuse of precipitation rates. Do not silently import author-unaccepted coordinates or Earth-Köppen species assumptions.
+
+
 ## Current context map — 2026-11-15
 
 **Active branch:** `dev/0.2`. **Current checkpoint:** `H13-A GROSS CATCHMENT PRECIPITATION — IMPLEMENTATION IN PROGRESS (DESIGN ACCEPTED)`.
@@ -1314,3 +1319,6 @@ Historical `release/0.2-prealpha` remains untouched.
 Operator formal DESIGN ACCEPT -> PR #98 merge `0000a208183a2ff3b1d7dc8eee8f93d54f72ef35` into `dev/0.2` (HEAD pre-merge `63b57ed2f7d73d786c16835350dfd80ea58dd57e`); design HEAD `5fbd6b5904071feefc38a0ab66f093e68845e81e`. Exact 0.2-prealpha freeze preserved. Implementation on separate branch only; run G01–G15, full CI and operator-visible wet/dry/coast contrasts. Next formal decision is **H13-A IMPLEMENTATION ACCEPT/REJECT**, not an implicit merge.
 
 Specific algorithmic risk: H12 preserves accepted *pre-marine* MFD area accumulation while reclassifying marine/lakes; H13 gross allocation must use the accepted MFD fractions, avoid marine local sources, stop at first marine receiver, and preserve existing lake supernode accounting without false equivalence in fixtures involving marine. Nonmarine uniform-input identity with accepted area accumulation is mandatory. This distinction is a reason to prefer a carefully isolated read-only accumulation traversal over mutation of the frozen area kernel.
+
+
+**First source-grounded geography test (2026-11-15):** archives A8/A12 were parsed and compared directly. A8 lat descending north-first; A12 lat ascending south-first; longitude exact-equal; after reversing A8 rows, elevation and land masks exact-equal to A12. Candidate A model cell has elevation ≈363.4 m, T ≈15.2°C, P ≈848.2 mm / **planetary** year, cover code 7. A12-input annual Q snapshot (not Core 0.2 physics) matches atlas site route ≈61.8 →75.0→1115.0 m³/s. Source QA and sha are in [report](reviews/dakhar-a8-a12-source-alignment-audit-2026-11-15.md). Distinguish numerical source integrity from physical accuracy, and working model geography from author canon.

@@ -1,0 +1,161 @@
+{
+  "fixture_schema": "world-source-anchors-v0.1",
+  "id": "dakhar-first-arc",
+  "status": "SOURCE_ANCHORED_NON_CANONICAL",
+  "is_domain_spec": false,
+  "sources": [
+    {
+      "kind": "AUTHOR_CURRENT_BRIEF",
+      "status": "CANON_AND_WORKING_SEPARATED",
+      "url": "https://drive.google.com/file/d/1xYRLhm4R1GzgQWW6D_Ap190QTnjgNaZd/view"
+    },
+    {
+      "kind": "WORKING_ATLAS",
+      "status": "MODEL_NOT_CANON",
+      "url": "https://drive.google.com/file/d/1eT5odktS2L9SBbSLhXT2KDDf5vmMaQsq/view"
+    },
+    {
+      "kind": "ARCHIVE_README",
+      "status": "HISTORICAL_INVENTORY_NOT_ACTUAL_RASTER",
+      "url": "https://drive.google.com/file/d/1q5XUropEnHpIozppSaTQeFZgCFXh_c4n/view"
+    }
+  ],
+  "source_availability": {
+    "original_a8_a10_a12_rasters": "SOURCE_ZIPS_LOCATED_NOT_EXTRACTED",
+    "georeferenced_original_imported": false,
+    "source_data_imported": false,
+    "source_archives_found_in_drive": true,
+    "archive_contents_verified": {
+      "A8": true,
+      "A10": true,
+      "A11": true,
+      "A12": true
+    },
+    "original_png_georeferenced_found": true,
+    "archives": {
+      "A8": {
+        "id": "1WvMG9A2kmwBKBvaSTOY0XERElmka6r1s",
+        "title": "planet_A8_prototype.zip",
+        "size_bytes": 15903858
+      },
+      "A10": {
+        "id": "1C0bklcAIRmlWSHoYIVONuyse_63xBMkH",
+        "title": "planet_A10_prototype.zip",
+        "size_bytes": 46105069
+      },
+      "A11": {
+        "id": "1BiIFbCz1UkbxXAtCQYmp_u0BpjJhe9Cu",
+        "title": "planet_A11_prototype.zip",
+        "size_bytes": 66588668
+      },
+      "A12": {
+        "id": "1uPTSaGcynBnsWKF0Mfn-Ykw_0ko3a1mF",
+        "title": "Модель планеты A12 — полные данные.zip",
+        "size_bytes": 48280825
+      },
+      "atlas_png": {
+        "id": "1eBUkCDwlDMK85nJjWdBrULnhnPDrXwdK",
+        "title": "Карта — геопривязанный атлас, подложка.png",
+        "size_bytes": 2167714
+      }
+    },
+    "npz_data_accessed_locally": true,
+    "verified_sha256": {
+      "A8_zip": "6824ccf2a4aea7b2514a4e694e84ad13fd3ff4e18dba6c3be6b4b7753dc019ec",
+      "A12_zip": "db9f0f91fca845058c658dfdd639c882b9cf0514736b3677184a4c84ff20b3a4",
+      "A12_inputs_npz": "f2d6c4463f969938c89290d8004f9e9b21570c01d664b3862f2bc2765b62fe7c",
+      "A10_zip": "8be089feb94253daa69adbe9cea671a8ddc752ee3a2e4b2dc060b1c4929a3cb5",
+      "A11_zip": "8237c9dcf9e97008eecaa4b1f73422d98ba600a910478ee763b5e4e8fe7bcaa6"
+    },
+    "geographic_alignment": {
+      "grid_rows": 600,
+      "grid_columns": 1200,
+      "longitude_equal_exact": true,
+      "A8_latitude_order": "descending_north_to_south",
+      "A12_latitude_order": "ascending_south_to_north",
+      "A8_to_A12_required_transform": "reverse_rows",
+      "elevation_match_after_reverse_exact": true,
+      "land_mask_match_after_reverse_exact": true,
+      "A10_A11_A12_latitude_order": "ascending_south_to_north",
+      "A10_Q_matches_A12_inputs_Q_exact": true
+    },
+    "source_audit": "docs/reviews/dakhar-a8-a12-source-alignment-audit-2026-11-15.md"
+  },
+  "planet_model": {
+    "status": "MODEL_NOT_CANON",
+    "planetary_year_earth_days_approx": 202.755,
+    "planet_radius_km_approx": 7008.1,
+    "obliquity_degrees_approx": 29,
+    "star_model": "close K+K binary draft",
+    "global_grid": {
+      "columns": 1200,
+      "rows": 600,
+      "degree_step": 0.3
+    }
+  },
+  "region_candidates": [
+    {
+      "id": "A",
+      "status": "MODEL_CANDIDATE_NOT_CANON",
+      "lat_deg": -46.95,
+      "lon_deg": -97.95,
+      "temperature_c_approx": 15.2,
+      "precipitation_mm_per_planetary_year_approx": 848,
+      "vegetation_model_class": "humid temperate forest",
+      "author_approved": false
+    },
+    {
+      "id": "B",
+      "status": "MODEL_CANDIDATE_NOT_CANON",
+      "lat_deg": -20.55,
+      "lon_deg": 103.65,
+      "temperature_c_approx": 18.5,
+      "precipitation_mm_per_planetary_year_approx": 1232,
+      "vegetation_model_class": "montane forest",
+      "author_approved": false
+    },
+    {
+      "id": "C",
+      "status": "MODEL_CANDIDATE_NOT_CANON",
+      "lat_deg": 18.15,
+      "lon_deg": 136.65,
+      "temperature_c_approx": 19.1,
+      "precipitation_mm_per_planetary_year_approx": 1401,
+      "vegetation_model_class": "seasonally humid tropical forest",
+      "author_approved": false
+    }
+  ],
+  "narrative_anchors": [
+    {
+      "id": "humid_forested_rocky_foothills",
+      "status": "CANON_OR_WRITTEN",
+      "exact_coordinates_known": false
+    },
+    {
+      "id": "old_crossing_and_ruins",
+      "status": "CANON_OR_WRITTEN",
+      "exact_coordinates_known": false
+    },
+    {
+      "id": "remote_magician_waterfall_lab",
+      "status": "CANON_OR_WRITTEN",
+      "exact_coordinates_known": false
+    },
+    {
+      "id": "protected_courier_route_and_overnight",
+      "status": "CANON_OR_WRITTEN",
+      "exact_coordinates_known": false
+    },
+    {
+      "id": "fortified_settlement_far_from_lab",
+      "status": "CANON_OR_WRITTEN",
+      "exact_coordinates_known": false
+    }
+  ],
+  "unit_boundary": {
+    "source_precipitation_unit": "mm per planetary year",
+    "core_c1_unit": "mm/year",
+    "direct_equivalence_asserted": false,
+    "external_planetary_calendar_adapter_implemented": false
+  }
+}

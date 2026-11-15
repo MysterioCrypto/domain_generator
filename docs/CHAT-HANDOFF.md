@@ -18,7 +18,7 @@ docs/design/gross-catchment-precipitation-input-v0.2.md
 docs/design/marine-coastal-boundary-v0.2.md
 ```
 
-Current checkpoint: **H13-A IMPLEMENTATION — DESIGN ACCEPTED / MERGED #98, IMPLEMENTATION NOT ACCEPTED**.
+Current **product/recovery** checkpoint: [START_HERE.md](../START_HERE.md) → [docs/PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md) → [D’Акхар source fixture](world-fixtures/dakhar-first-arc.md). Parallel technical H13-A: design #98 accepted/merged, implementation #99 draft/unmerged; #100 and #101 likewise draft/unmerged.
 
 Post-H12 dependency audit is DONE. H13-A accepted design was merged as PR #98:
 https://github.com/MysterioCrypto/domain_generator/pull/98
@@ -444,3 +444,13 @@ Frozen `release/0.2-prealpha`: `c69c1af010a085fb80d248af703a77471fc6c9d7`.
 - Physical interpretation: **annual gross upstream source allocation under MFD**, not actual delivered water/discharge/runoff. C4/C5 not dependencies; H12 optional.
 - Implementation must protect baseline MFD/lake supernode behavior, coastline terminal ledger, exact opt-out fingerprint, float64 derived field, deterministic replay, and stable canonical stages; G01–G15 + wet/dry/coastal evidence.
 - After each meaningful milestone, update `PROJECT.md`, `docs/CONTEXT.md`, `docs/PROGRESS.md` and this handoff; keep historical release unchanged.
+
+
+## New active product route — 2026-11-15
+
+- One-click repo navigation at START_HERE.md; P0–P6 roadmap in docs/PRODUCT_ROADMAP.md; non-Earth D’Акхар source at docs/world-fixtures/dakhar-first-arc.md with JSON source-only fixture and stdlib tests.
+- Original A1–A11 and A12 Drive archives plus georeferenced PNG atlas ARE PRESENT: direct Google_Drive.fetch folder lists them even when search returned empty. A8/A12 NumPy arrays are now parsed, SHA-256 verified, A8 north→south versus A12 south→north orientation reconciled (reverse A8 raster rows exact). A10/A11 ZIPs and NPZ content independently SHA/CRC-verified; A10 annual_Q exactly equals its copy in A12_inputs; no Core import. Do not claim import; working Atlas A/B/C proposed not canon, short planetary year 202.755 Earth days; mm/planetary year not automatically Earth mm/year.
+- Next bounded visible step: three actually different regional terrain/hydrology scenes. Follow with opt-in world-defined land cover; no more unneeded parchment physics. Preserve dev/0.2 accepted contracts, three unmerged PRs #99/100/101 and frozen release.
+
+
+- **Live source QA evidence:** A8 ZIP SHA `6824ccf2...`, A12 ZIP SHA `db9f0f91...`, A12_inputs NPZ SHA `f2d6c446...` (complete in docs/reviews/dakhar-a8-a12-source-alignment-audit-2026-11-15.md). Original 600×1200 arrays identical for elevation+land after A8 row reversal. User-visible source-derived diagnostic map created outside repo from private Drive archives; do not commit private ZIP or rendered crops to public repo without explicit consent.
