@@ -17,6 +17,7 @@ from matplotlib.colors import LightSource, to_rgba
 
 from domain_generator.application import generate_domain, load_preset_catalog, registry_for_request
 from domain_generator.contracts import GenerationRequest
+from domain_generator.contracts.data import HydroFeature
 
 ROOT = Path(__file__).resolve().parents[1]
 A08 = ROOT / "tests" / "acceptance" / "cases" / "a08-core-v02-integrated"
@@ -104,7 +105,7 @@ def _style_map(assembly) -> np.ndarray:
     veg = np.clip(np.asarray(fields["vegetation_density"], dtype=np.float64), 0, 1)
     wet = np.clip(np.asarray(fields["moisture"], dtype=np.float64), 0, 1)
     elev = np.asarray(fields["elevation"], dtype=np.float64)
-    water = np.asarray(fields["water_depth"], dtype=np.float64) > 0
+    marine = np.asarray(fields.get("marine_mask", np.zeros_like(elev)), dtype=np.bool_)
     gray = LightSource(azdeg=315, altdeg=42).hillshade(
         np.flipud(elev) / 1000.0, vert_exag=1.65, dx=1.0, dy=1.0
     )
@@ -116,7 +117,7 @@ def _style_map(assembly) -> np.ndarray:
     rgb = low[None, None, :] * (1 - green[..., None]) + high[None, None, :] * green[..., None]
     light = np.clip(0.72 + 0.50 * gray, 0, 1.20)
     rgb = np.clip(rgb * light[..., None], 0, 1)
-    rgb[water] = np.array([0.17, 0.40, 0.60])
+    # Only H12 marine water is a broad filled area. Raster channel cells\n    # are NOT 1-km-wide rivers on a tabletop map: draw accepted river\n    # centerlines as vectors and accepted lake polygons as regions below.\n    rgb[marine] = np.array([0.17, 0.40, 0.60])
     return rgb
 
 
@@ -125,6 +126,16 @@ def _cartographic_preview(path: Path, scene, name: str, new, *, coast: bool):
     rows, cols = rgb.shape[:2]
     fig, ax = plt.subplots(figsize=(13, 9))
     ax.imshow(rgb, extent=(0, cols, 0, rows), origin="upper", interpolation="bilinear")
+    # Draw actual accepted lake polygons, not the entire 1-km water-depth mask.
+    for feature in new.data.features.values():
+        if not isinstance(feature, HydroFeature):
+            continue
+        for polygon in feature.geometry.polygons:
+            xs = [p.x_km for p in polygon.outer]
+            ys = [p.y_km for p in polygon.outer]
+            if len(xs) >= 3:
+                ax.fill(xs, ys, facecolor="#4b849e", edgecolor="#d9eee9",
+                        linewidth=0.65, alpha=0.97, zorder=4)
     _overlay_rivers(ax, new, color="#d6eefb", linewidth=0.95)
     # Discrete cartographic contour strokes do not change raster or data.
     elevation = np.asarray(new.field_payloads["elevation"], dtype=np.float64)
@@ -143,7 +154,7 @@ def _cartographic_preview(path: Path, scene, name: str, new, *, coast: bool):
         )
     ax.set(xlabel="km east", ylabel="km north",
            title=f"{name} — illustrative terrain + greenness cartographic preview\n"
-                 "C2 4 km candidate; river geometry unchanged; NOT classified biomes")
+                 "C2 4 km candidate; lakes/coast as polygons, rivers as vectors; NOT biomes")
     ax.set_aspect("equal")
     fig.tight_layout()
     fig.savefig(path, dpi=175)
