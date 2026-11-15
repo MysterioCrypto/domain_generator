@@ -1143,3 +1143,12 @@ PR #98 is draft/open, not merged. Runtime implementation MUST NOT begin before e
 
 
 - Реальный source-audit: [A8/A12 alignment report](docs/reviews/dakhar-a8-a12-source-alignment-audit-2026-11-15.md); ZIP A8/A12 и A12_inputs NPZ SHA-256 сверены, 600×1200 массивы прочитаны, `A8[::-1,:]` высота и маска суши точно совпадают с A12. Следующий этап — отдельный надёжный geogrid import/adapter, а не генерация случайного материка взамен найденной исходной модели.
+
+
+## P1 planetary macro-geogrid adapter — 2026-11-15, DRAFT #103
+
+- User's non-Earth source A8/A10/A11/A12 archives are verified (SHA/CRC, A8 north-first vs A10/A11/A12 south-first) and kept PRIVATE. Source A8 global D8 is an older research hydrology, not Core 0.2 accepted MFD.
+- On an isolated DRAFT [PR #103](https://github.com/MysterioCrypto/domain_generator/pull/103), external-only script scripts/export_planetary_macro_region_v02.py reads paths of original ZIPs, validates exact A8/A12 shared land/DEM, accepts user-specified planetary radius/year and local km source crop, remaps BOTH endpoints of A8 global flattened D8 downstream indices, and flags rivers exiting crop. It emits source NPZ+manifest+PNG, deliberately NOT DomainData and NOT fake local 1-km elevation.
+- Synthetic workflow [GREEN](https://github.com/MysterioCrypto/domain_generator/actions/runs/43742308913) passes 4 targeted tests and writes a demo artifact. No private source ZIP/PNG was committed or uploaded to Actions.
+- [CLI instructions and explicit boundaries](https://github.com/MysterioCrypto/domain_generator/blob/feature/v0.2-planetary-geogrid-source-adapter/docs/world-fixtures/planetary-geogrid-adapter.md). Next meaningful work is source-constrained finer regional terrain and new MFD river generation, followed by non-Earth profile-based land cover; not further parchment filters or full planetary climate science.
+- This is a parallel draft branch. PR #99 H13, #100 C2 tests, #101 atlas composer remain DRAFT/UNMERGED. Frozen release c69c1af010a085fb80d248af703a77471fc6c9d7 remains unchanged.
