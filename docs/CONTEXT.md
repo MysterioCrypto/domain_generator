@@ -14,7 +14,7 @@ PROJECT.md
 
 Active development line: `dev/0.2`. Do not infer current state from `main`.
 
-## Current context map — 2026-10-09
+## Current context map — 2026-11-15
 
 **Active branch:** `dev/0.2`. **Current checkpoint:** `H13-A GROSS CATCHMENT PRECIPITATION — DESIGN OPERATOR REVIEW`.
 **H12-A:** ACCEPTED / MERGED as PR #97, merge `3d275466ec5bfdb74f5dcb88bea6c8b641347f70`.
@@ -56,7 +56,9 @@ MFD routing + lake supernodes [ACCEPTED]├─ H13-A [PROPOSED, design PR #98]
 H12 marine terminal (optional) [ACCEPTED]┘  └─ derived gross precipitation input
 ```
 
-`gross_upstream_precipitation_m3_per_year` is **gross atmospheric supply routed over a catchment**, not river discharge, runoff, channel permanence or groundwater recharge. Precipitation falling on marine cells is excluded from the proposed land-catchment diagnostic. The field must have no feedback into climate, water depth, drainage geometry, vegetation or Placement.
+**Semantics clarification (2026-11-15):** `gross_upstream_precipitation_m3_per_year` means the **mathematical allocation of gross annual precipitation falling on upstream source cells under fixed MFD weights**. It does *not* mean precipitation water physically reaches the downstream cell: losses, snow storage, groundwater, interception and evapotranspiration are not modeled. It is not runoff, discharge, permanence or recharge. Marine source precipitation is excluded, and the diagnostic has no feedback into Terrain, Hydrology, C1–C5, water depth, vegetation, Placement or network geometry.
+
+**Proposed stage boundary:** compute it as an optional read-only diagnostic in the *existing* `SURFACE` stage after C1 rainfall is available; no new public `ValidationStage`/pipeline step and no assembly-side physics. Preserve the exact historical MFD area-accumulation result and lake supernode rules. No H13 implementation has been authorized. Design commit: `5fbd6b5904071feefc38a0ab66f093e68845e81e`.
 
 Design proposal: https://github.com/MysterioCrypto/domain_generator/pull/98  
 Branch: `design/v0.2-gross-catchment-precipitation`  
