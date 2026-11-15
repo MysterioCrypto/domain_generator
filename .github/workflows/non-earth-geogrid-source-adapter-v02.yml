@@ -6,6 +6,8 @@ on:
     paths:
       - scripts/export_planetary_macro_region_v02.py
       - tests/test_planetary_geogrid_source_adapter_v02.py
+      - scripts/condition_planetary_child_terrain_v02.py
+      - tests/test_planetary_child_terrain_v02.py
       - .github/workflows/non-earth-geogrid-source-adapter-v02.yml
 permissions:
   contents: read
@@ -23,7 +25,7 @@ jobs:
       - name: Install runtime and rendering environment
         run: python -m pip install -e ".[dev,render]"
       - name: Test source alignment and geographic graph boundary invariants
-        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py -q
+        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py -q
       - name: Create SMALL synthetic source archives (NO PRIVATE PLANET DATA)
         run: |
           python - <<'PY'
@@ -105,6 +107,38 @@ jobs:
           with Image.open(out / "macro-region-preview.png") as image:
               assert image.width > 800 and image.height > 300
           print("SOURCE ADAPTER OK: aligned source raster, cropped D8 boundary noted")
+          PY
+      - name: Generate NEW 1-km child relief from synthetic macro source
+        run: |
+          python scripts/condition_planetary_child_terrain_v02.py \
+            --macro-npz "$RUNNER_TEMP/source-geogrid-checkpoint/macro-region-source.npz" \
+            --macro-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/manifest.json" \
+            --lat 0 --lon 0 \
+            --half-width-km 85 --half-height-km 65 --spacing-km 1 \
+            --seed 1406 --relief-strength 2 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/child"
+
+      - name: Verify exact source anchors, nontrivial detail and new PNG
+        run: |
+          python - <<'PY'
+          import json, os
+          import numpy as np
+          from pathlib import Path
+          from PIL import Image
+          path = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint" / "child"
+          note = json.loads((path / "manifest.json").read_text(encoding="utf-8"))
+          assert note["is_accepted_Core_DomainData"] is False
+          assert note["max_parent_anchor_error_m"] < 1e-6
+          assert note["source_elevation_anchors_in_child"] >= 6
+          assert note["planet_year_earth_days"] == 202.755
+          with np.load(path / "child-terrain-generated.npz", allow_pickle=False) as arr:
+              assert arr["child_elevation_m"].shape == tuple(note["child_shape"])
+              assert np.max(np.abs(arr["new_local_relief_m"])) > 1
+              assert np.array_equal(arr["child_elevation_m"] >= 0,
+                                    arr["parent_interpolated_m"] >= 0)
+          with Image.open(path / "child-terrain-preview.png") as png:
+              assert png.width > 800
+          print("NON-EARTH CHILD: synthetic relief nontrivial; parent anchors exact")
           PY
       - name: Upload only synthetic adapter demonstration
         uses: actions/upload-artifact@v4
