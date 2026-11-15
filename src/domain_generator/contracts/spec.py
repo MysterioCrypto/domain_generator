@@ -59,6 +59,10 @@ class MarineSpec(FrozenStrictModel):
     sea_level_m: Annotated[StrictFloat, Field(allow_inf_nan=False)]
 
 
+class ClimaticInputSpec(FrozenStrictModel):
+    scheme: Literal["gross_mfd_precipitation_v1"]
+
+
 class HydrologySpec(FrozenStrictModel):
     stream_threshold_km2: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
     lake_min_area_km2: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
@@ -66,6 +70,7 @@ class HydrologySpec(FrozenStrictModel):
     river_depth_at_threshold_m: Annotated[StrictFloat, Field(gt=0.0, allow_inf_nan=False)]
     river_depth_exponent: Annotated[StrictFloat, Field(ge=0.0, allow_inf_nan=False)]
     marine: MarineSpec | None = None
+    climatic_input: ClimaticInputSpec | None = None
 
 
 class ClimateSeasonalitySpec(FrozenStrictModel):
@@ -268,6 +273,8 @@ class DomainSpec(StrictModel):
             raise ValueError("terrain configuration is only valid for DomainSpec 0.2")
         if self.schema_version == "0.1" and self.hydrology.marine is not None:
             raise ValueError("hydrology.marine is only valid for DomainSpec 0.2")
+        if self.schema_version == "0.1" and self.hydrology.climatic_input is not None:
+            raise ValueError("hydrology.climatic_input is only valid for DomainSpec 0.2")
         if self.schema_version == "0.2" and self.surface.climate is None:
             raise ValueError("DomainSpec 0.2 requires surface.climate configuration")
         if self.schema_version == "0.1" and self.surface.climate is not None:
