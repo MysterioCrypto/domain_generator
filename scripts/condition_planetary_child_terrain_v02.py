@@ -25,9 +25,9 @@ class ChildTerrainSettings:
     center_lon_deg: float
     half_width_km: float
     half_height_km: float
+    planet_radius_km: float
+    planetary_year_earth_days: float
     spacing_km: float = 1.0
-    planet_radius_km: float = 7008.1
-    planetary_year_earth_days: float = 202.755
     seed: int = 1406
     relief_strength: float = 1.0
 
@@ -156,10 +156,12 @@ def evaluate_terrain(macro: dict[str, np.ndarray], s: ChildTerrainSettings,
 
     # Broad parent relief determines maximum local variation. These are
     # artistic/geomorphological priors, not measured sub-grid terrain.
-    parent_grad_n, parent_grad_e = np.gradient(
-        heights, latitude * km_per_deg,
-        longitude * km_per_deg * cos(radians(s.center_lat_deg))
+    parent_grad_n, parent_grad_e_equator = np.gradient(
+        heights, latitude * km_per_deg, longitude * km_per_deg
     )
+    # Use each planet-source station latitude, NOT the region center latitude.
+    # Overlapping child windows with different centers share the same slope prior.
+    parent_grad_e = parent_grad_e_equator / np.cos(np.deg2rad(latitude[:, None]))
     parent_slope = np.hypot(parent_grad_e, parent_grad_n)
     amplitude = s.relief_strength * np.clip(
         10 + 12 * np.sqrt(np.maximum(
