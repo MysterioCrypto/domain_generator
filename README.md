@@ -6,6 +6,9 @@
 
 ## С чего начать
 
+**Если вы не ориентируетесь в ветках, начните с [START_HERE.md](START_HERE.md):** одна страница со статусами, исходниками мира, дорожной картой и прямыми ссылками на карты в GitHub Actions.
+
+
 - [`PROJECT.md`](PROJECT.md) — текущее каноническое состояние проекта и архитектурные инварианты.
 - [`docs/roadmap.md`](docs/roadmap.md) — исторический roadmap Core 0.1; актуальный Core 0.2 ведётся через PROJECT/CONTEXT/PROGRESS и accepted design-документы.
 - [`docs/architecture.md`](docs/architecture.md) — актуальная архитектура.

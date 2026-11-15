@@ -5,7 +5,7 @@
 ## Прочитанные источники и граница канона
 
 - [Актуальная авторская справка, 11.11.2026](https://drive.google.com/file/d/1xYRLhm4R1GzgQWW6D_Ap190QTnjgNaZd/view): действующие авторские факты и правила статусов; приоритет позднего решения автора над ранним, действующей рукописи над рабочей моделью.
-- [Миростроение 0.1 — сводный атлас, 08.11.2026](https://drive.google.com/file/d/1eT5odktS2L9SBhXT2KDDf5vmMaQsq/view): рабочие модельные гипотезы A/B/C; сам документ прямо говорит **НЕ КАНОН**.
+- [Миростроение 0.1 — сводный атлас, 08.11.2026](https://drive.google.com/file/d/1eT5odktS2L9SBbSLhXT2KDDf5vmMaQsq/view): рабочие модельные гипотезы A/B/C; сам документ прямо говорит **НЕ КАНОН**.
 - [README архива A1–A12](https://drive.google.com/file/d/1q5XUropEnHpIozppSaTQeFZgCFXh_c4n/view) и папки пользователя: [«Карты и модель планеты»](https://drive.google.com/drive/folders/1m01nGXJv8RMoi2c3svnWczY_3TFM2Nez), [«99_Служебное»](https://drive.google.com/drive/folders/1nLu24wOQ3TDowVZwJVtCxd5DDLgUTWVq).
 - Актуальные [справка и рукопись](https://drive.google.com/drive/folders/1gPlMD-zBeIBEF6e2240JipWqAfLXJtcA) находятся также в родительской папке вне архива. Не переписывать их из разработки инструмента.
 

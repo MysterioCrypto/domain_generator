@@ -8,9 +8,9 @@ historical_release_commit: 9699c3d8079b8b9710d65eed60ff975158af0ad3
 development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
-current_milestone: v0.2-post-release-h13-catchment-precipitation
-checkpoint: h13-a-gross-catchment-precipitation-implementation
-next_topic: implementation-g01-g15-and-operator-checkpoint
+current_milestone: v0.2-non-earth-product-readiness
+checkpoint: source-grounded-world-fixtures-and-repository-navigation
+next_topic: recover-geodata-and-render-genuinely-distinct-regional-fixtures
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -1131,3 +1131,12 @@ PR #98 is draft/open, not merged. Runtime implementation MUST NOT begin before e
 - Proposed semantic field is gross no-loss allocated annual atmospheric input, not actual runoff/discharge, basin water balance or stream permanence.
 - Keep `release/0.2-prealpha` exactly at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
 - Earlier statements in historical post-H12 sections saying design is pending are superseded by this decision; consult top-level front matter, `docs/CONTEXT.md` and `docs/PROGRESS.md`.
+
+
+## Продуктовый маршрут и реальный литературный источник — 2026-11-15
+
+- Единая человеческая точка входа: [START_HERE.md](START_HERE.md); маршрут P0–P6: [docs/PRODUCT_ROADMAP.md](docs/PRODUCT_ROADMAP.md); первая боeвая source-backed задача: [Д’Акхар](docs/world-fixtures/dakhar-first-arc.md).
+- Генератор рассчитан на преимущественно **неземные миры**. Классы Köppen C5 опциональны, C3 является индексом растительного потенциала, не картой леса/биома. Цель — управляемый ландшафт сверху между спутниковым видом и иллюстрацией, позже опциональный ImageGen с возвратом географических слоёв.
+- На dev/0.2 остаются только принятые Terrain/Hydrology/C1–C3 и опциональные C4/C5/H12. H13 **дизайн** #98 слит; **реализация** #99 — draft/open/unmerged, как и #100 (параметрическое исследование C2) и #101 (слоистый картографический renderer).
+- Две Drive-папки пользователя изучены через connector. 11.11 авторская справка и 08.11 сводный атлас различают канон и рабочие A/B/C кандидаты. A8/A12 ZIP/исходные растры по прямому листингу не доступны и не импортированы. Планетный год ≈202,755 земных суток, поэтому осадки mm/planetary-year не считать автоматически земным C1 mm/year.
+- Это только документы + исходный JSON-реестр с тестами против несанкционированного повышения статуса модели. Не менялись runtime, accepted contracts, release/0.2-prealpha SHA c69c1af010a085fb80d248af703a77471fc6c9d7. Новую чистую репу пока не создавать.

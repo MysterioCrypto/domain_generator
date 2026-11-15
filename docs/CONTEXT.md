@@ -14,6 +14,11 @@ PROJECT.md
 
 Active development line: `dev/0.2`. Do not infer current state from `main`.
 
+**Current product/recovery track (2026-11-15):** [START_HERE.md](../START_HERE.md) → [roadmap](PRODUCT_ROADMAP.md) → [source-grounded Д’Акхар first-arc constraints](world-fixtures/dakhar-first-arc.md). The H13 dependency map below still describes accepted Core semantics, but is **not** the only active product task. H13 implementation #99, C2 experiment #100 and art compositor #101 remain three separate DRAFT/OPEN/UNMERGED branches; none belongs to dev/0.2. Frozen release unchanged.
+
+**WHY:** the user needs expressive, controlled, non-Earth overhead landscapes. Current C3 vegetation is abstract potential, not land-cover type; pretty renderer colors cannot substitute real forest/rocky/grassland patterns. Literary world data has canonical written constraints and noncanonical A8/A12 geographical candidates. Raw original A8/A12 matrices were not found in given Drive folder listing, and the ≈202.755-Earth-day planetary year requires an explicit unit boundary before reuse of precipitation rates. Do not silently import author-unaccepted coordinates or Earth-Köppen species assumptions.
+
+
 ## Current context map — 2026-11-15
 
 **Active branch:** `dev/0.2`. **Current checkpoint:** `H13-A GROSS CATCHMENT PRECIPITATION — IMPLEMENTATION IN PROGRESS (DESIGN ACCEPTED)`.
