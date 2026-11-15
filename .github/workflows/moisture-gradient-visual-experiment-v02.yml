@@ -42,7 +42,12 @@ jobs:
           python scripts/render_moisture_gradient_audit_v02.py \
             "$RUNNER_TEMP/moisture-gradient-audit-v02"
 
-      - name: Emit three compact operator image previews
+      - name: Render C2-only water proximity boost/decay sensitivity
+        run: |
+          python scripts/render_c2_water_proximity_sensitivity_v02.py \
+            "$RUNNER_TEMP/c2-water-proximity-audit-v02"
+
+      - name: Emit compact operator image previews
         run: |
           python - <<'PY'
           import base64
@@ -58,8 +63,14 @@ jobs:
               "07-c2-neighbor-jump-percentiles.png",
               "12-c2-component-decomposition.png",
           )
-          for filename in selected:
-              picture = Image.open(root / filename).convert("RGB")
+          # Both experiments share the same workflow/checkpoint.
+          root_c2 = Path(os.environ["RUNNER_TEMP"]) / "c2-water-proximity-audit-v02"
+          selected = tuple((root, filename) for filename in selected) + (
+              (root_c2, "01-c2-moisture-4ways.png"),
+              (root_c2, "04-c2-adjacent-cell-gradient-statistics.png"),
+          )
+          for root_dir, filename in selected:
+              picture = Image.open(root_dir / filename).convert("RGB")
               picture.thumbnail((1250, 900))
               buffer = io.BytesIO()
               picture.save(buffer, format="JPEG", quality=72, optimize=True)
@@ -68,10 +79,12 @@ jobs:
               print(f"GRADIENT_PREVIEW_END:{filename}")
           PY
 
-      - name: Upload moisture-gradient comparison for operator
+      - name: Upload C1 and C2-only gradient comparisons for operator
         uses: actions/upload-artifact@v4
         with:
-          name: moisture-gradient-audit-v02
-          path: ${{ runner.temp }}/moisture-gradient-audit-v02
+          name: moisture-gradient-comparison-v02
+          path: |
+            ${{ runner.temp }}/moisture-gradient-audit-v02
+            ${{ runner.temp }}/c2-water-proximity-audit-v02
           if-no-files-found: error
           retention-days: 14
