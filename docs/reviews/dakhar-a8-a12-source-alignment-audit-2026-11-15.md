@@ -7,7 +7,10 @@
 - [A8 prototype.zip](https://drive.google.com/file/d/1WvMG9A2kmwBKBvaSTOY0XERElmka6r1s/view): 15,903,858 bytes; SHA-256 = **6824ccf2a4aea7b2514a4e694e84ad13fd3ff4e18dba6c3be6b4b7753dc019ec**, exactly matches archive README.
 - [A12 full.zip](https://drive.google.com/file/d/1uPTSaGcynBnsWKF0Mfn-Ykw_0ko3a1mF/view): 48,280,825 bytes; SHA-256 = **db9f0f91fca845058c658dfdd639c882b9cf0514736b3677184a4c84ff20b3a4**, matches README.
 - A12 embedded **A12_inputs.npz** SHA-256 = **f2d6c4463f969938c89290d8004f9e9b21570c01d664b3862f2bc2765b62fe7c**, equals A12_report.json.
-- A10, A11 ZIPs exist, but were **not separately unpacked/verified** in this audit. A12_inputs.npz is the snapshot included by A12, not the same as having independently checked A10 and A11.
+- [A10 ZIP](https://drive.google.com/file/d/1C0bklcAIRmlWSHoYIVONuyse_63xBMkH/view) **46,105,069 bytes**, SHA-256 `8be089feb94253daa69adbe9cea671a8ddc752ee3a2e4b2dc060b1c4929a3cb5`; ZIP CRC clean, 17-field NPZ inspected. Includes annual/monthly modeled runoff, Q and candidates for perennial/seasonal channels. It is a simplified *bucket model*, not accepted Core 0.2 actual discharge.
+- [A11 ZIP](https://drive.google.com/file/d/1BiIFbCz1UkbxXAtCQYmp_u0BpjJhe9Cu/view) **66,588,668 bytes**, SHA-256 `8237c9dcf9e97008eecaa4b1f73422d98ba600a910478ee763b5e4e8fe7bcaa6`; ZIP CRC clean, 13-field scenario NPZ inspected. A11's report calls this precipitation transport **sensitivity only**, not validated global atmospheric circulation.
+- A10/A11/A12 latitudes all **ascending south→north**, and all land masks equal exactly. A8 latitude descends north→south.
+- A10's `annual_Q_m3s` and A12_inputs `annual_Q_m3s` are **exactly equal**, so A12's Q is an A10 snapshot, not an independent hydrologic verification.
 
 ## Binary field inventories
 
@@ -55,3 +58,7 @@ The A8 global drainage is D8 Priority-Flood **working research**, distinct from 
 ## Next technical segment
 
 A bounded **external world-geogrid adapter** that accepts A8/A12 ZIPs as user-supplied files, validates SHA/grid/orientation, maps lat/lon to region km coordinates preserving radius 7008.1 km and planet-year time basis, and emits local geographic anchor fields and metadata without mutating Core stages. Test graph-index remap with small synthetic fixtures and compare actual macro river connectivity. Then generate a truly regional sub-km or 1-km child landscape that remains linked to the source. No new Earth-only ecology or unsourced canonical town placement.
+
+## Supplemental A10/A11 array inventory and non-Earth cautions
+
+A10 `A10_water_balance.npz`: `annual_precip_mm`, `annual_PET_mm`, `annual_actual_evap_mm`, `annual_runoff_mm`, `annual_snow_storage_change_mm`, `annual_Q_m3s`, 12-month discharge/evap/runoff fields, wetland and perennial/seasonal *candidate* masks; data 600×1200, float32/uint8. A11 `A11_scenarios.npz`: base/moderate/stress annual precipitation/runoff, monthly moderate precipitation, distance to coast, warmwet scenario masks. All NPZ loaded without pickle. A10 uses ten-year spin-up of a bucket soil scheme, whose physically approximate Q is a source property and not imported by Core. Climate forcing rates refer to 202.755 Earth-day planet year, not a default 365-day year. Independent archive checksums match the source README.

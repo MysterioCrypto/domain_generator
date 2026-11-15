@@ -27,9 +27,9 @@
     "source_archives_found_in_drive": true,
     "archive_contents_verified": {
       "A8": true,
-      "A12": true,
-      "A10": false,
-      "A11": false
+      "A10": true,
+      "A11": true,
+      "A12": true
     },
     "original_png_georeferenced_found": true,
     "archives": {
@@ -63,7 +63,9 @@
     "verified_sha256": {
       "A8_zip": "6824ccf2a4aea7b2514a4e694e84ad13fd3ff4e18dba6c3be6b4b7753dc019ec",
       "A12_zip": "db9f0f91fca845058c658dfdd639c882b9cf0514736b3677184a4c84ff20b3a4",
-      "A12_inputs_npz": "f2d6c4463f969938c89290d8004f9e9b21570c01d664b3862f2bc2765b62fe7c"
+      "A12_inputs_npz": "f2d6c4463f969938c89290d8004f9e9b21570c01d664b3862f2bc2765b62fe7c",
+      "A10_zip": "8be089feb94253daa69adbe9cea671a8ddc752ee3a2e4b2dc060b1c4929a3cb5",
+      "A11_zip": "8237c9dcf9e97008eecaa4b1f73422d98ba600a910478ee763b5e4e8fe7bcaa6"
     },
     "geographic_alignment": {
       "grid_rows": 600,
@@ -73,7 +75,9 @@
       "A12_latitude_order": "ascending_south_to_north",
       "A8_to_A12_required_transform": "reverse_rows",
       "elevation_match_after_reverse_exact": true,
-      "land_mask_match_after_reverse_exact": true
+      "land_mask_match_after_reverse_exact": true,
+      "A10_A11_A12_latitude_order": "ascending_south_to_north",
+      "A10_Q_matches_A12_inputs_Q_exact": true
     },
     "source_audit": "docs/reviews/dakhar-a8-a12-source-alignment-audit-2026-11-15.md"
   },

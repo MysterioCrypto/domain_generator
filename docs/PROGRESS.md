@@ -116,7 +116,7 @@ Accepted hydrology routing/network remains frozen.
 ```text
 P0  navigation + provenance of non-Earth source materials   DOCS BRANCH
 P1  A8/A12 SHA+NPZ+axis alignment QA                 VERIFIED; NOT IMPORTED
-    A10/A11 binary content and source adapter       NEXT
+    External geogrid source adapter + region downscaling  NEXT
     or select explicitly NEW generated regional geography    NOT YET SELECTED
 P2  3 genuinely distinct topographic/hydrologic regions      NEXT VISIBLE PNG GATE
 P3  opt-in world-defined land cover categories               NOT IMPLEMENTED
