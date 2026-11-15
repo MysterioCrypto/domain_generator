@@ -5,15 +5,15 @@
 **Base:** `dev/0.2`  
 **Design:** [PR #98 — ACCEPTED / MERGED](https://github.com/MysterioCrypto/domain_generator/pull/98), merge `0000a208183a2ff3b1d7dc8eee8f93d54f72ef35`  
 **Implementation:** [PR #99 — DRAFT / OPEN / UNMERGED](https://github.com/MysterioCrypto/domain_generator/pull/99)  
-**Verified semantic HEAD:** `26292d3774867a33de6c3b33ee184a903b626363`  
+**Verified implementation/test HEAD:** `d6b76c312a251100695abd48a11fe28877b7e17e`  
 **Runtime acceptance:** **PENDING OPERATOR**  
 **Immutable release:** `release/0.2-prealpha` at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
 
 ## Evidence
 
-- [H13 operator checkpoint: G01–G15 + 8 diagnostic PNGs + JSON report](https://github.com/MysterioCrypto/domain_generator/actions/runs/43722355111) — GREEN, 15 PASS.
-- [Full PR pytest](https://github.com/MysterioCrypto/domain_generator/actions/runs/43722354997) — GREEN, **517 passed**.
-- [Full push pytest](https://github.com/MysterioCrypto/domain_generator/actions/runs/43722348833) — verify completion when inspecting latest HEAD.
+- [H13 operator checkpoint (PR): G01–G15 + 8 diagnostic PNGs + JSON report](https://github.com/MysterioCrypto/domain_generator/actions/runs/43723094447) — GREEN, 15 PASS; [push checkpoint](https://github.com/MysterioCrypto/domain_generator/actions/runs/43723089353) — GREEN.
+- [Full PR pytest](https://github.com/MysterioCrypto/domain_generator/actions/runs/43723094387) — GREEN, **517 passed**.
+- [Full push pytest](https://github.com/MysterioCrypto/domain_generator/actions/runs/43723089326) — GREEN, **517 passed**.
 - Artifact within checkpoint workflow: `hydrology-v02-h13`; workflow stores 8 PNGs and `report.json`. No large artifact is attached here.
 - All prior world field payloads, features and networks remain **exact-equal** when toggling H13 at otherwise identical input.
 - C1 source: annual precipitation `float32` (mm/year); H13 mathematical accumulation/output: `float64` (`m3/year`), marked **derived**.
@@ -49,6 +49,13 @@ Coastal receiver accounting (m³/year):
 8. `08-local-and-upstream-traces.png` — three illustrative directed MFD paths, local source vs accumulated source at selected cells
 
 Logarithmic display is a **renderer-only transform**; numerical raster is unmodified. Each map auto-scales its colors, so dry/wet comparisons must be made using numeric fields/report, not an assumed shared colorbar.
+
+## Strengthened exact oracles before final gate
+
+- **G04:** the uniform precipitation identity with the frozen MFD area kernel is now explicitly tested both with and without a lake supernode. This catches lake source double-counting and outlet discrepancies that a no-lake grid cannot reveal.
+- **G08:** an intentionally adversarial marine receiver has a seabed-to-land outgoing fraction; the H13 ledger must stop at first marine entry and not contaminate terrestrial accumulations.
+- **G09:** an enclosed below-sea inland depression is represented as an ordinary inland lake supernode with local and upstream precipitation. A disconnected marine boundary cell is excluded from land sources, but the below-sea inland basin remains included. The previous trivial one-cell-only accounting check was strengthened.
+- No runtime, accepted routing, rain, stage or public contract changed in this strengthening commit; only test evidence changed. All G01–G15 and 517 full tests remained GREEN on `d6b76c312a251100695abd48a11fe28877b7e17e`.
 
 ## Review questions and confidence
 
