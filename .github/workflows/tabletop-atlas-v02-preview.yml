@@ -89,12 +89,20 @@ jobs:
               with Image.open(folder / filename) as im:
                   assert im.size == size, (filename, im.size, size)
                   assert im.mode == "RGBA", (filename, im.mode)
-          for filename in ("06-map-full.png", "07-map-no-labels.png", "09-parchment-palette.png"):
+          for filename in ("06-map-full.png", "07-map-no-labels.png", "09-parchment-palette.png", "11-parchment-no-labels.png"):
               with Image.open(folder / filename) as im:
                   assert im.size == size
           for filename in ("10-relief-contours.png", "02-water.png", "03-rivers.png", "04-poi-markers.png", "05-labels.png"):
               with Image.open(folder / filename) as im:
                   assert im.getchannel("A").getbbox(), f"empty visual layer: {filename}"
+          style = (folder / "12-stylization-brief.txt").read_text(encoding="utf-8")
+          assert "Долина Трёх Бродов" in style
+          assert "Do not invent extra rivers, roads" in style
+          assert "11-parchment-no-labels.png" in style
+          assert set(report["art_direction_files"]) == {
+              "07-map-no-labels.png", "11-parchment-no-labels.png",
+              "12-stylization-brief.txt",
+          }
           print(f"CHECKPOINT OK: 3 correctly tagged and stationary settlements, {len(report['aligned_layers'])} aligned RGBA layers, {size} pixels")
           for point in report["settlements_and_poi"]:
               print("POI", point["id"], point["label"], point["x_km"], point["y_km"], "label:", point["label_drawn"])
