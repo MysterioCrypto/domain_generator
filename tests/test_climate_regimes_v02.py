@@ -366,6 +366,7 @@ def test_k15_absent_classification_preserves_c4_fingerprint_semantics() -> None:
         exclude_none=False,
     )
     hydrology_payload.pop("marine", None)
+    hydrology_payload.pop("climatic_input", None)
     expected_plan_payload = {
         "plan_version": plan.plan_version,
         "seed": plan.seed,
