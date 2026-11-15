@@ -6,6 +6,8 @@ import argparse
 import json
 from pathlib import Path
 
+from matplotlib.colors import TwoSlopeNorm
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -23,19 +25,21 @@ A08 = ROOT / "tests" / "acceptance" / "cases" / "a08-core-v02-integrated"
 FIELD = "gross_upstream_precipitation_m3_per_year"
 
 
-def _request(*, mean_precip_mm: float, marine: bool) -> GenerationRequest:
+def _request(*, mean_precip_mm: float, marine: bool, bearing_deg: float | None = None) -> GenerationRequest:
     source = json.loads((A08 / "request.json").read_text(encoding="utf-8"))
     source["domain_spec"]["hydrology"]["climatic_input"] = {
         "scheme": "gross_mfd_precipitation_v1",
     }
     source["domain_spec"]["surface"]["climate"]["mean_annual_precipitation_mm"] = mean_precip_mm
+    if bearing_deg is not None:
+        source["domain_spec"]["surface"]["climate"]["moisture_transport_bearing_deg"] = bearing_deg
     if marine:
         source["domain_spec"]["hydrology"]["marine"] = {"sea_level_m": 0.0}
     return GenerationRequest.model_validate(source)
 
 
-def _calculate(*, mean_precip_mm: float, marine: bool):
-    request = _request(mean_precip_mm=mean_precip_mm, marine=marine)
+def _calculate(*, mean_precip_mm: float, marine: bool, bearing_deg: float | None = None):
+    request = _request(mean_precip_mm=mean_precip_mm, marine=marine, bearing_deg=bearing_deg)
     catalog = load_preset_catalog(A08 / "presets.json")
     registry = registry_for_request(request, catalog)
     plan = compile_domain_spec(request.domain_spec, registry=registry, generator_version="0.2.0.dev0")
@@ -97,6 +101,89 @@ def _render_field(path: Path, arr: np.ndarray, title: str, *, unit: str, log: bo
     fig.tight_layout()
     fig.savefig(path, dpi=160)
     plt.close(fig)
+
+
+def _render_common_scale_pair(
+    path: Path,
+    left: np.ndarray,
+    right: np.ndarray,
+    *,
+    label_left: str,
+    label_right: str,
+    title: str,
+    unit: str,
+    log: bool = False,
+) -> dict[str, float]:
+    """Comparison renders BOTH scenarios on one absolute color scale.
+
+    The earlier independent auto-scaling hid an 18x source-volume difference.
+    This is a renderer-only correction, with no world state or physics edits.
+    """
+    if left.shape != right.shape or left.ndim != 2:
+        raise ValueError("H13 visual comparison requires matching 2D rasters")
+    if not np.isfinite(left).all() or not np.isfinite(right).all():
+        raise ValueError("H13 comparison maps must contain finite values")
+    raw_min = min(float(np.min(left)), float(np.min(right)))
+    raw_max = max(float(np.max(left)), float(np.max(right)))
+    scale_left = np.log10(np.maximum(left, 1.0)) if log else left
+    scale_right = np.log10(np.maximum(right, 1.0)) if log else right
+    vmin = min(float(np.min(scale_left)), float(np.min(scale_right)))
+    vmax = max(float(np.max(scale_left)), float(np.max(scale_right)))
+    if vmin == vmax:
+        vmax = vmin + 1.0
+    rows, columns = left.shape
+    fig, axs = plt.subplots(1, 2, figsize=(17, 7), sharex=True, sharey=True)
+    for ax, image_values, label, data in zip(
+        axs, (scale_left, scale_right), (label_left, label_right), (left, right)
+    ):
+        im = ax.imshow(
+            image_values, origin="upper", extent=(0, columns, 0, rows),
+            cmap="viridis", vmin=vmin, vmax=vmax, interpolation="nearest",
+        )
+        ax.set_title(f"{label}\nmedian {np.median(data):,.0f} {unit}")
+        ax.set(xlabel="World x (km)", ylabel="World y (km)")
+        ax.set_aspect("equal")
+    fig.colorbar(
+        im, ax=axs, fraction=0.023, pad=0.018,
+        label=("log10 " if log else "") + unit + " — SAME SCALE on both maps",
+    )
+    fig.suptitle(title, fontsize=14)
+    fig.subplots_adjust(top=0.87, bottom=0.10, left=0.05, right=0.91, wspace=0.10)
+    fig.savefig(path, dpi=165)
+    plt.close(fig)
+    return {"vmin": vmin, "vmax": vmax, "raw_min": raw_min, "raw_max": raw_max}
+
+
+def _render_input_delta(
+    path: Path,
+    *,
+    baseline: np.ndarray,
+    changed: np.ndarray,
+    title: str,
+) -> dict[str, float]:
+    """Signed annual atmospheric-input allocation difference, no discharge claims."""
+    if baseline.shape != changed.shape:
+        raise ValueError("H13 signed comparison requires identical grids")
+    delta = changed.astype(np.float64) - baseline.astype(np.float64)
+    bound = max(1.0, float(np.max(np.abs(delta))))
+    fig, ax = plt.subplots(figsize=(12, 7))
+    im = ax.imshow(
+        delta, cmap="RdBu_r", origin="upper",
+        extent=(0, delta.shape[1], 0, delta.shape[0]), interpolation="nearest",
+        norm=TwoSlopeNorm(vmin=-bound, vcenter=0.0, vmax=bound),
+    )
+    fig.colorbar(im, ax=ax, shrink=0.83, label="Westward minus eastward gross input (m3/year)")
+    ax.set(xlabel="World x (km)", ylabel="World y (km)", title=title)
+    ax.set_aspect("equal")
+    fig.tight_layout()
+    fig.savefig(path, dpi=165)
+    plt.close(fig)
+    return {
+        "max_abs_m3_per_year": float(np.max(np.abs(delta))),
+        "nonzero_cells": int(np.count_nonzero(delta)),
+        "positive_cells": int(np.count_nonzero(delta > 0)),
+        "negative_cells": int(np.count_nonzero(delta < 0)),
+    }
 
 
 def _render_sample_traces(path: Path, assembly, hydrology) -> int:
@@ -191,6 +278,33 @@ def main():
     wet, wet_hydro, wet_ledger, _ = _calculate(mean_precip_mm=1800.0, marine=False)
     coast, coast_hydro, coast_ledger, _ = _calculate(mean_precip_mm=900.0, marine=True)
     inland, inland_hydro, inland_ledger, _ = _calculate(mean_precip_mm=900.0, marine=False)
+    # Controlled atmosphere experiment: same terrain, seed and MFD,
+    # only moisture transport bearing changes from 90 to 270 degrees.
+    westward, westward_hydro, westward_ledger, _ = _calculate(
+        mean_precip_mm=900.0, marine=False, bearing_deg=270.0
+    )
+    for immutable_field in ("elevation", "water_depth"):
+        np.testing.assert_array_equal(
+            inland.field_payloads[immutable_field],
+            westward.field_payloads[immutable_field],
+        )
+    np.testing.assert_array_equal(
+        inland_hydro.flow_accumulation_km2,
+        westward_hydro.flow_accumulation_km2,
+    )
+    np.testing.assert_array_equal(
+        inland_hydro.continuous_routing.fractions,
+        westward_hydro.continuous_routing.fractions,
+    )
+    if inland.data.networks != westward.data.networks:
+        raise RuntimeError("Changing only climate bearing altered accepted river topology")
+    if np.array_equal(
+        inland.field_payloads["annual_precipitation"],
+        westward.field_payloads["annual_precipitation"],
+    ):
+        raise RuntimeError("Wind-direction fixture failed to change spatial C1 precipitation")
+    if np.array_equal(inland.field_payloads[FIELD], westward.field_payloads[FIELD]):
+        raise RuntimeError("H13 output unexpectedly insensitive to changed C1 precipitation")
 
     # The only changed input between inland and coast is the accepted H12 marine recipe.
     for field_id in ("temperature", "annual_precipitation"):
@@ -240,6 +354,40 @@ def main():
                   "Uniform rainfall: gross input minus accepted MFD area x 1e6", unit="m3/year")
     trace_count = _render_sample_traces(root / "08-local-and-upstream-traces.png", coast, coast_hydro)
 
+    # Reviewer-facing comparisons: the same colorbar is essential. Independent
+    # autoscaling in 02 and 04 made 18x-different gross inputs look identical.
+    comparable_dry_wet = _render_common_scale_pair(
+        root / "09-dry-wet-shared-absolute-scale.png",
+        dry.field_payloads[FIELD], wet.field_payloads[FIELD],
+        label_left="Dry C1 (100 mm/year mean)",
+        label_right="Wet C1 (1800 mm/year mean)",
+        title="H13 gross upstream input — one shared absolute scale, same MFD",
+        unit="m3/year", log=True,
+    )
+    comparable_wind_rain = _render_common_scale_pair(
+        root / "10-opposite-winds-c1-shared-scale.png",
+        inland.field_payloads["annual_precipitation"],
+        westward.field_payloads["annual_precipitation"],
+        label_left="Transport bearing 90 deg (east)",
+        label_right="Transport bearing 270 deg (west)",
+        title="C1 precipitation: same terrain and annual mean, opposite transport",
+        unit="mm/year",
+    )
+    comparable_wind_gross = _render_common_scale_pair(
+        root / "11-opposite-winds-h13-shared-scale.png",
+        inland.field_payloads[FIELD], westward.field_payloads[FIELD],
+        label_left="C1 transport 90 deg",
+        label_right="C1 transport 270 deg",
+        title="H13 upstream input: same drainage geometry, distinct precipitation spatial pattern",
+        unit="m3/year", log=True,
+    )
+    wind_delta = _render_input_delta(
+        root / "12-opposite-winds-h13-signed-delta.png",
+        baseline=inland.field_payloads[FIELD],
+        changed=westward.field_payloads[FIELD],
+        title="H13 change under reversed atmospheric transport, unchanged terrain/MFD",
+    )
+
     report = {
         "checkpoint": "H13-A implementation operator review, NOT ACCEPTED",
         "semantics": "mathematically allocated gross annual atmospheric input, not runoff, discharge, recharge, or flow permanence",
@@ -254,6 +402,15 @@ def main():
         "wet": _summarize(wet, wet_hydro, wet_ledger),
         "coastal": _summarize(coast, coast_hydro, coast_ledger),
         "inland_reference": _summarize(inland, inland_hydro, inland_ledger),
+        "opposite_wind_reference": _summarize(westward, westward_hydro, westward_ledger),
+        "visual_comparability": {
+            "dry_wet_shared_log_scale": comparable_dry_wet,
+            "opposite_winds_c1_shared_scale": comparable_wind_rain,
+            "opposite_winds_h13_shared_log_scale": comparable_wind_gross,
+            "opposite_winds_h13_signed_delta": wind_delta,
+            "terrain_mfd_and_river_topology_unchanged_under_wind_reversal": True,
+            "total_png_count": 12,
+        },
         "off_on_upstream_fields_exact": exact_world,
         "off_on_features_and_networks_exact": exact_geometry,
         "uniform_precipitation_versus_accepted_area_max_abs_error_m3_per_year": max_diff,

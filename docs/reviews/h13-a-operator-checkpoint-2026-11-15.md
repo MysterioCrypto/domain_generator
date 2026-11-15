@@ -67,3 +67,18 @@ Logarithmic display is a **renderer-only transform**; numerical raster is unmodi
 6. Has the implementation been accepted for merge? **NO**. Separate explicit operator **IMPLEMENTATION ACCEPT / REJECT** required.
 
 **Technical assessment:** ready for operator consideration based on tests, invariants and representative render; scientific limitations are explicit. This document records evidence, not operator acceptance.
+
+## Operator-visible visual comparability upgrade — 2026-11-15
+
+This bounded **renderer/checkpoint-only** change does not modify H13 runtime, accepted drainage, source accounting, schema or world output. The original dry/wet panels independently auto-scaled colors: both could look virtually identical despite the 18-fold source-volume difference. An unshared colorbar is unsuitable for direct visual judgement.
+
+The revised GitHub Actions artifact now also includes:
+
+- `09-dry-wet-shared-absolute-scale.png` — dry and wet gross-input maps rendered on the **same absolute log color scale**. The 18-fold input contrast is visible without reading separate legends.
+- `10-opposite-winds-c1-shared-scale.png` — the accepted C1 spatial rain raster for moisture-transport bearing 90° vs 270°, with identical terrain, seed, annual-mean precipitation and scale.
+- `11-opposite-winds-h13-shared-scale.png` — the H13 gross-upstream-input raster with the **same color scale** under opposite moisture transport. This tests a spatial change, not merely uniform wet/dry multiplication.
+- `12-opposite-winds-h13-signed-delta.png` — signed difference **westward minus eastward** H13 gross input, centered at zero. Positive/negative values show changed *atmospheric source allocation*, not changes to river flow.
+
+The checkpoint enforces exact invariance of terrain, water, MFD fractions/area and network topology under reversal of the moisture-transport bearing. It also verifies C1 rainfall and H13 gross input genuinely differ (no cosmetic-only map change). These are scientific/visual diagnostics of accepted C1+H13 coupling, **not** claims about actual runoff or discharge. Numeric differences and common color bounds are stored in `report.json`.
+
+**Updated gate:** request visual feedback only after a GREEN Actions run generates these 12 PNGs. Do not ask the operator to audit code or formally approve internal technical checks; maintain PR #99 draft/unmerged pending an unambiguous release/merge decision.

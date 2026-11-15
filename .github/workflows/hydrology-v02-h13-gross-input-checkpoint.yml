@@ -61,7 +61,12 @@ jobs:
           from PIL import Image
 
           root = Path(os.environ["RUNNER_TEMP"]) / "hydrology-v02-h13"
-          for name in ("02-dry-gross-input.png", "04-wet-gross-input.png", "06-coastal-gross-input.png"):
+          for name in (
+              "09-dry-wet-shared-absolute-scale.png",
+              "11-opposite-winds-h13-shared-scale.png",
+              "12-opposite-winds-h13-signed-delta.png",
+              "06-coastal-gross-input.png",
+          ):
               picture = Image.open(root / name).convert("RGB")
               picture.thumbnail((1050, 700))
               stream = io.BytesIO()
