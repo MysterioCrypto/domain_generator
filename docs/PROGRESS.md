@@ -115,7 +115,7 @@ Accepted hydrology routing/network remains frozen.
 
 ```text
 P0  navigation + provenance of non-Earth source materials   DOCS BRANCH
-P1  find and validate A8/A10/A12 georeferenced raster data    NOT AVAILABLE IN PROVIDED FOLDERS
+P1  inspect located A8/A10/A12 ZIPs and geo-atlas      FILES FOUND / CONTENT NOT PARSED
     or select explicitly NEW generated regional geography    NOT YET SELECTED
 P2  3 genuinely distinct topographic/hydrologic regions      NEXT VISIBLE PNG GATE
 P3  opt-in world-defined land cover categories               NOT IMPLEMENTED

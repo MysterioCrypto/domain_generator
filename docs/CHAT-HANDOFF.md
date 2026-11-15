@@ -449,5 +449,5 @@ Frozen `release/0.2-prealpha`: `c69c1af010a085fb80d248af703a77471fc6c9d7`.
 ## New active product route — 2026-11-15
 
 - One-click repo navigation at START_HERE.md; P0–P6 roadmap in docs/PRODUCT_ROADMAP.md; non-Earth D’Акхар source at docs/world-fixtures/dakhar-first-arc.md with JSON source-only fixture and stdlib tests.
-- Original A1–A12 Drive archives referenced by README were not present in accessible directory listing. Do not claim import; working Atlas A/B/C proposed not canon, short planetary year 202.755 Earth days; mm/planetary year not automatically Earth mm/year.
+- Original A1–A11 and A12 Drive archives plus georeferenced PNG atlas ARE PRESENT: direct Google_Drive.fetch folder lists them even when search returned empty. ZIP bytes/arrays are still unparsed and not imported. Do not claim import; working Atlas A/B/C proposed not canon, short planetary year 202.755 Earth days; mm/planetary year not automatically Earth mm/year.
 - Next bounded visible step: three actually different regional terrain/hydrology scenes. Follow with opt-in world-defined land cover; no more unneeded parchment physics. Preserve dev/0.2 accepted contracts, three unmerged PRs #99/100/101 and frozen release.

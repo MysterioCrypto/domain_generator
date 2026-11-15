@@ -21,9 +21,39 @@
     }
   ],
   "source_availability": {
-    "original_a8_a10_a12_rasters": "NOT_FOUND_IN_PROVIDED_DRIVE_FOLDERS",
+    "original_a8_a10_a12_rasters": "SOURCE_ZIPS_LOCATED_NOT_EXTRACTED",
     "georeferenced_original_imported": false,
-    "source_data_imported": false
+    "source_data_imported": false,
+    "source_archives_found_in_drive": true,
+    "archive_contents_verified": false,
+    "original_png_georeferenced_found": true,
+    "archives": {
+      "A8": {
+        "id": "1WvMG9A2kmwBKBvaSTOY0XERElmka6r1s",
+        "title": "planet_A8_prototype.zip",
+        "size_bytes": 15903858
+      },
+      "A10": {
+        "id": "1C0bklcAIRmlWSHoYIVONuyse_63xBMkH",
+        "title": "planet_A10_prototype.zip",
+        "size_bytes": 46105069
+      },
+      "A11": {
+        "id": "1BiIFbCz1UkbxXAtCQYmp_u0BpjJhe9Cu",
+        "title": "planet_A11_prototype.zip",
+        "size_bytes": 66588668
+      },
+      "A12": {
+        "id": "1uPTSaGcynBnsWKF0Mfn-Ykw_0ko3a1mF",
+        "title": "Модель планеты A12 — полные данные.zip",
+        "size_bytes": 48280825
+      },
+      "atlas_png": {
+        "id": "1eBUkCDwlDMK85nJjWdBrULnhnPDrXwdK",
+        "title": "Карта — геопривязанный атлас, подложка.png",
+        "size_bytes": 2167714
+      }
+    }
   },
   "planet_model": {
     "status": "MODEL_NOT_CANON",

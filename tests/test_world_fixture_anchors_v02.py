@@ -19,6 +19,10 @@ def test_fixture_is_explicitly_noncanonical_and_not_a_domainspec():
     assert x["fixture_schema"] == "world-source-anchors-v0.1"
     assert x["is_domain_spec"] is False
     assert x["status"] == "SOURCE_ANCHORED_NON_CANONICAL"
+    assert x["source_availability"]["original_a8_a10_a12_rasters"] == "SOURCE_ZIPS_LOCATED_NOT_EXTRACTED"
+    assert x["source_availability"]["source_archives_found_in_drive"] is True
+    assert x["source_availability"]["archive_contents_verified"] is False
+    assert set(x["source_availability"]["archives"]) == {"A8", "A10", "A11", "A12", "atlas_png"}
     assert not x["source_availability"]["georeferenced_original_imported"]
     assert not x["source_availability"]["source_data_imported"]
 
