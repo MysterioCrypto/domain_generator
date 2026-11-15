@@ -99,6 +99,65 @@ def _render_field(path: Path, arr: np.ndarray, title: str, *, unit: str, log: bo
     plt.close(fig)
 
 
+def _render_sample_traces(path: Path, assembly, hydrology) -> int:
+    """Show a few directed MFD receiver examples; do NOT infer channel/discharge."""
+    from domain_generator.hydrology.continuous import _DIRS
+
+    fractions = hydrology.continuous_routing.fractions
+    rain = assembly.field_payloads["annual_precipitation"]
+    gross = assembly.field_payloads[FIELD]
+    rows, cols = rain.shape
+    marine = (
+        hydrology.marine_mask
+        if hydrology.marine_mask is not None
+        else np.zeros((rows, cols), dtype=bool)
+    )
+    candidates = [(int(row), int(col)) for row, col in np.argwhere(~marine & (hydrology.flow_accumulation_km2 < 8.0))
+                  if 1 < row < rows - 2 and 1 < col < cols - 2]
+    if len(candidates) < 3:
+        raise RuntimeError("not enough upland source cells for three H13 traces")
+    selected = [candidates[len(candidates) * n // 4] for n in (1, 2, 3)]
+
+    fig, ax = plt.subplots(figsize=(12, 7))
+    ax.imshow(np.log10(np.maximum(gross, 1)), origin="upper", extent=(0, cols, 0, rows), cmap="viridis")
+    for start in selected:
+        sequence = [start]
+        visited = {start}
+        for _ in range(rows * cols):
+            row, col = sequence[-1]
+            f = fractions[row, col]
+            direction = int(np.argmax(f))
+            if float(f[direction]) <= 0.0:
+                break
+            dr, dc = _DIRS[direction][:2]
+            next_cell = (row + dr, col + dc)
+            if (not 0 <= next_cell[0] < rows or not 0 <= next_cell[1] < cols
+                    or next_cell in visited):
+                break
+            sequence.append(next_cell)
+            visited.add(next_cell)
+            if marine[next_cell]:
+                break
+        xs = [c + 0.5 for _, c in sequence]
+        ys = [rows - r - 0.5 for r, _ in sequence]
+        ax.plot(xs, ys, lw=1.7)
+        for i in sorted({0, len(sequence) // 2, len(sequence) - 1}):
+            row, col = sequence[i]
+            local_source = float(rain[row, col]) * 1000.0
+            accumulated = float(gross[row, col])
+            ax.plot(xs[i], ys[i], marker="o", ms=3)
+            ax.annotate(f"local {local_source:.1e}\ngross {accumulated:.1e}",
+                        (xs[i], ys[i]), xytext=(4, 6), textcoords="offset points",
+                        fontsize=6, bbox=dict(boxstyle="round", alpha=0.65, facecolor="white"))
+    ax.set(title="Illustrative directed MFD links: local vs allocated gross input (m3/year)",
+           xlabel="World x (km)", ylabel="World y (km)")
+    ax.set_aspect("equal")
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
+    return len(selected)
+
+
 def _summarize(assembly, hydrology, ledger) -> dict[str, object]:
     data = assembly.field_payloads[FIELD]
     land = (hydrology.marine_mask == 0) if hydrology.marine_mask is not None else np.ones_like(data, dtype=bool)
@@ -179,6 +238,7 @@ def main():
                   log=True, assembly=coast, network=True)
     _render_field(root / "07-uniform-identity-error.png", identity_diff,
                   "Uniform rainfall: gross input minus accepted MFD area x 1e6", unit="m3/year")
+    trace_count = _render_sample_traces(root / "08-local-and-upstream-traces.png", coast, coast_hydro)
 
     report = {
         "checkpoint": "H13-A implementation operator review, NOT ACCEPTED",
@@ -197,6 +257,7 @@ def main():
         "off_on_upstream_fields_exact": exact_world,
         "off_on_features_and_networks_exact": exact_geometry,
         "uniform_precipitation_versus_accepted_area_max_abs_error_m3_per_year": max_diff,
+        "illustrative_mfd_trace_count": trace_count,
         "finite_nonnegative_all": all(
             np.isfinite(a.field_payloads[FIELD]).all() and np.all(a.field_payloads[FIELD] >= 0)
             for a in (dry, wet, coast)
