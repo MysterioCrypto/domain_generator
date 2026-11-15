@@ -1,0 +1,204 @@
+name: tabletop-atlas-v02-preview
+
+on:
+  push:
+    branches:
+      - feature/v0.2-tabletop-map-compositor
+  pull_request:
+    paths:
+      - "scripts/render_tabletop_domain_map_v02.py"
+      - "scripts/render_tabletop_art_direction_v02.py"
+      - "examples/tabletop-map/**"
+      - ".github/workflows/tabletop-atlas-v02-preview.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  atlas-export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact map-compositor revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install generator and renderer
+        run: python -m pip install -e ".[dev,render]"
+
+      - name: Existing placement and DomainSpec guardrails
+        run: |
+          python -m pytest \
+            tests/test_spec.py \
+            tests/test_dependent_placement_candidate_filtering.py \
+            tests/test_dependent_placement_final_selection.py \
+            tests/test_placement_reservations.py \
+            tests/test_placement_environmental_metrics_v02.py -q
+
+      - name: Generate editable-spec example atlas and georeferenced presentation layers
+        run: |
+          python scripts/render_tabletop_domain_map_v02.py \
+            --request examples/tabletop-map/domain-request.json \
+            --presets tests/acceptance/cases/a08-core-v02-integrated/presets.json \
+            --pixels-per-km 24 \
+            --output "$RUNNER_TEMP/tabletop-atlas-v02"
+
+      - name: Verify generated map layers, named settlements and exact alignment
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from PIL import Image
+
+          folder = Path(os.environ["RUNNER_TEMP"]) / "tabletop-atlas-v02"
+          report = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+          expected = report["pixel_size"]
+          size = (expected["width"], expected["height"])
+          expected_names = {"Тихий Брод", "Зелёная Стража", "Луговая Пристань"}
+          observed = {x["label"] for x in report["settlements_and_poi"]}
+          assert observed == expected_names, (observed, expected_names)
+          assert report["spec_editable"]["surface.water_moisture_decay_km"] == 4.0
+          assert report["spec_editable"]["constraints"] == 3
+          assert len(report["aligned_layers"]) == 6
+          assert "10-relief-contours.png" in report["aligned_layers"]
+          assert report["cartographic_elevation_contour_interval_m"] > 0.0
+          expected_symbols = {
+              "Тихий Брод": "village",
+              "Зелёная Стража": "fort",
+              "Луговая Пристань": "village",
+          }
+          assert {p["label"]: p["symbol"] for p in report["settlements_and_poi"]} == expected_symbols
+          assert all(p["label_drawn"] for p in report["settlements_and_poi"])
+          # Presentation-only changes must not move placed features by a pixel.
+          original_positions = {
+              "settlement-01": (14.9166666667, 23.4166666667),
+              "settlement-02": (44.4166666667, 24.2083333333),
+              "settlement-03": (23.1666666667, 3.7083333333),
+          }
+          for poi in report["settlements_and_poi"]:
+              original = original_positions[poi["id"]]
+              assert abs(poi["x_km"] - original[0]) <= 1.0 / expected["pixels_per_km"]
+              assert abs(poi["y_km"] - original[1]) <= 1.0 / expected["pixels_per_km"]
+          for filename in report["aligned_layers"]:
+              with Image.open(folder / filename) as im:
+                  assert im.size == size, (filename, im.size, size)
+                  assert im.mode == "RGBA", (filename, im.mode)
+          for filename in ("06-map-full.png", "07-map-no-labels.png", "09-parchment-palette.png", "11-parchment-no-labels.png"):
+              with Image.open(folder / filename) as im:
+                  assert im.size == size
+          for filename in ("10-relief-contours.png", "02-water.png", "03-rivers.png", "04-poi-markers.png", "05-labels.png"):
+              with Image.open(folder / filename) as im:
+                  assert im.getchannel("A").getbbox(), f"empty visual layer: {filename}"
+          style = (folder / "12-stylization-brief.txt").read_text(encoding="utf-8")
+          assert "Долина Трёх Бродов" in style
+          assert "Do not invent extra rivers, roads" in style
+          assert "11-parchment-no-labels.png" in style
+          assert set(report["art_direction_files"]) == {
+              "07-map-no-labels.png", "11-parchment-no-labels.png",
+              "12-stylization-brief.txt",
+          }
+          print(f"CHECKPOINT OK: 3 correctly tagged and stationary settlements, {len(report['aligned_layers'])} aligned RGBA layers, {size} pixels")
+          for point in report["settlements_and_poi"]:
+              print("POI", point["id"], point["label"], point["x_km"], point["y_km"], "label:", point["label_drawn"])
+          PY
+
+      - name: Emit compact operator cartographic previews
+        run: |
+          python - <<'PY'
+          import base64
+          from io import BytesIO
+          import os
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "tabletop-atlas-v02"
+          for filename in ("08-atlas-preview.png", "09-parchment-palette.png", "06-map-full.png"):
+              image = Image.open(root / filename).convert("RGB")
+              image.thumbnail((1050, 800))
+              stream = BytesIO()
+              image.save(stream, format="JPEG", quality=72, optimize=True)
+              print(f"ATLAS_PREVIEW_BEGIN:{filename}")
+              print(base64.b64encode(stream.getvalue()).decode("ascii"))
+              print(f"ATLAS_PREVIEW_END:{filename}")
+          PY
+
+      - name: Build three art-direction palettes with canonical geometry overlays
+        run: |
+          python scripts/render_tabletop_art_direction_v02.py \
+            --atlas "$RUNNER_TEMP/tabletop-atlas-v02" \
+            --output "$RUNNER_TEMP/tabletop-art-direction-v02"
+
+      - name: Verify art-direction geometry authority and reproducibility
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          from PIL import Image
+
+          source = Path(os.environ["RUNNER_TEMP"]) / "tabletop-atlas-v02"
+          output = Path(os.environ["RUNNER_TEMP"]) / "tabletop-art-direction-v02"
+          original = json.loads((source / "manifest.json").read_text(encoding="utf-8"))
+          record = json.loads((output / "report.json").read_text(encoding="utf-8"))
+          assert record["request_sha256"] == original["request_sha256"]
+          assert record["pixel_size"] == original["pixel_size"]
+          assert record["settlements_and_poi"] == original["settlements_and_poi"]
+          assert record["authoritative_overlays_are_unmodified"]
+          assert not record["imagegen_performed"]
+          assert len(record["styles"]) == 3
+          for name, expected in record["canonical_immutable_overlays_sha256"].items():
+              assert hashlib.sha256((source / name).read_bytes()).hexdigest() == expected
+          size = (original["pixel_size"]["width"], original["pixel_size"]["height"])
+          for style, paths in record["styles"].items():
+              with Image.open(output / paths["map"]) as im:
+                  assert im.size == size, (style, im.size)
+              with Image.open(output / paths["framed"]) as im:
+                  assert im.width > size[0] and im.height > size[1]
+          with Image.open(output / "07-three-style-comparison.png") as im:
+              assert im.width >= 1800 and im.height >= 500
+          print("ART STYLES OK: 3 variants, immutable canonical geometry overlays, identical source point coordinates")
+          PY
+
+      - name: Embed compact art-direction comparison preview
+        run: |
+          python - <<'PY'
+          import base64
+          import io
+          import os
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "tabletop-art-direction-v02"
+          for name in ("07-three-style-comparison.png", "05-engraving-framed.png", "06-illuminated-framed.png"):
+              picture = Image.open(root / name).convert("RGB")
+              picture.thumbnail((1250, 810))
+              buffer = io.BytesIO()
+              picture.save(buffer, format="JPEG", quality=71, optimize=True)
+              print(f"ART_DIRECTION_BEGIN:{name}")
+              print(base64.b64encode(buffer.getvalue()).decode("ascii"))
+              print(f"ART_DIRECTION_END:{name}")
+          PY
+
+      - name: Upload stylized terrain with unmodified geographic overlays
+        uses: actions/upload-artifact@v4
+        with:
+          name: tabletop-art-direction-v02
+          path: ${{ runner.temp }}/tabletop-art-direction-v02
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload editable DomainSpec atlas and layered maps
+        uses: actions/upload-artifact@v4
+        with:
+          name: tabletop-atlas-v02
+          path: ${{ runner.temp }}/tabletop-atlas-v02
+          if-no-files-found: error
+          retention-days: 14
