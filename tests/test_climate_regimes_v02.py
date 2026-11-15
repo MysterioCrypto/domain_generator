@@ -309,6 +309,7 @@ def test_k15_absent_classification_preserves_c4_fingerprint_semantics() -> None:
     climate_payload.pop("classification", None)
     hydrology_payload = spec_payload["hydrology"]
     hydrology_payload.pop("marine", None)
+    hydrology_payload.pop("climatic_input", None)
     expected_spec_fingerprint = "sha256:" + sha256(
         _canonical_json_bytes(spec_payload)
     ).hexdigest()
@@ -365,6 +366,7 @@ def test_k15_absent_classification_preserves_c4_fingerprint_semantics() -> None:
         exclude_none=False,
     )
     hydrology_payload.pop("marine", None)
+    hydrology_payload.pop("climatic_input", None)
     expected_plan_payload = {
         "plan_version": plan.plan_version,
         "seed": plan.seed,

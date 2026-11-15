@@ -16,3 +16,4 @@ class SurfaceState:
     monthly_mean_temperature_c: np.ndarray | None = None
     monthly_precipitation_mm: np.ndarray | None = None
     climate_regime_koppen_geiger: np.ndarray | None = None
+    gross_upstream_precipitation_m3_per_year: np.ndarray | None = None

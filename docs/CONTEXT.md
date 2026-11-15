@@ -16,7 +16,7 @@ Active development line: `dev/0.2`. Do not infer current state from `main`.
 
 ## Current context map — 2026-11-15
 
-**Active branch:** `dev/0.2`. **Current checkpoint:** `H13-A GROSS CATCHMENT PRECIPITATION — IMPLEMENTATION IN PROGRESS (DESIGN ACCEPTED)`.
+**Active development line:** `dev/0.2`, **implementation:** `impl/v0.2-h13-gross-catchment-precipitation` (draft PR #99, not merged). **Current checkpoint:** `H13-A IMPLEMENTATION — OPERATOR REVIEW / CI CONFIRMATION`; design accepted/merged #98.
 **H12-A:** ACCEPTED / MERGED as PR #97, merge `3d275466ec5bfdb74f5dcb88bea6c8b641347f70`.
 **Frozen release:** `release/0.2-prealpha` at `c69c1af010a085fb80d248af703a77471fc6c9d7`; do not backport post-release semantics without a new gate.
 
@@ -65,6 +65,14 @@ Branch: `design/v0.2-gross-catchment-precipitation`
 Normative draft path (not yet merged): `docs/design/gross-catchment-precipitation-input-v0.2.md`
 
 **Design decision (2026-11-15):** formal operator DESIGN ACCEPT and merge of PR #98 (`0000a208183a2ff3b1d7dc8eee8f93d54f72ef35`). The proposed H13 edge is now a normative **design** contract, not part of implemented world-state until G01–G15 and a separate implementation ACCEPT. CI on design HEAD `5fbd6b5904071feefc38a0ab66f093e68845e81e` was GREEN. No D8/D∞/raw MFD networks, water balance, annual-to-streamflow claims, mandatory Köppen-biomes or frozen releases are reopened. Implementation must account for differences between H12 pre-marine accumulation lake baseline and inland lake candidates; stop if conservation/graph semantics conflict with accepted routing.
+
+### H13 implementation evidence and remaining acceptance gate (2026-11-15)
+
+- Design remains accepted at merge `0000a208183a2ff3b1d7dc8eee8f93d54f72ef35`; implementation PR #99 is a separate **DRAFT, UNMERGED** proposal.
+- Chosen source-accounting traversal is isolated because H12 reuses a pre-marine MFD area baseline but marine/lake support changes. Share accepted receiver fractions and lake outlet semantics, preserve MFD-area bytes, count every local non-marine/lake rain cell once, absorb gross source upon first entry into marine, report land-edge and marine-component ledgers separately. This is algebraic transport, NOT real water delivery/discharge/runoff.
+- Opt-in contract, exact omission of missing fingerprints, one `float64` derived field, unchanged C1/C2/C3/C4/C5 and networks, no new ValidationStage, no new RNG. G01–G15 were GREEN on checkpoint head `e4e12d322fc3ee016e77e4800d1dfeefc58fa452`; full pytest/CI on the latest head and updated visual trace checkpoint must still be checked before operator implementation decision.
+- Representative A08: wet/dry input ratio ≈18 for explicitly varied rain forcing; uniform non-marine source allocation matches accepted flow-area × rain to ~1.19×10⁻⁷ m³/year max absolute error. Off/on canonical/derived existing fields, features and networks exact-equal; coastal conservation error around 4.77×10⁻⁷ m³/year on the representative fixture. These numbers are evidence about the fixture, not universal calibration.
+- Guardrails and operator checkpoint: https://github.com/MysterioCrypto/domain_generator/actions/runs/43721814406 . The current implementation is **NOT ACCEPTED**, regardless of green automation. Explicit IMPLEMENTATION ACCEPT/REJECT is required; do not merge PR #99 or change frozen releases.
 
 ### Post-H12 unresolved dependency map
 
@@ -1314,3 +1322,30 @@ Historical `release/0.2-prealpha` remains untouched.
 Operator formal DESIGN ACCEPT -> PR #98 merge `0000a208183a2ff3b1d7dc8eee8f93d54f72ef35` into `dev/0.2` (HEAD pre-merge `63b57ed2f7d73d786c16835350dfd80ea58dd57e`); design HEAD `5fbd6b5904071feefc38a0ab66f093e68845e81e`. Exact 0.2-prealpha freeze preserved. Implementation on separate branch only; run G01–G15, full CI and operator-visible wet/dry/coast contrasts. Next formal decision is **H13-A IMPLEMENTATION ACCEPT/REJECT**, not an implicit merge.
 
 Specific algorithmic risk: H12 preserves accepted *pre-marine* MFD area accumulation while reclassifying marine/lakes; H13 gross allocation must use the accepted MFD fractions, avoid marine local sources, stop at first marine receiver, and preserve existing lake supernode accounting without false equivalence in fixtures involving marine. Nonmarine uniform-input identity with accepted area accumulation is mandatory. This distinction is a reason to prefer a carefully isolated read-only accumulation traversal over mutation of the frozen area kernel.
+
+## H13-A final technical evidence and scientific boundary — operator review (2026-11-15)
+
+**Technical evidence:** G01–G15: 15 PASS on semantic HEAD 26292d3774867a33de6c3b33ee184a903b626363; dedicated PR H13 checkpoint https://github.com/MysterioCrypto/domain_generator/actions/runs/43722355111 GREEN; full PR pytest 517 PASS at https://github.com/MysterioCrypto/domain_generator/actions/runs/43722354997.
+
+**WHY these checks, rather than a visual assertion:** expected MFD identities and terminal volume ledgers expose double counting, overlooked receiver fractions, or lake errors that a smooth map cannot. The 100:1800 mm annual precipitation contrast is a *controlled input-scale test*, not independent validation of atmospheric rain physics. A08 has 154 marine cells and two separately counted marine receiver components; the gross source is 2,632,837,588.684082 m³/year, terminal sum differs by +4.768e-7 m³/year. A 1000 mm uniform no-marine fixture reproduces accepted MFD area to 1.192e-7 m³/year max absolute error. Gross derived-field storage float64, exact existing-field/network off/on equality, marine-first-entry termination and land-edge sinks were verified. Three MFD annotated traces and seven other diagnostic views were generated.
+
+**LIMITATION and rejected shortcuts:** no percentage of gross source is asserted to reach a watercourse; no runoff coefficient, baseflow, groundwater, residence time, delta/wetland/biome or stream permanence inferred. Wet/dry test variation is a change of external C1 rainfall mean; H13 is not a new rainfall model. Numerical proof is within synthetic tests and one A08 representative generation, not a general verification of Earthlike hydrology. C5 is an optional climate label, not a biome.
+
+**Next gate:** operator sees checkpoint report + images in https://github.com/MysterioCrypto/domain_generator/actions/runs/43722355111, reads `docs/reviews/h13-a-operator-checkpoint-2026-11-15.md`, and separately **ACCEPTS or REJECTS implementation**. No further runtime merge or frozen-release modification is authorized by green tests alone. PR #99 draft/open/unmerged.
+
+
+
+## H13-A strengthened implementation evidence — 2026-11-15 (latest accepted design, unaccepted runtime)
+
+- H13 G01–G15 all 15 PASS; full push pytest **517 passed** (https://github.com/MysterioCrypto/domain_generator/actions/runs/43723089326) and full PR pytest **517 passed** (https://github.com/MysterioCrypto/domain_generator/actions/runs/43723094387), H13 push/PR dedicated checkpoints GREEN (https://github.com/MysterioCrypto/domain_generator/actions/runs/43723089353, https://github.com/MysterioCrypto/domain_generator/actions/runs/43723094447) on `d6b76c312a251100695abd48a11fe28877b7e17e`.
+- G04 explicitly tests uniform precipitation against the accepted area kernel through a lake supernode as well as an ordinary MFD DAG; G08 explicitly checks a marine-to-land seabed edge cannot reintroduce volume after first marine absorption; G09 now checks source accounting in a below-sea **inland lake** distinct from a boundary-connected marine component. These changes strengthen tests only; they do not alter accepted MFD, H12, climate, world fields or rendering semantics.
+- Operator report: `docs/reviews/h13-a-operator-checkpoint-2026-11-15.md` and latest checkpoint https://github.com/MysterioCrypto/domain_generator/actions/runs/43723094447. Historical earlier SHA/CI paragraphs above describe preceding intermediate gates; the `d6b76c312a251100695abd48a11fe28877b7e17e` test/implementation commit is the latest validated semantic revision. The documents-only snapshot commit after this note may cause CI to rerun; recheck live GitHub head after a chat interruption.
+- **Implementation PR #99 remains DRAFT / OPEN / UNMERGED.** Separate explicit operator IMPLEMENTATION ACCEPT/REJECT is required; this record is technical evidence only. `release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
+
+
+## H13-A visual audit improvement — operator-checkable slice (2026-11-15)
+
+- Feedback from operator: codebase cannot practically be audited manually. Use automatic tests for internal correctness; show a direct GitHub Actions artifact link at visually meaningful checkpoints instead of requesting ceremonial approvals of internal formulas.
+- The preceding H13 dry/wet maps used *independent autoscaled colors*, visually masking the 18× source contrast. Improve only the checkpoint renderer, not production semantics: include absolute shared-scale dry/wet map; opposite 90°/270° atmospheric transport with same terrain/MFD and 900 mm/year mean; shared-scale C1/H13 comparison; signed H13 difference map. Original 8 PNGs remain; total 12 PNGs + report.
+- Exact equality of terrain, H12-independent hydrology/MFD area and river networks is checked for the wind-direction comparison; input precipitation and H13 diagnostic must change. Logarithmic rendering is visualization only.
+- Next artifact will be linked directly to a GREEN GitHub Actions run on new implementation HEAD. PR #99 remains **DRAFT/UNMERGED**; prior constraint on implementation merge is not silently waived. Frozen release unchanged.

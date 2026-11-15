@@ -1,0 +1,85 @@
+name: hydrology-v02-h13-gross-input-checkpoint
+
+on:
+  push:
+    branches:
+      - impl/v0.2-h13-gross-catchment-precipitation
+    paths:
+      - "src/domain_generator/**"
+      - "tests/test_gross_precipitation_input_v02.py"
+      - "schemas/v0.2/**"
+      - "scripts/render_gross_precipitation_checkpoint_v02.py"
+      - ".github/workflows/hydrology-v02-h13-gross-input-checkpoint.yml"
+  pull_request:
+    paths:
+      - "src/domain_generator/**"
+      - "tests/test_gross_precipitation_input_v02.py"
+      - "schemas/v0.2/**"
+      - "scripts/render_gross_precipitation_checkpoint_v02.py"
+      - ".github/workflows/hydrology-v02-h13-gross-input-checkpoint.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  h13-guardrails:
+    if: github.event_name == 'push' || github.event.pull_request.head.ref == 'impl/v0.2-h13-gross-catchment-precipitation'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact H13 head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install generator and rendering dependencies
+        run: python -m pip install -e ".[dev,render]"
+
+      - name: Verify JSON Schema snapshot consistency
+        run: |
+          python -m domain_generator.schema_export
+          git diff --exit-code -- schemas/v0.2
+
+      - name: H13 G01-G15
+        run: python -m pytest tests/test_gross_precipitation_input_v02.py -q
+
+      - name: Generate operator-visible dry/wet/coastal checkpoint
+        run: python scripts/render_gross_precipitation_checkpoint_v02.py "$RUNNER_TEMP/hydrology-v02-h13"
+
+      - name: Emit compact preview images for operator
+        run: |
+          python - <<'PY'
+          import base64
+          import io
+          import os
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "hydrology-v02-h13"
+          for name in (
+              "09-dry-wet-shared-absolute-scale.png",
+              "11-opposite-winds-h13-shared-scale.png",
+              "12-opposite-winds-h13-signed-delta.png",
+              "06-coastal-gross-input.png",
+          ):
+              picture = Image.open(root / name).convert("RGB")
+              picture.thumbnail((1050, 700))
+              stream = io.BytesIO()
+              picture.save(stream, format="JPEG", quality=70, optimize=True)
+              print(f"H13_PREVIEW_BEGIN:{name}")
+              print(base64.b64encode(stream.getvalue()).decode("ascii"))
+              print(f"H13_PREVIEW_END:{name}")
+          PY
+
+      - name: Upload H13 operator report and visuals
+        uses: actions/upload-artifact@v4
+        with:
+          name: hydrology-v02-h13
+          path: ${{ runner.temp }}/hydrology-v02-h13
+          if-no-files-found: error
+          retention-days: 14

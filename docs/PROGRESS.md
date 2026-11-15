@@ -2,7 +2,7 @@
 
 Purpose: **current** DONE / IN PROGRESS / NEXT tree for chat recovery. For the dependency/context map and rejected hypotheses read `docs/CONTEXT.md`; for normative semantics read accepted `docs/design/*`.
 
-**Active line:** `dev/0.2` · **checkpoint:** H13-A IMPLEMENTATION — DESIGN ACCEPTED, IMPLEMENTATION NOT ACCEPTED · **H12-A:** ACCEPTED / MERGED PR #97 (`3d275466ec5bfdb74f5dcb88bea6c8b641347f70`).
+**Active line:** `dev/0.2` · **checkpoint:** H13-A IMPLEMENTATION — G01–G15 GREEN ON FIRST CHECKPOINT / FINAL HEAD RECHECK · **H12-A:** ACCEPTED / MERGED PR #97 (`3d275466ec5bfdb74f5dcb88bea6c8b641347f70`).
 Historical checkpoint notes below are not current gates.
 
 ## DONE
@@ -326,11 +326,65 @@ Full dependency rationale lives in the **current context map at the start of `do
 H13 design #98       OPERATOR ACCEPTED / MERGED
 merge SHA            0000a208183a2ff3b1d7dc8eee8f93d54f72ef35
 implementation       SEPARATE BRANCH / NOT ACCEPTED
-G01–G15             NEXT TECHNICAL GATE
-full pytest          PENDING IMPLEMENTATION
-operator checkpoint  WET/DRY + COASTAL; PENDING
+G01–G15             GREEN on e4e12d3; latest head recheck pending
+full pytest          516 PASS / 1 LEGACY K15 ORACLE FAIL at 2aea; fixture patched, new CI pending
+operator checkpoint  WET/DRY + COASTAL first run GREEN; new MFD traces pending recheck
 implementation merge FORBIDDEN until separate explicit ACCEPT
 frozen release       c69c1af010a085fb80d248af703a77471fc6c9d7
 ```
 
 Why H13: C1 gross precipitation is already known and the MFD weighted DAG supports strictly mathematical accumulation without inventing runoff or permanence. Keep lake supernode identity, marine absorption, exact upstream field stability, and no delta/biome shortcut. See `docs/CONTEXT.md` and accepted design.
+
+
+## H13-A implementation evidence checkpoint — PR #99 (2026-11-15)
+
+```text
+implementation branch impl/v0.2-h13-gross-catchment-precipitation
+PR                    #99 DRAFT / OPEN / UNMERGED
+H13 guardrails         G01–G15: 15 PASS on e4e12d3
+H13 workflow           GREEN 43721814406
+full pytest            516 PASS / 1 historical K15 oracle mismatch at 2aea, fixed on later head
+full pytest latest     PENDING FINAL HEAD CONFIRMATION
+MFD trace visualization ADDED; checkpoint rerun pending
+implementation ACCEPT PENDING OPERATOR — DO NOT MERGE
+```
+
+The K15 failure was solely the historical manual fingerprint construction, which had to omit absent `climatic_input=None`; no historic fingerprints were re-signed. Check real GitHub HEAD/CI before resuming. Keep the WHY-map in `docs/CONTEXT.md` synchronized with this state.
+
+## H13-A final CI checkpoint — operator review (2026-11-15)
+
+```text
+H13-A design                 ACCEPTED / MERGED PR #98
+H13-A implementation PR #99  DRAFT / OPEN / UNMERGED
+tested semantic HEAD         26292d3774867a33de6c3b33ee184a903b626363
+G01–G15                      15 PASS
+H13 checkpoint               GREEN (8 figures + JSON report, 3 annotated traces)
+full PR pytest               517 PASS / GREEN
+full push pytest             verify final workflow completion after doc-only update
+implementation ACCEPT        PENDING; explicitly required, no merge
+release/0.2-prealpha         FROZEN at c69c1af010a085fb80d248af703a77471fc6c9d7
+```
+
+Checkpoint: https://github.com/MysterioCrypto/domain_generator/actions/runs/43722355111
+Full PR CI: https://github.com/MysterioCrypto/domain_generator/actions/runs/43722354997
+Full push CI: https://github.com/MysterioCrypto/domain_generator/actions/runs/43722348833
+Operator report: `docs/reviews/h13-a-operator-checkpoint-2026-11-15.md`.
+
+The earlier K15/spec fingerprint and schema snapshot failures are RESOLVED without re-signing accepted fingerprints. Do not conflate design ACCEPT with implementation ACCEPT.
+
+
+
+## H13-A strengthened implementation evidence — 2026-11-15 (latest accepted design, unaccepted runtime)
+
+- H13 G01–G15 all 15 PASS; full push pytest **517 passed** (https://github.com/MysterioCrypto/domain_generator/actions/runs/43723089326) and full PR pytest **517 passed** (https://github.com/MysterioCrypto/domain_generator/actions/runs/43723094387), H13 push/PR dedicated checkpoints GREEN (https://github.com/MysterioCrypto/domain_generator/actions/runs/43723089353, https://github.com/MysterioCrypto/domain_generator/actions/runs/43723094447) on `d6b76c312a251100695abd48a11fe28877b7e17e`.
+- G04 explicitly tests uniform precipitation against the accepted area kernel through a lake supernode as well as an ordinary MFD DAG; G08 explicitly checks a marine-to-land seabed edge cannot reintroduce volume after first marine absorption; G09 now checks source accounting in a below-sea **inland lake** distinct from a boundary-connected marine component. These changes strengthen tests only; they do not alter accepted MFD, H12, climate, world fields or rendering semantics.
+- Operator report: `docs/reviews/h13-a-operator-checkpoint-2026-11-15.md` and latest checkpoint https://github.com/MysterioCrypto/domain_generator/actions/runs/43723094447. Historical earlier SHA/CI paragraphs above describe preceding intermediate gates; the `d6b76c312a251100695abd48a11fe28877b7e17e` test/implementation commit is the latest validated semantic revision. The documents-only snapshot commit after this note may cause CI to rerun; recheck live GitHub head after a chat interruption.
+- **Implementation PR #99 remains DRAFT / OPEN / UNMERGED.** Separate explicit operator IMPLEMENTATION ACCEPT/REJECT is required; this record is technical evidence only. `release/0.2-prealpha` remains frozen at `c69c1af010a085fb80d248af703a77471fc6c9d7`.
+
+
+## H13-A visual audit improvement — operator-checkable slice (2026-11-15)
+
+- Feedback from operator: codebase cannot practically be audited manually. Use automatic tests for internal correctness; show a direct GitHub Actions artifact link at visually meaningful checkpoints instead of requesting ceremonial approvals of internal formulas.
+- The preceding H13 dry/wet maps used *independent autoscaled colors*, visually masking the 18× source contrast. Improve only the checkpoint renderer, not production semantics: include absolute shared-scale dry/wet map; opposite 90°/270° atmospheric transport with same terrain/MFD and 900 mm/year mean; shared-scale C1/H13 comparison; signed H13 difference map. Original 8 PNGs remain; total 12 PNGs + report.
+- Exact equality of terrain, H12-independent hydrology/MFD area and river networks is checked for the wind-direction comparison; input precipitation and H13 diagnostic must change. Logarithmic rendering is visualization only.
+- Next artifact will be linked directly to a GREEN GitHub Actions run on new implementation HEAD. PR #99 remains **DRAFT/UNMERGED**; prior constraint on implementation merge is not silently waived. Frozen release unchanged.

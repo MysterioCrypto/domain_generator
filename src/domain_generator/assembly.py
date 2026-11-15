@@ -225,6 +225,7 @@ def _field_descriptors(
     include_seasonality: bool,
     include_classification: bool,
     include_marine: bool,
+    include_climatic_input: bool = False,
 ) -> dict[str, FieldDescriptor]:
     fields = {
         "elevation": FieldDescriptor(role=FieldRole.CANONICAL, path="fields/elevation.npy", dtype="float32", shape=shape, unit="m"),
@@ -282,6 +283,14 @@ def _field_descriptors(
             shape=shape,
             unit="binary",
         )
+    if include_climatic_input:
+        fields["gross_upstream_precipitation_m3_per_year"] = FieldDescriptor(
+            role=FieldRole.DERIVED,
+            path="fields/gross_upstream_precipitation_m3_per_year.npy",
+            dtype="float64",
+            shape=shape,
+            unit="m3/year",
+        )
     return fields
 
 
@@ -335,6 +344,9 @@ def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: Generatio
         plan.plan_version == "0.2"
         and plan.hydrology.marine is not None
     )
+    include_climatic_input = (
+        include_climate and plan.hydrology.climatic_input is not None
+    )
     if include_marine:
         marine_mask = state.hydrology.marine_mask
         if (
@@ -365,6 +377,14 @@ def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: Generatio
             field_id="annual_precipitation",
             shape=shape,
         )
+        if include_climatic_input:
+            gross = state.surface.gross_upstream_precipitation_m3_per_year
+            payloads["gross_upstream_precipitation_m3_per_year"] = _readonly_payload(
+                gross,
+                field_id="gross_upstream_precipitation_m3_per_year",
+                shape=shape,
+                dtype=np.dtype(np.float64),
+            )
         if include_seasonality:
             monthly_temperature = state.surface.monthly_mean_temperature_c
             monthly_precipitation = state.surface.monthly_precipitation_mm
@@ -440,6 +460,7 @@ def assemble_domain(*, spec: DomainSpec, plan: GenerationPlan, config: Generatio
                 include_seasonality=include_seasonality,
                 include_classification=include_classification,
                 include_marine=include_marine,
+                include_climatic_input=include_climatic_input,
             ),
             features=features,
             networks=networks,
