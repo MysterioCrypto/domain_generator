@@ -65,9 +65,9 @@ def _plot_four(
         raise RuntimeError("All four experiment rasters must share a grid")
     scaled = {key: np.log10(np.maximum(x, 1.0)) if log else x for key, x in data.items()}
     if vmin is None:
-        vmin = min(float(np.min(x)) for x in scaled.values())
+        vmin = min(float(np.nanmin(x)) for x in scaled.values())
     if vmax is None:
-        vmax = max(float(np.max(x)) for x in scaled.values())
+        vmax = max(float(np.nanmax(x)) for x in scaled.values())
     if vmax <= vmin:
         vmax = vmin + 1.0
 
