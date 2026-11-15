@@ -110,6 +110,22 @@ def test_g04_uniform_precipitation_matches_accepted_weighted_area_accumulation()
     np.testing.assert_allclose(gross.gross_upstream_precipitation_m3_per_year, area * 1_100_000.0, rtol=1e-12, atol=1e-6)
     _ledger_ok(gross)
 
+    # The same oracle must hold when one accepted lake supernode carries
+    # local lake-cell precipitation plus upstream weighted input exactly once.
+    lake_field, lakes, outlets = _lake_field()
+    lake_area = distributed_flow_accumulation_km2(
+        lake_field, cell_size_km=1.0, lake_candidates=lakes, lake_outlets=outlets,
+    )
+    lake_gross = accumulate_gross_precipitation_input(
+        lake_field, np.full((3, 3), 1100.0, dtype=np.float32),
+        cell_size_km=1.0, lake_candidates=lakes, lake_outlets=outlets,
+    )
+    np.testing.assert_allclose(
+        lake_gross.gross_upstream_precipitation_m3_per_year,
+        lake_area * 1_100_000.0, rtol=1e-12, atol=1e-6,
+    )
+    _ledger_ok(lake_gross)
+
 
 def test_g05_heterogeneous_rain_uses_cell_sources_not_catchment_area_only():
     rain = np.full((3, 4), 100.0, dtype=np.float32)
@@ -156,12 +172,16 @@ def test_g08_first_marine_entry_absorbs_supply_and_excludes_ocean_source():
     field = ContinuousRoutingField(flow_angle_rad=np.full((3, 3), np.nan), fractions=np.zeros((3, 3, 8)))
     field.fractions[1, 1, 0] = 0.5
     field.fractions[1, 1, 6] = 0.5
+    # If the marine receiver were incorrectly processed as seabed transport,
+    # it would route back onto [2,2]. First-entry absorption must stop it.
+    field.fractions[1, 2, 6] = 1.0
     mask = np.zeros((3, 3), dtype=np.bool_)
     mask[1, 2] = True
     marine = (MarineCandidate(cells=((1, 2),), raster_area_km2=1.0, sea_level_m=0.0, max_depth_m=3.0),)
     a = accumulate_gross_precipitation_input(field, np.full((3, 3), 1000.0, dtype=np.float32),
         cell_size_km=1.0, marine_mask=mask, marine_candidates=marine)
     assert a.gross_upstream_precipitation_m3_per_year[1, 2] == 0.0
+    assert a.gross_upstream_precipitation_m3_per_year[2, 2] == pytest.approx(1_000_000.0)
     assert a.marine_terminal_by_id_m3_per_year[marine_feature_id(0)] == pytest.approx(500_000)
     assert a.source_total_m3_per_year == pytest.approx(8_000_000)
     _ledger_ok(a)
@@ -169,13 +189,39 @@ def test_g08_first_marine_entry_absorbs_supply_and_excludes_ocean_source():
 
 def test_g09_enclosed_below_sea_depression_is_not_marine():
     terrain = np.ones((5, 5), dtype=np.float64) * 100.0
-    terrain[0, 0] = -5.0
-    terrain[2, 2] = -20.0
+    terrain[0, 0] = -5.0       # boundary-connected marine
+    terrain[2, 2] = -20.0     # enclosed below-sea inland depression
     mask, marine = classify_marine_components(terrain, sea_level_m=0.0, cell_size_km=1.0)
     assert mask[0, 0] and not mask[2, 2]
     assert len(marine) == 1
-    _ledger_ok(accumulate_gross_precipitation_input(_one_cell(), np.array([[2.0]], dtype=np.float32), cell_size_km=1.0))
 
+    fractions = np.zeros((5, 5, 8), dtype=np.float64)
+    fractions[1:4, 1:4, 0] = 1.0  # interior routes to east edge
+    field = ContinuousRoutingField(
+        flow_angle_rad=np.full((5, 5), np.nan, dtype=np.float64),
+        fractions=fractions,
+    )
+    inland_lake = LakeCandidate(
+        cells=((2, 2),), area_km2=1.0, max_depth_m=120.0,
+        surface_elevation_m=100.0,
+    )
+    outlet = LakeOutlet(
+        lake_id=lake_feature_id(0), lake_cell=(2, 2),
+        receiver_cell=(2, 3), saddle_elevation_m=100.0,
+    )
+    ledger = accumulate_gross_precipitation_input(
+        field, np.full((5, 5), 1000.0, dtype=np.float32),
+        cell_size_km=1.0, lake_candidates=(inland_lake,),
+        lake_outlets=(outlet,), marine_mask=mask, marine_candidates=marine,
+    )
+    # Unlike the marine cell, the below-sea inland depression retains local
+    # precipitation and an accepted lake supernode that receives upstream input.
+    assert ledger.gross_upstream_precipitation_m3_per_year[0, 0] == 0.0
+    assert ledger.gross_upstream_precipitation_m3_per_year[2, 2] == pytest.approx(2_000_000.0)
+    assert ledger.gross_upstream_precipitation_m3_per_year[2, 3] == pytest.approx(3_000_000.0)
+    assert ledger.source_total_m3_per_year == pytest.approx(24_000_000.0)
+    assert ledger.marine_terminal_by_id_m3_per_year[marine_feature_id(0)] == 0.0
+    _ledger_ok(ledger)
 
 def test_g10_nonmarine_domain_edge_is_valid_terminal():
     a = accumulate_gross_precipitation_input(_one_cell(), np.array([[500.0]], dtype=np.float32), cell_size_km=2.0)
