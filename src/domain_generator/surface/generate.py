@@ -22,6 +22,7 @@ from ..contracts.validation import (
     ValidationStage,
 )
 from ..grid import GridAdapter
+from ..hydrology.gross_input import accumulate_gross_precipitation_input
 from ..hydrology.state import HydrologyState
 from ..layout.area import point_in_area
 from ..pipeline.attempts import AttemptContext, CandidateState
@@ -163,6 +164,7 @@ def _build_surface(
     expected_shape = (plan.grid.rows, plan.grid.columns)
     elevation = terrain.elevation_m
     water_depth = hydrology.water_depth_m
+    gross64: np.ndarray | None = None
 
     if layout.attempt_index != attempt_index:
         raise SurfaceCapabilityError("surface layout attempt index must match current attempt")
@@ -282,6 +284,25 @@ def _build_surface(
             rng_factory=rng_factory,
             attempt_index=attempt_index,
         )
+        if plan.hydrology.climatic_input is not None:
+            if hydrology.continuous_routing is None:
+                raise SurfaceCapabilityError("H13 requires accepted continuous MFD routing")
+            # Public C1 float32 is the authoritative source, not the earlier
+            # intermediate 64-bit atmospheric forcing raster.
+            accounting = accumulate_gross_precipitation_input(
+                hydrology.continuous_routing,
+                precipitation64.astype(np.float32),
+                cell_size_km=plan.grid.cell_size_km,
+                lake_candidates=hydrology.lake_candidates,
+                lake_outlets=hydrology.lake_outlets,
+                marine_mask=hydrology.marine_mask,
+                marine_candidates=hydrology.marine_candidates,
+            )
+            tolerance = max(1.0e-4, 1.0e-9 * accounting.source_total_m3_per_year)
+            if abs(accounting.balance_error_m3_per_year) > tolerance:
+                raise SurfaceCapabilityError("H13 gross precipitation volume ledger is not conserved")
+            gross64 = accounting.gross_upstream_precipitation_m3_per_year
+
         if climate.seasonality is not None:
             seasonality = climate.seasonality
             monthly_temperature64 = monthly_temperature_fields(
@@ -405,6 +426,7 @@ def _build_surface(
                 if climate_regime is not None
                 else None
             ),
+            gross_upstream_precipitation_m3_per_year=gross64,
         ),
         applied_feature_ids=tuple(applied),
     )
@@ -507,6 +529,16 @@ def _recomputed_surface_matches(
             and np.array_equal(
                 surface.climate_regime_koppen_geiger,
                 expected.climate_regime_koppen_geiger,
+            )
+        )
+        and (
+            surface.gross_upstream_precipitation_m3_per_year is None
+            and expected.gross_upstream_precipitation_m3_per_year is None
+            or isinstance(surface.gross_upstream_precipitation_m3_per_year, np.ndarray)
+            and isinstance(expected.gross_upstream_precipitation_m3_per_year, np.ndarray)
+            and np.array_equal(
+                surface.gross_upstream_precipitation_m3_per_year,
+                expected.gross_upstream_precipitation_m3_per_year,
             )
         )
     )
