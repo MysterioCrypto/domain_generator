@@ -11,6 +11,7 @@ from hashlib import sha256
 import json
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
@@ -24,6 +25,7 @@ DEFAULT_REQUEST = ROOT / "examples" / "tabletop-map" / "domain-request.json"
 DEFAULT_PRESETS = ROOT / "tests" / "acceptance" / "cases" / "a08-core-v02-integrated" / "presets.json"
 MAP_LAYERS = (
     "01-terrain.png",
+    "10-relief-contours.png",
     "02-water.png",
     "03-rivers.png",
     "04-poi-markers.png",
@@ -52,10 +54,13 @@ def _terrain_layer(fields: dict, size: tuple[int, int], *, parchment: bool) -> I
     vegetation = np.clip(fields["vegetation_density"].astype(np.float64), 0.0, 1.0)
     # Relief shading is a cartographic visual treatment, not a new physics field.
     north_south, west_east = np.gradient(elevation)
+    # Emphasize already-accepted relief at a map-readable scale; the raster
+    # is NOT changed, only the brightness of the rendered terrain palette.
+    slope_scale = max(8.0, float(np.percentile(np.hypot(west_east, north_south), 85)))
     lighting = np.clip(
-        0.86 + 0.11 * west_east / (35.0 + np.abs(west_east))
-             - 0.12 * north_south / (35.0 + np.abs(north_south)),
-        0.65, 1.05,
+        0.93 + 0.24 * west_east / slope_scale
+             - 0.18 * north_south / slope_scale,
+        0.66, 1.17,
     )
     e_low, e_high = np.percentile(elevation, (2, 98))
     altitude = np.clip((elevation - e_low) / max(1.0, float(e_high - e_low)), 0.0, 1.0)
@@ -73,6 +78,48 @@ def _terrain_layer(fields: dict, size: tuple[int, int], *, parchment: bool) -> I
     rgb = np.clip(rgb * lighting[..., None], 0.0, 1.0)
     native = Image.fromarray(np.round(rgb * 255).astype(np.uint8), "RGB")
     return native.resize(size, Image.Resampling.BICUBIC).convert("RGBA")
+
+
+def _contour_layer(
+    fields: dict, size: tuple[int, int], *, ppm: int
+) -> tuple[Image.Image, float | None]:
+    """Subtle vector-like elevation contours from the *accepted* elevation raster.
+
+    Lines are transparent presentation overlays. Neither elevation values nor
+    hydrologic/world geometries are smoothed, moved or regenerated.
+    """
+    raster = np.asarray(fields["elevation"], dtype=np.float64)
+    rows, columns = raster.shape
+    layer = Image.new("RGBA", size, (0, 0, 0, 0))
+    low, high = float(np.min(raster)), float(np.max(raster))
+    span = high - low
+    if not np.isfinite(span) or span < 1.0:
+        return layer, None
+    # Select a readable *cartographic* contour interval; not new terrain physics.
+    interval = min((25.0, 50.0, 100.0, 200.0, 500.0),
+                   key=lambda v: abs(span / v - 12.0))
+    levels = np.arange(np.ceil(low / interval) * interval, high, interval)
+    if not levels.size:
+        return layer, None
+    x = (np.arange(columns, dtype=np.float64) + 0.5) * (size[0] / columns / ppm)
+    y = (rows - np.arange(rows, dtype=np.float64) - 0.5) * (size[1] / rows / ppm)
+    fig, ax = plt.subplots()
+    try:
+        collection = ax.contour(x, y, raster, levels=levels)
+        pen = ImageDraw.Draw(layer, "RGBA")
+        for index, contours in enumerate(collection.allsegs):
+            major = (index % 4) == 0
+            ink = (62, 61, 42, 109 if major else 59)
+            width = 2 if major else 1
+            for contour in contours:
+                if len(contour) < 2:
+                    continue
+                points = [(round(float(x_km) * ppm), round(size[1] - float(y_km) * ppm))
+                          for x_km, y_km in contour]
+                pen.line(points, fill=ink, width=width, joint="curve")
+    finally:
+        plt.close(fig)
+    return layer, interval
 
 
 def _geo_point(point, *, ppm: int, size: tuple[int, int]) -> tuple[int, int]:
@@ -137,15 +184,30 @@ def _settlements(data, size: tuple[int, int], *, ppm: int):
         label = feature.label or feature_id
         candidates.append((feature_id, label, pos, tuple(feature.tags)))
 
-    font = _font(max(14, round(ppm * 0.52)))
+    # Labels are intended to remain legible after downsampling a 1536-px
+    # map for a GM handout. Font size never changes placement coordinates.
+    font = _font(max(18, round(ppm * 0.82)))
     seen = []
     ledger = []
-    offset = max(9, ppm // 3)
+    offset = max(17, ppm // 2)
     for feature_id, label, (x, y), tags in candidates:
-        r = max(4, ppm // 5)
-        d_mark.ellipse((x - r - 3, y - r - 3, x + r + 3, y + r + 3),
-                       fill=(238, 220, 164, 255), outline=(43, 48, 36, 255), width=2)
-        d_mark.ellipse((x - 2, y - 2, x + 2, y + 2), fill=(69, 66, 48, 255))
+        r = max(6, ppm // 3)
+        # Symbol shape is controlled ONLY by an explicit user-authored tag.
+        # It is not a newly inferred settlement size, population or economy.
+        role = "fort" if "fort" in tags else "village" if "village" in tags else "poi"
+        if role == "fort":
+            d_mark.rectangle((x - r - 2, y - r - 2, x + r + 2, y + r + 2),
+                             fill=(74, 72, 53, 255), outline=(248, 227, 165, 255), width=3)
+            d_mark.rectangle((x - 3, y - 3, x + 3, y + 3), fill=(238, 219, 165, 255))
+        elif role == "village":
+            d_mark.ellipse((x - r - 2, y - r - 2, x + r + 2, y + r + 2),
+                           fill=(247, 228, 164, 255), outline=(49, 52, 41, 255), width=3)
+            d_mark.ellipse((x - 2, y - 2, x + 2, y + 2), fill=(62, 66, 45, 255))
+        else:
+            d_mark.polygon(((x, y - r), (x + r, y), (x, y + r), (x - r, y)),
+                           fill=(248, 221, 167, 255))
+            d_mark.line(((x, y - r), (x + r, y), (x, y + r), (x - r, y), (x, y - r)),
+                        fill=(49, 52, 41, 255), width=2)
 
         bbox = d_label.textbbox((0, 0), label, font=font, stroke_width=2)
         width = bbox[2] - bbox[0]
@@ -174,14 +236,20 @@ def _settlements(data, size: tuple[int, int], *, ppm: int):
         if chosen is None:
             # Never move the real settlement; a map may legitimately omit a crowded label.
             ledger.append({"id": feature_id, "label": label, "x_km": x / ppm,
-                           "y_km": (size[1] - y) / ppm, "label_drawn": False, "tags": tags})
+                           "y_km": (size[1] - y) / ppm, "label_drawn": False,
+                           "symbol": role, "tags": tags})
             continue
         tx, ty, b = chosen
-        d_label.text((tx, ty), label, font=font, fill=(246, 238, 208, 255),
+        # Subtle backing improves readability against dark mountains and rivers
+        # without covering large geographic areas or changing marker positions.
+        d_label.rounded_rectangle((tx - 5, ty - 5, tx + width + 5, ty + height + 5),
+                                  radius=5, fill=(35, 48, 40, 132))
+        d_label.text((tx, ty), label, font=font, fill=(253, 244, 215, 255),
                      stroke_fill=DARK, stroke_width=2)
         seen.append(b)
         ledger.append({"id": feature_id, "label": label, "x_km": x / ppm,
-                       "y_km": (size[1] - y) / ppm, "label_drawn": True, "tags": tags})
+                       "y_km": (size[1] - y) / ppm, "label_drawn": True,
+                       "symbol": role, "tags": tags})
     return markers, labels, ledger
 
 
@@ -189,30 +257,40 @@ def _preview(base: Image.Image, *, title: str, ppm: int, data) -> Image.Image:
     width, height = base.size
     border = max(26, ppm * 2)
     header = max(62, ppm * 3)
-    footer = max(60, ppm * 2)
+    footer = max(112, ppm * 5)
     canvas = Image.new("RGB", (width + 2 * border, height + header + footer),
                        (236, 225, 197))
     canvas.paste(base.convert("RGB"), (border, header))
     draw = ImageDraw.Draw(canvas)
     draw.rectangle((border - 1, header - 1, border + width, header + height),
                    outline=(74, 67, 52), width=3)
-    title_font = _font(max(20, round(ppm * 0.85)))
-    annotation_font = _font(max(13, round(ppm * 0.43)))
-    draw.text((border + 6, header // 2 - 14), title, font=title_font, fill=(54, 49, 41))
+    title_font = _font(max(25, round(ppm * 1.15)))
+    annotation_font = _font(max(15, round(ppm * 0.60)))
+    draw.text((border + 6, header // 2 - 20), title, font=title_font, fill=(54, 49, 41))
     scale_km = 10
     x0, y = border + 20, header + height + max(15, footer // 3)
     draw.line((x0, y, x0 + scale_km * ppm, y), fill=(41, 45, 39), width=4)
     for xx in (x0, x0 + scale_km * ppm):
         draw.line((xx, y - 6, xx, y + 7), fill=(41, 45, 39), width=2)
     draw.text((x0 + 2, y + 9), f"{scale_km} km", font=annotation_font, fill=(52, 51, 44))
-    north_x = border + width - 26
-    draw.line((north_x, header + 58, north_x, header + 15), fill=(42, 51, 49), width=3)
-    draw.polygon(((north_x, header + 7), (north_x - 6, header + 21),
-                  (north_x + 6, header + 21)), fill=(42, 51, 49))
-    draw.text((north_x - 7, header + 60), "N", font=annotation_font, fill=(42, 51, 49))
-    note = f"POIs: {sum(isinstance(f, PoiFeature) for f in data.features.values())} · rivers: {len(data.networks['rivers'].segments)}"
-    draw.text((border + width - max(400, len(note) * 11), header + height + footer // 2),
-              note, font=annotation_font, fill=(70, 67, 58))
+    north_x = border + width - 23
+    draw.line((north_x, 42, north_x, 16), fill=(42, 51, 49), width=3)
+    draw.polygon(((north_x, 9), (north_x - 7, 23),
+                  (north_x + 7, 23)), fill=(42, 51, 49))
+    draw.text((north_x - 6, 46), "N", font=annotation_font, fill=(42, 51, 49))
+    # Legend describes *only user-supplied tags* and accepted hydrography.
+    legend_x = border + width // 3
+    legend_y = header + height + 26
+    draw.ellipse((legend_x, legend_y - 5, legend_x + 12, legend_y + 7),
+                 fill=(244, 222, 169), outline=(43, 51, 41), width=2)
+    draw.text((legend_x + 19, legend_y - 9), "Поселение", font=annotation_font, fill=(62, 58, 46))
+    fort_x = legend_x + max(170, ppm * 8)
+    draw.rectangle((fort_x, legend_y - 5, fort_x + 13, legend_y + 8),
+                   fill=(75, 71, 51), outline=(238, 219, 159), width=2)
+    draw.text((fort_x + 20, legend_y - 9), "Укрепление", font=annotation_font, fill=(62, 58, 46))
+    note = f"Поселений: {sum(isinstance(f, PoiFeature) for f in data.features.values())}  ·  Фрагментов рек: {len(data.networks['rivers'].segments)}"
+    draw.text((border + width // 3, legend_y + 37), note,
+              font=annotation_font, fill=(70, 67, 58))
     return canvas
 
 
@@ -230,8 +308,10 @@ def _write_layers(assembly, out: Path, *, ppm: int, request: GenerationRequest) 
     if min(size) < 150 or max(size) > 6000:
         raise ValueError("Map output size out of supported demo range [150, 6000] px")
 
+    contour_layer, contour_interval_m = _contour_layer(fields, size, ppm=ppm)
     layers = [
         _terrain_layer(fields, size, parchment=False),
+        contour_layer,
         _water_layer(assembly.data, fields, size, ppm=ppm),
         _river_layer(assembly.data, size, ppm=ppm),
     ]
@@ -271,6 +351,8 @@ def _write_layers(assembly, out: Path, *, ppm: int, request: GenerationRequest) 
         "pixel_size": {"width": size[0], "height": size[1], "pixels_per_km": ppm},
         "axis": "x east, y north; image row 0 is north",
         "aligned_layers": list(MAP_LAYERS),
+        "cartographic_elevation_contour_interval_m": contour_interval_m,
+        "presentation_palette": "continuous moisture/greenness with strengthened terrain relief",
         "settlements_and_poi": pois,
         "river_segments": len(assembly.data.networks["rivers"].segments),
         "lake_features": sum(isinstance(f, HydroFeature) for f in assembly.data.features.values()),
@@ -280,6 +362,7 @@ def _write_layers(assembly, out: Path, *, ppm: int, request: GenerationRequest) 
             "No new physical runoff, groundwater, settlements, roads, or procedural POIs are inferred by renderer.",
             "Only existing DomainData point features are marked; label collision avoidance never moves features.",
             "A fully manual fixed-position settlement editor is not implemented by this renderer.",
+            "Elevation contour spacing and icon shapes are visual encodings; user-authored tags, not inferred settlement types.",
         ],
     }
     return manifest
