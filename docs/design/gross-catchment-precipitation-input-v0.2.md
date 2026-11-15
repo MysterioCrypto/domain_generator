@@ -20,11 +20,11 @@ Decision for proposal: implement only **gross climate water input**, not yet a h
 
 Existing `flow_accumulation_km2` measures upstream contributing **area**, treating each contributing grid cell as equal-area input. A 100 km² arid basin and a 100 km² humid basin can therefore have the same area accumulation despite receiving very different annual precipitation.
 
-H13-A computes a second, *derived diagnostic*: the gross annual volume of precipitation falling on cells whose existing MFD fractions contribute to a downstream grid location.
+H13-A computes a second, *derived diagnostic*: the gross annual precipitation volume falling on cells whose contributions are **mathematically assigned** to a downstream grid location by the existing MFD fractions. No runoff generation, interception, storage or loss process is modeled, so the computed volume is **not a physical flux delivered to that location**.
 
 It answers:
 
-> How much atmospheric precipitation volume arrives at this location's contributing catchment, **before any hydrological losses, snow storage, groundwater exchange or runoff generation?**
+> How much gross atmospheric precipitation falls on upstream contributing cells, **allocated by the accepted MFD drainage weights**, before any hydrological losses or storage are modeled? This is an upstream-input accounting measure, not evidence that this water physically reaches the location.
 
 It deliberately does **not** answer:
 - how much water becomes overland runoff;
@@ -79,7 +79,7 @@ Source precipitation comes from accepted persisted float32 C1 data, converted to
 
 ## 5. MFD transport and accounting
 
-Use the accepted weighted MFD DAG, not a newly generated river graph. Reuse the same receiver fractions, tie ordering, lake supernode concept and deterministic topological accumulation as accepted Hydrology 0.2.
+Use the accepted weighted MFD DAG, not a newly generated river graph. Reuse the same receiver fractions, tie ordering, lake supernode concept and deterministic topological accumulation as accepted Hydrology 0.2. Prefer a shared source-weighted accumulation kernel with a backward-compatible uniform-area wrapper; retain exactly the same accepted MFD area output and routing decisions. The new calculation must never feed back into accepted hydrology.
 
 For an ordinary land cell `i`:
 
@@ -138,7 +138,7 @@ shape [rows, columns]
 
 Value is finite and non-negative on land/freshwater cells, zero on marine cells; it is explicitly not canonical `water_depth`, stream width, channel permanence or physical river discharge.
 
-Add a read-only, deterministic **environmental diagnostic** computation after accepted C1/Surface climate exists and before final validation/assembly. It may produce a separate diagnostic state consumed only by export and its own invariants.
+Integrate this as a read-only optional diagnostic **within the existing `SURFACE` stage**, after accepted C1 annual precipitation has been calculated, before its validation completes. It may be stored as one additive optional field on `SurfaceState` and read later by assembly. Keep the existing public `ValidationStage` sequence and `_CANONICAL_STEPS` unchanged. No new pipeline stage is needed for H13-A, and no diagnostic calculation belongs in bundle assembly.
 
 It must not:
 - reorder the accepted Terrain → Hydrology → Surface dependencies;
@@ -239,6 +239,14 @@ Operator questions:
 - does lake routing count its local precipitation once?
 - is coastal volume captured without continuing through the sea?
 - is the result clearly labeled as gross input, **not** a hydrograph or discharge?
+
+## 11A. Review clarification — computation stage and interpretation
+
+The operator must never interpret a large cumulative gross input as a high annual river discharge: the field is only a *hypothetical no-loss allocation* of rainfall on contributing source cells. It can be much larger than actual discharge when evapotranspiration, infiltration, storage or snow/groundwater residence times matter.
+
+H13-A fits the existing six-stage Core pipeline without changing stage contracts: compute C1 inside the existing Surface stage, then compute the independent gross-input diagnostic from C1 precipitation and read-only Hydrology MFD state. The Surface validator checks both accepted C1/C2/C3 invariants and new H13-specific invariants. Assembly only copies the already validated diagnostic field; it does not generate it.
+
+If a safe shared weighted-accumulation kernel cannot be extracted without changing historical Hydrology output, stop and design an isolated deterministic graph traversal rather than compromising accepted routing or historical replay.
 
 ## 12. Stop rules and acceptance
 
