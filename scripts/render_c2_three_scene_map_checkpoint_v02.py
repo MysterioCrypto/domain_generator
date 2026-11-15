@@ -117,12 +117,19 @@ def _style_map(assembly) -> np.ndarray:
     rgb = low[None, None, :] * (1 - green[..., None]) + high[None, None, :] * green[..., None]
     light = np.clip(0.72 + 0.50 * gray, 0, 1.20)
     rgb = np.clip(rgb * light[..., None], 0, 1)
-    # Only H12 marine water is a broad filled area. Raster channel cells\n    # are NOT 1-km-wide rivers on a tabletop map: draw accepted river\n    # centerlines as vectors and accepted lake polygons as regions below.\n    rgb[marine] = np.array([0.17, 0.40, 0.60])
+    # Only H12 marine water is a broad filled area. Raster channel cells
+    # are NOT 1-km-wide rivers on a tabletop map: draw accepted river
+    # centerlines as vectors and accepted lake polygons as regions below.
+    rgb[marine] = np.array([0.17, 0.40, 0.60])
     return rgb
 
 
 def _cartographic_preview(path: Path, scene, name: str, new, *, coast: bool):
     rgb = _style_map(new)
+    if coast:
+        marine_mask = np.asarray(new.field_payloads["marine_mask"], dtype=np.bool_)
+        if not np.allclose(rgb[marine_mask], np.array([0.17, 0.40, 0.60])):
+            raise RuntimeError("Cartographic preview failed to fill accepted marine sea support")
     rows, cols = rgb.shape[:2]
     fig, ax = plt.subplots(figsize=(13, 9))
     ax.imshow(rgb, extent=(0, cols, 0, rows), origin="upper", interpolation="bilinear")
