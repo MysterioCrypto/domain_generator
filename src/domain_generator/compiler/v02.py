@@ -8,7 +8,7 @@ from .compile import (
     compile_domain_spec as _compile_domain_spec_v01,
     semantic_plan_fingerprint as _semantic_plan_fingerprint_v01,
 )
-from ..contracts.plan import GenerationPlan, PlanClimate, PlanMarine
+from ..contracts.plan import GenerationPlan, PlanClimate, PlanMarine, PlanClimaticInput
 from ..contracts.spec import DomainSpec
 from ..contracts.terrain import PlanTerrain, PlanTerrainNoiseLayer
 from ..presets import PresetRegistry
@@ -26,7 +26,7 @@ def _canonical_json_bytes(value: object) -> bytes:
 
 def _legacy_shadow(spec: DomainSpec) -> DomainSpec:
     legacy_surface = spec.surface.model_copy(update={"climate": None})
-    legacy_hydrology = spec.hydrology.model_copy(update={"marine": None})
+    legacy_hydrology = spec.hydrology.model_copy(update={"marine": None, "climatic_input": None})
     return spec.model_copy(
         update={
             "schema_version": "0.1",
@@ -42,8 +42,11 @@ def domain_spec_fingerprint(spec: DomainSpec) -> str:
         payload = spec.model_dump(mode="json", by_alias=True, exclude_none=False)
         payload.pop("terrain", None)
         hydrology = payload.get("hydrology")
-        if isinstance(hydrology, dict) and hydrology.get("marine") is None:
-            hydrology.pop("marine", None)
+        if isinstance(hydrology, dict):
+            if hydrology.get("marine") is None:
+                hydrology.pop("marine", None)
+            if hydrology.get("climatic_input") is None:
+                hydrology.pop("climatic_input", None)
         if isinstance(payload.get("surface"), dict):
             payload["surface"].pop("climate", None)
     else:
@@ -53,8 +56,11 @@ def domain_spec_fingerprint(spec: DomainSpec) -> str:
         # when the additive seasonality recipe is absent, while retaining the
         # key as semantic input when it is explicitly configured.
         hydrology = payload.get("hydrology")
-        if isinstance(hydrology, dict) and hydrology.get("marine") is None:
-            hydrology.pop("marine", None)
+        if isinstance(hydrology, dict):
+            if hydrology.get("marine") is None:
+                hydrology.pop("marine", None)
+            if hydrology.get("climatic_input") is None:
+                hydrology.pop("climatic_input", None)
         surface = payload.get("surface")
         if isinstance(surface, dict):
             climate = surface.get("climate")
@@ -109,6 +115,8 @@ def semantic_plan_fingerprint(plan: GenerationPlan) -> str:
     )
     if hydrology_payload.get("marine") is None:
         hydrology_payload.pop("marine", None)
+    if hydrology_payload.get("climatic_input") is None:
+        hydrology_payload.pop("climatic_input", None)
 
     payload = {
         "plan_version": plan.plan_version,
@@ -162,7 +170,14 @@ def compile_domain_spec(
         if spec.hydrology.marine is not None
         else None
     )
-    hydrology = legacy.hydrology.model_copy(update={"marine": marine})
+    climatic_input = (
+        PlanClimaticInput(**spec.hydrology.climatic_input.model_dump(mode="python"))
+        if spec.hydrology.climatic_input is not None
+        else None
+    )
+    hydrology = legacy.hydrology.model_copy(
+        update={"marine": marine, "climatic_input": climatic_input}
+    )
     source = legacy.source.model_copy(
         update={
             "spec_schema_version": "0.2",
