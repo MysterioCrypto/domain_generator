@@ -112,7 +112,7 @@ def test_same_world_coordinates_match_across_adjacent_crops():
 
 def test_small_source_window_is_rejected_and_no_extrapolation():
     macro = _macro()
-    with pytest.raises(ChildTerrainError, match="outside source station"):
+    with pytest.raises(ChildTerrainError, match="beyond source station"):
         evaluate_terrain(macro, _settings(), np.array([320.]), np.array([0.]))
     with pytest.raises(ChildTerrainError, match="positive"):
         generate_child(macro, _settings(planetary_year_earth_days=0))
