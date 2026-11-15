@@ -1141,3 +1141,11 @@ PR #98 is draft/open, not merged. Runtime implementation MUST NOT begin before e
 - G01–G15: 15 passed on checkpoint head `e4e12d322fc3ee016e77e4800d1dfeefc58fa452`. Dedicated checkpoint workflow GREEN: https://github.com/MysterioCrypto/domain_generator/actions/runs/43721814406 . Later implementation changes: historical K15 fixture amendment and added MFD trace visualization; rerun latest full/checkpoint CI before operator decision.
 - Representative A08 wet/dry gross-input median ratio ≈18; uniform-rainfall-vs-area maximum error ≈1.19×10⁻⁷ m³/year; coastal ledger relative conservation within float64 tolerance; all pre-existing world fields/networks exactly unchanged with H13 off/on.
 - Present operator-visible images/report from the final green run; NO implementation acceptance or merge before explicit user decision. Frozen `release/0.2-prealpha` still `c69c1af010a085fb80d248af703a77471fc6c9d7`.
+
+## H13-A implementation technical review evidence — 2026-11-15
+
+- G01–G15: 15 PASS on semantic HEAD 26292d3774867a33de6c3b33ee184a903b626363; dedicated PR H13 checkpoint https://github.com/MysterioCrypto/domain_generator/actions/runs/43722355111 GREEN; full PR pytest 517 PASS at https://github.com/MysterioCrypto/domain_generator/actions/runs/43722354997.
+- Dedicated checkpoint produces 8 PNG images and a machine-readable report in artifact `hydrology-v02-h13`. Examples include C1 rain, accepted MFD area, dry/wet/coastal gross input, coast/river overlays, uniform identity residual, and three annotated MFD trace examples.
+- The A08 dry/wet (100 vs 1800 mm/year) raster median gross-input ratio is 18.0; H12 coastal A08 (900 mm/year) has 154 marine cells, 2 marine terminal components, 4 inland lakes, gross source 2,632,837,588.684082 m³/year, terminal accounting error 4.768e-7 m³/year. Uniform 1000 mm fixture matches accepted area × 1e6 to max 1.192e-7 m³/year.
+- `docs/reviews/h13-a-operator-checkpoint-2026-11-15.md` records metrics, proof boundaries and review gate. Implementation PR #99 stays **DRAFT / OPEN / UNMERGED**; no implementation ACCEPT. Latest push CI: https://github.com/MysterioCrypto/domain_generator/actions/runs/43722348833 (verify terminal status after docs synchronization).
+

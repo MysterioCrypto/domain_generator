@@ -350,3 +350,25 @@ implementation ACCEPT PENDING OPERATOR — DO NOT MERGE
 ```
 
 The K15 failure was solely the historical manual fingerprint construction, which had to omit absent `climatic_input=None`; no historic fingerprints were re-signed. Check real GitHub HEAD/CI before resuming. Keep the WHY-map in `docs/CONTEXT.md` synchronized with this state.
+
+## H13-A final CI checkpoint — operator review (2026-11-15)
+
+```text
+H13-A design                 ACCEPTED / MERGED PR #98
+H13-A implementation PR #99  DRAFT / OPEN / UNMERGED
+tested semantic HEAD         26292d3774867a33de6c3b33ee184a903b626363
+G01–G15                      15 PASS
+H13 checkpoint               GREEN (8 figures + JSON report, 3 annotated traces)
+full PR pytest               517 PASS / GREEN
+full push pytest             verify final workflow completion after doc-only update
+implementation ACCEPT        PENDING; explicitly required, no merge
+release/0.2-prealpha         FROZEN at c69c1af010a085fb80d248af703a77471fc6c9d7
+```
+
+Checkpoint: https://github.com/MysterioCrypto/domain_generator/actions/runs/43722355111
+Full PR CI: https://github.com/MysterioCrypto/domain_generator/actions/runs/43722354997
+Full push CI: https://github.com/MysterioCrypto/domain_generator/actions/runs/43722348833
+Operator report: `docs/reviews/h13-a-operator-checkpoint-2026-11-15.md`.
+
+The earlier K15/spec fingerprint and schema snapshot failures are RESOLVED without re-signing accepted fingerprints. Do not conflate design ACCEPT with implementation ACCEPT.
+

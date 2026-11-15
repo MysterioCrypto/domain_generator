@@ -454,3 +454,12 @@ Frozen `release/0.2-prealpha`: `c69c1af010a085fb80d248af703a77471fc6c9d7`.
 - First dedicated checkpoint GREEN, G01–G15 15 PASS: https://github.com/MysterioCrypto/domain_generator/actions/runs/43721814406 . A08 dry/wet input ratio ~18; uniform-vs-area max absolute error 1.19e-7 m³/year, exact upstream field/network equality, coastal ledger error ~4.77e-7 m³/year.
 - Last full pytest before K15 fixture amendment was 516 PASS / 1 FAIL (historical K15 manual plan fingerprint oracle still serialized absent additive `climatic_input=None`). K15 was fixed in `bdc7438909b94510e45879a6806e725f1b62bc2c`; now await full pytest on latest head. Additional MFD example trace render in later head `a7ba943c599a30473ae2a5b765f4a477793f60d4` requires dedicated checkpoint rerun.
 - On recovery: recheck actual latest PR #99 head and CI before acting. Only update docs after final evidence. Present checkpoint images/links and ask explicit **IMPLEMENTATION ACCEPT/REJECT**, never infer from green tests. Frozen releases untouched.
+
+## H13-A implementation review — FINAL TECHNICAL GATE (2026-11-15)
+
+- `dev/0.2` has accepted H13 design from #98. `impl/v0.2-h13-gross-catchment-precipitation` has runtime draft PR #99, **unmerged and unaccepted**.
+- G01–G15: 15 PASS on semantic HEAD 26292d3774867a33de6c3b33ee184a903b626363; dedicated PR H13 checkpoint https://github.com/MysterioCrypto/domain_generator/actions/runs/43722355111 GREEN; full PR pytest 517 PASS at https://github.com/MysterioCrypto/domain_generator/actions/runs/43722354997.
+- Reviewer report: `docs/reviews/h13-a-operator-checkpoint-2026-11-15.md`; includes numerical source/terminal accounting, dry/wet/coast visuals, 3 MFD traces, acceptance limitations.
+- First 516 pass /1 fail on K15 manual plan fingerprint oracle was fixed without changing canonical fingerprint semantics or baseline. Latest tests 517 pass.
+- The operator MUST separately accept or reject implementation; green CI and successful render only enable review. Frozen release must not change. On chat recovery verify actual latest GitHub HEAD/CI and read `PROJECT.md` → `docs/CONTEXT.md` → `docs/PROGRESS.md` before this handoff.
+
