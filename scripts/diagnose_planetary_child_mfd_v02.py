@@ -206,6 +206,7 @@ def derive_drainage(
     surfaces = priority_flood_surfaces(elevation)
     flow = continuous_routing_field(surfaces.routing_elevation_m, cell_size_km=dx)
     area, ledger = fast_mfd_accumulation(flow.fractions, surfaces.routing_elevation_m, dx)
+    fill_depth = np.maximum(0.0, surfaces.fill_elevation_m - elevation)
     mask = area >= stream_threshold_km2
     radius = float(child_manifest["planet_radius_km"])
     lat, lon = map(float, child_manifest["center_lat_lon_deg"])
@@ -218,6 +219,8 @@ def derive_drainage(
         "child_MFD_routing_elevation_m": surfaces.routing_elevation_m,
         "child_MFD_flow_angle_rad": flow.flow_angle_rad,
         "child_MFD_major_channel_support_mask": mask.astype(np.uint8),
+        "child_preliminary_fill_depth_m": fill_depth,
+        "child_unresolved_depression_mask": (fill_depth > 2.0).astype(np.uint8),
     }
     diagnostics = {
         "status": "P2_B_DIAGNOSTIC_NOT_MACRO_CONSTRAINED_AND_NOT_CORE_DOMAIN_DATA",
@@ -231,6 +234,14 @@ def derive_drainage(
             "lake_and_marine_handling": "NOT IMPLEMENTED: inland-only diagnostic",
         },
         "mass_ledger": ledger,
+        "unresolved_depressions": {
+            "filled_cells_positive_depth": int(np.count_nonzero(fill_depth > 1e-8)),
+            "filled_cells_over_2m": int(np.count_nonzero(fill_depth > 2.0)),
+            "filled_cells_over_10m": int(np.count_nonzero(fill_depth > 10.0)),
+            "max_fill_depth_m": float(np.max(fill_depth)),
+            "accepted_lake_supernode_routing_used": False,
+            "warning": "MFD major-channel support over filled depressions is NOT an accepted lake/outlet network",
+        },
         "outlets": _edge_ledger(area, stream_threshold_km2),
         "parent_child_consistency": "NOT YET ENFORCED; old D8 is visual/boundary guide only",
         "limitations": [
@@ -239,6 +250,7 @@ def derive_drainage(
             "The source D8 graph does not constrain child basin outlets in this version.",
             "Raster channel support is not a canonical vector river network.",
             "No lake supernodes or marine classification in this inland-only diagnostic.",
+            "Large filled depressions can create misleading fan-like MFD flow patterns; magenta areas are NOT accepted rivers or lake outlets.",
             "Local waterfall, ford, road, settlement and world-specific biomes are not resolved.",
         ],
     }
@@ -264,6 +276,12 @@ def render_preview(child: dict[str, np.ndarray], fields: dict[str, np.ndarray],
     axes[1].set_title("ACCEPTED Core MFD fractions: log10 area (km²)")
     fig.colorbar(colored, ax=axes[1], shrink=.65)
     mask = fields["child_MFD_major_channel_support_mask"].astype(bool)
+    depth = fields["child_unresolved_depression_mask"].astype(bool)
+    if np.any(depth):
+        axes[2].contourf(
+            x, y, depth.astype(int),
+            levels=[0.5, 1.5], colors=["#c12f74"], alpha=0.34
+        )
     for ax in (axes[0], axes[2]):
         yy, xx = np.where(mask)
         ax.scatter(x[xx], y[yy], s=2.2, c="#166fa8", alpha=.75, zorder=4)
@@ -271,7 +289,9 @@ def render_preview(child: dict[str, np.ndarray], fields: dict[str, np.ndarray],
         (x0, y0), (x1, y1) = edge
         axes[2].plot([x0, x1], [y0, y1], c="#e3a046", lw=2.8, alpha=.93)
         axes[2].scatter([x0], [y0], s=8, c="#7b411d")
-    axes[2].set_title("Blue NEW MFD channels vs orange OLD A8 D8 guides")
+    axes[2].set_title(
+        "Blue MFD flow vs orange OLD D8; magenta UNRESOLVED depressions"
+    )
     for ax in axes:
         ax.set(xlabel="east km", ylabel="north km")
         ax.set_aspect("equal")
