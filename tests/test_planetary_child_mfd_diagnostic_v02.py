@@ -84,6 +84,9 @@ def test_diagnostic_uses_real_mfd_not_d8_and_tracks_outside_boundary_loss():
     assert report["source_reference"]["source_d8_visible_river_links"] > 0
     assert "D8" in report["source_reference"]["source_d8_limit"]
     assert report["child_MFD"]["lake_and_marine_handling"].startswith("NOT IMPLEMENTED")
+    assert report["unresolved_depressions"]["accepted_lake_supernode_routing_used"] is False
+    assert data["child_unresolved_depression_mask"].shape == (71, 71)
+    assert np.all(data["child_preliminary_fill_depth_m"] >= 0)
 
 
 def test_changed_mfd_source_terrain_changes_drainage_but_not_macro_guide():
@@ -138,3 +141,19 @@ def test_fixed_input_exactly_replays_drainage_and_outlet_ledger():
         np.testing.assert_array_equal(a[name], b[name])
     assert ra == rb
     np.testing.assert_array_equal(ga, gb)
+
+
+def test_deep_artificial_basin_is_flagged_not_misrepresented_as_lake_outlet():
+    child = _child()
+    # Intentionally disconnected interior sump; the diagnostic must expose it
+    # as unresolved, not quietly label a filled-MFD fan as natural waterways.
+    child["child_elevation_m"][30:40, 30:40] -= 180
+    fields, report, _ = derive_drainage(
+        child, _macro(), _manifest(), stream_threshold_km2=15
+    )
+    note = report["unresolved_depressions"]
+    assert note["max_fill_depth_m"] > 30
+    assert note["filled_cells_over_10m"] > 0
+    assert np.count_nonzero(fields["child_unresolved_depression_mask"]) > 0
+    assert note["accepted_lake_supernode_routing_used"] is False
+    assert report["parent_child_consistency"].startswith("NOT YET ENFORCED")
