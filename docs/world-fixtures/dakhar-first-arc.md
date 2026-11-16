@@ -65,3 +65,8 @@ A12: рабочий радиус планеты ≈7008,1 км; модельны
 ## P2-A child terrain evidence (not canon)
 
 Three private-source original planet areas A/B/C were modeled at 230×230 km on new 1-km grids. The original model DEM macro stations have been preserved exactly (63/49/49 points respectively). The child valleys and hills between them are NEW procedural interpretations; the old A8 D8 rivers and author-proposed mansion/night stop/town/crossing have not yet been converted into connected local MFD geography. The source-derived PNG comparisons remain private in this ChatGPT conversation. [Method](planetary-child-terrain.md).
+
+
+## P2-B1 source-grounded child drainage (NOT accepted rivers)
+
+After P2-A terrain, provisional Core-style 1km MFD was calculated over the three private A/B/C working-model areas. A8 D8 macro river edges are only orange comparison lines. Large virtual fills in B/C (up to ~88.5m and ~60m) imply unresolved lake/outlet handling. Locally generated water area is conserved, but the crop does not know upstream contributions from outside. This is **not an approved river network or a placed waterfall/ford**. [Technical and visual audit](../reviews/p2-b-child-mfd-reference-audit-2026-11-16.md).

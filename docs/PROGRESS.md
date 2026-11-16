@@ -374,3 +374,10 @@ A8/A12 ZIPs found in the connected Drive folder and locally opened. Exact SHA-25
 - [Source-aware child script and limitations](world-fixtures/planetary-child-terrain.md). [Synthetic dedicated Actions](https://github.com/MysterioCrypto/domain_generator/actions/runs/43746102251); full CI at latest PR head must be checked.
 - **NEXT P2-B:** build/verify a fine-grid MFD river network conditioned on macro outlet/major-basin constraints; do not claim old D8 is accepted MFD. Then P3 configurable non-Earth land cover.
 - Keep draft PRs #99/#100/#101/#103 unmerged and release branch frozen.
+
+
+### P2-B1 — actual child MFD diagnostics (2026-11-16; draft PR #103)
+
+- [19 GREEN targeted tests, Actions and synthetic comparison PNG](https://github.com/MysterioCrypto/domain_generator/actions/runs/43805052775); accepted Core fractions, ledger and fast vs canonical area equivalence, old D8 overlay separately. Existing full pytest on prior algorithm SHA GREEN; verify current doc SHA separately.
+- Real private A/B/C diagnostic in chat: three geographically distinct 230km regions. External inflows missing. Real B/C source-derived deep terrain depressions up to ~88.5/60m virtual filling; pre-lake MFD fans are not valid materialized river networks. [Audit and stop rule](reviews/p2-b-child-mfd-reference-audit-2026-11-16.md).
+- Next P2-B2: external boundary contributions + *accepted* lake outlet supernodes, then cross-scale MFD ↔ old A8 source topology comparison; only later waterfall/road and non-Earth land cover. No runtime modification, no merge of #99/#100/#101/#103, frozen release unchanged.

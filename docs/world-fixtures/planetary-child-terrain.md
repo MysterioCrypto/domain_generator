@@ -48,3 +48,8 @@ A8/A12 содержит исходную географию планеты на 
 - **Следующий P2-B:** согласовать внешние выходы макроводосборов и крупные речные коридоры с новой локальной MFD-гидрологией. Проверять гидрологическую связность, а не просто перерисовывать старые реки поверх нового рельефа. Затем природный покров мира (P3), вид сверху и художественный ImageGen.
 
 Это инженерный промежуточный артефакт. Для авторского контроля важна результирующая карта, а не формальная приёмка коэффициентов шума.
+
+
+## Downstream P2-B1: new routing on child terrain, with explicit blockers
+
+[Read the MFD source/reference diagnostic CLI](planetary-child-mfd-diagnostic.md). It computes accepted Core MFD fractions over the new terrain and records a locally conserved crop-boundary area ledger, while old A8 D8 paths are separate reference lines. In the original private A/B/C source maps, unresolved interior depressions are deep enough to compromise a naïve filled-MFD river visualization; subsequent **lake spill supernodes and external macro catchment inflows** remain necessary. The code is in draft #103, no merge acceptance.
