@@ -276,7 +276,6 @@ def connected_mfd_channel_projection(
     visited = np.zeros(nrows * ncols, dtype=np.int32)
     root = np.full(nrows * ncols, -2, dtype=np.int64)
     active = np.zeros(nrows * ncols, dtype=bool)
-    traversed_lake = np.zeros(nrows * ncols, dtype=bool)
     sequence = 0
     for sr, sc in np.argwhere(eligible):
         start = int(sr * ncols + sc)
