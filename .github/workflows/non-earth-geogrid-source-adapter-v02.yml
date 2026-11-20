@@ -9,6 +9,8 @@ on:
       - scripts/condition_planetary_child_terrain_v02.py
       - tests/test_planetary_child_terrain_v02.py
       - scripts/diagnose_planetary_child_mfd_v02.py
+      - scripts/audit_planetary_child_lakes_v02.py
+      - tests/test_planetary_child_lakes_v02.py
       - tests/test_planetary_child_mfd_diagnostic_v02.py
       - .github/workflows/non-earth-geogrid-source-adapter-v02.yml
 permissions:
@@ -27,7 +29,7 @@ jobs:
       - name: Install runtime and rendering environment
         run: python -m pip install -e ".[dev,render]"
       - name: Test source alignment and geographic graph boundary invariants
-        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py -q
+        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py -q
       - name: Create SMALL synthetic source archives (NO PRIVATE PLANET DATA)
         run: |
           python - <<'PY'
@@ -172,6 +174,79 @@ jobs:
           with Image.open(folder / "child-mfd-comparison.png") as image:
               assert image.width > 1000 and image.height > 400
           print("P2-B MFD DIAGNOSTIC OK: mass conserved, D8 only source guide, no fake inflow")
+          PY
+
+      - name: P2-B2.1 review provisional basins, NOT actual lakes
+        run: |
+          python scripts/audit_planetary_child_lakes_v02.py \
+            --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
+            --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
+            --lake-min-area-km2 4 --lake-min-depth-m 2 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/child-lake-review"
+
+      - name: Confirm basin mask and spill evidence without false water claims
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import numpy as np
+          from PIL import Image
+
+          folder = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint" / "child-lake-review"
+          m = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+          assert m["status"] == "P2_B2_1_GEOMETRIC_PROSPECTIVE_LAKES_NOT_WATER_OCCUPANCY"
+          assert not m["physical_water_coverage_inferred"]
+          assert m["author_approved_lakes"] == 0
+          assert not m["external_macro_inflow_used"]
+          assert not m["macro_A8_D8_forced"]
+          assert m["threshold_qualified_cells"] <= m["fill_required_cells"]
+          assert m["candidate_spill_count"] <= m["threshold_qualified_basins"]
+          with np.load(folder / "child-lake-basin-review.npz", allow_pickle=False) as data:
+              assert data["required_fill_depth_m"].shape == (131, 171)
+              assert data["provisional_lake_basin_id"].shape == (131, 171)
+          with Image.open(folder / "child-lake-basin-review.png") as im:
+              assert im.width > 1000 and im.height > 400
+          print("P2-B2.1 SOURCE CHILD: provisional basins only, no water inference")
+          PY
+
+      - name: Render explicit one-basin synthetic Core lake reference
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import numpy as np
+          from scripts.audit_planetary_child_lakes_v02 import (
+              audit_child_depressions, render_lake_review
+          )
+
+          rows = cols = 21
+          dem = np.empty((rows, cols), dtype=float)
+          for row in range(rows):
+              y = rows - row - .5
+              for col in range(cols):
+                  x = col + .5
+                  dem[row, col] = 200.0 - .8 * x + .03 * (y - 10.5)**2
+          dem[8:13, 8:13] -= 18.0
+          child = {
+              "child_elevation_m": dem,
+              "land_mask": np.ones((rows, cols), dtype=np.uint8),
+              "east_km": np.arange(cols, dtype=float),
+              "north_km_north_first": np.arange(rows - 1, -1, -1, dtype=float),
+          }
+          fields, note = audit_child_depressions(
+              child, lake_min_area_km2=2, lake_min_depth_m=1
+          )
+          assert note["threshold_qualified_basins"] == 1
+          assert note["candidate_spill_count"] == 1
+          assert note["small_grid_core_supernode_area_ledger"]["passed"]
+          output = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint" / "child-lake-bowl-fixture"
+          output.mkdir()
+          np.savez_compressed(output / "basin-fields.npz", **fields)
+          (output / "manifest.json").write_text(json.dumps(note, indent=2))
+          render_lake_review(child, fields, note, output / "one-basin-reference.png")
+          print("P2-B2.1 SMALL CORE LAKE: candidate spill and exact supernode mass balance")
           PY
 
       - name: Upload only synthetic adapter demonstration
