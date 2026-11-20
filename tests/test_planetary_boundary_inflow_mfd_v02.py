@@ -91,7 +91,7 @@ def test_explicit_boundary_area_requires_provenance_and_does_not_copy_A8_hint():
     assert ledger["status"].startswith("EXPLICIT_UNVALIDATED")
     bad = dict(body)
     bad["inflows"] = [dict(body["inflows"][0], area_semantics="TOTAL_SOURCE_CATCHMENT")]
-    with pytest.raises(BoundaryIntegrationError, match="EXTERNAL_ONLY"):
+    with pytest.raises(BoundaryIntegrationError, match="excludes child area"):
         validate_declared_inlets(bad, props, (81, 81))
     bad["inflows"] = [dict(body["inflows"][0], source_link_key="unknown")]
     with pytest.raises(BoundaryIntegrationError, match="absent"):
