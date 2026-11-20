@@ -62,3 +62,17 @@
 - Не публикуйте оригинальные приватные ZIP, исходный массив планеты или производные настоящие карты в публичный GitHub без разрешения автора.
 
 **Предел этапа:** нет физического Q м³/с, осадков, грунтовых вод и изображения постоянных рек. Не тратить время на глобальное научное моделирование ради выразительных НРИ карт, но и не рисовать старые реки поверх несвязанного рельефа.
+
+
+### P2-B2.3 · 2026-11-20: global A8 FIRST-ENTRY source partition (DRAFT #103)
+
+- The original PRIVATE global A8 600×1200 D8 graph (not a crop) was inspected. New external script scripts/trace_a8_external_first_entry_v02.py computes the partition of **each original EXTERIOR LAND SOURCE cell** by the FIRST directed downstream entry into each 230km child rectangle. This prevents source-area duplication on exit/re-entry: only own new exterior source area is allocated to later entries. Full graph must be acyclic; macro/crop links must match exact global A8 lat/lon/receiver indices; A8 source cell area uses world radius and cos(latitude), NOT Earth constants.
+- Original privately checked working model A/B/C: all directed A8 entry LINKS **23 / 12 / 5**; subset tagged old major river mask **1 / 0 / 0**. All-source EXTERIOR first-entry areas A ≈297,336.828km² / B ≈87,705.114km² / C ≈11,515.098km². A's ONE major river has A8 external first-entry area ≈**86,106.657km²**, matching old total source catchment ≈86,106.65625km² within rounding. No inside-upstream reentry in these specific scenes; a synthetic exit→reentry case is tested explicitly.
+- A8 first-entry provenance is NOT physically verified 1km CHILD MFD drainage, river discharge Q or author canon. **No auto injection into child MFD.** Old D8 river_mask ignores numerous smaller old macro incoming links; B/C "zero major" DOES NOT mean no rivers. Private source ZIPs and actual region imagery are NOT committed to public GitHub.
+- [P2-B2.3 audit](https://github.com/MysterioCrypto/domain_generator/blob/feature/v0.2-planetary-geogrid-source-adapter/docs/reviews/p2-b2-3-global-a8-first-entry-2026-11-20.md) and [CLI](https://github.com/MysterioCrypto/domain_generator/blob/feature/v0.2-planetary-geogrid-source-adapter/docs/world-fixtures/planetary-a8-first-entry-provenance.md). Synthetic tests cover reentry, unequal latitude row areas, cycle and source mismatch; current CI status must be confirmed at latest final SHA.
+- **NEXT P2-B2.4:** match source A8 MACRO outlets with actual CHILD MFD edge-terminal geography and connected river lines, then explicit world-specific hydrologic semantics; neither A8 D8 nor newly rendered detail is authoritative. PR #103 remains DRAFT/UNMERGED; #99–101 drafts and dev/0.2/frozen release unchanged.
+
+
+## New P2-B2.3 — проверенная площадь первичного входа по ORIGINAL A8
+
+[Приватный глобальный аудит](planetary-a8-first-entry-provenance.md) проверяет именно исходные глобальные A8 клетки, а не просто старый scalar catchment. Он не переносит найденную площадь в новую MFD автоматически: это лишь отдельная степень достоверности **исторической** географической модели. Даже проверенные 86,1 тыс. км² для главного входа A не превращаются сами собой в реальные Q или в правильный дочерний речной коридор. Далее требуется P2-B2.4.
