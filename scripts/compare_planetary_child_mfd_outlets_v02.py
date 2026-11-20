@@ -302,10 +302,7 @@ def connected_mfd_channel_projection(
     mask = active.reshape(shape)
     lake_mask = is_lake & mask
     ordinary = mask & ~is_lake
-    endpoints = sorted(set(int(root[v]) for v in np.flatnonzero(mask & edge)))
-    # The endpoint set above is equal to all reached terminal pixels and
-    # they have no receiving edges; every channel must reach a boundary.
-    # In actual source code flat mask is 1D; use a flattened edge mask here.
+    # Only successfully traced channel paths reaching a boundary count.
     endpoints = sorted(
         int(i) for i in np.flatnonzero(mask.reshape(-1) & edge.reshape(-1))
     )
