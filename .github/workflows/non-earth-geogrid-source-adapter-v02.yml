@@ -13,6 +13,8 @@ on:
       - tests/test_planetary_child_lakes_v02.py
       - scripts/condition_planetary_child_boundary_mfd_v02.py
       - tests/test_planetary_boundary_inflow_mfd_v02.py
+      - scripts/trace_a8_external_first_entry_v02.py
+      - tests/test_a8_external_first_entry_v02.py
       - tests/test_planetary_child_mfd_diagnostic_v02.py
       - .github/workflows/non-earth-geogrid-source-adapter-v02.yml
 permissions:
@@ -31,7 +33,7 @@ jobs:
       - name: Install runtime and rendering environment
         run: python -m pip install -e ".[dev,render]"
       - name: Test source alignment and geographic graph boundary invariants
-        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py -q
+        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py -q
       - name: Create SMALL synthetic source archives (NO PRIVATE PLANET DATA)
         run: |
           python - <<'PY'
@@ -383,6 +385,36 @@ jobs:
               at+=t.height+35
           panel.save(b/"boundary-comparison-zero-vs-explicit-scenario.png")
           print("P2-B2.2: no invented macro area; +250 km2 explicit source, area ledger conserved")
+          PY
+
+      - name: P2-B2.3 original GLOBAL D8 first-entry partition (synthetic, re-entry-safe)
+        run: |
+          python scripts/trace_a8_external_first_entry_v02.py \
+            --global-a8 "$RUNNER_TEMP/synthetic-world/A8.zip" \
+            --macro-npz "$RUNNER_TEMP/source-geogrid-checkpoint/macro-region-source.npz" \
+            --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
+            --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/first-entry-global"
+
+      - name: Validate GLOBAL first-entry provenance and no automatic MFD injection
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          import numpy as np
+          base = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint"
+          result = json.loads((base / "first-entry-global/manifest.json").read_text())
+          assert result["status"] == "A8_GLOBAL_FIRST_ENTRY_MACRO_AREA_VERIFIED_NOT_CHILD_MFD"
+          assert result["full_global_D8_cycle_free"]
+          assert result["no_source_cell_counted_twice"]
+          assert result["original_A8_source_cells_partitioned_once"]
+          assert result["auto_injected_external_area_km2"] == 0
+          assert result["all_directed_external_area_km2"] >= result["old_A8_major_river_entry_area_km2"]
+          assert result["old_A8_major_river_inlets_matched"] >= 1
+          assert result["genuine_child_MFD_topology_validated"] is False
+          with np.load(base / "first-entry-global/a8-first-entry-preview-crop.npz", allow_pickle=False) as f:
+              assert f["first_entry_source_id"].ndim == 2
+          print("P2-B2.3: synthetic full A8 graph SOURCE PARTITION ONLY, child automatic inflow=0")
           PY
 
       - name: Upload only synthetic adapter demonstration
