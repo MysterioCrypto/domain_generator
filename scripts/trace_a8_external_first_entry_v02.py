@@ -277,7 +277,10 @@ def main() -> None:
     parser.add_argument("--child-manifest", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    from scripts.condition_planetary_child_boundary_mfd_v02 import source_inlet_candidates
+    if __package__:
+        from scripts.condition_planetary_child_boundary_mfd_v02 import source_inlet_candidates
+    else:
+        from condition_planetary_child_boundary_mfd_v02 import source_inlet_candidates
     with np.load(args.macro_npz, allow_pickle=False) as f:
         macro = {k: f[k].copy() for k in f.files}
     with np.load(args.child_npz, allow_pickle=False) as f:
