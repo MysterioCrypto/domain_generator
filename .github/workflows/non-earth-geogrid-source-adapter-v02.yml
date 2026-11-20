@@ -15,6 +15,8 @@ on:
       - tests/test_planetary_boundary_inflow_mfd_v02.py
       - scripts/trace_a8_external_first_entry_v02.py
       - tests/test_a8_external_first_entry_v02.py
+      - scripts/compare_planetary_child_mfd_outlets_v02.py
+      - tests/test_planetary_child_mfd_outlet_alignment_v02.py
       - tests/test_planetary_child_mfd_diagnostic_v02.py
       - .github/workflows/non-earth-geogrid-source-adapter-v02.yml
 permissions:
@@ -33,7 +35,7 @@ jobs:
       - name: Install runtime and rendering environment
         run: python -m pip install -e ".[dev,render]"
       - name: Test source alignment and geographic graph boundary invariants
-        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py -q
+        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py tests/test_planetary_child_mfd_outlet_alignment_v02.py -q
       - name: Create SMALL synthetic source archives (NO PRIVATE PLANET DATA)
         run: |
           python - <<'PY'
@@ -417,6 +419,47 @@ jobs:
           with np.load(base / "first-entry-global/a8-first-entry-preview-crop.npz", allow_pickle=False) as f:
               assert f["first_entry_source_id"].ndim == 2
           print("P2-B2.3: synthetic full A8 graph SOURCE PARTITION ONLY, child automatic inflow=0")
+          PY
+
+      - name: P2-B2.4 compare original macro river EXITS to connected Core MFD child terminal paths
+        run: |
+          python scripts/compare_planetary_child_mfd_outlets_v02.py \
+            --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
+            --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
+            --macro-npz "$RUNNER_TEMP/source-geogrid-checkpoint/macro-region-source.npz" \
+            --stream-threshold-km2 30 \
+            --matching-tolerance-km 30 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/macro-vs-MFD-outlets"
+
+      - name: Check real graph adjacency, explicit unmatched outlets and raster evidence
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import numpy as np
+          from PIL import Image
+
+          base = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint/macro-vs-MFD-outlets"
+          m = json.loads((base/"manifest.json").read_text(encoding="utf-8"))
+          assert m["status"] == "P2_B2_4_REFERENCE_EXIT_ALIGNMENT_NOT_ACCEPTED_HYDROLOGY"
+          assert not m["is_accepted_Core_DomainData"]
+          assert not m["is_author_approved_local_river_map"]
+          assert m["external_area_auto_injected_km2"] == 0
+          assert m["source_macro_A8_outlet_ledger"]["major_A8_river_links_exiting_child_box"] >= 1
+          ch = m["child_core_dominant_channel_ledger"]
+          assert ch["ordinary_adjacent_channel_edges"] > 0
+          assert len(ch["connected_boundary_endpoints"]) > 0
+          assert not ch["is_physical_discharge_or_approved_river"]
+          assert ch["no_external_A8_source_area_auto_injected"]
+          assert not m["coarse_to_fine_outlet_alignment"]["is_hydrologically_validated"]
+          with np.load(base / "connected-MFD-channel-reference.npz", allow_pickle=False) as data:
+              assert data["channel_mask"].shape == (131,171)
+              assert data["channel_edge_flat_from_to"].shape[1] == 2
+              assert data["channel_mask"].sum() > 0
+          with Image.open(base / "macro-vs-child-outlets.png") as image:
+              assert image.width > 1200 and image.height > 350
+          print("P2-B2.4: old macro exits vs connected new MFD paths; geometry only, no Q")
           PY
 
       - name: Upload only synthetic adapter demonstration
