@@ -210,6 +210,59 @@ jobs:
           print("P2-B2.1 SOURCE CHILD: provisional basins only, no water inference")
           PY
 
+      - name: Sensitivity review (do not install universal lake thresholds)
+        run: |
+          python scripts/audit_planetary_child_lakes_v02.py \
+            --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
+            --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
+            --lake-min-area-km2 16 --lake-min-depth-m 10 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/child-lake-strict-review"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import numpy as np
+          from PIL import Image, ImageOps, ImageDraw
+
+          base = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint"
+          loose = base / "child-lake-review"
+          strict = base / "child-lake-strict-review"
+          a = json.loads((loose / "manifest.json").read_text(encoding="utf-8"))
+          b = json.loads((strict / "manifest.json").read_text(encoding="utf-8"))
+          with np.load(loose / "child-lake-basin-review.npz", allow_pickle=False) as d1, \
+               np.load(strict / "child-lake-basin-review.npz", allow_pickle=False) as d2:
+              mask_a = d1["provisional_lake_basin_id"] > 0
+              mask_b = d2["provisional_lake_basin_id"] > 0
+              assert not np.any(mask_b & ~mask_a)
+              np.testing.assert_array_equal(
+                  d1["required_fill_depth_m"], d2["required_fill_depth_m"]
+              )
+          assert b["threshold_qualified_basins"] <= a["threshold_qualified_basins"]
+          assert b["threshold_qualified_cells"] <= a["threshold_qualified_cells"]
+          assert not b["physical_water_coverage_inferred"]
+          canvases = [
+              Image.open(folder / "child-lake-basin-review.png").convert("RGB")
+              for folder in (loose, strict)
+          ]
+          width = 1400
+          thumbs = []
+          for pic in canvases:
+              thumbs.append(pic.resize(
+                  (width, round(pic.height * width / pic.width)),
+                  Image.Resampling.LANCZOS
+              ))
+          sheet = Image.new(
+              "RGB", (width, sum(x.height for x in thumbs) + 80), "#eee8da"
+          )
+          draw = ImageDraw.Draw(sheet)
+          y = 0
+          for im in thumbs:
+              sheet.paste(im, (0, y))
+              y += im.height + 40
+          sheet.save(base / "child-lake-threshold-comparison.png")
+          print("P2-B2.1 SENSITIVITY: strong thresholds cannot invent more basins")
+          PY
+
       - name: Render explicit one-basin synthetic Core lake reference
         run: |
           python - <<'PY'
