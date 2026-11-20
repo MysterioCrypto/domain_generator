@@ -462,6 +462,23 @@ jobs:
           print("P2-B2.4: old macro exits vs connected new MFD paths; geometry only, no Q")
           PY
 
+      - name: Operator visual checkpoint of SYNTHETIC macro vs MFD geography (JPEG in log)
+        run: |
+          python - <<'PY'
+          import base64, io, os
+          from pathlib import Path
+          from PIL import Image
+          root = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint/macro-vs-MFD-outlets"
+          with Image.open(root / "macro-vs-child-outlets.png") as png:
+              rgb = png.convert("RGB")
+              rgb.thumbnail((1050, 500))
+              raw = io.BytesIO()
+              rgb.save(raw, "JPEG", quality=65, optimize=True)
+          print("P2B24_SYNTHETIC_PREVIEW_BEGIN")
+          print(base64.b64encode(raw.getvalue()).decode("ascii"))
+          print("P2B24_SYNTHETIC_PREVIEW_END")
+          PY
+
       - name: Upload only synthetic adapter demonstration
         uses: actions/upload-artifact@v4
         with:
