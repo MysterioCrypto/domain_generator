@@ -28,9 +28,10 @@ from domain_generator.hydrology.continuous import (
 from domain_generator.hydrology.routing import (
     HydrologyCapabilityError, priority_flood_surfaces,
 )
-from scripts.condition_planetary_child_boundary_mfd_v02 import (
-    analyze_boundary,
-)
+if __package__:
+    from scripts.condition_planetary_child_boundary_mfd_v02 import analyze_boundary
+else:
+    from condition_planetary_child_boundary_mfd_v02 import analyze_boundary
 
 
 class OutletAlignmentError(ValueError):
