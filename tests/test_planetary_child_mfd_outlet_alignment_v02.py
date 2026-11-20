@@ -67,6 +67,8 @@ def test_mfd_channels_are_connected_through_real_positive_core_receivers():
     assert ledger["ordinary_adjacent_channel_edges"] > 40
     assert ledger["connected_boundary_endpoints"]
     assert ledger["headwater_seed_cells"] > 0
+    assert ledger["source_eligibility"].startswith("Core terrain-aware")
+    assert fields["Core_dominant_channel_area_km2_NOT_Q"].shape == (81, 81)
     assert ledger["no_external_A8_source_area_auto_injected"]
     assert not ledger["is_physical_discharge_or_approved_river"]
     assert ledger["lake_topology_status"] == "NO_LAKES_QUALIFIED"
