@@ -11,6 +11,8 @@ on:
       - scripts/diagnose_planetary_child_mfd_v02.py
       - scripts/audit_planetary_child_lakes_v02.py
       - tests/test_planetary_child_lakes_v02.py
+      - scripts/condition_planetary_child_boundary_mfd_v02.py
+      - tests/test_planetary_boundary_inflow_mfd_v02.py
       - tests/test_planetary_child_mfd_diagnostic_v02.py
       - .github/workflows/non-earth-geogrid-source-adapter-v02.yml
 permissions:
@@ -29,7 +31,7 @@ jobs:
       - name: Install runtime and rendering environment
         run: python -m pip install -e ".[dev,render]"
       - name: Test source alignment and geographic graph boundary invariants
-        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py -q
+        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py -q
       - name: Create SMALL synthetic source archives (NO PRIVATE PLANET DATA)
         run: |
           python - <<'PY'
@@ -300,6 +302,87 @@ jobs:
           (output / "manifest.json").write_text(json.dumps(note, indent=2))
           render_lake_review(child, fields, note, output / "one-basin-reference.png")
           print("P2-B2.1 SMALL CORE LAKE: candidate spill and exact supernode mass balance")
+          PY
+
+
+      - name: P2-B2.2 map ORIGINAL macro A8 river-entry candidates with ZERO invented outside input
+        run: |
+          python scripts/condition_planetary_child_boundary_mfd_v02.py \
+            --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
+            --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
+            --macro-npz "$RUNNER_TEMP/source-geogrid-checkpoint/macro-region-source.npz" \
+            --lake-min-area-km2 16 --lake-min-depth-m 10 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/boundary-no-external"
+
+      - name: P2-B2.2 explicit HYPOTHETICAL external catchment and distinct ledger
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          import numpy as np
+          from scripts.condition_planetary_child_boundary_mfd_v02 import source_inlet_candidates
+          base = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint"
+          with np.load(base / "macro-region-source.npz", allow_pickle=False) as z:
+              macro = {k:z[k] for k in z.files}
+          with np.load(base / "child" / "child-terrain-generated.npz", allow_pickle=False) as z:
+              child = {k:z[k] for k in z.files}
+          child_manifest = json.loads((base / "child" / "manifest.json").read_text())
+          sites = source_inlet_candidates(macro, child, child_manifest)
+          print("Only A8 D8 prospective geometry:",len(sites))
+          assert len(sites) >= 1, "synthetic fixture must have incoming macro segment"
+          spec = {
+              "schema":"P2_B2_2_EXPLICIT_A8_INFLOW_SCENARIO",
+              "inflows":[{
+                  "source_link_key":sites[0]["key"],
+                  "external_area_km2":250.0,
+                  "area_semantics":"EXTERNAL_ONLY_AREA_EXCLUDING_CHILD",
+                  "operator_note":"SYNTHETIC HYPOTHESIS ONLY, deliberately not the old macro catchment value"
+              }]
+          }
+          (base/"hypothetical-external.json").write_text(json.dumps(spec,indent=2))
+          PY
+          python scripts/condition_planetary_child_boundary_mfd_v02.py \
+            --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
+            --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
+            --macro-npz "$RUNNER_TEMP/source-geogrid-checkpoint/macro-region-source.npz" \
+            --inflows-json "$RUNNER_TEMP/source-geogrid-checkpoint/hypothetical-external.json" \
+            --lake-min-area-km2 16 --lake-min-depth-m 10 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/boundary-external-hypothesis"
+
+      - name: Assert no double counting, lake status and scenario graphics
+        run: |
+          python - <<'PY'
+          import json,os
+          import numpy as np
+          from pathlib import Path
+          from PIL import Image,ImageDraw
+          b=Path(os.environ["RUNNER_TEMP"])/"source-geogrid-checkpoint"
+          p=json.loads((b/"boundary-no-external"/"manifest.json").read_text())
+          q=json.loads((b/"boundary-external-hypothesis"/"manifest.json").read_text())
+          assert p["external_inflow"]["injected_external_area_km2"]==0
+          assert q["external_inflow"]["injected_external_area_km2"]==250
+          assert q["source_A8_D8_candidate_count"]>=1
+          assert not q["lake_topology"]["actual_water_lakes_inferred"]
+          assert q["river_network_consistency_with_macro"]=="NOT YET VALIDATED"
+          assert abs(p["area_mass_ledger"]["balance_error_km2"])<1e-6
+          assert abs(q["area_mass_ledger"]["balance_error_km2"])<1e-6
+          with np.load(b/"boundary-no-external"/"boundary-routing-diagnostic.npz",allow_pickle=False) as a, \
+               np.load(b/"boundary-external-hypothesis"/"boundary-routing-diagnostic.npz",allow_pickle=False) as c:
+              x=a["mfd_contributing_area_with_explicit_inflows_km2"]
+              y=c["mfd_contributing_area_with_explicit_inflows_km2"]
+              assert x.shape==(131,171)
+              assert np.max(y-x)>50
+          imgs=[Image.open(b/f/"boundary-routing-preview.png").convert("RGB")
+                for f in ("boundary-no-external","boundary-external-hypothesis")]
+          w=1300
+          thumb=[im.resize((w,round(im.height*w/im.width))) for im in imgs]
+          panel=Image.new("RGB",(w,sum(t.height for t in thumb)+70),"#f1eade")
+          at=0
+          for t in thumb:
+              panel.paste(t,(0,at))
+              at+=t.height+35
+          panel.save(b/"boundary-comparison-zero-vs-explicit-scenario.png")
+          print("P2-B2.2: no invented macro area; +250 km2 explicit source, area ledger conserved")
           PY
 
       - name: Upload only synthetic adapter demonstration
