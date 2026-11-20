@@ -22,8 +22,8 @@ from matplotlib.colors import LightSource
 
 from domain_generator.hydrology.classification import extract_lake_candidates
 from domain_generator.hydrology.continuous import (
-    _dominant_channel_receiver_index, choose_lake_outlets,
-    continuous_routing_field,
+    _dominant_channel_receiver_index, _dominant_channel_area_km2,
+    _terrain_aware_initiation, choose_lake_outlets, continuous_routing_field,
 )
 from domain_generator.hydrology.routing import (
     HydrologyCapabilityError, priority_flood_surfaces,
@@ -238,7 +238,7 @@ def connected_mfd_channel_projection(
     area = np.asarray(
         fields["mfd_contributing_area_with_explicit_inflows_km2"], dtype=float
     )
-    eligible = (area >= stream_threshold_km2) & ~edge
+    receiver_preference = (area >= stream_threshold_km2) & ~edge
     lake_by_cell = {}
     out_by_lake_id = {o.lake_id: o for o in outlets}
     from domain_generator.hydrology.ids import lake_feature_id
@@ -248,11 +248,23 @@ def connected_mfd_channel_projection(
             if cell in lake_by_cell:
                 raise OutletAlignmentError("overlapping lake proxy basins")
             lake_by_cell[cell] = outlet.receiver_cell
-            eligible[cell] = False
+            receiver_preference[cell] = False
     receiver = _dominant_channel_receiver_index(
-        flow, area, eligible, lake_candidates=lakes,
+        flow, area, receiver_preference, lake_candidates=lakes,
         lake_outlets=outlets,
     ).astype(np.int64)
+    # Use Core’s own dominant-channel area and terrain-aware eligibility, not
+    # every pixel that happens to carry diffuse MFD accumulation. The former
+    # suppresses thick block-like synthetic river overpainting.
+    dominant_area = _dominant_channel_area_km2(
+        receiver, cell_size_km=cell_size_km, lake_candidates=lakes
+    )
+    _, _, eligible = _terrain_aware_initiation(
+        flow, dominant_area, stream_threshold_km2=stream_threshold_km2
+    )
+    eligible = eligible & ~edge
+    for cell in lake_by_cell:
+        eligible[cell] = False
     # A lake proxy provides a topological jump to its selected spill receiver.
     # This NONLOCAL link is deliberately separated from drawn channel segments.
     is_lake = np.zeros(shape, dtype=bool)
@@ -347,11 +359,13 @@ def connected_mfd_channel_projection(
         "channel_edge_flat_from_to": np.asarray(edges, dtype=np.int32).reshape(-1, 2),
         "lake_proxy_jumps_flat_from_to": np.asarray(proxy_jumps, dtype=np.int32).reshape(-1, 2),
         "MFD_contributing_area_km2_NOT_Q": area.astype(np.float32),
+        "Core_dominant_channel_area_km2_NOT_Q": dominant_area.astype(np.float32),
     }
     return output, {
         "status": "CONNECTED_CORE_DOMINANT_MFD_CHANNEL_PROJECTION_NOT_REAL_RIVERS",
         "stream_threshold_km2_NOT_Q": stream_threshold_km2,
         "headwater_seed_cells": int(np.count_nonzero(eligible)),
+        "source_eligibility": "Core terrain-aware initiation from dominant-channel area, NOT arbitrary diffuse MFD support",
         "routed_ordinary_channel_cells": int(np.count_nonzero(ordinary)),
         "geometric_lake_proxy_cells_traversed": int(np.count_nonzero(lake_mask)),
         "ordinary_adjacent_channel_edges": len(edges),
