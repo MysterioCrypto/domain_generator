@@ -58,6 +58,8 @@ jobs:
           downstream = np.full((rows, cols), -1, dtype="int32")
           for row in range(rows - 1):
               downstream[row] = np.arange((row + 1) * cols, (row + 2) * cols)
+          # Real original A8 D8 does not route FROM ocean cells; the toy must agree.
+          downstream[north_land == 0] = -1
           for name, member, fields in (
               ("A8", "planet_A8/A8_hydrology.npz", {
                   "lat": lat[::-1], "lon": lon,
