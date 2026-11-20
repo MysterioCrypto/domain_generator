@@ -381,3 +381,10 @@ A8/A12 ZIPs found in the connected Drive folder and locally opened. Exact SHA-25
 - [19 GREEN targeted tests, Actions and synthetic comparison PNG](https://github.com/MysterioCrypto/domain_generator/actions/runs/43805052775); accepted Core fractions, ledger and fast vs canonical area equivalence, old D8 overlay separately. Existing full pytest on prior algorithm SHA GREEN; verify current doc SHA separately.
 - Real private A/B/C diagnostic in chat: three geographically distinct 230km regions. External inflows missing. Real B/C source-derived deep terrain depressions up to ~88.5/60m virtual filling; pre-lake MFD fans are not valid materialized river networks. [Audit and stop rule](reviews/p2-b-child-mfd-reference-audit-2026-11-16.md).
 - Next P2-B2: external boundary contributions + *accepted* lake outlet supernodes, then cross-scale MFD ↔ old A8 source topology comparison; only later waterfall/road and non-Earth land cover. No runtime modification, no merge of #99/#100/#101/#103, frozen release unchanged.
+
+
+### P2-B2.1 — geometric lake basin review (2026-11-20, PR #103 DRAFT)
+
+- [Visual synthetic QA](https://github.com/MysterioCrypto/domain_generator/actions/runs/44748762996) and [operator review](reviews/p2-b2-1-child-lake-basin-operator-checkpoint-2026-11-20.md): external read-only `scripts/audit_planetary_child_lakes_v02.py`, Core Priority Flood/extract_lake_candidates/choose_lake_outlets, bounded nested hierarchy, Core lake-supernode conservation on SMALL bowl only. Proposed basin ≠ actual water occupancy; no universal Earth-specific thresholds, no external inflow, no source-D8 substitution.
+- 27 focused tests GREEN; full algorithmic SHA pytest 532 GREEN; final docs SHA must have new CI. Private A/B/C sensitivity screening performed locally using independently interpolated DEM, not an exact PR P2-A regression; resulting numerical/visual data stay in conversation only.
+- P2-B2.2 next: source-macro boundary inflows/outflows and constrained MFD+lake supernode routing, before asserting credible river/ford/waterfall geometry. Keep PR #103, #99–101 draft/unmerged. Frozen `release/0.2-prealpha` unchanged.

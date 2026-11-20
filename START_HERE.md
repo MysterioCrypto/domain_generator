@@ -66,3 +66,6 @@
 
 
 **P2-B1 — предварительная речная диагностика (16.11.2026):** на отдельном draft [PR #103](https://github.com/MysterioCrypto/domain_generator/pull/103) реализован новый MFD-сток поверх дочернего 1-км рельефа. [Зелёный Actions c PNG](https://github.com/MysterioCrypto/domain_generator/actions/runs/43805052775) (только синтетический пример). [На реальных A/B/C](docs/reviews/p2-b-child-mfd-reference-audit-2026-11-16.md) выявлены глубокие понижения B/C: это блокер для достоверных рек, а не эстетическая проблема. P2-B2: привязка макровыходов, внешний приток и принятые озёрные supernodes. **Реки ещё не приняты как часть карты**.
+
+
+**Текущий P2-B2.1** — диагностика возможных озёрных бассейнов на детальном рельефе: [отчёт](docs/reviews/p2-b2-1-child-lake-basin-operator-checkpoint-2026-11-20.md), [настраиваемый CLI](docs/world-fixtures/planetary-child-lake-review.md) и [синтетический Actions](https://github.com/MysterioCrypto/domain_generator/actions/runs/44748762996). Пороги 4 км²/2 м или 16 км²/10 м — примеры отбора, а не утверждённая климатология; Core не изменён, #103 остаётся черновиком. Следующий этап — внешние граничные притоки и связанные озёрные переливы P2-B2.2.

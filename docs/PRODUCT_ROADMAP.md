@@ -58,3 +58,10 @@
 
 
 **P2-B1 (16.11, draft #103):** новый MFD по дочернему рельефу и консервативная граница локального водосбора проверены в CI, 19 тестов GREEN; A8 D8 используется как отдельный исходный ориентир. Реальные A/B/C выявили глубокие замкнутые понижения (B≈88,5м, C≈60м) и ложную веерообразную картину предварительной гидрологии. P2-B2 обязан сначала корректно учесть озёрные supernodes и входящие/выходящие крупные водосборы; простого рисования речных линий или масштабирования A8 недостаточно. [Аудит](reviews/p2-b-child-mfd-reference-audit-2026-11-16.md).
+
+
+### P2-B2.1 — geometric lake basin review (2026-11-20, PR #103 DRAFT)
+
+- [Visual synthetic QA](https://github.com/MysterioCrypto/domain_generator/actions/runs/44748762996) and [operator review](reviews/p2-b2-1-child-lake-basin-operator-checkpoint-2026-11-20.md): external read-only `scripts/audit_planetary_child_lakes_v02.py`, Core Priority Flood/extract_lake_candidates/choose_lake_outlets, bounded nested hierarchy, Core lake-supernode conservation on SMALL bowl only. Proposed basin ≠ actual water occupancy; no universal Earth-specific thresholds, no external inflow, no source-D8 substitution.
+- 27 focused tests GREEN; full algorithmic SHA pytest 532 GREEN; final docs SHA must have new CI. Private A/B/C sensitivity screening performed locally using independently interpolated DEM, not an exact PR P2-A regression; resulting numerical/visual data stay in conversation only.
+- P2-B2.2 next: source-macro boundary inflows/outflows and constrained MFD+lake supernode routing, before asserting credible river/ford/waterfall geometry. Keep PR #103, #99–101 draft/unmerged. Frozen `release/0.2-prealpha` unchanged.
