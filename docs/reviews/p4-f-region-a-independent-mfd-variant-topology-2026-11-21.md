@@ -15,7 +15,7 @@ P4-E показал, что снижение `relief_strength` с 2.0 до 0.5 �
 - Для каждой ячейки найдена **модельная** конечная граничная ячейка доминантного графа, проверены циклы, неизвестные nonlocal переходы и преждевременная остановка; для каждой новой поверхности сравниваются абсолютная идентичность конечного пикселя, сторона выхода, пересечение channel-mask IoU и по сторонам сумма **fractional** MFD contributing area.
 - Все три вычисления имеют исходный **локальный** объём модельной площади 53 361 км², и сохранение площади на границах с численной ошибкой порядка 1e-10 км². **Автоматический внешний A8-поток равен 0 км²**, физический Q, recharge и river permanence не моделируются.
 - Варианты сохраняют **63 source parent height stations, parent interpolation и 231×231 grid**, land mask не изменяется. P3 cover *не пересчитывается*: верхняя раскраска из P4-E лишь стабильный фон для просмотра.
-- `tests/test_region_mfd_variant_basins_v02.py`: **24 синтетических теста**, в том числе реальный routing Core на малом искусственном DEM, exact baseline replay, проверка SHA/повторного CLI, защита против неверного C1 inlet/area и MFD-провалов, графовые циклы/нелокальные переходы/терминация, бухгалтерия boundary side, детерминированный PNG. Синтетический geogrid CI запускает P4-F после P4-E, когда synthetic region содержит нужный C1 коридор; иначе полный positive toy CLI остаётся обязательным.
+- `tests/test_region_mfd_variant_basins_v02.py`: **24 синтетических теста (включая оба формата P4-C1: прямой CI JSON и приватный обёрнутый audit)**, в том числе реальный routing Core на малом искусственном DEM, exact baseline replay, проверка SHA/повторного CLI, защита против неверного C1 inlet/area и MFD-провалов, графовые циклы/нелокальные переходы/терминация, бухгалтерия boundary side, детерминированный PNG. Синтетический geogrid CI запускает P4-F после P4-E, когда synthetic region содержит нужный C1 коридор; иначе полный positive toy CLI остаётся обязательным.
 
 ## Реальный район A — численные результаты
 
@@ -56,9 +56,9 @@ IoU между **самими** альтернативами 0.5 и 1.25: **24.1
 ## Внешняя воспроизводимость и безопасное хранение
 
 - [Приватный P4-F сравнительный лист](https://drive.google.com/file/d/1FDp5FX1Rg_n5VsbCzfVe1Wmxx_SFbI9T/view).
-- [P4-F derived ZIP: два NPZ MFD/projection для новых вариантов, два отчёта, карта, численный JSON и SHA origin](https://drive.google.com/file/d/1ODKCpgEyr3rT0l-GFcZ7AsAch8mx3G-_/view).
+- [P4-F derived ZIP: два NPZ MFD/projection для новых вариантов, два отчёта, карта, численный JSON и SHA origin](https://drive.google.com/file/d/1nRuXLKjx6sKxHnuBqOXuQGCbLg_m-XLy/view).
 - Предыдущие исходники: [P4-B private source](https://drive.google.com/file/d/1G6hxsqMNBIk_ZovBZ4nrepf7fLOxrHtX/view), [P4-C1 inlet audit](https://drive.google.com/file/d/1tBviEHXytjBTCgyGQ2S35lwQBPK4nyWf/view), [P4-E alternative terrain NPZ](https://drive.google.com/file/d/1NlJgASNvupeQ3E4Ykcr0k8gSRylGLQtg/view).
-- Git blob SHA-1 модуля: `d2001abd93458f8386adbba20b9b1c8b7ea04c85`; тестов: `087dc1febbf77049c7fa995772b268d2faa14998`. В ZIP **нет оригинальных больших A8/A12 ZIP**, исходные SHA оригиналов сохранены в provenance.
+- Git blob SHA-1 модуля: `b981cd68dcbd07646b879f4a0f5da82749f5558c`; тестов: `b3ba87856465547221f9603f191fa4137aab03ae`. В ZIP **нет оригинальных больших A8/A12 ZIP**, исходные SHA оригиналов сохранены в provenance.
 
 Не изменялись: принятый `dev/0.2`, frozen release, оригинальный A8/A12, Core code/DomainData, прежняя P3 candidate vegetation, пользовательские POI и маршруты. Все generated NPZ являются самостоятельными **производными диагностическими** данными.
 
