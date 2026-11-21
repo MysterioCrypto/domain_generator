@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-non-earth-product-readiness
-checkpoint: p4-a-real-region-a-cartographic-base-rendered-map-not-accepted
-next_topic: p4-b-validate-river-connectivity-on-child-dem-before-any-water-map
+checkpoint: p4-b-real-region-a-conservative-core-mfd-drainage-evidence-not-water
+next_topic: p4-c-reconcile-external-macro-inflows-lake-outlets-and-river-connectivity
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
