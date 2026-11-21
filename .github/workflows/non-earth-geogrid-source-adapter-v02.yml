@@ -19,6 +19,8 @@ on:
       - scripts/render_region_drainage_evidence_v02.py
       - scripts/reconcile_region_boundary_corridors_v02.py
       - scripts/audit_region_corridor_sensitivity_v02.py
+      - scripts/audit_region_anchor_alternative_drains_v02.py
+      - tests/test_region_anchor_alternative_drains_v02.py
       - tests/test_region_corridor_sensitivity_v02.py
       - tests/test_region_boundary_corridors_v02.py
       - scripts/render_region_cartographic_base_v02.py
@@ -46,7 +48,7 @@ jobs:
       - name: Install runtime and rendering environment
         run: python -m pip install -e ".[dev,render]"
       - name: Test source alignment and geographic graph boundary invariants
-        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py tests/test_planetary_child_mfd_outlet_alignment_v02.py tests/test_planetary_source_corridor_trial_v02.py tests/test_planetary_child_lake_topology_v02.py tests/test_region_drainage_evidence_v02.py tests/test_region_boundary_corridors_v02.py tests/test_region_corridor_sensitivity_v02.py -q
+        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py tests/test_planetary_child_mfd_outlet_alignment_v02.py tests/test_planetary_source_corridor_trial_v02.py tests/test_planetary_child_lake_topology_v02.py tests/test_region_drainage_evidence_v02.py tests/test_region_boundary_corridors_v02.py tests/test_region_corridor_sensitivity_v02.py tests/test_region_anchor_alternative_drains_v02.py -q
       - name: Create SMALL synthetic source archives (NO PRIVATE PLANET DATA)
         run: |
           python - <<'PY'
@@ -754,6 +756,45 @@ jobs:
           assert (output/'corridor-sensitivity-sheet.png').is_file()
           assert (output/'corridor-sensitivity-edges.csv').is_file()
           print('P4C2_SYNTHETIC: threshold sensitivity is evidence only; no external water injected')
+          PY
+
+      - name: P4-D SYNTHETIC anchor provenance and raw-descent negatives (NOT RIVERS)
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
+          c2=root/'P4C2-synthetic-sensitivity'
+          a=json.loads((c2/'corridor-sensitivity-audit.json').read_text())
+          assert a['status']=='P4_C2_RAW_DEM_ROUTE_SENSITIVITY_NOT_RIVERS'
+          if a['P4C1_candidate_route_count']==1:
+              output=root/'P4D-synthetic-anchor-evidence'
+              subprocess.check_call([
+                  sys.executable,'-m','scripts.audit_region_anchor_alternative_drains_v02',
+                  '--macro-npz',str(root/'macro-region-source.npz'),
+                  '--child-npz',str(root/'child/child-terrain-generated.npz'),
+                  '--child-manifest',str(root/'child/manifest.json'),
+                  '--p4c2-audit-json',str(c2/'corridor-sensitivity-audit.json'),
+                  '--p4c2-edges-csv',str(c2/'corridor-sensitivity-edges.csv'),
+                  '--p4a-map-image',str(root/'P4B-synthetic-cartographic-source/region-cartographic-base.png'),
+                  '--output',str(output)
+              ])
+              result=json.loads((output/'anchor-gradient-audit.json').read_text())
+              assert result['prior_P4C2_source_file_hashes_verified']
+              assert not result['physical_basin_identity_or_river_verified']
+              assert result['macro_A8_upstream_area_injected_km2']==0
+              assert result['raw_uphill_or_flat_edges']==(
+                  result['complete_P4C2_partition']['raw_uphill_only']+
+                  result['complete_P4C2_partition']['both'])
+              assert (result['blocked_sources_with_immediate_alternative_raw_downhill']+
+                      result['blocked_sources_without_immediate_raw_downhill']==
+                      result['raw_uphill_or_flat_edges'])
+              assert (output/'anchor-gradient-evidence-sheet.png').is_file()
+          else:
+              # This generated crop has no selected inlet corridor. The
+              # synthetic toy regression suite exercises the full P4-D CLI.
+              assert a['P4C1_candidate_route_count']==0
+              print('P4D_SYNTHETIC: no selected inlet on crop, full CLI covered by toy tests')
           PY
 
       - name: Snapshot small PUBLIC code for reproducible PRIVATE processing (NO ORIGINAL DATA)
