@@ -216,7 +216,7 @@ def render_sheet(ledger,child,report,target,channels=None):
              report["planet"]+"  /  РАЙОН "+str(ledger["region"]["id"]),
              weight="bold",size=23,color="#273129")
     fig.text(.057,.91,
-             "Рабочая авторская карта · линия Д’Акхара · география НЕ утверждена",
+             "Рабочая авторская карта · главный герой: "+report["protagonist"]+" · география НЕ утверждена",
              size=11,color="#737267")
     fig.text(.055,.045,
              "Модельный рельеф; положение отмечено только там, где задано явно. "
