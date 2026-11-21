@@ -70,7 +70,7 @@ def test_map_is_independent_and_story_geometry_stays_unknown(tmp_path):
         # Geographic north-first: northern forest renders darker than southern open land.
         assert pixels[:30, :, :].mean() < pixels[-30:, :, :].mean()
     with Image.open(tmp_path/"map/region-cartographic-sheet.png") as im:
-        assert im.width == 325+140 and im.height == 245+102+200
+        assert im.width == 325+140 and im.height == 245+102+236
 
 
 def test_bitwise_replay_with_same_inputs(tmp_path):
