@@ -2,10 +2,14 @@
 
 Purpose: **current** DONE / IN PROGRESS / NEXT tree for chat recovery. For the dependency/context map and rejected hypotheses read `docs/CONTEXT.md`; for normative semantics read accepted `docs/design/*`.
 
-**Active accepted Core:** `dev/0.2` (unchanged). **Current external product checkpoint:** PR #103, P3.6 spherical working selection approved; regional-map product NOT accepted. Historical navigation checkpoint: [START_HERE](../START_HERE.md). **Parallel technical line:** H13 DESIGN accepted/merged #98, runtime #99 draft/unmerged; #100 C2 experiment and #101 atlas composer also draft/unmerged. **H12-A:** accepted/merged #97.
+**Active accepted Core:** `dev/0.2` (unchanged). **Current external product checkpoint:** PR #103, P4-A first real region-A cartographic base rendered; map NOT author accepted. Historical navigation checkpoint: [START_HERE](../START_HERE.md). **Parallel technical line:** H13 DESIGN accepted/merged #98, runtime #99 draft/unmerged; #100 C2 experiment and #101 atlas composer also draft/unmerged. **H12-A:** accepted/merged #97.
 Historical checkpoint notes below are not current gates.
 
-## CURRENT: P3.6 bounded author acceptance, P4-A next (2026-11-21)
+## CURRENT: P4-A real region-A map-first cartographic output (2026-11-21)
+
+New independent scripts/render_region_cartographic_base_v02.py combines **existing** P2-A sphere DEM and P3 source-conditioned cover WITHOUT mutating numeric fields or inventing rivers/roads/POI. Outputs clean PNG, mapped sheet (north up, correct 50-km scalebar, color legend separated from bar, 50-m DEM isolines) and input-hashed JSON audit. Real ORIGINAL private A8/A12 SHA verified, exact GH P1/P2/P3/P4 module blobs verified; 230×230 km, 231×231, 63 preserved original heights, zero anchor error. Hypothetical woodland/open/wet counts 35572/9218/8571, consistent with P3.5. **Still not an accepted usable complete regional map.** Image only is cartographic visualization; no reliable 1-km river topology, lakes, roads, settlements, five POI or two route geometries. Synthetic all-test CI on last P4 code commit **612 passed**, geogrid and author-map CI GREEN. Private map outputs: [sheet](https://drive.google.com/file/d/1mZUlYpafZyF3wDWXKyANfgvcCGkOuSYH/view), [clean base](https://drive.google.com/file/d/1NfnBSXDdCXnHMb_X6xZFnCT7dkq-zjFO/view), detailed [review](reviews/p4-a-region-a-map-first-renderer-2026-11-21.md). Next bounded feature candidate **P4-B: properly evidenced local drainage connectivity**, not arbitrary blue river drawing or another palette tweak. PR #103 DRAFT/UNMERGED, Core unchanged.
+
+## PREVIOUS: P3.6 bounded author acceptance, P4-A requested (2026-11-21)
 
 **Decision received:** RIGHT spherical_xyz_v1 is formally SELECTED as the working model for Osvera region A, no further choice/approval ceremony required on that narrow point. **Explicit negative product feedback:** NEITHER atlas resembles the expected regional map. Therefore not accepted: P3.5 map presentation, canonical terrain, forests/wetlands, water/roads, POI positions, routes, or merge PR #103. Legacy remains universal CLI default for deterministic compatibility, while Osvera P4-A uses explicit spherical setting. Green tests prove software paths, not a map that serves the author.
 
