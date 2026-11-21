@@ -8,6 +8,8 @@ on:
       - 'scripts/render_author_region_atlas_v02.py'
       - 'scripts/derive_author_natural_cover_v02.py'
       - 'scripts/build_author_atlas_v02.py'
+      - 'scripts/condition_planetary_child_terrain_v02.py'
+      - 'tests/test_planetary_child_terrain_v02.py'
       - 'tests/test_author_atlas_pipeline_v02.py'
       - 'tests/test_author_natural_cover_v02.py'
       - 'examples/world-fixtures/osvera-working-cover-profile.json'
@@ -27,7 +29,7 @@ jobs:
       - name: Install minimal author map dependencies
         run: python -m pip install numpy matplotlib pillow pytest
       - name: Check no invented story coordinates/routes
-        run: python -m pytest tests/test_author_region_atlas_v02.py tests/test_author_natural_cover_v02.py tests/test_author_atlas_pipeline_v02.py -q
+        run: python -m pytest tests/test_author_region_atlas_v02.py tests/test_author_natural_cover_v02.py tests/test_author_atlas_pipeline_v02.py tests/test_planetary_child_terrain_v02.py -q
       - name: Make SYNTHETIC landscape — NOT Osvera
         run: |
           mkdir -p out/author-atlas/source
@@ -163,12 +165,44 @@ jobs:
               assert im.width>1500 and im.height>900
           print("P3_EXACT_CHAIN_PASS: source-verified parent, child, cover and author atlas")
           PY
+      - name: Synthetic spherical child option (same original macro)
+        run: |
+          python -m scripts.build_author_atlas_v02 \
+            --macro-npz out/author-atlas/source/synthetic-macro-source.npz \
+            --macro-manifest out/author-atlas/source/synthetic-macro-manifest.json \
+            --eco-npz out/author-atlas/source/synthetic-eco-source.npz \
+            --ledger-json out/author-atlas/source/synthetic-demo-ledger.json \
+            --profile-json examples/world-fixtures/osvera-working-cover-profile.json \
+            --half-width-km 30 --half-height-km 30 --spacing-km 1 \
+            --detail-coordinate-system spherical_xyz_v1 \
+            --output out/author-atlas/sphere-chain
+          python - <<'PY'
+          import json
+          import numpy as np
+          from pathlib import Path
+          root=Path('out/author-atlas')
+          with np.load(root/'exact-chain/child/child-terrain-generated.npz') as z:
+              legacy={k:z[k].copy() for k in z.files}
+          with np.load(root/'sphere-chain/child/child-terrain-generated.npz') as z:
+              sphere={k:z[k].copy() for k in z.files}
+          report=json.loads((root/'sphere-chain/build-audit.json').read_text())
+          assert report['detail_coordinate_system']=='spherical_xyz_v1'
+          assert report['parent_anchor_max_error_m']<=1e-6
+          assert report['landmarks_unplaced']==5 and report['routes_without_distance']==2
+          np.testing.assert_array_equal(
+              legacy['parent_interpolated_m'],sphere['parent_interpolated_m'])
+          assert not np.array_equal(legacy['new_local_relief_m'],
+                                    sphere['new_local_relief_m'])
+          print('SPHERICAL_CHILD_OPTION_PASS: unmodified parent, new detail')
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: synthetic-author-atlas-sheet-and-unplaced-anchors
           path: |
             out/author-atlas/final/
             out/author-atlas/exact-chain/
+            out/author-atlas/sphere-chain/atlas/
+            out/author-atlas/sphere-chain/build-audit.json
             out/author-atlas/cover/
             out/author-atlas/source/synthetic-demo-ledger.json
             scripts/export_planetary_macro_region_v02.py
