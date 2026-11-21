@@ -115,8 +115,10 @@ def test_out_of_region_or_false_canon_or_invented_route_fails_closed():
     with pytest.raises(AuthorAtlasError, match="outside"):
         audit_atlas(ledger, child, manifest)
     ledger["landmarks"][0]["position"] = [0, 0]
-    with pytest.raises(AuthorAtlasError, match="unplaced"):
+    ledger["landmarks"][0]["position_status"] = "UNPLACED"
+    with pytest.raises(AuthorAtlasError, match="explicit approval status"):
         audit_atlas(ledger, child, manifest)
+    ledger["landmarks"][0]["position_status"] = "MODEL_PROPOSAL"
     ledger["landmarks"][1].update({
         "position": [10, 10], "position_status": "MODEL_PROPOSAL"
     })
