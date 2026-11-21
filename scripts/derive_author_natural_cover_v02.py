@@ -58,6 +58,8 @@ def _defaults():
         "rock_slope_full_m_per_km": 330.0,
         "wetland_low_slope_m_per_km": 16.0,
         "wetland_reference_threshold": 0.58,
+        "wetland_depression_min_m": 2.0,
+        "forest_gap_bias": 0.30,
     }
 
 
@@ -92,7 +94,8 @@ def _profile(profile):
         k: p.get(k) for k in (
             "forest_threshold", "patch_strength", "seed",
             "rock_slope_start_m_per_km", "rock_slope_full_m_per_km",
-            "wetland_low_slope_m_per_km", "wetland_reference_threshold"
+            "wetland_low_slope_m_per_km", "wetland_reference_threshold",
+            "wetland_depression_min_m", "forest_gap_bias"
         )
     }
     for key, value in params.items():
@@ -108,6 +111,10 @@ def _profile(profile):
         raise CoverEvidenceError("invalid wetland slope threshold")
     if not 0 < params["wetland_reference_threshold"] <= 1:
         raise CoverEvidenceError("invalid wetland evidence threshold")
+    if not 0 < params["wetland_depression_min_m"] <= 100:
+        raise CoverEvidenceError("invalid local lowland threshold")
+    if not 0 <= params["forest_gap_bias"] < 1:
+        raise CoverEvidenceError("invalid forest gap bias")
     return p
 
 
@@ -146,6 +153,17 @@ def _value_noise(x,y,km,seed):
     a,b=_hash(ix,iy,seed),_hash(ix+1,iy,seed)
     c,d=_hash(ix,iy+1,seed),_hash(ix+1,iy+1,seed)
     return (a*(1-u)+b*u)*(1-v)+(c*(1-u)+d*u)*v
+
+
+def _local_smoothed_height(height):
+    """Compact 11km neighborhood mean. Pure NumPy, no SciPy/implicit water."""
+    n,m=height.shape
+    pad=np.pad(height,5,mode="edge")
+    out=np.zeros(height.shape,dtype=float)
+    for dr in (-5,-3,0,3,5):
+        for dc in (-5,-3,0,3,5):
+            out+=pad[5+dr:5+dr+n,5+dc:5+dc+m]
+    return out/25.
 
 
 def classify_cover(child, macro_eco, manifest, profile=None):
@@ -223,7 +241,8 @@ def classify_cover(child, macro_eco, manifest, profile=None):
     dy=float(-np.diff(north)[0])
     sy,sx=np.gradient(height,dy,dx)
     slope=np.hypot(sx,sy)
-    forest_score=vote["woodland"]+float(p["patch_strength"])*patch
+    forest_score=(vote["woodland"]-float(p["forest_gap_bias"])+
+                  float(p["patch_strength"])*patch)
     forest_score-=np.clip(
         (slope-float(p["rock_slope_start_m_per_km"]))/
         float(p["rock_slope_full_m_per_km"]),0,1)*0.45
@@ -233,8 +252,10 @@ def classify_cover(child, macro_eco, manifest, profile=None):
     cover[land & (forest_score>=float(p["forest_threshold"]))]=1
     rock=(land & (slope>=float(p["rock_slope_full_m_per_km"])))
     cover[rock]=3
+    local_lowland=_local_smoothed_height(height)-height
     wet=(land & (wetref>=float(p["wetland_reference_threshold"])) &
-         (slope<=float(p["wetland_low_slope_m_per_km"])) & ~rock)
+         (slope<=float(p["wetland_low_slope_m_per_km"])) &
+         (local_lowland>=float(p["wetland_depression_min_m"])) & ~rock)
     cover[wet]=4
     fractions={CLASSES[i]:round(float(np.mean(cover[land]==i)),5)
                for i in (1,2,3,4,5)} if np.any(land) else {}
@@ -244,6 +265,7 @@ def classify_cover(child, macro_eco, manifest, profile=None):
         "source_woodland_vote":vote["woodland"].astype("float32"),
         "child_slope_m_per_km":slope.astype("float32"),
         "wetland_candidate_reference":wetref.astype("float32"),
+        "child_local_lowland_depth_proxy_m_NOT_WATER":local_lowland.astype("float32"),
     }
     audit={
         "status":"P3_MVP_NONCANONICAL_SOURCE_CONDITIONED_COVER",
@@ -251,6 +273,7 @@ def classify_cover(child, macro_eco, manifest, profile=None):
         "cover_is_author_canon":False,
         "cover_is_measured_vegetation":False,
         "wetland_is_confirmed_water":False,
+        "wetland_requires_local_depression_not_just_climate_mask":True,
         "not_koppen_to_biome":True,
         "no_species_or_groundwater_inferred":True,
         "no_terrain_changed":True,
