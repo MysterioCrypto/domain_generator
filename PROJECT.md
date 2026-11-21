@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-non-earth-product-readiness
-checkpoint: p4-b-real-region-a-conservative-core-mfd-drainage-evidence-not-water
-next_topic: p4-c-reconcile-external-macro-inflows-lake-outlets-and-river-connectivity
+checkpoint: p4-c1-real-region-a-macro-inlet-to-child-route-geometric-evidence-not-water
+next_topic: p4-c2-review-external-area-sensitivity-and-72-withheld-unsafe-links
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
