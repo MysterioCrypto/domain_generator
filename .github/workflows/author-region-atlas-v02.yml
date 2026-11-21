@@ -7,6 +7,8 @@ on:
     paths:
       - 'scripts/render_author_region_atlas_v02.py'
       - 'scripts/derive_author_natural_cover_v02.py'
+      - 'scripts/build_author_atlas_v02.py'
+      - 'tests/test_author_atlas_pipeline_v02.py'
       - 'tests/test_author_natural_cover_v02.py'
       - 'examples/world-fixtures/osvera-working-cover-profile.json'
       - 'tests/test_author_region_atlas_v02.py'
@@ -25,7 +27,7 @@ jobs:
       - name: Install minimal author map dependencies
         run: python -m pip install numpy matplotlib pillow pytest
       - name: Check no invented story coordinates/routes
-        run: python -m pytest tests/test_author_region_atlas_v02.py tests/test_author_natural_cover_v02.py -q
+        run: python -m pytest tests/test_author_region_atlas_v02.py tests/test_author_natural_cover_v02.py tests/test_author_atlas_pipeline_v02.py -q
       - name: Make SYNTHETIC landscape — NOT Osvera
         run: |
           mkdir -p out/author-atlas/source
@@ -64,8 +66,26 @@ jobs:
           alt[:,6:7]=7
           dry=base.copy()
           dry[:,5:7]=8
+          # This original macro source is deliberately DIFFERENT from the
+          # independent toy child above. The P3 exact-checkout build must use
+          # THIS source to compute its own child terrain from scratch.
+          source_elev=(380+45*np.sin((lon[None,:]+98.25)*3)+
+                       24*np.cos((lat[:,None]+47.25)*2)).astype("float32")
+          np.savez_compressed(root/"synthetic-macro-source.npz",
+              latitude_deg_north_first=lat[::-1],
+              longitude_deg_west_to_east=lon,
+              elevation_m=source_elev[::-1],
+              land_mask=np.ones(base.shape,dtype=np.uint8)[::-1])
+          (root/"synthetic-macro-manifest.json").write_text(json.dumps({
+              "status":"PRIVATE_SOURCE_DERIVED_WORKING_MODEL_NOT_CANON",
+              "is_DomainData":False,
+              "center_degrees":[-47.25,-98.25],
+              "planet_radius_km":7008.1,
+              "planetary_year_earth_days":202.755,
+          }))
           np.savez_compressed(root/"synthetic-eco-source.npz",
               lat=lat,lon=lon,land=np.ones(base.shape,dtype=np.uint8),
+              elevation_m=source_elev,
               biome_base=base,biome_moderate=alt,
               biome_precip_minus20=dry,biome_precip_plus20=base,
               stable4=(base==alt).astype(np.uint8),
@@ -117,16 +137,44 @@ jobs:
               assert im.width>=1500 and im.height>=900
           print("AUTHOR_ATLAS_PRODUCT_QA_PASS: no hallucinated places/distances")
           PY
+      - name: EXACT same-checkout macro to child to cover to atlas
+        run: |
+          python -m scripts.build_author_atlas_v02 \
+            --macro-npz out/author-atlas/source/synthetic-macro-source.npz \
+            --macro-manifest out/author-atlas/source/synthetic-macro-manifest.json \
+            --eco-npz out/author-atlas/source/synthetic-eco-source.npz \
+            --ledger-json out/author-atlas/source/synthetic-demo-ledger.json \
+            --profile-json examples/world-fixtures/osvera-working-cover-profile.json \
+            --half-width-km 30 --half-height-km 30 --spacing-km 1 \
+            --output out/author-atlas/exact-chain
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from PIL import Image
+          root=Path("out/author-atlas/exact-chain")
+          r=json.loads((root/"build-audit.json").read_text())
+          assert r["status"]=="P3_EXACT_CHECKOUT_BUILD_NONCANONICAL"
+          assert r["source_identity"]["matching_parent_stations"]==195
+          assert r["parent_anchor_count"]>0
+          assert r["parent_anchor_max_error_m"]<=1e-6
+          assert r["landmarks_unplaced"]==5 and r["routes_without_distance"]==2
+          assert not r["is_author_canon"] and not r["is_verified_hydrology_or_travel_time"]
+          with Image.open(root/"atlas/author-atlas-sheet.png") as im:
+              assert im.width>1500 and im.height>900
+          print("P3_EXACT_CHAIN_PASS: source-verified parent, child, cover and author atlas")
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: synthetic-author-atlas-sheet-and-unplaced-anchors
           path: |
             out/author-atlas/final/
+            out/author-atlas/exact-chain/
             out/author-atlas/cover/
             out/author-atlas/source/synthetic-demo-ledger.json
             scripts/export_planetary_macro_region_v02.py
             scripts/condition_planetary_child_terrain_v02.py
             scripts/render_author_region_atlas_v02.py
             scripts/derive_author_natural_cover_v02.py
+            scripts/build_author_atlas_v02.py
             examples/world-fixtures/osvera-working-cover-profile.json
           retention-days: 14
