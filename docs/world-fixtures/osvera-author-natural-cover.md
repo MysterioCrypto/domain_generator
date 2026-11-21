@@ -25,3 +25,26 @@ python scripts/render_author_region_atlas_v02.py \
 Первая команда создаёт natural-cover-candidates.npz, manifest.json, cover-before-after.png. Вторая — один авторский лист, audit JSON, список известных мест/отношений. Классы 1–5: возможный лес, открытая поверхность, возможные каменистые склоны, **кандидат влажной низины (НЕ вода)**, редкая растительность. Профиль параметров можно менять, но он не становится нормой для всех неземных миров.
 
 Прямой [синтетический визуальный workflow](https://github.com/MysterioCrypto/domain_generator/actions/workflows/author-region-atlas-v02.yml) — только для CI, НЕ карта настоящей Осве́ры. Не подменять модельные леса утверждёнными, не расставлять сюжетные места/дороги без авторского положения, не превращать расстояние по прямой во время путешествия.
+
+
+## P3 exact-checkout: одна сборка от A8/A12 макросетки до карты
+
+Новая команда связывает существующие P2-A, P3 и atlas без независимой повторной реализации. Принимает экспорт P1 (macro-region-source.npz и manifest.json) и ОРИГИНАЛЬНЫЙ A12_biome_fields.npz с глобальными lat/lon/elevation_m/land и сценарными полями. Проверяет точное совпадение координат, высот и маски суши в исходных макроузлах (учитывает противоположную ориентацию широт). При несовпадении останавливается, не выдумывая пространственное соответствие. Центр региона берётся из ledger и должен совпасть с P1 manifest.
+
+Из корня ТОГО ЖЕ checkout PR #103, не загружая приватные исходники в GitHub:
+
+~~~bash
+python -m scripts.build_author_atlas_v02 \
+  --macro-npz /private/source-A/macro-region-source.npz \
+  --macro-manifest /private/source-A/manifest.json \
+  --eco-npz /private/A12_biome_fields.npz \
+  --ledger-json examples/world-fixtures/osvera-first-arc-author-ledger.json \
+  --profile-json examples/world-fixtures/osvera-working-cover-profile.json \
+  --half-width-km 115 --half-height-km 115 \
+  --spacing-km 1 --seed 1406 --relief-strength 2 \
+  --output /private/osvera-region-A-exact-p3
+~~~
+
+В выходной директории: child/child-terrain-generated.npz и manifest, cover/natural-cover-candidates.npz и manifest, cover/cover-before-after.png, atlas/author-atlas-sheet.png, atlas/author-atlas-audit.json, atlas/author-atlas-notes.md, общий build-audit.json. Общий аудит содержит SHA-256 пяти входных файлов, число исходных высотных опор, максимальную ошибку, доли классов природного покрова и число неизвестных сюжетных мест/маршрутов. Хеши фиксируют воспроизводимость исходных байт, но не научную достоверность. Выходная директория должна быть пустой.
+
+CI проверяет цепочку на ИСКУССТВЕННОЙ планете, несовпадающие высоты/сушу/координаты, ориентации A12, неизменность входов и отсутствие выдуманных маршрутов. Публичные Actions НЕ содержат приватные A8/A12. Следующий продуктовый шаг — выполнить эту же команду на приватном исходнике региона A, сверить аудит и показать ОДИН авторский лист для визуального решения. До этого текущие приватные доли классов нельзя выдавать за точный результат нового конвейера. PR #103 остаётся DRAFT/UNMERGED, Core и freeze без изменений.
