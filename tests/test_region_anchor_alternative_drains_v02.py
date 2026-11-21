@@ -95,7 +95,7 @@ def test_parent_stations_are_geographic_not_rounded_to_pixels():
                                   'bad_spacing','bad_threshold'])
 def test_provenance_and_bad_geometry_fail_closed(kind):
     data=list(toy())
-    if kind=='wrong_coord_mode':data[2]['detail_coordinate_system']='legacy_lat_scaled_easting_v1'
+    if kind=='wrong_coord_mode':data[2]['detail_coordinate_system']='invalid_detail_coordinate_mode'
     if kind=='bad_anchor_count':data[2]['source_elevation_anchors_in_child']=8
     if kind=='bad_anchor_error':data[2]['max_parent_anchor_error_m']=3
     if kind=='nonfinite_dem':data[1]['child_elevation_m'][0,0]=float('nan')
