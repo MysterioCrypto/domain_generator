@@ -78,7 +78,8 @@ def verify_source_identity(macro: dict, eco: dict, manifest: dict) -> dict:
 
 def build(macro, eco, macro_manifest, ledger, profile, *,
           half_width_km, half_height_km, spacing_km=1.0,
-          seed=1406, relief_strength=2.0):
+          seed=1406, relief_strength=2.0,
+          detail_coordinate_system="legacy_lat_scaled_easting_v1"):
     source_identity = verify_source_identity(macro, eco, macro_manifest)
     center = ledger.get("region", {}).get("center_lat_lon_deg")
     original_center = macro_manifest.get("center_degrees")
@@ -92,6 +93,7 @@ def build(macro, eco, macro_manifest, ledger, profile, *,
         center_lat_deg=float(center[0]), center_lon_deg=float(center[1]),
         half_width_km=half_width_km, half_height_km=half_height_km,
         spacing_km=spacing_km, seed=seed, relief_strength=relief_strength,
+        detail_coordinate_system=detail_coordinate_system,
         planet_radius_km=float(macro_manifest["planet_radius_km"]),
         planetary_year_earth_days=float(macro_manifest["planetary_year_earth_days"]),
     )
@@ -175,6 +177,9 @@ def main() -> None:
     p.add_argument("--spacing-km", type=float, default=1.)
     p.add_argument("--seed", type=int, default=1406)
     p.add_argument("--relief-strength", type=float, default=2.)
+    p.add_argument("--detail-coordinate-system",
+                   choices=("legacy_lat_scaled_easting_v1", "spherical_xyz_v1"),
+                   default="legacy_lat_scaled_easting_v1")
     p.add_argument("--output", required=True, type=Path)
     args = p.parse_args()
     zip_mode = args.a8_zip is not None or args.a12_zip is not None
@@ -220,6 +225,7 @@ def main() -> None:
         macro, eco, meta, ledger, profile,
         half_width_km=args.half_width_km, half_height_km=args.half_height_km,
         spacing_km=args.spacing_km, seed=args.seed, relief_strength=args.relief_strength,
+        detail_coordinate_system=args.detail_coordinate_system,
     )
     if args.output.exists() and (not args.output.is_dir()
                                   or any(args.output.iterdir())):
@@ -260,6 +266,7 @@ def main() -> None:
         "parent_anchor_count": child_meta["source_elevation_anchors_in_child"],
         "parent_anchor_max_error_m": child_meta["max_parent_anchor_error_m"],
         "child_shape": child_meta["child_shape"],
+        "detail_coordinate_system": child_meta["detail_coordinate_system"],
         "cover_fractions": cover_meta["land_cover_area_fractions"],
         "landmarks_unplaced": atlas["landmarks_unplaced"],
         "routes_without_distance": sum(r["distance_km"] is None for r in atlas["routes"]),
