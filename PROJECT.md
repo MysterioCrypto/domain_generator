@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-non-earth-product-readiness
-checkpoint: p4-c1-real-region-a-macro-inlet-to-child-route-geometric-evidence-not-water
-next_topic: p4-c2-review-external-area-sensitivity-and-72-withheld-unsafe-links
+checkpoint: p4-c2-real-region-a-58-raw-uphill-route-blockers-not-rivers
+next_topic: p4-d-check-raw-uphill-clusters-source-anchors-and-basin-alternatives
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
