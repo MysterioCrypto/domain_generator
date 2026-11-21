@@ -27,11 +27,13 @@
     "biome_precip_minus20": 0.2,
     "biome_precip_plus20": 0.2
   },
-  "forest_threshold": 0.48,
+  "forest_threshold": 0.62,
   "patch_strength": 0.23,
   "seed": 1406,
   "rock_slope_start_m_per_km": 105,
   "rock_slope_full_m_per_km": 330,
   "wetland_low_slope_m_per_km": 16,
-  "wetland_reference_threshold": 0.58
+  "wetland_reference_threshold": 0.58,
+  "forest_gap_bias": 0.3,
+  "wetland_depression_min_m": 2
 }
