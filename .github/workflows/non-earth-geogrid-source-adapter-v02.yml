@@ -583,6 +583,41 @@ jobs:
           print("P2-B2.6: deliberate unresolved lake routing not mistaken for zero effect")
           PY
 
+      - name: P2-B2.6 visual POSITIVE example: one true geometric supernode vs ordinary MFD
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          import numpy as np
+          from scripts.diagnose_planetary_child_lake_topology_v02 import (
+              audit_child_lake_routing, render_basin_topology
+          )
+          rows=cols=21
+          yy,xx=np.indices((rows,cols),dtype=float)
+          dem=230.-.8*xx+.03*(rows-yy-10.5)**2
+          dem[8:13,8:13]-=18.
+          toy={
+              "child_elevation_m":dem.astype("float32"),
+              "land_mask":np.ones((rows,cols),dtype="uint8"),
+              "east_km":np.arange(cols,dtype=float),
+              "north_km_north_first":np.arange(rows-1,-1,-1,dtype=float),
+          }
+          arr,ledger=audit_child_lake_routing(
+              toy,lake_min_area_km2=2,lake_min_depth_m=1
+          )
+          assert ledger["geometric_candidate_count"]==1
+          assert ledger["with_vs_without_lakes_comparable"]
+          assert ledger["candidate_lake_mass_balance"]["lake_supernode_count"]==1
+          assert abs(ledger["candidate_lake_mass_balance"]["balance_error_km2"])<1e-8
+          assert not ledger["actual_lakes_inferred"]
+          folder=Path(os.environ["RUNNER_TEMP"])/"source-geogrid-checkpoint/B26-known-bowl-reference"
+          folder.mkdir()
+          np.savez_compressed(folder/"lake-topology-comparison.npz",**arr)
+          (folder/"manifest.json").write_text(json.dumps(ledger,indent=2))
+          render_basin_topology(toy,arr,ledger,folder/"lake-topology-review.png")
+          print("P2-B2.6 POSITIVE Core-parity lake proxy example, NOT observed water")
+          PY
+
       - name: Upload only synthetic adapter demonstration
         uses: actions/upload-artifact@v4
         with:
