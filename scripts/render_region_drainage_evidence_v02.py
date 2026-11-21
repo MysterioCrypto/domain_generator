@@ -266,11 +266,20 @@ def main():
     child_meta = json.loads(args.child_manifest.read_text(encoding="utf-8"))
     projection_meta = json.loads(args.projection_manifest.read_text(encoding="utf-8"))
     map_audit = json.loads(args.p4a_audit.read_text(encoding="utf-8"))
+    p4_child_sha = map_audit.get("input_sha256", {}).get("child_npz")
+    if not isinstance(p4_child_sha, str) or len(p4_child_sha) != 64:
+        raise DrainageEvidenceError("P4-A audit missing source child-NPZ SHA-256; cannot align maps")
+    with args.child_npz.open("rb") as inp:
+        actual_child_sha = file_digest(inp, "sha256").hexdigest()
+    if actual_child_sha != p4_child_sha:
+        raise DrainageEvidenceError("P4-A source child-NPZ hash differs from candidate DEM")
     with Image.open(args.p4a_image) as im:
         img = im.convert("RGB")
     audit = build_evidence(
         child, child_meta, projection, projection_meta, img, map_audit,
         args.output, virtual_fill_limit_m=args.virtual_fill_limit_m)
+    audit["p4a_child_npz_sha256_lineage_verified"] = True
+    audit["projection_child_bitwise_sha256_lineage_verified"] = False
     audit["input_sha256"] = {}
     for key in ("child_npz", "child_manifest", "projection_npz",
                 "projection_manifest", "p4a_image", "p4a_audit"):
