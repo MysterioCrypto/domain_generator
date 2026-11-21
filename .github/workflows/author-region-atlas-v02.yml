@@ -240,4 +240,5 @@ jobs:
             scripts/derive_author_natural_cover_v02.py
             scripts/build_author_atlas_v02.py
             examples/world-fixtures/osvera-working-cover-profile.json
+            examples/world-fixtures/osvera-first-arc-author-ledger.json
           retention-days: 14
