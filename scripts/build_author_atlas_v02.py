@@ -131,12 +131,23 @@ def load_verified_archives(a8_zip: Path, a12_zip: Path, ledger: dict, *,
         "biome_moderate", "biome_precip_minus20", "biome_precip_plus20",
         "stable4", "wetland_candidate",
     ))
+    # P2 interpolation requires source station CENTERS beyond every child
+    # pixel, not just stations INSIDE the author's requested map rectangle.
+    # Give P1 crop a data-driven one-parent-step halo, never enlarge the child.
+    from math import cos, pi, radians
+    lat_step_km = (float(np.max(np.diff(source["a12_lat"])))
+                   * pi * planet_radius_km / 180)
+    lon_step_km = (float(np.max(np.diff(source["a12_lon"])))
+                   * pi * planet_radius_km / 180 * cos(radians(float(center[0]))))
     macro, manifest = region_crop(
         source, center_lat_deg=float(center[0]), center_lon_deg=float(center[1]),
-        half_width_km=half_width_km, half_height_km=half_height_km,
+        half_width_km=half_width_km + lon_step_km * 1.01,
+        half_height_km=half_height_km + lat_step_km * 1.01,
         planet_radius_km=planet_radius_km,
         planetary_year_earth_days=planetary_year_earth_days,
     )
+    manifest["author_child_half_extent_km"] = [half_width_km, half_height_km]
+    manifest["macro_interpolation_halo_km"] = [lon_step_km * 1.01, lat_step_km * 1.01]
     return macro, original_a12, manifest
 
 
