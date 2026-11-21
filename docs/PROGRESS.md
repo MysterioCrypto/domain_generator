@@ -2,8 +2,12 @@
 
 Purpose: **current** DONE / IN PROGRESS / NEXT tree for chat recovery. For the dependency/context map and rejected hypotheses read `docs/CONTEXT.md`; for normative semantics read accepted `docs/design/*`.
 
-**Active line:** `dev/0.2` · **current product checkpoint:** non-Earth source fixtures and [single navigation page](../START_HERE.md). **Parallel technical line:** H13 DESIGN accepted/merged #98, runtime #99 draft/unmerged; #100 C2 experiment and #101 atlas composer also draft/unmerged. **H12-A:** accepted/merged #97.
+**Active accepted Core:** `dev/0.2` (unchanged). **Current external product checkpoint:** PR #103, P3.5 paired private source atlas, visual choice pending. Historical navigation checkpoint: [START_HERE](../START_HERE.md). **Parallel technical line:** H13 DESIGN accepted/merged #98, runtime #99 draft/unmerged; #100 C2 experiment and #101 atlas composer also draft/unmerged. **H12-A:** accepted/merged #97.
 Historical checkpoint notes below are not current gates.
+
+## CURRENT: P3.5 full legacy-vs-spherical real A8/A12 region-A atlases (2026-11-21)
+
+The full original-source P1→P2-A→P3→author-atlas **function** chain was executed twice with EXACT SHA-verified GitHub modules (HEAD initially 8248e97f) and identical private inputs/ledger/profile; code not modified. Legacy candidate fractions (woodland/open/wet) 64.058/16.731/19.211%; spherical 66.663/17.275/16.062%; 13,510 of 53,361 cover pixels changed. Parent interpolation identical, 63 parent DEM nodes pinned with 0.0m maximum error, same land mask; spherical changes terrain RMSE 11.927m. The oblique small ridges largely disappear, but macro bands remain. **No operator visual decision, no real 1km hydrology, no named-site placement.** Source archives and derived rasters remain private, only comparison PNG [in Drive](https://drive.google.com/file/d/12T79Z9GcKD41LyDGOaKli-WJlNK3emNQ/view); audit and full details [P3.5 review](reviews/p3-5-region-a-full-private-spherical-vs-legacy-2026-11-21.md). Unlike P3.4 probe, both *full* atlases were rendered; private `build_author_atlas_v02.py` CLI wrapper itself still not invoked, only its exact functions. PR #103 remains DRAFT/UNMERGED; next gate is user author comparison/selection before tuning anything else.
 
 ## CURRENT: P3.4 spherical child-detail alternative (2026-11-21)
 
