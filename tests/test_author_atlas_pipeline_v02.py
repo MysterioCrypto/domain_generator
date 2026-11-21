@@ -1,7 +1,8 @@
 """P3 exact-checkout product tests; all source arrays here are SYNTHETIC."""
 
-import copy
 import json
+from io import BytesIO
+from zipfile import ZipFile
 from pathlib import Path
 import subprocess
 import sys
@@ -155,3 +156,117 @@ def test_cli_creates_one_audited_atlas_and_rejects_stale_output(tmp_path):
     second = subprocess.run(command, cwd=cwd, capture_output=True, text=True)
     assert second.returncode != 0
     assert "must be empty" in second.stderr
+
+
+def _synthetic_archives(tmp_path, *, damage_a12=False):
+    """A8 north-first and A12 south-first, same physical planet, no private data."""
+    macro, eco, _, _, _ = _synthetic()
+    a8 = {
+        "lat": macro["latitude_deg_north_first"],
+        "lon": macro["longitude_deg_west_to_east"],
+        "elevation_m": macro["elevation_m"], "land": macro["land_mask"],
+        "downstream_index": np.full(macro["elevation_m"].shape, -1, dtype=np.int32),
+        "catchment_area_km2": np.ones(macro["elevation_m"].shape, dtype=np.float32),
+        "river_mask": np.zeros(macro["elevation_m"].shape, dtype=np.uint8),
+    }
+    a12 = dict(eco)
+    a12["temperature_annual_C"] = np.ones(eco["land"].shape, dtype=np.float32) * 18
+    a12["precip_planet_year_mm"] = np.ones(eco["land"].shape, dtype=np.float32) * 900
+    if damage_a12:
+        a12["elevation_m"][4, 6] += 2
+    paths = []
+    for filename, member, arrays in (
+        ("A8.zip", "planet_A8/A8_hydrology.npz", a8),
+        ("A12.zip", "planet_A12/A12_biome_fields.npz", a12),
+    ):
+        p = tmp_path / filename
+        buffer = BytesIO()
+        np.savez_compressed(buffer, **arrays)
+        with ZipFile(p, "w") as zip_file:
+            zip_file.writestr(member, buffer.getvalue())
+        paths.append(p)
+    return paths
+
+
+def _archive_command(tmp_path, a8, a12, *, output):
+    return [
+        sys.executable, "-m", "scripts.build_author_atlas_v02",
+        "--a8-zip", str(a8), "--a12-zip", str(a12),
+        "--ledger-json", str(tmp_path / "ledger.json"),
+        "--profile-json", str(tmp_path / "profile.json"),
+        "--planet-radius-km", "7008.1", "--planet-year-earth-days", "202.755",
+        "--half-width-km", "45", "--half-height-km", "45", "--output", str(output),
+    ]
+
+
+def test_original_zip_to_map_one_command_preserves_private_source_provenance(tmp_path):
+    from scripts.derive_author_natural_cover_v02 import _defaults
+    repo = Path(__file__).resolve().parents[1]
+    a8, a12 = _synthetic_archives(tmp_path)
+    _, _, _, ledger, _ = _synthetic()
+    (tmp_path / "ledger.json").write_text(json.dumps(ledger), encoding="utf-8")
+    (tmp_path / "profile.json").write_text(json.dumps(_defaults()), encoding="utf-8")
+    output = tmp_path / "author-product"
+    cmd = _archive_command(tmp_path, a8, a12, output=output)
+    result = subprocess.run(cmd, cwd=repo, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    report = json.loads((output / "build-audit.json").read_text(encoding="utf-8"))
+    assert report["status"] == "P3_EXACT_CHECKOUT_BUILD_NONCANONICAL"
+    assert report["input_mode"] == "ORIGINAL_PRIVATE_A8_A12_ZIP"
+    assert set(report["input_sha256"]) == {"a8_zip", "a12_zip", "ledger_json", "profile_json"}
+    assert report["parent_anchor_count"] > 0
+    assert report["parent_anchor_max_error_m"] <= 1e-6
+    assert report["child_shape"] == [91, 91]
+    assert report["landmarks_unplaced"] == 5
+    assert report["routes_without_distance"] == 2
+    assert not report["is_author_canon"]
+    assert (output / "source/macro-region-source.npz").exists()
+    manifest = json.loads((output / "source/manifest.json").read_text(encoding="utf-8"))
+    assert manifest["author_child_half_extent_km"] == [45, 45]
+    assert all(v > 0 for v in manifest["macro_interpolation_halo_km"])
+    assert manifest["source_sha256"] == {
+        "a8_zip": report["input_sha256"]["a8_zip"],
+        "a12_zip": report["input_sha256"]["a12_zip"],
+    }
+    assert (output / "atlas/author-atlas-sheet.png").stat().st_size > 10_000
+    with np.load(output / "cover/natural-cover-candidates.npz", allow_pickle=False) as z:
+        assert z["cover_class_candidate"].shape == (91, 91)
+
+
+def test_original_archive_digest_guard_and_mixed_planet_fail_before_output(tmp_path):
+    repo = Path(__file__).resolve().parents[1]
+    a8, a12 = _synthetic_archives(tmp_path)
+    _, _, _, ledger, profile = _synthetic()
+    (tmp_path / "ledger.json").write_text(json.dumps(ledger), encoding="utf-8")
+    (tmp_path / "profile.json").write_text(json.dumps(profile), encoding="utf-8")
+    out = tmp_path / "reject"
+    cmd = _archive_command(tmp_path, a8, a12, output=out)
+    result = subprocess.run(
+        cmd + ["--expected-a8-sha256", "0" * 64],
+        cwd=repo, capture_output=True, text=True,
+    )
+    assert result.returncode != 0 and "archive SHA-256 mismatch" in result.stderr
+    assert not out.exists()
+    a8, a12 = _synthetic_archives(tmp_path, damage_a12=True)
+    result = subprocess.run(cmd, cwd=repo, capture_output=True, text=True)
+    assert result.returncode != 0 and "elevation" in result.stderr
+    assert not out.exists()
+
+
+def test_archive_mode_rejects_ambiguous_or_incomplete_input(tmp_path):
+    repo = Path(__file__).resolve().parents[1]
+    a8, a12 = _synthetic_archives(tmp_path)
+    _, _, _, ledger, profile = _synthetic()
+    (tmp_path / "ledger.json").write_text(json.dumps(ledger), encoding="utf-8")
+    (tmp_path / "profile.json").write_text(json.dumps(profile), encoding="utf-8")
+    command = _archive_command(tmp_path, a8, a12, output=tmp_path / "bad")
+    both = subprocess.run(command + ["--macro-npz", "other.npz"],
+                          cwd=repo, capture_output=True, text=True)
+    assert both.returncode != 0 and "either" in both.stderr
+    absent = subprocess.run(
+        [v for i, v in enumerate(command)
+         if i not in (command.index("--planet-radius-km"),
+                       command.index("--planet-radius-km") + 1)],
+        cwd=repo, capture_output=True, text=True,
+    )
+    assert absent.returncode != 0 and "--planet-radius-km" in absent.stderr
