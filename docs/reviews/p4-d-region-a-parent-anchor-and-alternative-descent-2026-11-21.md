@@ -10,7 +10,7 @@ P4-C2 показал 58 рёбер 253-звенного модельного к�
 
 ## Реализация
 
-- `scripts/audit_region_anchor_alternative_drains_v02.py` — новый read-only CLI, работающий поверх исходных файлов приватного P4-B и производного P4-C2. Все исходные DEM/parent/detail NPZ остаются побитово неизменными; accepted MFD не пересчитывается. Проверяет точные SHA-256 macro NPZ, child NPZ, child manifest, P4-A map из предыдущего P4-C2 JSON и **пересчитывает из исходного raw DEM** все 253 перешедших по CSV высотные разности и максимумы виртуального заполнения. Если входные рёбра, метаданные или P4-C2 baseline не совпадают — аварийный отказ.
+- `scripts/audit_region_anchor_alternative_drains_v02.py` — новый read-only CLI, работающий поверх исходных файлов приватного P4-B и производного P4-C2. Геометрия родительских станций общая для обоих ранее поддерживаемых режимов child-detail (`spherical_xyz_v1` и `legacy_lat_scaled_easting_v1`); реальные данные этого прогона используют сферический режим. Все исходные DEM/parent/detail NPZ остаются побитово неизменными; accepted MFD не пересчитывается. Проверяет точные SHA-256 macro NPZ, child NPZ, child manifest, P4-A map из предыдущего P4-C2 JSON и **пересчитывает из исходного raw DEM** все 253 перешедших по CSV высотные разности и максимумы виртуального заполнения. Если входные рёбра, метаданные или P4-C2 baseline не совпадают — аварийный отказ.
 - `tests/test_region_anchor_alternative_drains_v02.py` — 17 отдельных синтетических тестов: parent-versus-detail attribution, координаты высотных опор без округления к пикселям, порча source-хеша, разрыв маршрута, неверный threshold, несуществующие anchors, несовпадение исходного перепада, детерминированный PNG/CSV/JSON replay, отсутствие auto water inference.
 - В geogrid workflow добавлена P4-D стадия после P4-C2 и регистрация тестов. На синтетическом регионе с одним подтверждённым модельным маршрутом запускается полный CLI; если референсная синтетическая вырезка вообще не содержит релевантного A8 входа, это честно отмечается, а полный positive/negative CLI всё равно тестируется отдельной самостоятельной toy-fixture.
 
@@ -59,8 +59,8 @@ delta_fine_effective = delta_raw_z - delta_parent_z
 ## Артефакты и provenance
 
 - [Приватная P4-D карта причин и 63 source anchors](https://drive.google.com/file/d/173WacgMXJyC99yWBTANNCRS9lgxvsehG/view)
-- [ZIP: две PNG, CSV по всем 253 рёбрам, JSON audit, source SHA](https://drive.google.com/file/d/1lXGPIk0hQ1y4wAVt5bQrHwUhOLnRyCti/view)
-- Предшествующие [P4-B derived NPZ](https://drive.google.com/file/d/1G6hxsqMNBIk_ZovBZ4nrepf7fLOxrHtX/view) и [P4-C2 baseline audit](https://drive.google.com/file/d/1Ba9eisALnpJxxkwwXhfm82N63jnqGuc-/view). Для детерминированного replay нужны оба source packages и GitHub-файл `scripts/audit_region_anchor_alternative_drains_v02.py` blob `8c7455870730065f91256c5296e6421f9d4fc6ac`.
+- [ZIP: две PNG, CSV по всем 253 рёбрам, JSON audit, source SHA](https://drive.google.com/file/d/1d-5K2MFumj1aSQCcINSAUatDafp-UQsM/view)
+- Предшествующие [P4-B derived NPZ](https://drive.google.com/file/d/1G6hxsqMNBIk_ZovBZ4nrepf7fLOxrHtX/view) и [P4-C2 baseline audit](https://drive.google.com/file/d/1Ba9eisALnpJxxkwwXhfm82N63jnqGuc-/view). Для детерминированного replay нужны оба source packages и GitHub-файл `scripts/audit_region_anchor_alternative_drains_v02.py` blob `74fec3363697fe78d9440400f03fe697dfb11c16`.
 - **Никаких оригинальных A8/A12 ZIP в публичный GitHub/CI не помещено.**
 
 ## Следующий ограниченный продуктовый шаг — P4-E
