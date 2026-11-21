@@ -20,6 +20,8 @@ on:
       - scripts/reconcile_region_boundary_corridors_v02.py
       - scripts/audit_region_corridor_sensitivity_v02.py
       - scripts/audit_region_anchor_alternative_drains_v02.py
+      - scripts/compare_region_relief_strength_v02.py
+      - tests/test_region_relief_strength_compare_v02.py
       - tests/test_region_anchor_alternative_drains_v02.py
       - tests/test_region_corridor_sensitivity_v02.py
       - tests/test_region_boundary_corridors_v02.py
@@ -48,7 +50,7 @@ jobs:
       - name: Install runtime and rendering environment
         run: python -m pip install -e ".[dev,render]"
       - name: Test source alignment and geographic graph boundary invariants
-        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py tests/test_planetary_child_mfd_outlet_alignment_v02.py tests/test_planetary_source_corridor_trial_v02.py tests/test_planetary_child_lake_topology_v02.py tests/test_region_drainage_evidence_v02.py tests/test_region_boundary_corridors_v02.py tests/test_region_corridor_sensitivity_v02.py tests/test_region_anchor_alternative_drains_v02.py -q
+        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py tests/test_planetary_child_mfd_outlet_alignment_v02.py tests/test_planetary_source_corridor_trial_v02.py tests/test_planetary_child_lake_topology_v02.py tests/test_region_drainage_evidence_v02.py tests/test_region_boundary_corridors_v02.py tests/test_region_corridor_sensitivity_v02.py tests/test_region_anchor_alternative_drains_v02.py tests/test_region_relief_strength_compare_v02.py -q
       - name: Create SMALL synthetic source archives (NO PRIVATE PLANET DATA)
         run: |
           python - <<'PY'
@@ -654,8 +656,11 @@ jobs:
           p4=root/'P4B-synthetic-cartographic-source'
           map_audit=render_cartographic_base(child,cover,cm,cv,ledger,p4,pixels_per_cell=4)
           p4_child_npz=root/'child/child-terrain-generated.npz'
+          cover_file=p4/'synthetic-cover-candidates.npz'
+          np.savez_compressed(cover_file,**cover)
           map_audit['input_sha256']={
-              'child_npz':hashlib.sha256(p4_child_npz.read_bytes()).hexdigest()
+              'child_npz':hashlib.sha256(p4_child_npz.read_bytes()).hexdigest(),
+              'cover_npz':hashlib.sha256(cover_file.read_bytes()).hexdigest()
           }
           (p4/'region-cartographic-audit.json').write_text(
               json.dumps(map_audit,indent=2), encoding='utf8')
@@ -795,6 +800,40 @@ jobs:
               # synthetic toy regression suite exercises the full P4-D CLI.
               assert a['P4C1_candidate_route_count']==0
               print('P4D_SYNTHETIC: no selected inlet on crop, full CLI covered by toy tests')
+          PY
+
+      - name: P4-E SYNTHETIC alternative child relief (same anchors, NO new rivers)
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
+          previous=root/'P4D-synthetic-anchor-evidence'
+          if previous.exists():
+              output=root/'P4E-synthetic-relief-review'
+              subprocess.check_call([
+                  sys.executable,'-m','scripts.compare_region_relief_strength_v02',
+                  '--macro-npz',str(root/'macro-region-source.npz'),
+                  '--child-npz',str(root/'child/child-terrain-generated.npz'),
+                  '--child-manifest',str(root/'child/manifest.json'),
+                  '--cover-npz',str(root/'P4B-synthetic-cartographic-source/synthetic-cover-candidates.npz'),
+                  '--p4a-audit-json',str(root/'P4B-synthetic-cartographic-source/region-cartographic-audit.json'),
+                  '--p4d-audit-json',str(previous/'anchor-gradient-audit.json'),
+                  '--p4d-edges-csv',str(previous/'anchor-gradient-all-edges.csv'),
+                  '--output',str(output),
+              ])
+              audit=json.loads((output/'region-relief-comparison-audit.json').read_text())
+              assert audit['P4A_and_P4D_source_bytes_verified']
+              assert not audit['approved_hydrology'] and not audit['accepted_geography_or_rivers']
+              assert not audit['accepted_Core_MFD_or_P4C1_route_recomputed']
+              assert audit['A8_outside_only_catchment_area_injected_km2']==0
+              assert len(audit['variant_scores'])==3
+              assert audit['variant_scores'][-1]['baseline_bit_exact_replay']
+              assert (output/'region-relief-comparison-sheet.png').is_file()
+          else:
+              # The synthetic macro has no historical inlet for this crop.
+              # Dedicated toy tests still exercise a full positive P4-E CLI replay.
+              print('P4E_SYNTHETIC: no selected P4-D corridor; full CLI covered by generated toy fixtures')
           PY
 
       - name: Snapshot small PUBLIC code for reproducible PRIVATE processing (NO ORIGINAL DATA)
