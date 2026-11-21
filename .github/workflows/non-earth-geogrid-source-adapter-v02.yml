@@ -583,7 +583,7 @@ jobs:
           print("P2-B2.6: deliberate unresolved lake routing not mistaken for zero effect")
           PY
 
-      - name: P2-B2.6 visual POSITIVE example: one true geometric supernode vs ordinary MFD
+      - name: "P2-B2.6 visual POSITIVE example: one geometric supernode vs ordinary MFD"
         run: |
           python - <<'PY'
           import json,os
