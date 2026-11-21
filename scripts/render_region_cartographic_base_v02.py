@@ -140,8 +140,13 @@ def _base_pixels(z: np.ndarray, cls: np.ndarray,
     # Elevation-borne, non-geographic tonal illumination. No new DEM values.
     dx, dy = x[1]-x[0], y[0]-y[1]
     fine = z
-    smoothed = np.asarray(Image.fromarray(z.astype("float32"), "F")
-                          .filter(ImageFilter.GaussianBlur(radius=4.0)), dtype=float)
+    z_min, z_max = float(np.min(z)), float(np.max(z))
+    if z_max > z_min:
+        normalized = np.uint8(np.clip(np.rint((z-z_min)/(z_max-z_min)*255), 0, 255))
+        blurred = Image.fromarray(normalized, "L").filter(ImageFilter.GaussianBlur(radius=4.0))
+        smoothed = np.asarray(blurred, dtype=float)*(z_max-z_min)/255 + z_min
+    else:
+        smoothed = z.copy()
     def brightness(a, vertical=33.0):
         north_grad, east_grad = np.gradient(a, dy, dx)
         # Array rows increase southward; north_grad must be negated.
