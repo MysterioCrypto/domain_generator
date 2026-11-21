@@ -1,0 +1,93 @@
+{
+  "schema": "author-region-atlas-v0.1",
+  "world": {
+    "name": "Осве́ра",
+    "name_status": "WORKING_NOT_CANON",
+    "use": "AUTHOR_CONTINUITY_REFERENCE"
+  },
+  "story": {
+    "protagonist": "Д’Акхар",
+    "first_arc": "Арка I",
+    "world": "Пересекая горизонт",
+    "status": "WORKING_STORY"
+  },
+  "region": {
+    "id": "A",
+    "label": "Район A — рабочий кандидат географии первой арки",
+    "status": "MODEL_CANDIDATE_NOT_CANON",
+    "center_lat_lon_deg": [
+      -47.25,
+      -98.25
+    ]
+  },
+  "sources": [
+    {
+      "status": "AUTHOR_BRIEF",
+      "url": "https://drive.google.com/file/d/1xYRLhm4R1GzgQWW6D_Ap190QTnjgNaZd/view"
+    },
+    {
+      "status": "MODEL_NOT_CANON",
+      "url": "https://drive.google.com/file/d/1eT5odktS2L9SBbSLhXT2KDDf5vmMaQsq/view"
+    }
+  ],
+  "landmarks": [
+    {
+      "id": "forest_arrival",
+      "label": "Лес появления героя",
+      "evidence": "WRITTEN",
+      "position_status": "UNPLACED",
+      "position": null,
+      "geography_constraint": "Незнакомый лес, влажный и скалистый район; точка появления в карте не определена"
+    },
+    {
+      "id": "old_crossing",
+      "label": "Древняя переправа и руины",
+      "evidence": "WRITTEN",
+      "position_status": "UNPLACED",
+      "position": null,
+      "geography_constraint": "Около реки, есть старые следы сооружений; точные расстояния и геометрия не утверждены"
+    },
+    {
+      "id": "magician_residence",
+      "label": "Дом мага возле водопада",
+      "evidence": "WRITTEN",
+      "position_status": "UNPLACED",
+      "position": null,
+      "geography_constraint": "Отдалённый особняк на выносе над обрывом, рядом водопад; лаборатория использует проточную воду"
+    },
+    {
+      "id": "courier_overnight",
+      "label": "Ночлег на курьерской дороге",
+      "evidence": "WRITTEN",
+      "position_status": "UNPLACED",
+      "position": null,
+      "geography_constraint": "Регулярно обслуживаемая защищённая дорога; не превращает прилегающую дикую территорию в безопасную"
+    },
+    {
+      "id": "fortified_city",
+      "label": "Укреплённый город",
+      "evidence": "AUTHOR_BRIEF",
+      "position_status": "UNPLACED",
+      "position": null,
+      "geography_constraint": "Отдельный укреплённый населённый пункт, не под особняком мага; расстояние пока не утверждено"
+    }
+  ],
+  "routes": [
+    {
+      "id": "courier_to_city",
+      "label": "Курьерская дорога и город",
+      "from": "courier_overnight",
+      "to": "fortified_city",
+      "status": "STORY_RELATIONSHIP_GEOMETRY_UNKNOWN",
+      "polyline_east_north_km": null
+    },
+    {
+      "id": "magician_to_crossing",
+      "label": "Резиденция и старая переправа",
+      "from": "magician_residence",
+      "to": "old_crossing",
+      "status": "TRAVEL_GEOMETRY_UNRESOLVED",
+      "polyline_east_north_km": null
+    }
+  ]
+}

@@ -157,5 +157,13 @@
     "core_c1_unit": "mm/year",
     "direct_equivalence_asserted": false,
     "external_planetary_calendar_adapter_implemented": false
+  },
+  "semantic_identity": {
+    "planet_working_name": "Осве́ра",
+    "planet_name_status": "WORKING_NOT_CANON",
+    "protagonist_name": "Д’Акхар",
+    "protagonist_role": "MAIN_CHARACTER",
+    "historical_fixture_id_means": "ARC_OF_PROTAGONIST_NOT_REGION_NAME",
+    "region_name_approved": false
   }
 }
