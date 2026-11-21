@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-non-earth-product-readiness
-checkpoint: source-grounded-world-fixtures-and-repository-navigation
-next_topic: recover-geodata-and-render-genuinely-distinct-regional-fixtures
+checkpoint: p3-source-verified-atlas-builder-draft
+next_topic: private-region-A-exact-p3-run-and-visual-review
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
