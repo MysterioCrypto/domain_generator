@@ -11,7 +11,7 @@ from scripts.derive_author_natural_cover_v02 import (
 
 def _fixture(*,north_first=False,wet=True):
     lat=np.linspace(-49,-45,13)
-    lon=np.linspace(-100.5,-96,15)
+    lon=np.linspace(-99.1,-97.5,15)
     y,x=np.indices((13,15))
     scenario=np.where(x<=5,7,np.where(x>=11,6,8)).astype("uint8")
     moderate=scenario.copy()
