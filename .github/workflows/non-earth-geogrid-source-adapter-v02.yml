@@ -629,7 +629,7 @@ jobs:
           from pathlib import Path
           from PIL import Image
           from scripts.render_region_cartographic_base_v02 import render_cartographic_base
-          from scripts.render_region_drainage_evidence_v02 import build_evidence
+          import subprocess, sys, hashlib
           root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
           with np.load(root/'child/child-terrain-generated.npz',allow_pickle=False) as z:
               child={k:z[k].copy() for k in z.files}
@@ -647,10 +647,25 @@ jobs:
           ledger['world']['name']='SYNTHETIC'
           p4=root/'P4B-synthetic-cartographic-source'
           map_audit=render_cartographic_base(child,cover,cm,cv,ledger,p4,pixels_per_cell=4)
-          with Image.open(p4/'region-cartographic-base.png') as image:
-              base=image.convert('RGB')
+          p4_child_npz=root/'child/child-terrain-generated.npz'
+          map_audit['input_sha256']={
+              'child_npz':hashlib.sha256(p4_child_npz.read_bytes()).hexdigest()
+          }
+          (p4/'region-cartographic-audit.json').write_text(
+              json.dumps(map_audit,indent=2), encoding='utf8')
           path=root/'P4B-synthetic-drainage-evidence'
-          audit=build_evidence(child,cm,candidate,pr,base,map_audit,path)
+          subprocess.check_call([
+              sys.executable,'-m','scripts.render_region_drainage_evidence_v02',
+              '--child-npz',str(p4_child_npz),
+              '--child-manifest',str(root/'child/manifest.json'),
+              '--projection-npz',str(root/'macro-vs-MFD-outlets/connected-MFD-channel-reference.npz'),
+              '--projection-manifest',str(root/'macro-vs-MFD-outlets/manifest.json'),
+              '--p4a-image',str(p4/'region-cartographic-base.png'),
+              '--p4a-audit',str(p4/'region-cartographic-audit.json'),
+              '--output',str(path),
+          ])
+          audit=json.loads((path/'drainage-evidence-audit.json').read_text())
+          assert audit['p4a_child_npz_sha256_lineage_verified']
           assert audit['status']=='P4B_CONSERVATIVE_DRAINAGE_EVIDENCE_NOT_CANONICAL_RIVERS'
           assert not audit['is_accepted_hydrology'] and not audit['is_water_occupancy_or_discharge']
           assert audit['raw_candidate_ordinary_edges'] == (
@@ -664,6 +679,20 @@ jobs:
           print('P4B_SYNTHETIC_ONLY: Core MFD topology screened; not a water map')
           PY
 
+      - name: Snapshot small PUBLIC code for reproducible PRIVATE processing (NO ORIGINAL DATA)
+        run: |
+          mkdir -p "$RUNNER_TEMP/p4b-public-source-snapshot"
+          cp -r src scripts examples "$RUNNER_TEMP/p4b-public-source-snapshot/"
+          cp pyproject.toml "$RUNNER_TEMP/p4b-public-source-snapshot/"
+          echo "Public source checkout — no original A8/A12" > "$RUNNER_TEMP/p4b-public-source-snapshot/README-snapshot.txt"
+
+      - name: Publish public code snapshot only (not private planet arrays)
+        uses: actions/upload-artifact@v4
+        with:
+          name: p4b-public-source-checkout
+          path: ${{ runner.temp }}/p4b-public-source-snapshot
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload only synthetic adapter demonstration
         uses: actions/upload-artifact@v4
         with:
