@@ -662,6 +662,7 @@ jobs:
               '--projection-manifest',str(root/'macro-vs-MFD-outlets/manifest.json'),
               '--p4a-image',str(p4/'region-cartographic-base.png'),
               '--p4a-audit',str(p4/'region-cartographic-audit.json'),
+              '--min-display-dominant-area-km2','100',
               '--output',str(path),
           ])
           audit=json.loads((path/'drainage-evidence-audit.json').read_text())
@@ -670,7 +671,9 @@ jobs:
           assert not audit['is_accepted_hydrology'] and not audit['is_water_occupancy_or_discharge']
           assert audit['raw_candidate_ordinary_edges'] == (
               pr['child_core_dominant_channel_ledger']['ordinary_adjacent_channel_edges'])
-          assert audit['displayable_strictly_downhill_edges']+audit['withheld_unsafe_ordinary_edges'] == audit['raw_candidate_ordinary_edges']
+          assert audit['all_strictly_downhill_edges']+audit['withheld_unsafe_ordinary_edges'] == audit['raw_candidate_ordinary_edges']
+          assert (audit['displayable_strictly_downhill_edges']+audit['omitted_minor_strict_edges_display_only']+audit['withheld_unsafe_ordinary_edges'] == audit['raw_candidate_ordinary_edges'])
+          assert audit['display_minimum_dominant_area_km2_NOT_Q']==100
           assert audit['source_external_inflow_km2_applied']==0
           with np.load(path/'drainage-evidence-masks.npz',allow_pickle=False) as z:
               assert z['candidate_display_edges_NOT_CONFIRMED_RIVERS'].shape[1]==2
