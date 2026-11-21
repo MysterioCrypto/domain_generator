@@ -8,12 +8,16 @@ All pixel geometry is derived from a north-first P2-A child DEM and P3 cover.
 """
 
 import argparse
+from io import BytesIO
 from hashlib import file_digest
 import json
 from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib.figure import Figure
 
 
 class CartographicBaseError(ValueError):
@@ -147,7 +151,7 @@ def _base_pixels(z: np.ndarray, cls: np.ndarray,
         smoothed = np.asarray(blurred, dtype=float)*(z_max-z_min)/255 + z_min
     else:
         smoothed = z.copy()
-    def brightness(a, vertical=33.0):
+    def brightness(a, vertical=115.0):
         north_grad, east_grad = np.gradient(a, dy, dx)
         # Array rows increase southward; north_grad must be negated.
         north_grad = -north_grad
@@ -157,14 +161,47 @@ def _base_pixels(z: np.ndarray, cls: np.ndarray,
         light = np.array([-0.57, 0.57, 0.59])
         light /= np.linalg.norm(light)
         return np.clip(np.sum(normal*light, axis=-1), .05, 1)
-    light = .72*brightness(fine) + .28*brightness(smoothed, 47.)
-    rgb *= np.clip(.80 + .45*(light-.55), .61, 1.19)[..., None]
+    light = .72*brightness(fine) + .28*brightness(smoothed, 105.)
+    rgb *= np.clip(.94 + 1.25*(light-.60), .53, 1.40)[..., None]
     # Tiny hypsometric tint to help read mountain mass; it is a display
     # convention, not a rock/vegetation classification.
     lo, hi = np.percentile(z, [5, 95])
     relief = np.clip((z-lo)/max(hi-lo, 1.), 0, 1)**1.7
     rgb = rgb*(1-.075*relief[..., None]) + np.array([185., 173., 149.])*.075*relief[..., None]
     return Image.fromarray(np.uint8(np.clip(np.rint(rgb), 0, 255)), "RGB")
+
+
+def _with_model_contours(map_img: Image.Image, z: np.ndarray,
+                         x: np.ndarray, y: np.ndarray) -> tuple[Image.Image, float]:
+    """Low-contrast model elevation isolines; never invented channel geometry."""
+    span = float(np.percentile(z, 95) - np.percentile(z, 5))
+    interval = 25.0 if span < 250 else 50.0 if span < 650 else 100.0
+    lo = np.floor(np.min(z) / interval) * interval
+    hi = np.ceil(np.max(z) / interval) * interval
+    levels = np.arange(lo, hi+interval*.5, interval)
+    if len(levels) < 2 or len(levels) > 40:
+        return map_img, interval
+    width, height = map_img.size
+    fig = Figure(figsize=(width/100, height/100), dpi=100)
+    ax = fig.add_axes([0, 0, 1, 1])
+    # Align DEM node centers with PIL's scaled coarse-raster pixel centers.
+    dx, dy = float(x[1]-x[0]), float(y[0]-y[1])
+    ax.set_xlim(x[0]-dx/2, x[-1]+dx/2)
+    ax.set_ylim(y[-1]-dy/2, y[0]+dy/2)
+    ax.contour(x, y, z, levels=levels,
+               colors="#e9ddbf", linewidths=.45, alpha=.31)
+    ax.set_axis_off()
+    buf = BytesIO()
+    fig.savefig(buf, format="png", transparent=True, dpi=100,
+                facecolor="none", edgecolor="none", pad_inches=0)
+    buf.seek(0)
+    with Image.open(buf) as overlay:
+        if overlay.size != map_img.size:
+            raise CartographicBaseError("model contour rendering lost pixel alignment")
+        blended = Image.alpha_composite(map_img.convert("RGBA"),
+                                         overlay.convert("RGBA")).convert("RGB")
+    buf.close()
+    return blended, interval
 
 
 def render_cartographic_base(child: dict, cover: dict, child_meta: dict,
@@ -180,9 +217,10 @@ def render_cartographic_base(child: dict, cover: dict, child_meta: dict,
     width = len(x)*pixels_per_cell
     height = len(y)*pixels_per_cell
     map_img = base.resize((width, height), Image.Resampling.BICUBIC)
+    map_img, contour_step_m = _with_model_contours(map_img, z, x, y)
 
     # Keep the cartographic image independent from captions, legends and badges.
-    top, bottom, margin = 102, 200, 70
+    top, bottom, margin = 102, 236, 70
     sheet = Image.new("RGB", (width+2*margin, height+top+bottom),
                       (241, 237, 225))
     draw = ImageDraw.Draw(sheet)
@@ -198,16 +236,22 @@ def render_cartographic_base(child: dict, cover: dict, child_meta: dict,
     total_km = float(x[-1]-x[0])
     length_km = 50 if total_km >= 100 else 10
     bar_px = int(round(width*length_km/total_km))
-    start_x, bar_y = margin+34, top+height+57
+    start_x, bar_y = margin+30, top+height+34
     draw.rectangle([start_x,bar_y,start_x+bar_px,bar_y+9], fill=(50,62,52))
-    draw.text((start_x,bar_y+16), f"{length_km} км", font=_font(24), fill=(49,62,52))
-    draw.text((margin+250,top+height+54),
-              "Лес?   •   открытые земли?   •   влажные низины?",
-              font=_font(24), fill=(65,76,65))
-    draw.text((margin,top+height+132),
-              "Рабочая картографическая подложка · природный покров гипотетический",
+    draw.text((start_x,bar_y+15), f"{length_km} км",
+              font=_font(23), fill=(49,62,52))
+    # Dedicated legend row, not the scale-bar row.
+    legend_y = top+height+94
+    lx = margin+30
+    for code, label in ((1, "Лес?"), (2, "Открытое?"), (4, "Низины?")):
+        draw.rectangle([lx,legend_y,lx+24,legend_y+23],
+                       fill=tuple(int(t) for t in COLORS[code]))
+        draw.text((lx+34,legend_y-2), label, font=_font(23), fill=(65,76,65))
+        lx += 50 + int(draw.textlength(label,font=_font(23))) + 45
+    draw.text((margin+30,top+height+146),
+              f"Модель рельефа: горизонтали {int(contour_step_m)} м · покров гипотетический",
               font=_font(22), fill=(82,91,78))
-    draw.text((margin,top+height+165),
+    draw.text((margin+30,top+height+184),
               "Речная сеть, дороги и сюжетные ориентиры не размещены",
               font=_font(22), fill=(82,91,78))
 
@@ -236,7 +280,9 @@ def render_cartographic_base(child: dict, cover: dict, child_meta: dict,
             "roads and bridges", "towns and buildings", "waterfalls",
             "story landmarks and travel distances",
         ],
+        "model_contour_interval_m": contour_step_m,
         "rendering_rules": [
+            "model elevation isolines only; no channel or road linework",
             "visual-only blurred class boundaries (~0.8 parent pixels)",
             "display-only world-km texture, no DEM or class mutations",
             "two-scale hillshade derived solely from supplied DEM",
