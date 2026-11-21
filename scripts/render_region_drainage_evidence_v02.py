@@ -39,11 +39,15 @@ def _font(size: int):
 
 def screen_candidate_links(child: dict, child_meta: dict, projection: dict,
                            projection_report: dict, map_audit: dict,
-                           *, virtual_fill_limit_m: float = 2.) -> tuple[dict, dict]:
+                           *, virtual_fill_limit_m: float = 2.,
+                           min_display_dominant_area_km2: float = 0.) -> tuple[dict, dict]:
     """Validate topology with *actual Core MFD*; suppress unsupported linework."""
     if (not np.isfinite(virtual_fill_limit_m) or virtual_fill_limit_m < 0
             or virtual_fill_limit_m > 100):
         raise DrainageEvidenceError("finite virtual_fill_limit_m 0..100 required")
+    if (not np.isfinite(min_display_dominant_area_km2)
+            or min_display_dominant_area_km2 < 0):
+        raise DrainageEvidenceError("finite nonnegative minimum display area required")
     if (child_meta.get("status") != "NEW_PROCEDURAL_CHILD_TERRAIN_NOT_AUTHOR_CANON"
             or child_meta.get("is_accepted_Core_DomainData") is not False):
         raise DrainageEvidenceError("noncanonical P2 child manifest required")
@@ -87,6 +91,7 @@ def screen_candidate_links(child: dict, child_meta: dict, projection: dict,
     receiver = np.asarray(projection.get("Core_dominant_receiver_index"))
     edges = np.asarray(projection.get("channel_edge_flat_from_to"))
     jumps = np.asarray(projection.get("lake_proxy_jumps_flat_from_to"))
+    dominant_area = np.asarray(projection.get("Core_dominant_channel_area_km2_NOT_Q"))
     if (mask.shape != shape or lakes.shape != shape or receiver.shape != shape
             or mask.dtype.kind not in "biu" or lakes.dtype.kind not in "biu"
             or not np.isin(mask, [0, 1]).all() or not np.isin(lakes, [0, 1]).all()
@@ -94,6 +99,11 @@ def screen_candidate_links(child: dict, child_meta: dict, projection: dict,
             or receiver.dtype.kind not in "iu" or np.any(receiver >= z.size)
             or np.any(receiver < -1)):
         raise DrainageEvidenceError("projection masks/receivers invalid")
+    if (dominant_area.shape != shape
+            or dominant_area.dtype.kind not in "fi"
+            or not np.isfinite(dominant_area).all()
+            or np.any(dominant_area < 0)):
+        raise DrainageEvidenceError("invalid Core dominant-channel area proxy")
     if edges.ndim != 2 or edges.shape[1] != 2 or edges.dtype.kind not in "iu":
         raise DrainageEvidenceError("expected integer (N,2) Core channel edges")
     if jumps.ndim != 2 or jumps.shape[1] != 2 or jumps.dtype.kind not in "iu":
@@ -139,10 +149,20 @@ def screen_candidate_links(child: dict, child_meta: dict, projection: dict,
             raise DrainageEvidenceError("multiple ordinary downstream edges")
         seen.add(int(src))
 
-    safe = np.asarray(safe_links, dtype=np.int32).reshape(-1, 2)
+    # Display-thresholding changes ONLY visual sampling, never physical graph,
+    # routing, acceptance or the fully preserved strict-downhill evidence.
+    safe_all = np.asarray(safe_links, dtype=np.int32).reshape(-1, 2)
+    chosen = [link for link in safe_links
+              if dominant_area.ravel()[link[0]] >= min_display_dominant_area_km2]
+    minor = [link for link in safe_links
+             if dominant_area.ravel()[link[0]] < min_display_dominant_area_km2]
+    safe = np.asarray(chosen, dtype=np.int32).reshape(-1, 2)
+    minor_hidden = np.asarray(minor, dtype=np.int32).reshape(-1, 2)
     hidden = np.asarray(withheld, dtype=np.int32).reshape(-1, 2)
     masks = {
+        "all_strictly_downhill_edges_NOT_CONFIRMED_RIVERS": safe_all,
         "candidate_display_edges_NOT_CONFIRMED_RIVERS": safe,
+        "omitted_minor_strict_edges_NOT_DISPLAYED": minor_hidden,
         "withheld_ordinary_edges_NOT_DISPLAYED": hidden,
         "lake_proxy_jumps_NOT_RIVERS": jumps.astype(np.int32),
         "virtual_fill_uncertainty_mask_NOT_WATER": uncertain.astype(np.uint8),
@@ -160,7 +180,10 @@ def screen_candidate_links(child: dict, child_meta: dict, projection: dict,
         "source_lake_topology_status": ledger["lake_topology_status"],
         "source_external_inflow_km2_applied": 0.,
         "raw_candidate_ordinary_edges": len(edges),
+        "all_strictly_downhill_edges": len(safe_all),
         "displayable_strictly_downhill_edges": len(safe),
+        "omitted_minor_strict_edges_display_only": len(minor_hidden),
+        "display_minimum_dominant_area_km2_NOT_Q": min_display_dominant_area_km2,
         "withheld_unsafe_ordinary_edges": len(hidden),
         "undrawn_geometric_lake_proxy_jumps": len(jumps),
         "unresolved_fill_cells_over_limit": int(np.count_nonzero(fill > virtual_fill_limit_m)),
@@ -215,7 +238,10 @@ def render_evidence(base: Image.Image, child: dict, masks: dict, audit: dict) ->
              font=_font(26), fill="#353e36")
     y = top+merged.height+27
     pen.rectangle((margin+4, y+5, margin+29, y+23), fill="#e6bb5e")
-    pen.text((margin+38, y-2), "Кандидатный сток, НЕ река",
+    threshold = audit["display_minimum_dominant_area_km2_NOT_Q"]
+    legend = ("Кандидатный сток, НЕ река" if threshold == 0 else
+              f"Кандидатный сток от {threshold:g} км², НЕ река")
+    pen.text((margin+38, y-2), legend,
              font=_font(21), fill="#343e35")
     y += 38
     pen.rectangle((margin+4, y+5, margin+29, y+23), fill="#ad819c")
@@ -232,12 +258,14 @@ def render_evidence(base: Image.Image, child: dict, masks: dict, audit: dict) ->
 
 def build_evidence(child: dict, child_meta: dict, projection: dict,
                    projection_report: dict, base: Image.Image, map_audit: dict,
-                   output: Path, *, virtual_fill_limit_m: float = 2.) -> dict:
+                   output: Path, *, virtual_fill_limit_m: float = 2.,
+                   min_display_dominant_area_km2: float = 0.) -> dict:
     if output.exists() and (not output.is_dir() or any(output.iterdir())):
         raise DrainageEvidenceError("output must be empty")
     masks, audit = screen_candidate_links(
         child, child_meta, projection, projection_report, map_audit,
-        virtual_fill_limit_m=virtual_fill_limit_m)
+        virtual_fill_limit_m=virtual_fill_limit_m,
+        min_display_dominant_area_km2=min_display_dominant_area_km2)
     if list(base.size) != map_audit["image_size_pixels"]:
         raise DrainageEvidenceError("P4-A image and audit pixel sizes disagree")
     layer, sheet = render_evidence(base, child, masks, audit)
@@ -256,6 +284,7 @@ def main():
                  "projection-manifest", "p4a-image", "p4a-audit"):
         p.add_argument("--"+name, type=Path, required=True)
     p.add_argument("--virtual-fill-limit-m", type=float, default=2.)
+    p.add_argument("--min-display-dominant-area-km2", type=float, default=0.)
     p.add_argument("--output", type=Path, required=True)
     args = p.parse_args()
     def read(path):
@@ -277,7 +306,8 @@ def main():
         img = im.convert("RGB")
     audit = build_evidence(
         child, child_meta, projection, projection_meta, img, map_audit,
-        args.output, virtual_fill_limit_m=args.virtual_fill_limit_m)
+        args.output, virtual_fill_limit_m=args.virtual_fill_limit_m,
+        min_display_dominant_area_km2=args.min_display_dominant_area_km2)
     audit["p4a_child_npz_sha256_lineage_verified"] = True
     audit["projection_child_bitwise_sha256_lineage_verified"] = False
     audit["input_sha256"] = {}
