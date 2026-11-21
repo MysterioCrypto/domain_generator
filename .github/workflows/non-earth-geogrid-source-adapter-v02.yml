@@ -16,6 +16,9 @@ on:
       - scripts/trace_a8_external_first_entry_v02.py
       - tests/test_a8_external_first_entry_v02.py
       - scripts/compare_planetary_child_mfd_outlets_v02.py
+      - scripts/render_region_drainage_evidence_v02.py
+      - scripts/render_region_cartographic_base_v02.py
+      - tests/test_region_drainage_evidence_v02.py
       - tests/test_planetary_child_mfd_outlet_alignment_v02.py
       - scripts/propose_planetary_river_corridor_v02.py
       - tests/test_planetary_source_corridor_trial_v02.py
@@ -39,7 +42,7 @@ jobs:
       - name: Install runtime and rendering environment
         run: python -m pip install -e ".[dev,render]"
       - name: Test source alignment and geographic graph boundary invariants
-        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py tests/test_planetary_child_mfd_outlet_alignment_v02.py tests/test_planetary_source_corridor_trial_v02.py tests/test_planetary_child_lake_topology_v02.py -q
+        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py tests/test_planetary_child_mfd_outlet_alignment_v02.py tests/test_planetary_source_corridor_trial_v02.py tests/test_planetary_child_lake_topology_v02.py tests/test_region_drainage_evidence_v02.py -q
       - name: Create SMALL synthetic source archives (NO PRIVATE PLANET DATA)
         run: |
           python - <<'PY'
@@ -616,6 +619,49 @@ jobs:
           (folder/"manifest.json").write_text(json.dumps(ledger,indent=2))
           render_basin_topology(toy,arr,ledger,folder/"lake-topology-review.png")
           print("P2-B2.6 POSITIVE Core-parity lake proxy example, NOT observed water")
+          PY
+
+      - name: P4-B SYNTHETIC map-first Core MFD drainage evidence (NOT RIVERS)
+        run: |
+          python - <<'PY'
+          import json, os
+          import numpy as np
+          from pathlib import Path
+          from PIL import Image
+          from scripts.render_region_cartographic_base_v02 import render_cartographic_base
+          from scripts.render_region_drainage_evidence_v02 import build_evidence
+          root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
+          with np.load(root/'child/child-terrain-generated.npz',allow_pickle=False) as z:
+              child={k:z[k].copy() for k in z.files}
+          with np.load(root/'macro-vs-MFD-outlets/connected-MFD-channel-reference.npz',allow_pickle=False) as z:
+              candidate={k:z[k].copy() for k in z.files}
+          cm=json.loads((root/'child/manifest.json').read_text(encoding='utf8'))
+          pr=json.loads((root/'macro-vs-MFD-outlets/manifest.json').read_text(encoding='utf8'))
+          # This is only a synthetic DEM+cover for CI; NOT real Osvera ecology.
+          elevation=child['child_elevation_m']
+          cover={'cover_class_candidate':np.where(
+              elevation>np.median(elevation),1,2).astype('uint8')}
+          cv={'status':'P3_MVP_NONCANONICAL_SOURCE_CONDITIONED_COVER',
+              'cover_is_author_canon':False,'wetland_is_confirmed_water':False}
+          ledger=json.loads(Path('examples/world-fixtures/osvera-first-arc-author-ledger.json').read_text(encoding='utf8'))
+          ledger['world']['name']='SYNTHETIC'
+          p4=root/'P4B-synthetic-cartographic-source'
+          map_audit=render_cartographic_base(child,cover,cm,cv,ledger,p4,pixels_per_cell=4)
+          with Image.open(p4/'region-cartographic-base.png') as image:
+              base=image.convert('RGB')
+          path=root/'P4B-synthetic-drainage-evidence'
+          audit=build_evidence(child,cm,candidate,pr,base,map_audit,path)
+          assert audit['status']=='P4B_CONSERVATIVE_DRAINAGE_EVIDENCE_NOT_CANONICAL_RIVERS'
+          assert not audit['is_accepted_hydrology'] and not audit['is_water_occupancy_or_discharge']
+          assert audit['raw_candidate_ordinary_edges'] == (
+              pr['child_core_dominant_channel_ledger']['ordinary_adjacent_channel_edges'])
+          assert audit['displayable_strictly_downhill_edges']+audit['withheld_unsafe_ordinary_edges'] == audit['raw_candidate_ordinary_edges']
+          assert audit['source_external_inflow_km2_applied']==0
+          with np.load(path/'drainage-evidence-masks.npz',allow_pickle=False) as z:
+              assert z['candidate_display_edges_NOT_CONFIRMED_RIVERS'].shape[1]==2
+          with Image.open(path/'drainage-evidence-sheet.png') as image:
+              assert image.width>600
+          print('P4B_SYNTHETIC_ONLY: Core MFD topology screened; not a water map')
           PY
 
       - name: Upload only synthetic adapter demonstration
