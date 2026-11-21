@@ -5,6 +5,12 @@ Purpose: **current** DONE / IN PROGRESS / NEXT tree for chat recovery. For the d
 **Active line:** `dev/0.2` · **current product checkpoint:** non-Earth source fixtures and [single navigation page](../START_HERE.md). **Parallel technical line:** H13 DESIGN accepted/merged #98, runtime #99 draft/unmerged; #100 C2 experiment and #101 atlas composer also draft/unmerged. **H12-A:** accepted/merged #97.
 Historical checkpoint notes below are not current gates.
 
+## CURRENT: P3.3 first REAL private region-A author sheet (2026-11-21)
+
+Original user Drive A8/A12 ZIP hashes verified, P1 whole-source equality passed (600×1200), source crop 9×11, P2-A child 231×231 at 1 km with 63 preserved anchors and 0.0 m maximum anchor error. P3 hypothetical forest/open/wet-lowland fractions 0.64058/0.16731/0.19211. Atlas rendered using EXACT code-blob P1/P2/P3/atlas functions; full new CLI wrapper itself NOT run on private ZIPs. First real sheet exposed overlap of model legend with status footer, fixed in PR #103 and regression-test added. Private PNG/bundle stored in access-controlled Drive; full run details and exact links in docs/reviews/p3-3-osvera-region-a-private-source-atlas-2026-11-21.md.
+
+**STATUS:** operator visual review pending; five POI unplaced, two routes unknown, no 1-km accepted Core MFD rivers. PR #103 DRAFT/UNMERGED, Core dev/0.2 and frozen releases unchanged. NEXT: author evaluates ONE map; tune guilty layer or targeted hydrology only with evidence.
+
 ## CURRENT: P3.2 direct private archive intake (2026-11-21)
 
 Draft PR #103 now also accepts ORIGINAL A8/A12 ZIPs directly in the SAME source-verified P2-A -> P3 -> author atlas CLI. It reuses P1 whole-world checks, enlarges the SOURCE CROP (not the author map) by one source station for valid interpolation, and records original input hashes and derived region provenance. Former NPZ mode remains supported. New synthetic archive-to-map + mismatch/digest regression checks. Next product gate is still real private region-A build, one reviewable PNG and audit; no merge/canon assumed.
