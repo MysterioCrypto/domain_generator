@@ -188,11 +188,10 @@ def _annotate_sheet(outputs:dict,summary:dict, backgrounds:dict, destination:Pat
     if pixels_per_cell not in (4,5,6):
         raise ChannelScaleError('unsupported panel scale')
     shape=tuple(summary['source_grid_shape'])
-    if shape[0]!=shape[1]:
-        raise ChannelScaleError('square source imagery assumed')
-    side=shape[1]*pixels_per_cell
+    panel_w=shape[1]*pixels_per_cell
+    panel_h=shape[0]*pixels_per_cell
     margin,gap,label,foot=36,22,85,116
-    width=margin*2+3*side+2*gap;height=label+3*side+2*gap+foot
+    width=margin*2+3*panel_w+2*gap;height=label+3*panel_h+2*gap+foot
     dest=Image.new('RGB',(width,height),(235,230,217))
     d=ImageDraw.Draw(dest)
     d.text((margin,16),'ОСВЕРА / P4-G — ЧУВСТВИТЕЛЬНОСТЬ МОДЕЛЬНОЙ СЕТИ',font=_font(26),fill=(47,50,45))
@@ -200,10 +199,10 @@ def _annotate_sheet(outputs:dict,summary:dict, backgrounds:dict, destination:Pat
     for i,s in enumerate(STRENGTHS):
         with Image.open(backgrounds[s]) as source:
             original=source.convert('RGB')
-        if original.size!=(side,side):
+        if original.size!=(panel_w,panel_h):
             raise ChannelScaleError('P4-E terrain image size mismatches 1 km pixel projection')
         for j,t in enumerate(THRESHOLDS):
-            x=margin+j*(side+gap);y=label+i*(side+gap)
+            x=margin+j*(panel_w+gap);y=label+i*(panel_h+gap)
             pane=original.convert('RGBA')
             layer=Image.new('RGBA',pane.size,(0,0,0,0));lines=ImageDraw.Draw(layer)
             fields,_=outputs[(s,t)]
@@ -222,7 +221,7 @@ def _annotate_sheet(outputs:dict,summary:dict, backgrounds:dict, destination:Pat
             composite=Image.alpha_composite(pane,layer).convert('RGB')
             dest.paste(composite,(x,y))
             metric=next(a for a in summary['morphology'] if a['relief_strength']==s and a['stream_threshold_km2_NOT_Q']==t)
-            d.rectangle((x,y,x+side-1,y+side-1),outline=(97,101,91),width=2)
+            d.rectangle((x,y,x+panel_w-1,y+panel_h-1),outline=(97,101,91),width=2)
             d.rectangle((x+7,y+7,x+225,y+54),fill=(235,233,218))
             d.text((x+14,y+11),f'{s:g} / {t:g} км²  ·  {metric["ordinary_skeleton_cells"]} яч.',font=_font(16),fill=(38,49,51))
             d.text((x+14,y+33),f'Слияний: {metric["model_confluence_nodes_with_2_or_more_incoming"]}',font=_font(15),fill=(48,53,51))
@@ -234,15 +233,15 @@ def _annotate_sheet(outputs:dict,summary:dict, backgrounds:dict, destination:Pat
 
 def _render_main_maps(outputs:dict,summary:dict,backgrounds:dict,destination:Path,pixels_per_cell=5):
     # Main side-by-side at the same 30 km² threshold, intended for map review.
-    shape=tuple(summary['source_grid_shape']);size=shape[1]*pixels_per_cell
+    shape=tuple(summary['source_grid_shape']);panel_w=shape[1]*pixels_per_cell;panel_h=shape[0]*pixels_per_cell
     margin=52;gap=26;header=91;footer=130
-    canvas=Image.new('RGB',(3*size+2*margin+2*gap,size+header+footer),(233,229,217))
+    canvas=Image.new('RGB',(3*panel_w+2*margin+2*gap,panel_h+header+footer),(233,229,217))
     paint=ImageDraw.Draw(canvas)
     paint.text((margin,14),'ОСВЕРА / P4-G — ГЕОГРАФИЯ МОДЕЛЬНЫХ КОРИДОРОВ',font=_font(28),fill=(45,47,45))
     paint.text((margin,49),'Один порог: 30 км² · три независимых варианта рельефа · одинаковая картографическая основа P3',font=_font(18),fill=(57,64,54))
     for i,s in enumerate(STRENGTHS):
         with Image.open(backgrounds[s]) as f:terrain=f.convert('RGB')
-        if terrain.size!=(size,size):raise ChannelScaleError('unmatched source map dimensions')
+        if terrain.size!=(panel_w,panel_h):raise ChannelScaleError('unmatched source map dimensions')
         layer=Image.new('RGBA',terrain.size,(0,0,0,0));draw=ImageDraw.Draw(layer)
         fields,ledger=outputs[(s,30.)];nc=shape[1]
         data=fields['channel_edge_flat_from_to'];weight=fields['Core_dominant_channel_area_km2_NOT_Q'].ravel()
@@ -255,12 +254,12 @@ def _render_main_maps(outputs:dict,summary:dict,backgrounds:dict,destination:Pat
             draw.line(((cc+.5)*pixels_per_cell,(rr+.5)*pixels_per_cell,
                        (tc+.5)*pixels_per_cell,(tr+.5)*pixels_per_cell),fill=rgb,width=thick)
         base=Image.alpha_composite(terrain.convert('RGBA'),layer).convert('RGB')
-        x=margin+i*(size+gap);y=header
-        canvas.paste(base,(x,y));paint.rectangle((x,y,x+size-1,y+size-1),outline=(94,98,89),width=2)
+        x=margin+i*(panel_w+gap);y=header
+        canvas.paste(base,(x,y));paint.rectangle((x,y,x+panel_w-1,y+panel_h-1),outline=(94,98,89),width=2)
         metric=next(row for row in summary['morphology'] if row['relief_strength']==s and row['stream_threshold_km2_NOT_Q']==30.)
-        paint.text((x,y+size+16),f'Микрорельеф: {s:g} · длина модели: {metric["ordinary_edge_length_km"]:,.0f} км',font=_font(18),fill=(51,55,48))
-        paint.text((x,y+size+46),f'Ветвлений: {metric["model_confluence_nodes_with_2_or_more_incoming"]} · граничных окончаний: {metric["model_terminal_count"]}',font=_font(17),fill=(51,55,48))
-    paint.text((margin,header+size+94),'Линии показывают только геометрию условной сети Core. Это НЕ готовая карта рек или подтверждённая география.',font=_font(17),fill=(73,72,65))
+        paint.text((x,y+panel_h+16),f'Микрорельеф: {s:g} · длина модели: {metric["ordinary_edge_length_km"]:,.0f} км',font=_font(18),fill=(51,55,48))
+        paint.text((x,y+panel_h+46),f'Ветвлений: {metric["model_confluence_nodes_with_2_or_more_incoming"]} · граничных окончаний: {metric["model_terminal_count"]}',font=_font(17),fill=(51,55,48))
+    paint.text((margin,header+panel_h+94),'Линии показывают только геометрию условной сети Core. Это НЕ готовая карта рек или подтверждённая география.',font=_font(17),fill=(73,72,65))
     canvas.save(destination/'region-network-map-review-3variants.png',compress_level=2)
 
 
