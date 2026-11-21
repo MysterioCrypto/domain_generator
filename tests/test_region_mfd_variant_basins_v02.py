@@ -194,3 +194,7 @@ def test_cli_exact_source_sha_replay_and_tampering(tmp_path):
     dump(source/'p05.npz',modified)
     bad=run('tampered')
     assert bad.returncode!=0 and 'SHA mismatch' in bad.stderr
+    # CI emits a direct P4-C1 audit; private Drive exports a wrapped audit.
+    dump(source/'p05.npz',children[.5])
+    (source/'c1.json').write_text(json.dumps(c1['audit']))
+    assert run('direct_c1').returncode==0
