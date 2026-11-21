@@ -145,3 +145,64 @@ def test_planet_parameters_cannot_come_from_hidden_default():
             center_lat_deg=0, center_lon_deg=0,
             half_width_km=95, half_height_km=95
         )
+
+
+
+def test_spherical_xyz_is_explicit_opt_in_and_parent_anchors_remain_exact():
+    macro = _macro()
+    old, old_meta = generate_child(macro, _settings())
+    legacy, legacy_meta = generate_child(
+        macro, _settings(detail_coordinate_system="legacy_lat_scaled_easting_v1")
+    )
+    for key in old:
+        np.testing.assert_array_equal(old[key], legacy[key])
+    assert old_meta == legacy_meta
+
+    spherical = _settings(detail_coordinate_system="spherical_xyz_v1")
+    first, report = generate_child(macro, spherical)
+    replay, replay_report = generate_child(macro, spherical)
+    for key in first:
+        np.testing.assert_array_equal(first[key], replay[key])
+    assert report == replay_report
+    assert report["detail_coordinate_system"] == "spherical_xyz_v1"
+    assert report["max_parent_anchor_error_m"] <= 1e-6
+    assert report["land_marine_sign_preserved"]
+    np.testing.assert_array_equal(
+        first["parent_interpolated_m"], old["parent_interpolated_m"]
+    )
+    assert np.std(first["new_local_relief_m"]) > .05
+    assert not np.array_equal(
+        first["new_local_relief_m"], old["new_local_relief_m"]
+    )
+
+
+def test_spherical_detail_wraps_antimeridian_without_seam():
+    from scripts.condition_planetary_child_terrain_v02 import _detail_noise_sphere
+    lat = np.array([-50.5, 0., 67.])
+    lon = np.array([-179.9, -98.25, 179.8])
+    base = _detail_noise_sphere(lon, lat, RADIUS, seed=42)
+    wrapped = _detail_noise_sphere(lon + 360, lat, RADIUS, seed=42)
+    np.testing.assert_allclose(base, wrapped, rtol=0, atol=1e-11)
+
+
+def test_spherical_detail_is_global_not_reseeded_by_region_center():
+    macro = _macro()
+    first = _settings(
+        center_lon_deg=0., detail_coordinate_system="spherical_xyz_v1")
+    second = _settings(
+        center_lon_deg=.15, detail_coordinate_system="spherical_xyz_v1")
+    lon = np.array([[.1, .15, .2]])
+    lat = np.array([[.1, .1, .1]])
+    kpd = np.pi * RADIUS / 180
+    first_x = lon * kpd
+    second_x = (lon - .15) * kpd
+    yy = lat * kpd
+    first_heights, _, _ = evaluate_terrain(macro, first, first_x, yy)
+    second_heights, _, _ = evaluate_terrain(macro, second, second_x, yy)
+    np.testing.assert_allclose(
+        first_heights, second_heights, rtol=0, atol=1e-10)
+
+
+def test_spherical_unknown_coordinate_scheme_rejected():
+    with pytest.raises(ChildTerrainError, match="detail_coordinate_system"):
+        generate_child(_macro(), _settings(detail_coordinate_system="magic"))
