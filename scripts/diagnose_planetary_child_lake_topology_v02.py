@@ -232,6 +232,7 @@ def audit_child_lake_routing(
         boundary_l1 = None
         largest_boundary_shift = None
         changed_pixels = None
+        largest_interior_shift = None
         comparable = False
     else:
         difference = with_lakes-without
@@ -240,6 +241,7 @@ def audit_child_lake_routing(
         boundary_l1 = float(np.sum(np.abs(changes)))
         largest_boundary_shift = float(np.max(np.abs(changes)))
         changed_pixels = int(np.count_nonzero(np.abs(difference) > 1e-6))
+        largest_interior_shift = float(np.max(np.abs(difference[~edge])))
         comparable = True
         if abs(float(np.sum(with_lakes[edge])) - total_expected) > 1e-8 * total_expected:
             raise BasinTopologyReviewError("Core lake-supernode proxy area not conserved")
@@ -295,12 +297,14 @@ def audit_child_lake_routing(
         "absolute_terminal_redistribution_km2": boundary_l1,
         "largest_single_terminal_change_km2": largest_boundary_shift,
         "interior_and_edge_changed_cells_count": changed_pixels,
+        "largest_interior_MFD_area_proxy_change_km2": largest_interior_shift,
         "limitations": [
             "Priority Flood virtual fill is NOT liquid water or lake depth.",
             "A routing proxy lake is NOT a world-verified permanent/seasonal lake.",
             "Without A8 boundary inflows this is only LOCAL child catchment topology.",
             "Full Core slow graph was compared on small tests; large grids use tested separate Kahn accumulator.",
             "No macro source D8 river alignment, river vectors, Q, annual climate or author acceptance.",
+            "Even when edge terminal sums are unchanged, internal routing support can change enormously.",
             "If candidate routing unresolved, zero-valued DISPLAY difference is NOT no impact.",
         ],
     }
