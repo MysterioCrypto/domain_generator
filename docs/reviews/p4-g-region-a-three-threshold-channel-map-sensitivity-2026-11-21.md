@@ -17,7 +17,7 @@
 - Контролирует conservation float64 ledger, нулевую автоматическую подкачку внешней A8 площади, корректность adjacent ordinary edges, независимость source/receiver и соответствие ledger.
 - Замеряет model-edge length в километрах (диагонали учитываются как √2), количество topological tips / confluences, долю диагональных рёбер, mask IoU, новые и потерянные ячейки относительно baseline 30.
 - Строит две **отдельные** карты из старых P4-E картографических фонов с frozen P3 candidate colors: тройное сравнение при пороге 30 и матрицу 3×3 одинакового масштаба. Линии раскрашены и утолщены по **модельной unique dominant-channel area**, это **не реальная ширина русла/расход**.
-- 17 синтетических тестов: toy Core 3×3 crossings, полный deterministic CLI replay и SHA guards, запрет смены parent DEM/land grid, повреждённые графы, несогласованные threshold/ledger, фиксированная визуализация.
+- 18 синтетических тестов: toy Core 3×3 crossings, полный deterministic CLI replay и SHA guards, запрет смены parent DEM/land grid, повреждённые графы, несогласованные threshold/ledger, фиксированная визуализация.
 
 ## Численные результаты на PRIVATE районе A, 231×231 км²-пикселя
 
@@ -49,8 +49,8 @@
 
 - [3 варианта при фиксированном пороге 30 км²](https://drive.google.com/file/d/1yV5X_xHlUuSc9sEVp-JEocMCSu3iH08P/view).
 - [Матрица 3×3 пороги 15/30/60 км²](https://drive.google.com/file/d/1En27QXP-ELeIC4VElqgoBgfJ07wGZ8yf/view).
-- [Derived ZIP: 2 PNG, JSON-аудит, CSV 9 случаев, SHA provenance](https://drive.google.com/file/d/17b58FK8LjIYh-sL2K9YD-__j2MO_wBq-/view).
+- [Derived ZIP: 2 PNG, JSON-аудит, CSV 9 случаев, SHA provenance](https://drive.google.com/file/d/1HIrcQWMW0c75QazQUDfNCUh3cMl8X7Lb/view).
 - Предыдущие [P4-B source](https://drive.google.com/file/d/1G6hxsqMNBIk_ZovBZ4nrepf7fLOxrHtX/view), [P4-E three DEMs](https://drive.google.com/file/d/1NlJgASNvupeQ3E4Ykcr0k8gSRylGLQtg/view), [P4-F independent MFD](https://drive.google.com/file/d/1nRuXLKjx6sKxHnuBqOXuQGCbLg_m-XLy/view).
-- Git blobs: скрипт `b8c61314029ad7e9f99b8b5d5a6b2ecb00cc197f`, тесты `73da020e4e6811c96324b8d7df6e671e589d5e95`. Приватные оригинальные A8/A12 ZIP не опубликованы.
+- Git blobs: скрипт `a43bb4d79e32b90c33d639a1bd3a7e94c2f739b0`, тесты `fd952cd1a9015692efc32c393e45961e40e81a90`. Приватные оригинальные A8/A12 ZIP не опубликованы.
 
 **Следующий ограниченный P4-H:** не перебирать пороги дальше вслепую. Изолированно исследовать **природу сеточной ориентированности** (родительская макрогеометрия против интерполяции/дочерней детализации/receiver selection), количественный directional-bias baseline и варианты геометрической генерализации, которая сохраняет узлы и outlet topology. Подготовить более внятную региональную карту с масштабной иерархией только после такого доказательства. Не менять accepted Core/MFD, не объявлять озёра/реки, не делать автоматический merge PR #103.
