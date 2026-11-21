@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-non-earth-product-readiness
-checkpoint: p3-5-real-a8-a12-full-legacy-vs-spherical-atlas-reviewed-by-algorithm-not-author
-next_topic: author-view-two-real-atlases-and-select-working-model-before-hydrology
+checkpoint: p3-6-author-selects-spherical-working-base-map-product-not-accepted
+next_topic: p4-a-author-readable-region-cartographic-base-without-invented-geography
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
