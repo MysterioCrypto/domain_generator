@@ -9,7 +9,8 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.colors import LightSource, LinearSegmentedColormap
+from matplotlib.colors import LightSource, LinearSegmentedColormap, ListedColormap
+from matplotlib.patches import Rectangle
 import numpy as np
 
 
@@ -131,11 +132,16 @@ def audit_atlas(ledger, child, manifest):
     }
 
 
-def render_sheet(ledger,child,report,target,channels=None):
+def render_sheet(ledger,child,report,target,channels=None,cover=None):
     east=np.asarray(child["east_km"],dtype=float)
     north=np.asarray(child["north_km_north_first"],dtype=float)
     dem=np.asarray(child["child_elevation_m"],dtype=float)
     land=np.asarray(child["land_mask"],dtype=bool)
+    if cover is not None:
+        cover=np.asarray(cover)
+        if (cover.shape!=dem.shape or not np.issubdtype(cover.dtype,np.integer)
+                or np.any(cover < 0) or np.any(cover > 5)):
+            raise AuthorAtlasError("cover must be explicit 0..5 source-conditioned layer matching DEM")
     if channels is not None and (channels.shape!=dem.shape or not np.isfinite(channels).all()):
         raise AuthorAtlasError("MFD channel mask shape or values incompatible")
     extent=[float(east[0]),float(east[-1]),float(north[-1]),float(north[0])]
@@ -152,6 +158,11 @@ def render_sheet(ledger,child,report,target,channels=None):
         dem,cmap=relief_palette,vert_exag=2.8,
         dx=spacing*1000,dy=spacing*1000)
     ax.imshow(shade,origin="upper",extent=extent,interpolation="bilinear")
+    if cover is not None:
+        cover_palette=ListedColormap(["#6d94a1", "#366d4b", "#b5aa75",
+                                      "#a39b8d", "#70a49b", "#c4ae82"])
+        ax.imshow(cover,origin="upper",extent=extent,cmap=cover_palette,
+                  vmin=0,vmax=5,alpha=.62,interpolation="nearest")
     zmin,zmax=float(np.min(dem)),float(np.max(dem))
     interval=50 if zmax-zmin<500 else 100
     levels=np.arange(math.ceil(zmin/interval)*interval,zmax,interval)
@@ -217,11 +228,24 @@ def render_sheet(ledger,child,report,target,channels=None):
         y-=.036
         axinfo.text(.03,y,value,va="top",size=9,color="#806e61")
         y-=.059
+    if cover is not None:
+        axinfo.text(0,.27,"ПРИРОДНЫЙ ПОКРОВ — ВЕРСИЯ МОДЕЛИ",va="top",
+                    size=10.5,weight="bold",color="#3d4c40")
+        samples=[("Лес, кандидат","#366d4b"),("Открытая местность","#b5aa75"),
+                 ("Каменистые склоны","#a39b8d"),("Влажные низины?","#70a49b"),
+                 ("Редкая растительность","#c4ae82")]
+        for idx,(lab,color) in enumerate(samples):
+            yy=.235-idx*.039
+            axinfo.add_patch(Rectangle((0,yy-.014),.035,.022,facecolor=color,
+                                        transform=axinfo.transAxes,linewidth=0))
+            axinfo.text(.052,yy,lab,va="center",size=9,color="#61564b")
     axinfo.text(0,.03,
                 "○ координаты не утверждены\n"
                 "● модельное положение  ■ авторское\n"
-                "Реки и леса не признаются каноном\n"
-                "по цвету рельефа.",va="bottom",size=9,color="#615b53")
+                +("Покров — гипотеза, не факт/канон."
+                  if cover is not None else
+                  "Реки и леса не признаются каноном\nпо цвету рельефа."),
+                va="bottom",size=9,color="#615b53")
     fig.text(.055,.95,
              report["planet"]+"  /  РАЙОН "+str(ledger["region"]["id"]),
              weight="bold",size=23,color="#273129")
@@ -261,6 +285,8 @@ def main():
     p.add_argument("--child-manifest",type=Path,required=True)
     p.add_argument("--ledger-json",type=Path,required=True)
     p.add_argument("--channels-npz",type=Path)
+    p.add_argument("--cover-npz",type=Path)
+    p.add_argument("--cover-manifest",type=Path)
     p.add_argument("--output",type=Path,required=True)
     a=p.parse_args()
     with np.load(a.child_npz,allow_pickle=False) as z:
@@ -274,8 +300,26 @@ def main():
             if "channel_mask" not in z.files:
                 raise AuthorAtlasError("expected channel_mask from source Core channel NPZ")
             channels=z["channel_mask"].copy()
+    cover=None
+    if (a.cover_npz is None) != (a.cover_manifest is None):
+        raise AuthorAtlasError("cover layer requires BOTH cover NPZ and cover manifest")
+    if a.cover_npz is not None:
+        with np.load(a.cover_npz,allow_pickle=False) as z:
+            if "cover_class_candidate" not in z.files:
+                raise AuthorAtlasError("cover_class_candidate missing")
+            cover=z["cover_class_candidate"].copy()
+        info=json.loads(a.cover_manifest.read_text(encoding="utf-8"))
+        if (info.get("status")!="P3_MVP_NONCANONICAL_SOURCE_CONDITIONED_COVER"
+                or info.get("cover_is_author_canon") is not False
+                or info.get("no_terrain_changed") is not True):
+            raise AuthorAtlasError("only explicitly noncanonical source cover is supported")
+        report["natural_cover"]={
+            "status":"MODEL_CANDIDATE_NOT_CANON",
+            "class_fractions":info.get("land_cover_area_fractions"),
+            "source_sample_resolution":info.get("source_sample_resolution"),
+        }
     a.output.mkdir(parents=True,exist_ok=True)
-    render_sheet(ledger,child,report,a.output/"author-atlas-sheet.png",channels)
+    render_sheet(ledger,child,report,a.output/"author-atlas-sheet.png",channels,cover)
     (a.output/"author-atlas-audit.json").write_text(
         json.dumps(report,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
     (a.output/"author-atlas-notes.md").write_text(
