@@ -9,7 +9,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.colors import LightSource
+from matplotlib.colors import LightSource, LinearSegmentedColormap
 import numpy as np
 
 
@@ -144,10 +144,20 @@ def render_sheet(ledger,child,report,target,channels=None):
     axinfo=fig.add_axes([.675,.12,.29,.76])
     axinfo.axis("off")
     spacing=float(east[1]-east[0])
+    # Natural-color elevation + hillshade only, NOT a forest/biome claim.
+    relief_palette=LinearSegmentedColormap.from_list(
+        "author_relief_only", ["#557b6f", "#8fa78b", "#bfbb9f", "#d6c8ae", "#eee7d5"]
+    )
     shade=LightSource(azdeg=315,altdeg=45).shade(
-        dem,cmap=plt.get_cmap("gist_earth"),
-        vert_exag=2,dx=spacing*1000,dy=spacing*1000)
-    ax.imshow(shade,origin="upper",extent=extent)
+        dem,cmap=relief_palette,vert_exag=2.8,
+        dx=spacing*1000,dy=spacing*1000)
+    ax.imshow(shade,origin="upper",extent=extent,interpolation="bilinear")
+    zmin,zmax=float(np.min(dem)),float(np.max(dem))
+    interval=50 if zmax-zmin<500 else 100
+    levels=np.arange(math.ceil(zmin/interval)*interval,zmax,interval)
+    if 0<len(levels)<35:
+        ax.contour(east,north,dem,levels=levels,
+                   colors="#354a40",linewidths=.35,alpha=.36)
     if not np.all(land):
         water=np.ma.masked_where(land,np.ones(dem.shape))
         ax.imshow(water,origin="upper",extent=extent,cmap="Blues",alpha=.7)
