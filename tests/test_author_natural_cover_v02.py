@@ -38,6 +38,8 @@ def _fixture(*,north_first=False,wet=True):
     X,Y=np.meshgrid(east,north)
     # Low rolling relief but a steep scarp near the east edge.
     h=400+1.2*Y+2*np.sin(X/9)
+    # A true LOCAL terrain bowl inside the coarse wetland-potential band.
+    h-=26*np.exp(-((X+8)**2+(Y-18)**2)/65)
     h[:,60:]+=np.linspace(0,600,21)[None,:]
     child={
         "east_km":east,
