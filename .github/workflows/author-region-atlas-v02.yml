@@ -79,4 +79,7 @@ jobs:
           path: |
             out/author-atlas/final/
             out/author-atlas/source/synthetic-demo-ledger.json
+            scripts/export_planetary_macro_region_v02.py
+            scripts/condition_planetary_child_terrain_v02.py
+            scripts/render_author_region_atlas_v02.py
           retention-days: 14
