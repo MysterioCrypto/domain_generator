@@ -143,3 +143,48 @@ def test_visual_sheet_and_notes_standalone(tmp_path: Path):
     from PIL import Image
     with Image.open(path) as im:
         assert im.width > 1700 and im.height > 900
+
+
+
+def test_five_places_two_routes_cover_legend_does_not_overlap_footer(tmp_path, monkeypatch):
+    """Regression from first private region-A atlas: the right-panel legend
+    used to draw across the provenance footer. Check actual rendered text bboxes.
+    All map input geometry is SYNTHETIC; no private rasters enter CI.
+    """
+    import matplotlib.pyplot as plt
+    child, manifest, _ = _data()
+    ledger = json.loads(
+        (Path(__file__).resolve().parents[1]
+         / "examples/world-fixtures/osvera-first-arc-author-ledger.json"
+        ).read_text(encoding="utf-8"))
+    report = audit_atlas(ledger, child, manifest)
+    cover = np.ones(child["child_elevation_m"].shape, dtype=np.uint8)
+    unpatched_close = plt.close
+    checked = []
+
+    def check_before_close(fig):
+        try:
+            right = fig.axes[1]
+            renderer = fig.canvas.get_renderer()
+            text = {t.get_text(): t.get_window_extent(renderer)
+                    for t in right.texts}
+            footer = next(k for k in text if k.startswith("○ координаты"))
+            heading = next(k for k in text if k.startswith("ПРИРОДНЫЙ ПОКРОВ"))
+            for label in (
+                "Лес, кандидат", "Открытая местность",
+                "Каменистые склоны", "Влажные низины?",
+                "Редкая растительность",
+            ):
+                assert label in text
+                assert not text[label].overlaps(text[footer]), label
+            for label in ("расстояние неизвестно",):
+                assert label in text
+                assert not text[label].overlaps(text[heading])
+            checked.append(True)
+        finally:
+            unpatched_close(fig)
+
+    monkeypatch.setattr(plt, "close", check_before_close)
+    render_sheet(ledger, child, report, tmp_path / "cover-layout.png",
+                 cover=cover)
+    assert checked == [True]
