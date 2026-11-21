@@ -5,6 +5,10 @@ Purpose: **current** DONE / IN PROGRESS / NEXT tree for chat recovery. For the d
 **Active line:** `dev/0.2` · **current product checkpoint:** non-Earth source fixtures and [single navigation page](../START_HERE.md). **Parallel technical line:** H13 DESIGN accepted/merged #98, runtime #99 draft/unmerged; #100 C2 experiment and #101 atlas composer also draft/unmerged. **H12-A:** accepted/merged #97.
 Historical checkpoint notes below are not current gates.
 
+## CURRENT: P3.2 direct private archive intake (2026-11-21)
+
+Draft PR #103 now also accepts ORIGINAL A8/A12 ZIPs directly in the SAME source-verified P2-A -> P3 -> author atlas CLI. It reuses P1 whole-world checks, enlarges the SOURCE CROP (not the author map) by one source station for valid interpolation, and records original input hashes and derived region provenance. Former NPZ mode remains supported. New synthetic archive-to-map + mismatch/digest regression checks. Next product gate is still real private region-A build, one reviewable PNG and audit; no merge/canon assumed.
+
 ## CURRENT (working PR #103, 2026-11-21)
 
 Source-verified exact-checkout P2-A -> P3 natural cover -> author atlas builder added, together with synthetic regression tests and full-chain CI. Core dev/0.2 and frozen release unchanged. **No exact PRIVATE Osvera run or user visual acceptance yet.** Next: run builder on private A/A12 in a temporary checkout, inspect build-audit.json and one complete map. P2-B2.7 remains targeted hydrology debt only if it blocks real geographic continuity. PR #103 stays DRAFT / UNMERGED.
