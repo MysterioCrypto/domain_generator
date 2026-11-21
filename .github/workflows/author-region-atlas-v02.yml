@@ -57,7 +57,7 @@ jobs:
           (root/"synthetic-demo-ledger.json").write_text(json.dumps(data,ensure_ascii=False))
           # Explicit A12-LIKE source, SYNTHETIC (not the user's A12).
           lat=np.linspace(-49,-45,13)
-          lon=np.linspace(-100.5,-96,15)
+          lon=np.linspace(-99.1,-97.5,15)
           yy,xx=np.indices((13,15))
           base=np.where(xx<=5,7,np.where(xx>=11,6,8)).astype("uint8")
           alt=base.copy()
