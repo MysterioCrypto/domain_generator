@@ -1,3 +1,5 @@
+> **Поправка автора, 21.11.2026:** Осве́ра — рабочее (не окончательно канонизированное) имя планеты, Д’Акхар — главный герой, а НЕ название местности или планеты. Исторический идентификатор `dakhar-first-arc` означает источник первой арки о нём.
+
 # НАЧАТЬ ЗДЕСЬ — domain_generator
 
 **Единая человеческая точка входа.** В случае потери контекста откройте этот файл, а не историю чатов и не main. Принятая линия: [dev/0.2](https://github.com/MysterioCrypto/domain_generator/tree/dev/0.2). Замороженный срез: [release/0.2-prealpha](https://github.com/MysterioCrypto/domain_generator/tree/release/0.2-prealpha).
@@ -11,7 +13,7 @@
 ## Три главные ссылки
 
 - [Product roadmap: что сделано, что делать](docs/PRODUCT_ROADMAP.md)
-- [Первый боевой источник: Д’Акхар](docs/world-fixtures/dakhar-first-arc.md)
+- [Осве́ра — сюжетная география первой арки Д’Акхара](docs/world-fixtures/dakhar-first-arc.md)
 - [Первый JSON-реестр реальных исходных ограничений](examples/world-fixtures/dakhar-first-arc-anchors.json) — это **не** готовый DomainSpec и **не** утверждённые координаты.
 
 ## Где что сейчас (15 ноября 2026)
@@ -123,3 +125,5 @@
 - No original planet terrain changed. No macro A8 external water injected. Next **P2-B2.7** reproducible exact real B/C run in a checked-out PR #103 with source privacy, then basin-specific water occupancy/seasonality and onward P3 natural cover/P4 map/satellite-like art. PR #103 DRAFT/UNMERGED, PR #99–101 drafts separate, dev/0.2 and frozen release unchanged.
 
 **Текущий P2-B2.6 — Core-проверка геометрических озёрных узлов**: [проверенный метод и ограничения](docs/reviews/p2-b2-6-core-lake-topology-vs-private-bc-2026-11-21.md), [локальная инструкция](docs/world-fixtures/planetary-child-lake-topology-compare.md). На независимых приватных B/C поверх исходных данных: большие геометрические чаши действительно существенно меняют ВНУТРЕННЕЕ MFD-накопление, но граничный сток не обязан измениться. Не считать виртуальный fill настоящим озером. Далее P2-B2.7 — воспроизведение точной текущей Core на тех же приватных B/C, без публикации исходных архивов.
+
+**Первый авторский атлас:** [человеческий статус мест и маршрутов](docs/world-fixtures/osvera-author-region-atlas.md) · [реестр Осве́ры](examples/world-fixtures/osvera-first-arc-author-ledger.json) · [синтетический лист (не настоящая планета)](https://github.com/MysterioCrypto/domain_generator/actions/runs/44886151409). Это переход от графиков к географической последовательности текста. P3-MVP далее: природный покров и одна цельная карта.

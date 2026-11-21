@@ -462,3 +462,12 @@ Real private source independent check old macro exit distance A~0.028km, B~1.078
 ### Current P2-B2.6 implementation (DRAFT #103)
 
 External Core-based geometry comparison script and 9 new focused tests, explicit full-size no-lake vs Core lake supernodes fast-conservative area graph and a positive old-Core-parity 21x21 synthetic bowl. Example large synthetic region yields >12 candidates and should be UNRESOLVED rather than claiming a zero lake effect. [Review](reviews/p2-b2-6-core-lake-topology-vs-private-bc-2026-11-21.md) / [CLI](world-fixtures/planetary-child-lake-topology-compare.md). Independent private B/C comparison from source has B=3 basin proxies / 4185 cells, C=1 / 2135, with internal area redistribution but negligible terminal edge changes; NOT exact Core checkout, NO permanent lake claim. Next P2-B2.7 exact private same-code replay and author-specific water profile, then P3.
+
+
+## 2026-11-21 — исправленная терминология и принцип достаточности
+
+**Осве́ра** — рабочее, НЕ окончательно канонизированное название **планеты**. **Д’Акхар** — главный герой (ксенолог), НЕ регион и НЕ планета. Сохранённые исторические названия файлов `dakhar-first-arc` означают исходную арку *о герое*, а не географическое имя. Первая арка проходит в пока не зафиксированном по координатам регионе; модель A/B/C — кандидаты, НЕ авторское утверждение.
+
+**Цель продукта:** авторская согласованность мест, природных препятствий, расстояний и маршрутов между арками, а НЕ научная диссертация о планете и НЕ обязательная карта для читателя. Дальнейшие гидрологические вычисления — только по реальному препятствию для художественной географии. Новый [прототип листа авторского атласа](docs/world-fixtures/osvera-author-region-atlas.md) и [реестр мест](examples/world-fixtures/osvera-first-arc-author-ledger.json) не размещают неизвестные объекты произвольно; промежуточная DEM и вся модельная география остаются неканоническими. [Публичный синтетический visual QA (6 tests GREEN)](https://github.com/MysterioCrypto/domain_generator/actions/runs/44886151409) НЕ является картой настоящей Осве́ры. Следующее P3-MVP — природный покров и первая цельная авторская карта с корректной легендой.
+
+**Готово:** внешний скрипт scripts/render_author_region_atlas_v02.py, шесть новых тестов, JSON реестра и CI; ещё НЕ выполнен запуск этого инструмента на приватной A8/A12 DEM с Core MFD. P2-B2.7 точный пересчёт реального B/C остаётся открытым, но не обязан блокировать авторский атлас A при отсутствии выявленной сюжетной проблемы.
