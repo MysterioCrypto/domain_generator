@@ -270,3 +270,22 @@ def test_archive_mode_rejects_ambiguous_or_incomplete_input(tmp_path):
         cwd=repo, capture_output=True, text=True,
     )
     assert absent.returncode != 0 and "--planet-radius-km" in absent.stderr
+
+
+
+def test_one_command_builder_can_select_spherical_detail_without_mutating_inputs():
+    macro, eco, meta, ledger, profile = _synthetic()
+    legacy = build(macro, eco, meta, ledger, profile,
+                   half_width_km=30, half_height_km=30)
+    spherical = build(macro, eco, meta, ledger, profile,
+                      half_width_km=30, half_height_km=30,
+                      detail_coordinate_system="spherical_xyz_v1")
+    assert spherical[1]["detail_coordinate_system"] == "spherical_xyz_v1"
+    assert legacy[1]["detail_coordinate_system"] == "legacy_lat_scaled_easting_v1"
+    assert spherical[1]["max_parent_anchor_error_m"] <= 1e-6
+    assert spherical[4]["landmarks_unplaced"] == 5
+    assert all(r["distance_km"] is None for r in spherical[4]["routes"])
+    np.testing.assert_array_equal(
+        spherical[0]["parent_interpolated_m"], legacy[0]["parent_interpolated_m"])
+    assert not np.array_equal(
+        spherical[0]["new_local_relief_m"], legacy[0]["new_local_relief_m"])
