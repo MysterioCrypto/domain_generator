@@ -182,6 +182,23 @@ def compare_channel_scale(children:dict,macro:dict,meta:dict,previous:dict,
     return outputs,summary
 
 
+def _aligned_background(path: Path, shape:tuple[int,int], pixels_per_cell:int) -> Image.Image:
+    """P4-E legacy toy render can square-stretch a non-square 1-km grid.
+
+    Correct that visual-only aspect distortion, NEVER resize domain geometry.
+    Any other unexpected size must fail rather than silently crop.
+    """
+    rows,cols=shape
+    expected=(cols*pixels_per_cell,rows*pixels_per_cell)
+    with Image.open(path) as source:
+        rgb=source.convert('RGB')
+    if rgb.size==expected:
+        return rgb
+    if rows!=cols and rgb.size==(expected[0],expected[0]):
+        return rgb.resize(expected,Image.Resampling.BICUBIC)
+    raise ChannelScaleError('P4-E terrain map size cannot be aligned with child grid')
+
+
 def _annotate_sheet(outputs:dict,summary:dict, backgrounds:dict, destination:Path,
                    *,pixels_per_cell=5):
     # Exactly 3×3 aligned panels, same scale, only authored numerical differences.
@@ -197,10 +214,7 @@ def _annotate_sheet(outputs:dict,summary:dict, backgrounds:dict, destination:Pat
     d.text((margin,16),'ОСВЕРА / P4-G — ЧУВСТВИТЕЛЬНОСТЬ МОДЕЛЬНОЙ СЕТИ',font=_font(26),fill=(47,50,45))
     d.text((margin,50),'Слева направо — порог 15 / 30 / 60 км²; сверху вниз — relief_strength 0.5 / 1.25 / 2.0',font=_font(17),fill=(51,59,53))
     for i,s in enumerate(STRENGTHS):
-        with Image.open(backgrounds[s]) as source:
-            original=source.convert('RGB')
-        if original.size!=(panel_w,panel_h):
-            raise ChannelScaleError('P4-E terrain image size mismatches 1 km pixel projection')
+        original=_aligned_background(backgrounds[s],shape,pixels_per_cell)
         for j,t in enumerate(THRESHOLDS):
             x=margin+j*(panel_w+gap);y=label+i*(panel_h+gap)
             pane=original.convert('RGBA')
@@ -240,8 +254,7 @@ def _render_main_maps(outputs:dict,summary:dict,backgrounds:dict,destination:Pat
     paint.text((margin,14),'ОСВЕРА / P4-G — ГЕОГРАФИЯ МОДЕЛЬНЫХ КОРИДОРОВ',font=_font(28),fill=(45,47,45))
     paint.text((margin,49),'Один порог: 30 км² · три независимых варианта рельефа · одинаковая картографическая основа P3',font=_font(18),fill=(57,64,54))
     for i,s in enumerate(STRENGTHS):
-        with Image.open(backgrounds[s]) as f:terrain=f.convert('RGB')
-        if terrain.size!=(panel_w,panel_h):raise ChannelScaleError('unmatched source map dimensions')
+        terrain=_aligned_background(backgrounds[s],shape,pixels_per_cell)
         layer=Image.new('RGBA',terrain.size,(0,0,0,0));draw=ImageDraw.Draw(layer)
         fields,ledger=outputs[(s,30.)];nc=shape[1]
         data=fields['channel_edge_flat_from_to'];weight=fields['Core_dominant_channel_area_km2_NOT_Q'].ravel()
