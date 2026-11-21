@@ -1,0 +1,82 @@
+name: Author region atlas v0.2 — synthetic product proof
+
+on:
+  push:
+    branches:
+      - feature/v0.2-planetary-geogrid-source-adapter
+    paths:
+      - 'scripts/render_author_region_atlas_v02.py'
+      - 'tests/test_author_region_atlas_v02.py'
+      - 'examples/world-fixtures/osvera-first-arc-author-ledger.json'
+      - '.github/workflows/author-region-atlas-v02.yml'
+  workflow_dispatch:
+
+jobs:
+  author-sheet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install minimal author map dependencies
+        run: python -m pip install numpy matplotlib pillow pytest
+      - name: Check no invented story coordinates/routes
+        run: python -m pytest tests/test_author_region_atlas_v02.py -q
+      - name: Make SYNTHETIC landscape — NOT Osvera
+        run: |
+          mkdir -p out/author-atlas/source
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import numpy as np
+          root=Path("out/author-atlas/source")
+          x=np.linspace(-50,50,101)
+          north=x[::-1]
+          X,Y=np.meshgrid(x,north)
+          dem=160+350*np.exp(-((X+22)**2/850+(Y-24)**2/1200))
+          dem+=440*np.exp(-((X-25)**2/500+(Y+18)**2/1800))
+          dem+=20*np.sin(X/10)*np.cos(Y/11)
+          np.savez_compressed(root/"child-terrain-generated.npz",
+                              east_km=x,north_km_north_first=north,
+                              child_elevation_m=dem.astype(np.float32),
+                              land_mask=np.ones(dem.shape,dtype=np.uint8))
+          (root/"manifest.json").write_text(json.dumps({
+              "status":"NEW_PROCEDURAL_CHILD_TERRAIN_NOT_AUTHOR_CANON",
+              "is_accepted_Core_DomainData":False,
+              "center_lat_lon_deg":[-47.25,-98.25],
+          }))
+          data=json.loads(Path("examples/world-fixtures/osvera-first-arc-author-ledger.json").read_text())
+          data["world"]["name"]="SYNTHETIC DEMO — NOT OSVERA"
+          data["story"]["protagonist"]="Демонстрационный персонаж"
+          data["region"]["id"]="ТЕСТ"
+          (root/"synthetic-demo-ledger.json").write_text(json.dumps(data,ensure_ascii=False))
+          PY
+      - name: Render author continuity sheet
+        run: |
+          python scripts/render_author_region_atlas_v02.py \
+            --child-npz out/author-atlas/source/child-terrain-generated.npz \
+            --child-manifest out/author-atlas/source/manifest.json \
+            --ledger-json out/author-atlas/source/synthetic-demo-ledger.json \
+            --output out/author-atlas/final
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from PIL import Image
+          p=Path("out/author-atlas/final")
+          a=json.loads((p/"author-atlas-audit.json").read_text())
+          assert a["landmarks_unplaced"]==5
+          assert all(r["distance_km"] is None for r in a["routes"])
+          assert a["planet"]=="SYNTHETIC DEMO — NOT OSVERA"
+          assert not a["map_is_author_canon"]
+          with Image.open(p/"author-atlas-sheet.png") as im:
+              assert im.width>=1500 and im.height>=900
+          print("AUTHOR_ATLAS_PRODUCT_QA_PASS: no hallucinated places/distances")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-author-atlas-sheet-and-unplaced-anchors
+          path: |
+            out/author-atlas/final/
+            out/author-atlas/source/synthetic-demo-ledger.json
+          retention-days: 14
