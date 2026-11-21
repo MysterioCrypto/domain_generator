@@ -341,8 +341,6 @@ def main():
         with np.load(path,allow_pickle=False) as a:return {k:a[k].copy() for k in a.files}
     e=json.loads(args.p4e_audit_json.read_text(encoding='utf8'))
     c=json.loads(args.p4c1_audit_json.read_text(encoding='utf8'))
-    if c.get('status') != 'P4_C1_BOUNDARY_EVIDENCE_NONCANONICAL' and 'audit' not in c:
-        raise VariantRoutingError('P4-C1 source audit missing')
     c1=c.get('audit',c)
     for id,path in [('macro_npz',args.macro_npz),('child_npz',args.baseline_child_npz),('child_manifest',args.child_manifest)]:
         if sha(path)!=e.get('source_sha256',{}).get(id) or sha(path)!=c1.get('input_sha256',{}).get(id):
