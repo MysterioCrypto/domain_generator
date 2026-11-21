@@ -34,6 +34,7 @@ def fixture():
         "Core_dominant_receiver_index": np.full((n, n), -1, dtype="int32"),
         "channel_edge_flat_from_to": np.array([[7*n+6, 7*n+7]], dtype="int32"),
         "lake_proxy_jumps_flat_from_to": np.empty((0, 2), dtype="int32"),
+        "Core_dominant_channel_area_km2_NOT_Q": np.full((n,n), 500., dtype="float32"),
     }
     candidate["channel_mask"][7, 6] = 1
     candidate["Core_dominant_receiver_index"][7, 6] = 7*n+7
@@ -165,3 +166,28 @@ def test_virtual_fill_is_flagged_as_numerical_uncertainty_not_water(monkeypatch)
     assert audit["withheld_unsafe_ordinary_edges"] == 1
     assert masks["candidate_display_edges_NOT_CONFIRMED_RIVERS"].shape == (0, 2)
     assert masks["withheld_ordinary_edges_NOT_DISPLAYED"].shape == (1, 2)
+
+
+
+def test_min_display_area_omits_only_visual_minor_branches(tmp_path):
+    child, cm, candidate, report, p4a, img = fixture()
+    audit = build_evidence(
+        child, cm, candidate, report, img, p4a, tmp_path/"major",
+        min_display_dominant_area_km2=600.)
+    assert audit["all_strictly_downhill_edges"] == 1
+    assert audit["displayable_strictly_downhill_edges"] == 0
+    assert audit["omitted_minor_strict_edges_display_only"] == 1
+    assert audit["withheld_unsafe_ordinary_edges"] == 0
+    with np.load(tmp_path/"major/drainage-evidence-masks.npz") as z:
+        assert len(z["all_strictly_downhill_edges_NOT_CONFIRMED_RIVERS"]) == 1
+        assert len(z["omitted_minor_strict_edges_NOT_DISPLAYED"]) == 1
+        assert len(z["candidate_display_edges_NOT_CONFIRMED_RIVERS"]) == 0
+    # Restore normal default without modifying any model state.
+    ref = build_evidence(
+        child, cm, candidate, report, img, p4a, tmp_path/"all",
+        min_display_dominant_area_km2=0)
+    assert ref["displayable_strictly_downhill_edges"] == 1
+    with pytest.raises(DrainageEvidenceError, match="minimum display area"):
+        screen_candidate_links(
+            child, cm, candidate, report, p4a,
+            min_display_dominant_area_km2=-1)
