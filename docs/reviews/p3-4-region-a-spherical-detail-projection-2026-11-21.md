@@ -22,7 +22,7 @@ Added `spherical_xyz_v1` to the external P2-A child terrain settings and P3 one-
 
 ## Real private region A — measurement (source SHA pinned in P3.3)
 
-Input: previously archived 231×231 at 1 km P3.3 bundle; P1/P2 parents identical; spherical option evaluated at matching planet radius, world center, seed 1406 and relief strength 2.
+Input: previously archived 231×231 at 1 km P3.3 bundle; P1/P2 parents identical. The new spherical noise was **independently calculated in an ephemeral Python comparison probe** using the same formula/weights/seed/radius (1406, 7008.1 km, relief strength 2). The private full `build_author_atlas_v02.py` CLI and new spherical GitHub module were **NOT** run against these private inputs in this checkpoint. This is comparative evidence, not exact-checkout private integration acceptance.
 
 | Measurement | Legacy local detail | New spherical local detail |
 | --- | ---: | ---: |
