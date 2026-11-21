@@ -2,8 +2,16 @@
 
 Purpose: **current** DONE / IN PROGRESS / NEXT tree for chat recovery. For the dependency/context map and rejected hypotheses read `docs/CONTEXT.md`; for normative semantics read accepted `docs/design/*`.
 
-**Active accepted Core:** `dev/0.2` (unchanged). **Current external product checkpoint:** PR #103, P3.5 paired private source atlas, visual choice pending. Historical navigation checkpoint: [START_HERE](../START_HERE.md). **Parallel technical line:** H13 DESIGN accepted/merged #98, runtime #99 draft/unmerged; #100 C2 experiment and #101 atlas composer also draft/unmerged. **H12-A:** accepted/merged #97.
+**Active accepted Core:** `dev/0.2` (unchanged). **Current external product checkpoint:** PR #103, P3.6 spherical working selection approved; regional-map product NOT accepted. Historical navigation checkpoint: [START_HERE](../START_HERE.md). **Parallel technical line:** H13 DESIGN accepted/merged #98, runtime #99 draft/unmerged; #100 C2 experiment and #101 atlas composer also draft/unmerged. **H12-A:** accepted/merged #97.
 Historical checkpoint notes below are not current gates.
+
+## CURRENT: P3.6 bounded author acceptance, P4-A next (2026-11-21)
+
+**Decision received:** RIGHT spherical_xyz_v1 is formally SELECTED as the working model for Osvera region A, no further choice/approval ceremony required on that narrow point. **Explicit negative product feedback:** NEITHER atlas resembles the expected regional map. Therefore not accepted: P3.5 map presentation, canonical terrain, forests/wetlands, water/roads, POI positions, routes, or merge PR #103. Legacy remains universal CLI default for deterministic compatibility, while Osvera P4-A uses explicit spherical setting. Green tests prove software paths, not a map that serves the author.
+
+**NEXT single feature:** P4-A readable 230×230-km overhead cartographic base from already calculated DEM and candidate natural cover, with separate technical diagnostics; do not invent rivers, lakes, roads or landmarks. ImageGen can be separately evaluated for styling only after geometry control. [Decision/evidence](reviews/p3-6-operator-selection-and-map-product-gap-2026-11-21.md). PR #103 DRAFT/UNMERGED; no changes to Core accepted dev/0.2 or freeze.
+
+### Historical P3 checkpoints (no longer current approval gates)
 
 ## CURRENT: P3.5 full legacy-vs-spherical real A8/A12 region-A atlases (2026-11-21)
 
