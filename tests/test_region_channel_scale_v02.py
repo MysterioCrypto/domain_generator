@@ -172,3 +172,30 @@ def test_cli_replays_real_core_toy_and_sha_rejects_corruption(tmp_path):
     save('child05.npz',damaged)
     failed=run('tampered')
     assert failed.returncode!=0 and 'SHA mismatch' in failed.stderr
+
+
+def test_rectangular_synthetic_map_composition(tmp_path):
+    # The synthetic CI domain is not required to be square. Renderer must
+    # respect native row/col dimensions instead of cropping or stretching.
+    shape=(5,9)
+    outputs={}
+    morphology=[]
+    for strength in STRENGTHS:
+        for threshold in THRESHOLDS:
+            fields={'channel_edge_flat_from_to':np.zeros((0,2),dtype=np.int32),
+                    'Core_dominant_channel_area_km2_NOT_Q':np.ones(shape,dtype='float32')}
+            outputs[(strength,threshold)]=(fields,{})
+            morphology.append({'relief_strength':strength,'stream_threshold_km2_NOT_Q':threshold,
+                   'ordinary_skeleton_cells':0,'model_confluence_nodes_with_2_or_more_incoming':0,
+                   'ordinary_edge_length_km':0,'model_terminal_count':0})
+    audit={'source_grid_shape':list(shape),'morphology':morphology}
+    backgrounds={}
+    for strength in STRENGTHS:
+        f=tmp_path/(str(strength)+'-rect.png')
+        Image.new('RGB',(shape[1]*5,shape[0]*5),(64,93,70)).save(f)
+        backgrounds[strength]=f
+    render_maps(outputs,audit,backgrounds,tmp_path/'rect')
+    with Image.open(tmp_path/'rect'/'region-model-network-threshold-3x3.png') as im:
+        assert im.size==(36*2+3*shape[1]*5+2*22,85+3*shape[0]*5+2*22+116)
+    with Image.open(tmp_path/'rect'/'region-network-map-review-3variants.png') as im:
+        assert im.size==(52*2+3*shape[1]*5+2*26,91+shape[0]*5+130)
