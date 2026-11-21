@@ -143,7 +143,7 @@ def audit_child_lake_routing(
     lake_min_area_km2: float = 16.,
     lake_min_depth_m: float = 10.,
     max_lake_supernodes: int = 12,
-    max_total_candidate_cells: int = 2000,
+    max_total_candidate_cells: int = 12000,
     hierarchy_cell_limit: int = 160,
 ) -> tuple[dict[str, np.ndarray], dict]:
     """Compare SAME DEM with and without geometrical lake routing proxies.
@@ -388,7 +388,7 @@ def main() -> None:
     p.add_argument("--lake-min-area-km2", type=float, default=16)
     p.add_argument("--lake-min-depth-m", type=float, default=10)
     p.add_argument("--max-lake-supernodes", type=int, default=12)
-    p.add_argument("--max-total-candidate-cells", type=int, default=2000)
+    p.add_argument("--max-total-candidate-cells", type=int, default=12000)
     p.add_argument("--output", type=Path, required=True)
     a = p.parse_args()
     with np.load(a.child_npz, allow_pickle=False) as archive:
