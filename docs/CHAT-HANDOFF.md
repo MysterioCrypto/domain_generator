@@ -2,6 +2,8 @@
 
 Generated for chat transfer. If this snapshot conflicts with `PROJECT.md`, `docs/CONTEXT.md` or `docs/PROGRESS.md`, those canonical files win.
 
+**NEWER P3.2 UPDATE (2026-11-21):** Draft PR #103 accepts ORIGINAL private A8/A12 ZIPs in one CLI call; see docs/world-fixtures/osvera-author-natural-cover.md P3.2. Uses existing P1 whole-source grid equality and one-station crop halo. Synthetic archive tests. No actual private region-A result / author acceptance, do not upload originals or merge #103 without decision. Reverify HEAD and CI.
+
 **LATEST WORKING-BRANCH CHECKPOINT (2026-11-21):** Draft PR #103 now contains a source-verified P2-A -> P3 -> author-atlas CLI and synthetic CI. Read docs/PROGRESS.md and docs/world-fixtures/osvera-author-natural-cover.md for current next steps. NO exact private A8/A12 build or visual acceptance yet; keep PR #103 unmerged. dev/0.2 is accepted base; frozen release unchanged. Older "current" paragraphs below are historical.
 
 ## Copy into a new chat
