@@ -1,6 +1,11 @@
 name: Author region atlas v0.2 — synthetic product proof
 
 on:
+  pull_request:
+    paths:
+      - 'scripts/render_region_cartographic_base_v02.py'
+      - 'tests/test_region_cartographic_base_v02.py'
+      - '.github/workflows/author-region-atlas-v02.yml'
   push:
     branches:
       - feature/v0.2-planetary-geogrid-source-adapter
