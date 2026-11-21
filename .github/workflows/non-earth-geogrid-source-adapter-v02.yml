@@ -526,7 +526,7 @@ jobs:
             --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
             --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
             --lake-min-area-km2 4 --lake-min-depth-m 2 \
-            --max-lake-supernodes 12 --max-total-candidate-cells 2000 \
+            --max-lake-supernodes 12 --max-total-candidate-cells 12000 \
             --output "$RUNNER_TEMP/source-geogrid-checkpoint/B26-lake-proxy-comparison"
 
       - name: P2-B2.6 validate mass ledger and ambiguity labels, not real lake occupancy
