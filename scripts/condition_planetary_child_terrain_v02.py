@@ -30,6 +30,7 @@ class ChildTerrainSettings:
     spacing_km: float = 1.0
     seed: int = 1406
     relief_strength: float = 1.0
+    detail_coordinate_system: str = "legacy_lat_scaled_easting_v1"
 
 
 def _hash_grid(ix: np.ndarray, iy: np.ndarray, seed: int) -> np.ndarray:
@@ -72,6 +73,70 @@ def _detail_noise(lon: np.ndarray, lat: np.ndarray,
                                 (7., .18, 2), (3., .08, 3)):
         result += weight * _smooth_value_noise(
             east, north, scale, seed + 1234567 * salt
+        )
+    return result
+
+
+
+def _smooth_value_noise_sphere(x: np.ndarray, y: np.ndarray, z: np.ndarray,
+                               scale_km: float, seed: int) -> np.ndarray:
+    """3-D spherical-embedding value noise: world anchored, no lon/lat shear.
+
+    A constant longitude multiplied by cos(latitude) is NOT a metric easting
+    coordinate: its derivative along north depends on absolute longitude.
+    Using the planetary xyz embedding avoids that artificial oblique texture.
+    """
+    fx, fy, fz = np.broadcast_arrays(
+        np.asarray(x, dtype=np.float64) / scale_km,
+        np.asarray(y, dtype=np.float64) / scale_km,
+        np.asarray(z, dtype=np.float64) / scale_km,
+    )
+    ix, iy, iz = (np.floor(t).astype(np.int64) for t in (fx, fy, fz))
+    ux, uy, uz = (t - q for t, q in ((fx, ix), (fy, iy), (fz, iz)))
+    u = ux**3 * (ux * (ux * 6 - 15) + 10)
+    v = uy**3 * (uy * (uy * 6 - 15) + 10)
+    w = uz**3 * (uz * (uz * 6 - 15) + 10)
+
+    def h(x0, y0, z0):
+        xx = np.asarray(x0, dtype=np.int64).view(np.uint64)
+        yy = np.asarray(y0, dtype=np.int64).view(np.uint64)
+        zz = np.asarray(z0, dtype=np.int64).view(np.uint64)
+        bits = (xx * np.uint64(0x9E3779B185EBCA87)
+                ^ yy * np.uint64(0xC2B2AE3D27D4EB4F)
+                ^ zz * np.uint64(0x165667B19E3779F9)
+                ^ np.uint64(seed % (1 << 64)))
+        bits ^= bits >> np.uint64(30)
+        bits *= np.uint64(0xBF58476D1CE4E5B9)
+        bits ^= bits >> np.uint64(27)
+        bits *= np.uint64(0x94D049BB133111EB)
+        bits ^= bits >> np.uint64(31)
+        return ((bits >> np.uint64(11)).astype(np.float64) / (1 << 53)) * 2 - 1
+
+    result = np.zeros_like(fx, dtype=np.float64)
+    for i in (0, 1):
+        for j in (0, 1):
+            for k in (0, 1):
+                result += (h(ix + i, iy + j, iz + k)
+                           * (u if i else 1 - u)
+                           * (v if j else 1 - v)
+                           * (w if k else 1 - w))
+    return result
+
+
+def _detail_noise_sphere(lon: np.ndarray, lat: np.ndarray,
+                         planet_radius_km: float, seed: int) -> np.ndarray:
+    """Physically isotropic local tangent metric; repeatable across crops/dateline."""
+    lon, lat = np.broadcast_arrays(np.asarray(lon, dtype=np.float64),
+                                   np.asarray(lat, dtype=np.float64))
+    longitude, latitude = np.deg2rad(lon), np.deg2rad(lat)
+    x = planet_radius_km * np.cos(latitude) * np.cos(longitude)
+    y = planet_radius_km * np.cos(latitude) * np.sin(longitude)
+    z = planet_radius_km * np.sin(latitude)
+    result = np.zeros_like(x, dtype=np.float64)
+    for scale, weight, salt in ((48., .42, 0), (18., .32, 1),
+                                (7., .18, 2), (3., .08, 3)):
+        result += weight * _smooth_value_noise_sphere(
+            x, y, z, scale, seed + 1234567 * salt
         )
     return result
 
@@ -184,6 +249,10 @@ def _validate_settings(s: ChildTerrainSettings) -> None:
         raise ChildTerrainError("relief_strength must be in [0,2.5]")
     if not isinstance(s.seed, int):
         raise ChildTerrainError("seed must be an integer")
+    if s.detail_coordinate_system not in (
+        "legacy_lat_scaled_easting_v1", "spherical_xyz_v1"
+    ):
+        raise ChildTerrainError("unknown detail_coordinate_system")
     if (2 * s.half_width_km / s.spacing_km > 1400
             or 2 * s.half_height_km / s.spacing_km > 1400):
         raise ChildTerrainError("child grid exceeds safety bound")
@@ -228,10 +297,12 @@ def evaluate_terrain(macro: dict[str, np.ndarray], s: ChildTerrainSettings,
         )), 10, 90
     )
     lon_nodes, lat_nodes = np.meshgrid(longitude, latitude)
-    coarse_noise = _detail_noise(
+    noise = (_detail_noise_sphere if s.detail_coordinate_system == "spherical_xyz_v1"
+             else _detail_noise)
+    coarse_noise = noise(
         lon_nodes, lat_nodes, s.planet_radius_km, s.seed
     )
-    raw = _detail_noise(lon, lat, s.planet_radius_km, s.seed)
+    raw = noise(lon, lat, s.planet_radius_km, s.seed)
     detail = amplitude * (
         raw - _bilinear(lon, lat, longitude, latitude, coarse_noise)
     ) * np.clip(np.maximum(baseline, 0) / 45, 0, 1)
@@ -291,6 +362,7 @@ def generate_child(macro: dict[str, np.ndarray], s: ChildTerrainSettings):
         "center_lat_lon_deg": [s.center_lat_deg, s.center_lon_deg],
         "seed": s.seed,
         "relief_strength": s.relief_strength,
+        "detail_coordinate_system": s.detail_coordinate_system,
         "added_relief_m_min_max": [float(np.min(detail)), float(np.max(detail))],
         "land_marine_sign_preserved":
             bool(np.array_equal(refined >= 0, baseline >= 0)),
@@ -318,6 +390,9 @@ def main() -> None:
     p.add_argument("--spacing-km", type=float, default=1)
     p.add_argument("--seed", type=int, default=1406)
     p.add_argument("--relief-strength", type=float, default=1)
+    p.add_argument("--detail-coordinate-system",
+                   choices=("legacy_lat_scaled_easting_v1", "spherical_xyz_v1"),
+                   default="legacy_lat_scaled_easting_v1")
     args = p.parse_args()
     with np.load(args.macro_npz, allow_pickle=False) as source:
         macro = {key: np.array(source[key], copy=True) for key in source.files}
@@ -333,7 +408,8 @@ def main() -> None:
         spacing_km=args.spacing_km,
         planet_radius_km=meta["planet_radius_km"],
         planetary_year_earth_days=meta["planetary_year_earth_days"],
-        seed=args.seed, relief_strength=args.relief_strength
+        seed=args.seed, relief_strength=args.relief_strength,
+        detail_coordinate_system=args.detail_coordinate_system
     )
     fields, report = generate_child(macro, settings)
     args.output.mkdir(parents=True, exist_ok=True)
