@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-non-earth-product-readiness
-checkpoint: p3-6-author-selects-spherical-working-base-map-product-not-accepted
-next_topic: p4-a-author-readable-region-cartographic-base-without-invented-geography
+checkpoint: p4-a-real-region-a-cartographic-base-rendered-map-not-accepted
+next_topic: p4-b-validate-river-connectivity-on-child-dem-before-any-water-map
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
