@@ -42,7 +42,7 @@ def parent_stations(macro: dict, child: dict, cm: dict) -> np.ndarray:
     """Compute actual *continuous* parent nodes, not snapped child pixels."""
     if (cm.get('status')!='NEW_PROCEDURAL_CHILD_TERRAIN_NOT_AUTHOR_CANON'
             or cm.get('is_accepted_Core_DomainData') is not False
-            or cm.get('detail_coordinate_system')!='spherical_xyz_v1'):
+            or cm.get('detail_coordinate_system') not in ('spherical_xyz_v1', 'legacy_lat_scaled_easting_v1')):
         raise AnchorDrainEvidenceError('requires unaccepted spherical child source')
     lat, lon, _, _ = _source_fields(macro)
     radius=float(cm['planet_radius_km']);center_lat,center_lon=map(float,cm['center_lat_lon_deg'])
