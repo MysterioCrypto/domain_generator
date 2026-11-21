@@ -199,3 +199,10 @@ def test_rectangular_synthetic_map_composition(tmp_path):
         assert im.size==(36*2+3*shape[1]*5+2*22,85+3*shape[0]*5+2*22+116)
     with Image.open(tmp_path/'rect'/'region-network-map-review-3variants.png') as im:
         assert im.size==(52*2+3*shape[1]*5+2*26,91+shape[0]*5+130)
+    # CI P4-E legacy renderer writes its rectangular raster on square PNG.
+    # This legacy-only display correction must not affect numeric fields.
+    for strength in STRENGTHS:
+        Image.new('RGB',(shape[1]*5,shape[1]*5),(64,93,70)).save(backgrounds[strength])
+    render_maps(outputs,audit,backgrounds,tmp_path/'legacy-square-source')
+    with Image.open(tmp_path/'legacy-square-source'/'region-model-network-threshold-3x3.png') as im:
+        assert im.size==(36*2+3*shape[1]*5+2*22,85+3*shape[0]*5+2*22+116)
