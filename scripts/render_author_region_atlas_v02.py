@@ -229,13 +229,13 @@ def render_sheet(ledger,child,report,target,channels=None,cover=None):
         axinfo.text(.03,y,value,va="top",size=9,color="#806e61")
         y-=.059
     if cover is not None:
-        axinfo.text(0,.27,"ПРИРОДНЫЙ ПОКРОВ — ВЕРСИЯ МОДЕЛИ",va="top",
+        axinfo.text(0,.355,"ПРИРОДНЫЙ ПОКРОВ — ВЕРСИЯ МОДЕЛИ",va="top",
                     size=10.5,weight="bold",color="#3d4c40")
         samples=[("Лес, кандидат","#366d4b"),("Открытая местность","#b5aa75"),
                  ("Каменистые склоны","#a39b8d"),("Влажные низины?","#70a49b"),
                  ("Редкая растительность","#c4ae82")]
         for idx,(lab,color) in enumerate(samples):
-            yy=.235-idx*.039
+            yy=.31-idx*.037
             axinfo.add_patch(Rectangle((0,yy-.014),.035,.022,facecolor=color,
                                         transform=axinfo.transAxes,linewidth=0))
             axinfo.text(.052,yy,lab,va="center",size=9,color="#61564b")
