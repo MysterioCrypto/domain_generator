@@ -2,10 +2,16 @@
 
 Purpose: **current** DONE / IN PROGRESS / NEXT tree for chat recovery. For the dependency/context map and rejected hypotheses read `docs/CONTEXT.md`; for normative semantics read accepted `docs/design/*`.
 
-**Active accepted Core:** `dev/0.2` (unchanged). **Current external product checkpoint:** PR #103, P4-B real Core-MFD candidate drainage evidence rendered; NOT canonical rivers. Historical navigation checkpoint: [START_HERE](../START_HERE.md). **Parallel technical line:** H13 DESIGN accepted/merged #98, runtime #99 draft/unmerged; #100 C2 experiment and #101 atlas composer also draft/unmerged. **H12-A:** accepted/merged #97.
+**Active accepted Core:** `dev/0.2` (unchanged). **Current external product checkpoint:** PR #103, P4-C1 macro-inlet to child-route geometry evaluated, STILL NOT rivers. Historical navigation checkpoint: [START_HERE](../START_HERE.md). **Parallel technical line:** H13 DESIGN accepted/merged #98, runtime #99 draft/unmerged; #100 C2 experiment and #101 atlas composer also draft/unmerged. **H12-A:** accepted/merged #97.
 Historical checkpoint notes below are not current gates.
 
-## CURRENT: P4-B conservative real child Core-MFD candidate drainage evidence (2026-11-21)
+## CURRENT: P4-C1 PRIVATE macro-inlet ↔ child dominant channel geometry (2026-11-21)
+
+On private region A from prior P4-B SHA-verified derived ZIP (NOT fresh original A8/A12 execution), historical A8 has ONE EAST inbound D8 hint and ONE WEST old exit. 20 strictly inward P4-B channel edges within 30 km of the input all lead to ONE child MFD terminal [209,0] on WEST; selected nearest at [220,224] is 7.864 km from old crossing; terminal 2.028 km from old WEST macro exit. Candidate projected path 253 edges = **181 strict downhill +72 withheld uncertain**, 0 proxy lake jumps under current threshold. Geometry is promising but NOT physical basin equality, real river, discharge or full continuous raw-DEM channel; no A8 source catchment automatically injected (0 km²; historic inlet/outlet area hints NOT external-only). P4-C1 code script/reconcile_region_boundary_corridors_v02.py, 14 synthetic tests + end-to-end synthetic CLI, input SHA exact P4-B lineage, A8 stored exit rechecked. Last functional code head e34e783b full pytest **641 passed**, geogrid/P4-C1 and author atlas workflows GREEN. Private [map](https://drive.google.com/file/d/1n8MMN4eGzR0LtPvgmB-l7-9rr3_9Xx_R/view), [ZIP](https://drive.google.com/file/d/1tBviEHXytjBTCgyGQ2S35lwQBPK4nyWf/view), [review](reviews/p4-c1-region-a-macro-inlet-to-child-mfd-route-evidence-2026-11-21.md). PR #103 DRAFT/UNMERGED, accepted Core/dev/0.2 unchanged.
+
+**NEXT P4-C2:** evidence-based external area / uncertain 72-link / lake-spill sensitivity, no invented river, no premature geo canon.
+
+## PREVIOUS: P4-B conservative real child Core-MFD candidate drainage evidence (2026-11-21)
 
 Added `scripts/render_region_drainage_evidence_v02.py`: nonmutating overlay of EXISTING P2-B2.4 dominant Core MFD channel graph onto P4-A, with strict checks against current Core positive MFD fractions, adjacent receivers, original raw DEM downhill, virtual Priority Flood fill, and hidden lake proxy jumps. Zero lake jumps does **NOT** mean no lakes: input status NO_LAKES_QUALIFIED under the chosen candidate threshold. The display-only `--min-display-dominant-area-km2` setting suppresses noisy small tributaries but preserves ALL validated channel edges in NPZ. P4-A/child input SHA-256 cross-check refuses wrong map; projection child exact archive lineage remains unproven (reanalyzed Core fractions guard).
 
