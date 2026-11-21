@@ -24,6 +24,8 @@ on:
       - tests/test_region_relief_strength_compare_v02.py
       - scripts/compare_region_mfd_variant_basins_v02.py
       - tests/test_region_mfd_variant_basins_v02.py
+      - scripts/compare_region_channel_scale_v02.py
+      - tests/test_region_channel_scale_v02.py
       - tests/test_region_anchor_alternative_drains_v02.py
       - tests/test_region_corridor_sensitivity_v02.py
       - tests/test_region_boundary_corridors_v02.py
@@ -52,7 +54,7 @@ jobs:
       - name: Install runtime and rendering environment
         run: python -m pip install -e ".[dev,render]"
       - name: Test source alignment and geographic graph boundary invariants
-        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py tests/test_planetary_child_mfd_outlet_alignment_v02.py tests/test_planetary_source_corridor_trial_v02.py tests/test_planetary_child_lake_topology_v02.py tests/test_region_drainage_evidence_v02.py tests/test_region_boundary_corridors_v02.py tests/test_region_corridor_sensitivity_v02.py tests/test_region_anchor_alternative_drains_v02.py tests/test_region_relief_strength_compare_v02.py tests/test_region_mfd_variant_basins_v02.py -q
+        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py tests/test_planetary_child_mfd_outlet_alignment_v02.py tests/test_planetary_source_corridor_trial_v02.py tests/test_planetary_child_lake_topology_v02.py tests/test_region_drainage_evidence_v02.py tests/test_region_boundary_corridors_v02.py tests/test_region_corridor_sensitivity_v02.py tests/test_region_anchor_alternative_drains_v02.py tests/test_region_relief_strength_compare_v02.py tests/test_region_mfd_variant_basins_v02.py tests/test_region_channel_scale_v02.py -q
       - name: Create SMALL synthetic source archives (NO PRIVATE PLANET DATA)
         run: |
           python - <<'PY'
@@ -876,6 +878,47 @@ jobs:
           else:
               # Toy fixtures exercise the entire positive full P4-F CLI and SHA guard.
               print('P4F_SYNTHETIC: P4-C1 crop has no single candidate; full CLI checked by 24 toy tests')
+          PY
+
+      - name: P4-G SYNTHETIC three threshold model channel scale morphology (NOT RIVERS)
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
+          p4e=root/'P4E-synthetic-relief-review'
+          p4f=root/'P4F-synthetic-MFD-variants'
+          if p4f.exists() and p4e.exists():
+              out=root/'P4G-synthetic-channel-scale'
+              cmd=[
+                sys.executable,'-m','scripts.compare_region_channel_scale_v02',
+                '--macro-npz',str(root/'macro-region-source.npz'),
+                '--child-manifest',str(root/'child/manifest.json'),
+                '--child-0p5-npz',str(p4e/'relief-strength-0p5-derived.npz'),
+                '--child-1p25-npz',str(p4e/'relief-strength-1p25-derived.npz'),
+                '--child-2p0-npz',str(root/'child/child-terrain-generated.npz'),
+                '--p4e-audit-json',str(p4e/'region-relief-comparison-audit.json'),
+                '--p4f-audit-json',str(p4f/'region-mfd-variant-topology-audit.json'),
+                '--p4f-0p5-npz',str(p4f/'mfd-strength-0p5-derived.npz'),
+                '--p4f-1p25-npz',str(p4f/'mfd-strength-1p25-derived.npz'),
+                '--p4f-2p0-npz',str(root/'macro-vs-MFD-outlets/connected-MFD-channel-reference.npz'),
+                '--terrain-0p5-png',str(p4e/'region-relief-strength-0p5.png'),
+                '--terrain-1p25-png',str(p4e/'region-relief-strength-1p25.png'),
+                '--terrain-2p0-png',str(p4e/'region-relief-strength-2p0.png'),
+                '--output',str(out),
+              ]
+              subprocess.check_call(cmd)
+              audit=json.loads((out/'region-channel-scale-audit.json').read_text())
+              assert audit['status']=='P4_G_THREE_THRESHOLD_MODEL_CHANNEL_MORPHOLOGY_NOT_RIVERS'
+              assert audit['P4F_threshold_30_bit_exact_all_3_variants']
+              assert audit['P4E_and_P4F_source_SHA256_verified']
+              assert audit['A8_old_D8_flow_imported_km2']==0
+              assert not audit['is_approved_physical_river_or_Q']
+              assert len(audit['morphology'])==9
+              assert (out/'region-model-network-threshold-3x3.png').is_file()
+          else:
+              # Toy fixtures also cover FULL P4-G CLI, SHA and deterministic png.
+              print('P4G_SYNTHETIC: source crop has no C1 selected inlet; toy CLI test is mandatory')
           PY
 
       - name: Snapshot small PUBLIC code for reproducible PRIVATE processing (NO ORIGINAL DATA)
