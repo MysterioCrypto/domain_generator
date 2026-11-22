@@ -1040,7 +1040,7 @@ jobs:
               assert summary['independent_display_crossing_count']==0
               assert (out/'p4j-display-only-channel-curves.npz').is_file()
           else:
-              # 17 independent public synthetic test cases include full CLI SHA
+              # 18 independent public synthetic test cases include full CLI SHA
               # replay and explicit independent 8-neighbor crossing rejection.
               print('P4J_SYNTHETIC: earlier inlet-selected fixture unavailable; mandatory CLI toy tests run')
           PY
