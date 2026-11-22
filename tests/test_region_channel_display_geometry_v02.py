@@ -116,3 +116,27 @@ def test_full_cli_source_sha_and_deterministic_replay(tmp_path):
     np.savez_compressed(src/'source.npz',**broken)
     failed=run('altered')
     assert failed.returncode!=0 and 'SHA mismatch' in failed.stderr
+
+
+def test_legacy_rectangular_synthetic_parent_background_display_only(tmp_path):
+    # Upstream synthetic P4-E saves a rectangular DEM on a square PNG canvas.
+    # Rescale the canvas only; never change the graph, coordinate axes or data.
+    fields,child=toy()
+    fields['channel_mask']=fields['channel_mask'][:7,:].copy()
+    fields['Core_dominant_receiver_index']=fields['Core_dominant_receiver_index'][:7,:].copy()
+    fields['Core_dominant_channel_area_km2_NOT_Q']=fields['Core_dominant_channel_area_km2_NOT_Q'][:7,:].copy()
+    child['north_km_north_first']=np.arange(6,-1,-1,dtype='float64')
+    # All involved source/receiver cells have rows <= 5, so flattened IDs
+    # stay the same when only the final two rows of a 9-column grid are removed.
+    xy,audit=generalize_model_edges(fields,child['east_km'],child['north_km_north_first'])
+    audit['origin_xy_km']=[0.,6.]
+    good=tmp_path/'rect.png';legacy=tmp_path/'old-square.png'
+    Image.new('RGB',(45,35),(75,96,83)).save(good)
+    Image.new('RGB',(45,45),(75,96,83)).save(legacy)
+    render_comparison(fields,xy,copy.deepcopy(audit),good,tmp_path/'good')
+    render_comparison(fields,xy,copy.deepcopy(audit),legacy,tmp_path/'old')
+    for filename in ('p4j-overview-original-vs-bounded-curves.png','p4j-zoom-original-vs-bounded-curves.png'):
+        assert (tmp_path/'good'/filename).read_bytes()==(tmp_path/'old'/filename).read_bytes()
+    invalid=tmp_path/'wrong.png';Image.new('RGB',(44,44),(75,96,83)).save(invalid)
+    with pytest.raises(GeometryDisplayError):
+        render_comparison(fields,xy,copy.deepcopy(audit),invalid,tmp_path/'invalid')
