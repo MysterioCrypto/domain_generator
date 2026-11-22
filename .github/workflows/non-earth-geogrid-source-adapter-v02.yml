@@ -30,6 +30,8 @@ on:
       - tests/test_region_directional_bias_v02.py
       - scripts/compare_region_parent_interpolants_v02.py
       - tests/test_region_parent_interpolants_v02.py
+      - scripts/generalize_region_model_channel_geometry_v02.py
+      - tests/test_region_channel_display_geometry_v02.py
       - tests/test_region_anchor_alternative_drains_v02.py
       - tests/test_region_corridor_sensitivity_v02.py
       - tests/test_region_boundary_corridors_v02.py
@@ -58,7 +60,7 @@ jobs:
       - name: Install runtime and rendering environment
         run: python -m pip install -e ".[dev,render]"
       - name: Test source alignment and geographic graph boundary invariants
-        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py tests/test_planetary_child_mfd_outlet_alignment_v02.py tests/test_planetary_source_corridor_trial_v02.py tests/test_planetary_child_lake_topology_v02.py tests/test_region_drainage_evidence_v02.py tests/test_region_boundary_corridors_v02.py tests/test_region_corridor_sensitivity_v02.py tests/test_region_anchor_alternative_drains_v02.py tests/test_region_relief_strength_compare_v02.py tests/test_region_mfd_variant_basins_v02.py tests/test_region_channel_scale_v02.py tests/test_region_directional_bias_v02.py tests/test_region_parent_interpolants_v02.py -q
+        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py tests/test_planetary_child_mfd_outlet_alignment_v02.py tests/test_planetary_source_corridor_trial_v02.py tests/test_planetary_child_lake_topology_v02.py tests/test_region_drainage_evidence_v02.py tests/test_region_boundary_corridors_v02.py tests/test_region_corridor_sensitivity_v02.py tests/test_region_anchor_alternative_drains_v02.py tests/test_region_relief_strength_compare_v02.py tests/test_region_mfd_variant_basins_v02.py tests/test_region_channel_scale_v02.py tests/test_region_directional_bias_v02.py tests/test_region_parent_interpolants_v02.py tests/test_region_channel_display_geometry_v02.py -q
       - name: Create SMALL synthetic source archives (NO PRIVATE PLANET DATA)
         run: |
           python - <<'PY'
@@ -1008,6 +1010,39 @@ jobs:
               # Public toy tests cover full CLI and SHA validation even when the
               # synthetic source macro lacks P4-C1 matched historical inlet.
               print('P4I_SYNTHETIC: prior inlet-specific artifact absent; full toy CLI test mandatory')
+          PY
+
+      - name: P4-J SYNTHETIC immutable topology display curves (NOT RIVERS)
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
+          p4e=root/'P4E-synthetic-relief-review'
+          p4i=root/'P4I-synthetic-interpolation-control'
+          if p4i.exists() and p4e.exists():
+              out=root/'P4J-synthetic-fixed-channel-curves'
+              subprocess.check_call([
+                  sys.executable,'-m','scripts.generalize_region_model_channel_geometry_v02',
+                  '--baseline-projection-npz',str(root/'macro-vs-MFD-outlets/connected-MFD-channel-reference.npz'),
+                  '--baseline-child-npz',str(root/'child/child-terrain-generated.npz'),
+                  '--p4i-audit-json',str(p4i/'p4i-parent-interpolant-audit.json'),
+                  '--terrain-png',str(p4e/'region-relief-strength-2p0.png'),
+                  '--output',str(out),
+              ])
+              summary=json.loads((out/'p4j-display-geometry-audit.json').read_text())
+              assert summary['status']=='P4_J_TOPOLOGY_PRESERVING_DISPLAY_GEOMETRY_ONLY_NOT_RIVERS'
+              assert summary['original_node_ids_and_edge_order_preserved']
+              assert summary['all_original_node_positions_exact']
+              assert not summary['channel_graph_topology_mutated']
+              assert summary['maximum_hausdorff_offset_km']<=.20
+              assert summary['independent_original_crossing_count']==0
+              assert summary['independent_display_crossing_count']==0
+              assert (out/'p4j-display-only-channel-curves.npz').is_file()
+          else:
+              # 17 independent public synthetic test cases include full CLI SHA
+              # replay and explicit independent 8-neighbor crossing rejection.
+              print('P4J_SYNTHETIC: earlier inlet-selected fixture unavailable; mandatory CLI toy tests run')
           PY
 
       - name: Snapshot small PUBLIC code for reproducible PRIVATE processing (NO ORIGINAL DATA)
