@@ -219,7 +219,15 @@ def render_comparison(fields:dict,xy:np.ndarray,report:dict,background_path:Path
     mask=fields['channel_mask'];nr,nc=mask.shape
     with Image.open(background_path) as bg:
         backdrop=bg.convert('RGB')
-    if backdrop.size!=(nc*5,nr*5):raise GeometryDisplayError('unverified P4-E source background dimensions')
+    expected=(nc*5,nr*5)
+    if backdrop.size!=expected:
+        # A known legacy P4-E SYNTHETIC exporter encoded a rectangular
+        # (nr, nc) DEM as a square (nc*5, nc*5) PNG. This is a display-only
+        # correction; numeric coordinates/graph are never resized or cropped.
+        if nr!=nc and backdrop.size==(nc*5,nc*5):
+            backdrop=backdrop.resize(expected,Image.Resampling.BICUBIC)
+        else:
+            raise GeometryDisplayError('unverified P4-E source background dimensions')
     # region crop comes from shape-only displacement density; deterministic.
     edges=fields['channel_edge_flat_from_to'];box=_choose_review_crop(xy,edges,mask.shape)
     report['zoom_crop_top_left_row_col_height_width']=box
