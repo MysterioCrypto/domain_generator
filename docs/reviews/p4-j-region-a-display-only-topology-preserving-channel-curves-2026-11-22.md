@@ -32,7 +32,7 @@
 | Проверенный zoom, top-left row/col, height/width | **123,102; 65×65** |
 | Смена topology/source cells/receiver/outlets | **нет** |
 
-Локальные 17 синтетических `pytest`: полный source graph, сохранение вершин и ребер, SHA tamper full CLI, PNG/NPZ deterministic bit-replay, запрет произвольных пересечений, циклов, lake proxy, неправильной географической ориентации, некорректного receiver, выходящих за пределы узлов, порога отклонения. Все **17 пройдены локально**; CI workflow теперь запускает их и при наличии upstream synthetic P4-I запускает полный P4-J stage. Отдельный actual GitHub CI run нужно проверять на актуальном HEAD.
+Локальные 18 синтетических `pytest`: полный source graph, сохранение вершин и ребер, SHA tamper full CLI, PNG/NPZ deterministic bit-replay, запрет произвольных пересечений, циклов, lake proxy, неправильной географической ориентации, некорректного receiver, выходящих за пределы узлов, порога отклонения. Все **18 пройдены локально**, включая отдельный регрессионный случай legacy P4-E rectangular source / square-PNG canvas. Исправляется **только размер фонового отображения**: реальные PNG/NPZ/JSON до и после исправления побитово совпали.; CI workflow теперь запускает их и при наличии upstream synthetic P4-I запускает полный P4-J stage. Отдельный actual GitHub CI run нужно проверять на актуальном HEAD.
 
 ## Главный итог: улучшение недостаточно для карты региона
 
@@ -46,8 +46,8 @@
 
 - [Сравнение исходной и display-сети, весь регион A](https://drive.google.com/file/d/19Hkx6ZQ3YZ9fOs1nBbEjURqhL-MWKXDt/view)
 - [65×65 км — сравнение крупным планом](https://drive.google.com/file/d/1i63mXqB56je2TW8fMMKOBPyKtzlvhLUB/view)
-- [PRIVATE derived ZIP с PNG, vector NPZ, JSON/SHA provenance](https://drive.google.com/file/d/1oAHEFSCcf9dkIf1-mp0IykeN4xYTRj3a/view)
-- GitHub code: `scripts/generalize_region_model_channel_geometry_v02.py`, blob `e9d9ec390cff561ea5c9415291318a209936ec6e`; tests: `tests/test_region_channel_display_geometry_v02.py`, blob `040ba129c069816d1e6ebb3d98f42d2b595f16d1`. Уже принятый `dev/0.2` и frozen release не затронуты.
+- [PRIVATE derived ZIP с PNG, vector NPZ, JSON/SHA provenance](https://drive.google.com/file/d/1TMOAs6wfzYfqqhN7M0y4Vfeq6nylGBo2/view)
+- GitHub code: `scripts/generalize_region_model_channel_geometry_v02.py`, blob `26826ba76fd0030c62372aea5a73897253d7f34f`; tests: `tests/test_region_channel_display_geometry_v02.py`, blob `e5c0089609baac8fa18fd6d11bb43541758b39cb`. Уже принятый `dev/0.2` и frozen release не затронуты.
 
 ## Следующая строго ограниченная итерация P4-K
 
