@@ -26,6 +26,8 @@ on:
       - tests/test_region_mfd_variant_basins_v02.py
       - scripts/compare_region_channel_scale_v02.py
       - tests/test_region_channel_scale_v02.py
+      - scripts/diagnose_region_directional_bias_v02.py
+      - tests/test_region_directional_bias_v02.py
       - tests/test_region_anchor_alternative_drains_v02.py
       - tests/test_region_corridor_sensitivity_v02.py
       - tests/test_region_boundary_corridors_v02.py
@@ -54,7 +56,7 @@ jobs:
       - name: Install runtime and rendering environment
         run: python -m pip install -e ".[dev,render]"
       - name: Test source alignment and geographic graph boundary invariants
-        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py tests/test_planetary_child_mfd_outlet_alignment_v02.py tests/test_planetary_source_corridor_trial_v02.py tests/test_planetary_child_lake_topology_v02.py tests/test_region_drainage_evidence_v02.py tests/test_region_boundary_corridors_v02.py tests/test_region_corridor_sensitivity_v02.py tests/test_region_anchor_alternative_drains_v02.py tests/test_region_relief_strength_compare_v02.py tests/test_region_mfd_variant_basins_v02.py tests/test_region_channel_scale_v02.py -q
+        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py tests/test_planetary_child_mfd_outlet_alignment_v02.py tests/test_planetary_source_corridor_trial_v02.py tests/test_planetary_child_lake_topology_v02.py tests/test_region_drainage_evidence_v02.py tests/test_region_boundary_corridors_v02.py tests/test_region_corridor_sensitivity_v02.py tests/test_region_anchor_alternative_drains_v02.py tests/test_region_relief_strength_compare_v02.py tests/test_region_mfd_variant_basins_v02.py tests/test_region_channel_scale_v02.py tests/test_region_directional_bias_v02.py -q
       - name: Create SMALL synthetic source archives (NO PRIVATE PLANET DATA)
         run: |
           python - <<'PY'
@@ -919,6 +921,48 @@ jobs:
           else:
               # Toy fixtures also cover FULL P4-G CLI, SHA and deterministic png.
               print('P4G_SYNTHETIC: source crop has no C1 selected inlet; toy CLI test is mandatory')
+          PY
+
+      - name: P4-H SYNTHETIC parent-only directional negative control (NO CANONICAL RIVERS)
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
+          p4e=root/'P4E-synthetic-relief-review'
+          p4f=root/'P4F-synthetic-MFD-variants'
+          p4g=root/'P4G-synthetic-channel-scale'
+          if p4e.exists() and p4f.exists() and p4g.exists():
+              out=root/'P4H-synthetic-directional-control'
+              subprocess.check_call([
+                sys.executable,'-m','scripts.diagnose_region_directional_bias_v02',
+                '--macro-npz',str(root/'macro-region-source.npz'),
+                '--baseline-child-npz',str(root/'child/child-terrain-generated.npz'),
+                '--child-manifest',str(root/'child/manifest.json'),
+                '--variant-0p5-npz',str(p4e/'relief-strength-0p5-derived.npz'),
+                '--variant-1p25-npz',str(p4e/'relief-strength-1p25-derived.npz'),
+                '--archived-0p5-npz',str(p4f/'mfd-strength-0p5-derived.npz'),
+                '--archived-1p25-npz',str(p4f/'mfd-strength-1p25-derived.npz'),
+                '--archived-2p0-npz',str(root/'macro-vs-MFD-outlets/connected-MFD-channel-reference.npz'),
+                '--p4f-audit-json',str(p4f/'region-mfd-variant-topology-audit.json'),
+                '--p4g-audit-json',str(p4g/'region-channel-scale-audit.json'),
+                '--terrain-0p5-png',str(p4e/'region-relief-strength-0p5.png'),
+                '--terrain-1p25-png',str(p4e/'region-relief-strength-1p25.png'),
+                '--terrain-2p0-png',str(p4e/'region-relief-strength-2p0.png'),
+                '--output',str(out),
+              ])
+              audit=json.loads((out/'p4h-directional-bias-audit.json').read_text())
+              assert audit['status']=='P4_H_PARENT_ONLY_NEGATIVE_CONTROL_AND_DIRECTIONAL_BIAS_NOT_RIVERS'
+              assert audit['P4G_parent_and_variant_source_sha_checked']
+              assert audit['prior_P4F_and_P4G_model_archives_bit_exact_replayed']
+              assert not audit['operator_accepted_geography']
+              assert audit['A8_external_area_autoinjected_km2']==0
+              assert len(audit['metrics'])==4
+              assert (out/'p4h-parent-vs-detail-directional-run-review.png').exists()
+          else:
+              # The synthetic macro crop has no matched inlet; 19 separate
+              # toy unit+CLI regression tests still run unconditionally.
+              print('P4H_SYNTHETIC: earlier inlet-specific artifact unavailable; dedicated CLI toy exercised')
           PY
 
       - name: Snapshot small PUBLIC code for reproducible PRIVATE processing (NO ORIGINAL DATA)
