@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-non-earth-product-readiness
-checkpoint: p4-h-parent-only-source-gradient-vs-continuous-mfd-and-discrete-channel-negative-control
-next_topic: p4-i-isolate-macro-source-versus-interpolator-and-topology-preserving-trace
+checkpoint: p4-i-bilinear-hermite-63-source-anchor-counterfactual-outlet-change-reject
+next_topic: p4-j-topology-preserving-vector-channel-geometry-map-readability
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
