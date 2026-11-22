@@ -281,6 +281,13 @@ def main():
       {.5:_npz(args.archived_0p5_npz),1.25:_npz(args.archived_1p25_npz),2.:_npz(args.archived_2p0_npz)},p4f,p4h)
     maps={.5:args.terrain_0p5_png,1.25:args.terrain_1p25_png,2.:args.terrain_2p0_png}
     render_comparison(out,report,maps,args.output)
+    # Derived-only artifacts. Original A8/A12 macro/accepted DEM never included.
+    np.savez_compressed(args.output/'p4i-bilinear-parent-derived.npz',
+                        bilinear_parent_elevation_m=out[2.]['candidate']['parent_interpolated_m'])
+    for strength,suffix in ((.5,'0p5'),(1.25,'1p25'),(2.,'2p0')):
+        np.savez_compressed(args.output/f'p4i-bilinear-{suffix}-model-projection.npz',
+                            **out[strength]['bilinear'])
+    report['derived_output_sha256']={f.name:_sha(f) for f in sorted(args.output.iterdir()) if f.is_file()}
     report['P4H_source_sha256_all_input_verified']=True
     report['source_sha256']={k:_sha(v) for k,v in sources.items()}
     report['source_sha256']['p4h_audit_json']=_sha(args.p4h_audit_json)
