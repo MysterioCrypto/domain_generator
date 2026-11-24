@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-from scipy.ndimage import map_coordinates
 from shapely import line_locate_point, line_interpolate_point, points, get_coordinates
 from shapely.geometry import LineString, Point, box
 from shapely.ops import unary_union
@@ -96,7 +95,13 @@ def process(fields, child):
     domain=box(x[0],y[-1],x[-1],y[0]);land_poly=domain if land.all() else unary_union([box(x[c]-.5,y[r]-.5,x[c]+.5,y[r]+.5) for r,c in np.argwhere(land)]).intersection(domain)
     raw=[np.column_stack((x[p%nc],y[p//nc])) for p in paths]; original=[LineString(p) for p in raw]
     if any(not v.is_simple or not land_poly.covers(v) for v in original) or bad_pairs(original,paths):raise ValueError('invalid original geometry')
-    def height(p):return map_coordinates(z,[(y[0]-p[:,1]),(p[:,0]-x[0])],order=1,mode='nearest')
+    def height(p):
+        # Bilinear sampling on the validated 1-km grid; no extra dependency.
+        r=np.clip(y[0]-p[:,1],0,nr-1);c=np.clip(p[:,0]-x[0],0,nc-1)
+        r0=np.floor(r).astype(int);c0=np.floor(c).astype(int)
+        r1=np.minimum(r0+1,nr-1);c1=np.minimum(c0+1,nc-1)
+        u=r-r0;v=c-c0
+        return (1-u)*((1-v)*z[r0,c0]+v*z[r0,c1])+u*((1-v)*z[r1,c0]+v*z[r1,c1])
     def elevation_delta(a,b):
         sample=get_coordinates(line_interpolate_point(b,np.linspace(0,b.length,max(2,int(np.ceil(b.length/SAMPLE_KM))+1))))
         nearest=get_coordinates(line_interpolate_point(a,line_locate_point(a,points(sample))))
@@ -141,7 +146,9 @@ def render(fields,child,raw,out,paths,background,dest):
     nr,nc=fields['channel_mask'].shape; x=child['east_km'];y=child['north_km_north_first'];area=fields['Core_dominant_channel_area_km2_NOT_Q'].ravel()
     with Image.open(background) as im:bg=im.convert('RGB')
     if bg.size!=(nc*5,nr*5):raise ValueError('background size mismatch')
-    def font(n):return ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',n)
+    def font(n):
+        try:return ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',n)
+        except OSError:return ImageFont.load_default()
     for label,r,c,h,w,scale in [('region',0,0,nr,nc,5),('zoom',min(123,max(0,nr-65)),min(102,max(0,nc-65)),min(65,nr),min(65,nc),12)]:
         panel=bg.crop((c*5,r*5,(c+w)*5,(r+h)*5)).resize((w*scale,h*scale),Image.Resampling.BICUBIC)
         panels=[]
