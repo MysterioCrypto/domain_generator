@@ -2045,6 +2045,8 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         lakes,
         outlets,
         skeleton=channel_skeleton,
+        # Continuous traces can bypass proposed raster confluences at either scale.
+        normalize_false_confluences=True,
         lake_features=lake_features,
         marine_candidates=marine_candidates,
         marine_features=marine_features,
