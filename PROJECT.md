@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-non-earth-product-readiness
-checkpoint: p4-o-native-imported-dem-normalized-regional-network
-next_topic: p4-p-regional-assembly-normalization-and-spatial-audit
+checkpoint: p4-p-native-regional-normalization-spatial-audit
+next_topic: p4-q-lake-outlet-continuation-correctness
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
