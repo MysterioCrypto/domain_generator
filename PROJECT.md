@@ -9,8 +9,8 @@ development_branch: dev/0.2
 release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-non-earth-product-readiness
-checkpoint: p4-k-semantic-reach-display-927-reaches-macro-alignment
-next_topic: p4-l-source-child-terrain-valley-coherence-controlled-hypothesis
+checkpoint: p4-l-slope-aligned-detail-counterfactual-rejected
+next_topic: p4-m-same-analytic-terrain-resolution-counterfactual
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
