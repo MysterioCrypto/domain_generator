@@ -10,7 +10,7 @@ release_branch: release/0.2-prealpha
 release_commit: c69c1af010a085fb80d248af703a77471fc6c9d7
 current_milestone: v0.2-non-earth-product-readiness
 checkpoint: p4-n-native-continuous-trace-target-audit
-next_topic: p4-o-native-core-complete-network-candidate
+next_topic: p4-o-native-core-complete-network-candidate-with-draft-geography-freedom
 working_context: docs/CONTEXT.md
 progress_tree: docs/PROGRESS.md
 accepted_designs:
@@ -83,6 +83,16 @@ invariants: [INV-001, INV-002, INV-003, INV-004, INV-005, INV-006, INV-007, INV-
 # Состояние проекта
 
 `domain_generator` — setting-agnostic procedural Core для генерации региональных/глобальных карт.
+
+## Author correction — geographic design freedom (2026-11-25)
+
+**Binding author clarification; supersedes any earlier project note treating draft source geography as immutable.** The only hard geographic canon constraint is consistency with the geography established in Chapter 1; Chapter 1 will not be rewritten to accommodate a new map. The general atmosphere/character of the planet must remain recognizable. The remaining geography is a draft, not fixed canon.
+
+- A8/A12 source geography, macro relief and height anchors, land/coast masks, river/lake locations, catchments, outlets, terrain parameters, seed and grid spacing may be revised or regenerated if useful, subject to Chapter 1 compatibility and planetary atmosphere. No obligation to preserve a provisional raster graph, macro DEM, or prior outlet coordinates.
+- Archived input/output versions remain reproducible controls, not mandatory inputs for later candidates. Equality, SHA checks, fixed anchors and graph preservation in P1–P4 are experiment-specific controls, not author requirements. A failed identity comparison alone is not grounds to reject a better map. Keep historical reports as historical evidence.
+- Extract the actual hard geographic facts from the private Chapter 1 source before claiming narrative compatibility. The exact constraint inventory is not established by this clarification; do not invent additional canon or publish private story material in this repository.
+- Prefer a usable, expressive, internally coherent regional map over numerical identity to a draft. Existing Core algorithms can be improved through the normal development process if needed; frozen software releases remain archival reproducibility points, not a ban on future development. No implicit merge or canon acceptance.
+- Next P4-O: build a complete native Core network candidate, initially using P4-M 500 m terrain as a convenient comparison control, not a binding geography. Allow normalization and a new topology. If needed, revise/regenerate the terrain or source geography rather than force compatibility with the old sketch. Compare actual map quality and internal consistency; identify Chapter 1 constraints before approving a revised author map.
 
 ## Как восстанавливать рабочий контекст
 
