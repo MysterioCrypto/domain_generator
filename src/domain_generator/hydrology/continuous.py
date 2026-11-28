@@ -1202,6 +1202,8 @@ def _segment_strahler_orders(
     network: RiverNetwork,
     hierarchy: _StrahlerHierarchy,
     lake_outlets: tuple[LakeOutlet, ...],
+    *,
+    exact_geometry_cells: bool = False,
 ) -> dict[str, int]:
     """Assign each continuous segment the highest hierarchy order it traverses."""
     adapter = GridAdapter.from_plan(plan)
@@ -1213,13 +1215,18 @@ def _segment_strahler_orders(
         if source.kind is RiverNodeKind.LAKE_OUTLET and source.feature_id is not None:
             orders.append(int(hierarchy.lake_order.get(source.feature_id, 1)))
 
-        for point in segment.centerline:
-            x = min(adapter.width_km - _EPS, max(0.0, float(point.x_km)))
-            y = min(adapter.height_km - _EPS, max(0.0, float(point.y_km)))
-            cell = adapter.containing_cell(x, y)
-            value = int(hierarchy.cell_order[cell])
-            if value >= 1:
-                orders.append(value)
+        if exact_geometry_cells:
+            from .early_joining import traversed_geometry_cells
+            cells = traversed_geometry_cells(adapter, [(p.x_km,p.y_km) for p in segment.centerline])
+            orders.extend(int(hierarchy.cell_order[cell]) for cell in cells if hierarchy.cell_order[cell] >= 1)
+        else:
+            for point in segment.centerline:
+                x = min(adapter.width_km - _EPS, max(0.0, float(point.x_km)))
+                y = min(adapter.height_km - _EPS, max(0.0, float(point.y_km)))
+                cell = adapter.containing_cell(x, y)
+                value = int(hierarchy.cell_order[cell])
+                if value >= 1:
+                    orders.append(value)
 
         if not orders:
             raise HydrologyCapabilityError(
@@ -1641,6 +1648,7 @@ def build_continuous_river_network(
     skeleton: _ChannelSkeleton | None = None,
     normalize_false_confluences: bool = False,
     repair_lake_outlet_return: bool = False,
+    early_joining: bool = False,
     lake_features: dict[str, HydroFeature] | None = None,
     marine_candidates: tuple[MarineCandidate, ...] = (),
     marine_features: dict[str, MarineFeature] | None = None,
@@ -1885,6 +1893,39 @@ def build_continuous_river_network(
             tuple((point.x_km, point.y_km) for point in item[2]),
         )
     )
+    if early_joining:
+        # Work on pre-property trace records, not a replacement serialized world.
+        from .early_joining import run as join_traces, traversed_geometry_cells
+        raw = {
+            "nodes": {key: node.model_dump(mode="json", by_alias=True) for key, node in nodes.items()},
+            "segments": {
+                f"river-segment-{index:04d}": {
+                    "from": node_id_by_key[start.key], "to": node_id_by_key[target.key],
+                    "centerline": [point.model_dump(mode="json") for point in points],
+                    # Existing trace maximum is used only to rank the candidate trunks.
+                    "properties": {"catchment_area_km2": catchment},
+                }
+                for index, (start, target, points, catchment, _) in enumerate(trace_records, start=1)
+            },
+        }
+        try:
+            joined, _ = join_traces(raw)
+            stream_mask = np.zeros(shape, dtype=np.bool_)
+            for segment in joined["segments"].values():
+                cells = traversed_geometry_cells(adapter, [(p["x_km"], p["y_km"]) for p in segment["centerline"]])
+                cells = tuple(cell for cell in cells if cell not in lake_by_cell and cell not in marine_by_cell)
+                if not cells:
+                    raise ValueError("joined segment has no land-cell support")
+                segment.pop("source_fragments")
+                segment["properties"] = {"catchment_area_km2": max(float(accumulation[cell]) for cell in cells)}
+                for cell in cells:
+                    stream_mask[cell] = True
+            network = RiverNetwork.model_validate({"nodes": joined["nodes"], "segments": joined["segments"]})
+        except ValueError as exc:
+            raise HydrologyCapabilityError(f"experimental early joining: {exc}") from exc
+        _validate_lake_continuations(network)
+        return network, stream_mask
+
     segments = {
         f"river-segment-{index:04d}": RiverSegment(
             **{
@@ -1964,9 +2005,12 @@ def generate_hydrology_v02(
     terrain: TerrainState,
     *,
     experimental_network_assembly: bool = False,
+    experimental_early_joining: bool = False,
 ) -> HydrologyState:
     # Imported-DEM experiments opt in explicitly. Preserve the existing public
     # pipeline's post-serialization confluence normalization and A08 baseline.
+    if experimental_early_joining and not experimental_network_assembly:
+        raise HydrologyCapabilityError("early joining requires experimental network assembly")
     if plan.plan_version != "0.2":
         raise HydrologyCapabilityError("continuous hydrology requires GenerationPlan 0.2")
     elevation = terrain.elevation_m
@@ -1995,7 +2039,8 @@ def generate_hydrology_v02(
             }
         )
         baseline = generate_hydrology_v02(
-            baseline_plan, terrain, experimental_network_assembly=experimental_network_assembly
+            baseline_plan, terrain, experimental_network_assembly=experimental_network_assembly,
+            experimental_early_joining=experimental_early_joining,
         )
         if baseline.continuous_routing is None:
             raise HydrologyCapabilityError(
@@ -2113,6 +2158,7 @@ def generate_hydrology_v02(
         skeleton=channel_skeleton,
         normalize_false_confluences=experimental_network_assembly,
         repair_lake_outlet_return=experimental_network_assembly,
+        early_joining=experimental_early_joining,
         lake_features=lake_features,
         marine_candidates=marine_candidates,
         marine_features=marine_features,
@@ -2127,6 +2173,7 @@ def generate_hydrology_v02(
         skeleton=potential_skeleton,
         normalize_false_confluences=True,
         repair_lake_outlet_return=experimental_network_assembly,
+        early_joining=experimental_early_joining,
         lake_features=lake_features,
         marine_candidates=marine_candidates,
         marine_features=marine_features,
@@ -2136,6 +2183,7 @@ def generate_hydrology_v02(
         potential_river_network,
         strahler,
         outlets,
+        exact_geometry_cells=experimental_early_joining,
     )
     validate_river_lake_references(
         river_network,
