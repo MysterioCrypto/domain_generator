@@ -1,0 +1,39 @@
+{
+  "schema": "noncanonical-natural-cover-profile-v0.1",
+  "status": "WORLD_EDITABLE_NOT_CANON",
+  "source_biome_codes": {
+    "woodland": [
+      1,
+      2,
+      3,
+      7,
+      9,
+      10
+    ],
+    "open": [
+      4,
+      5,
+      8,
+      11
+    ],
+    "sparse": [
+      6,
+      12
+    ]
+  },
+  "scenario_weights": {
+    "biome_base": 0.35,
+    "biome_moderate": 0.25,
+    "biome_precip_minus20": 0.2,
+    "biome_precip_plus20": 0.2
+  },
+  "forest_threshold": 0.62,
+  "patch_strength": 0.23,
+  "seed": 1406,
+  "rock_slope_start_m_per_km": 105,
+  "rock_slope_full_m_per_km": 330,
+  "wetland_low_slope_m_per_km": 16,
+  "wetland_reference_threshold": 0.58,
+  "forest_gap_bias": 0.3,
+  "wetland_depression_min_m": 2
+}

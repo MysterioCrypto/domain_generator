@@ -1,0 +1,1088 @@
+name: non-earth-geogrid-source-adapter-v02
+on:
+  push:
+    branches: [feature/v0.2-planetary-geogrid-source-adapter]
+  pull_request:
+    paths:
+      - scripts/export_planetary_macro_region_v02.py
+      - tests/test_planetary_geogrid_source_adapter_v02.py
+      - scripts/condition_planetary_child_terrain_v02.py
+      - tests/test_planetary_child_terrain_v02.py
+      - scripts/diagnose_planetary_child_mfd_v02.py
+      - scripts/audit_planetary_child_lakes_v02.py
+      - tests/test_planetary_child_lakes_v02.py
+      - scripts/condition_planetary_child_boundary_mfd_v02.py
+      - tests/test_planetary_boundary_inflow_mfd_v02.py
+      - scripts/trace_a8_external_first_entry_v02.py
+      - tests/test_a8_external_first_entry_v02.py
+      - scripts/compare_planetary_child_mfd_outlets_v02.py
+      - scripts/render_region_drainage_evidence_v02.py
+      - scripts/reconcile_region_boundary_corridors_v02.py
+      - scripts/audit_region_corridor_sensitivity_v02.py
+      - scripts/audit_region_anchor_alternative_drains_v02.py
+      - scripts/compare_region_relief_strength_v02.py
+      - tests/test_region_relief_strength_compare_v02.py
+      - scripts/compare_region_mfd_variant_basins_v02.py
+      - tests/test_region_mfd_variant_basins_v02.py
+      - scripts/compare_region_channel_scale_v02.py
+      - tests/test_region_channel_scale_v02.py
+      - scripts/diagnose_region_directional_bias_v02.py
+      - tests/test_region_directional_bias_v02.py
+      - scripts/compare_region_parent_interpolants_v02.py
+      - tests/test_region_parent_interpolants_v02.py
+      - scripts/generalize_region_model_channel_geometry_v02.py
+      - tests/test_region_channel_display_geometry_v02.py
+      - scripts/generalize_semantic_channel_reaches_v02.py
+      - tests/test_semantic_channel_reaches_v02.py
+      - scripts/compare_region_anisotropic_detail_v02.py
+      - tests/test_region_anisotropic_detail_v02.py
+      - scripts/compare_region_resolution_v02.py
+      - tests/test_region_resolution_v02.py
+      - scripts/audit_region_continuous_trace_v02.py
+      - tests/test_region_continuous_trace_v02.py
+      - scripts/evaluate_imported_dem_native_network_v02.py
+      - tests/test_imported_dem_native_network_v02.py
+      - scripts/audit_native_network_spatial_v02.py
+      - tests/test_native_regional_normalization_v02.py
+      - tests/test_lake_outlet_continuation_v02.py
+      - tests/test_early_confluence_joining_v02.py
+      - tests/test_native_early_joining_v02.py
+      - scripts/evaluate_joined_native_network_v02.py
+      - src/domain_generator/hydrology/early_joining.py
+      - scripts/join_early_confluences_v02.py
+      - scripts/evaluate_lake_continuation_v02.py
+      - src/domain_generator/hydrology/continuous.py
+      - tests/test_region_anchor_alternative_drains_v02.py
+      - tests/test_region_corridor_sensitivity_v02.py
+      - tests/test_region_boundary_corridors_v02.py
+      - scripts/render_region_cartographic_base_v02.py
+      - tests/test_region_drainage_evidence_v02.py
+      - tests/test_planetary_child_mfd_outlet_alignment_v02.py
+      - scripts/propose_planetary_river_corridor_v02.py
+      - tests/test_planetary_source_corridor_trial_v02.py
+      - scripts/diagnose_planetary_child_lake_topology_v02.py
+      - tests/test_planetary_child_lake_topology_v02.py
+      - tests/test_planetary_child_mfd_diagnostic_v02.py
+      - .github/workflows/non-earth-geogrid-source-adapter-v02.yml
+permissions:
+  contents: read
+jobs:
+  source-align-and-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install runtime and rendering environment
+        run: python -m pip install -e ".[dev,render]"
+      - name: Test source alignment and geographic graph boundary invariants
+        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py tests/test_planetary_child_mfd_outlet_alignment_v02.py tests/test_planetary_source_corridor_trial_v02.py tests/test_planetary_child_lake_topology_v02.py tests/test_region_drainage_evidence_v02.py tests/test_region_boundary_corridors_v02.py tests/test_region_corridor_sensitivity_v02.py tests/test_region_anchor_alternative_drains_v02.py tests/test_region_relief_strength_compare_v02.py tests/test_region_mfd_variant_basins_v02.py tests/test_region_channel_scale_v02.py tests/test_region_directional_bias_v02.py tests/test_region_parent_interpolants_v02.py tests/test_region_channel_display_geometry_v02.py tests/test_semantic_channel_reaches_v02.py tests/test_region_anisotropic_detail_v02.py tests/test_region_resolution_v02.py tests/test_region_continuous_trace_v02.py tests/test_imported_dem_native_network_v02.py tests/test_native_regional_normalization_v02.py tests/test_lake_outlet_continuation_v02.py tests/test_early_confluence_joining_v02.py tests/test_native_early_joining_v02.py -q
+      - name: Create SMALL synthetic source archives (NO PRIVATE PLANET DATA)
+        run: |
+          python - <<'PY'
+          from io import BytesIO
+          from pathlib import Path
+          import numpy as np
+          import os
+          from zipfile import ZipFile
+          root = Path(os.environ["RUNNER_TEMP"]) / "synthetic-world"
+          root.mkdir()
+          lat = np.round(np.arange(-1.5, 1.5001, 0.3), 2).astype("float32")
+          lon = np.round(np.arange(-3, 3.0001, 0.3), 2).astype("float32")
+          rows, cols = len(lat), len(lon)
+          X, Y = np.meshgrid(lon, lat)
+          elevation = (380 + 150 * np.sin(X * 1.4) +
+                       300 * np.exp(-((X - 1) ** 2 + (Y + 0.3) ** 2)) -
+                       130 * np.cos(Y * 1.3)).astype("float32")
+          land = np.ones((rows, cols), dtype="uint8")
+          land[-2:, -3:] = 0
+          north_elev = elevation[::-1].copy()
+          north_land = land[::-1].copy()
+          downstream = np.full((rows, cols), -1, dtype="int32")
+          for row in range(rows - 1):
+              downstream[row] = np.arange((row + 1) * cols, (row + 2) * cols)
+          # Real original A8 D8 does not route FROM ocean cells; the toy must agree.
+          downstream[north_land == 0] = -1
+          for name, member, fields in (
+              ("A8", "planet_A8/A8_hydrology.npz", {
+                  "lat": lat[::-1], "lon": lon,
+                  "land": north_land, "elevation_m": north_elev,
+                  "downstream_index": downstream,
+                  "catchment_area_km2": np.abs(1 + 20 * X + 50 * Y).astype("float32"),
+                  "river_mask": np.asarray(np.abs(X) < 0.2, dtype="uint8"),
+              }),
+              ("A12", "planet_A12/A12_biome_fields.npz", {
+                  "lat": lat, "lon": lon, "land": land, "elevation_m": elevation,
+                  "temperature_annual_C": np.full_like(elevation, 15),
+                  "precip_planet_year_mm": np.full_like(elevation, 870),
+                  "biome_base": np.full_like(land, 7),
+              }),
+              ("A10", "planet_A10/A10_water_balance.npz", {
+                  "lat": lat, "lon": lon, "land": land,
+                  "annual_Q_m3s": np.full_like(elevation, 50),
+              }),
+          ):
+              data = BytesIO()
+              np.savez_compressed(data, **fields)
+              with ZipFile(root / f"{name}.zip", "w") as z:
+                  z.writestr(member, data.getvalue())
+          print("Synthetic input only:", [f.name for f in root.iterdir()])
+          PY
+      - name: Produce synthetic macro-region and preserve source graph boundary
+        run: |
+          python scripts/export_planetary_macro_region_v02.py \
+            --a8 "$RUNNER_TEMP/synthetic-world/A8.zip" \
+            --a12 "$RUNNER_TEMP/synthetic-world/A12.zip" \
+            --a10 "$RUNNER_TEMP/synthetic-world/A10.zip" \
+            --lat 0.0 --lon 0.0 \
+            --half-width-km 180 --half-height-km 130 \
+            --planet-radius-km 7008.1 \
+            --planet-year-earth-days 202.755 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint"
+      - name: Verify north-first raster, graph exits and output PNG
+        run: |
+          python - <<'PY'
+          import json, os
+          import numpy as np
+          from pathlib import Path
+          from PIL import Image
+          out = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint"
+          r = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+          assert not r["is_DomainData"]
+          assert r["source_precip_unit"] == "mm per planetary year"
+          assert r["global_D8_receiver_index_preserved"]
+          assert r["local_D8_exits_region_count"] > 0
+          assert r["planet_radius_km"] == 7008.1
+          with np.load(out / "macro-region-source.npz", allow_pickle=False) as f:
+              assert f["elevation_m"].shape == tuple(r["region_shape"])
+              assert f["latitude_deg_north_first"][0] > f["latitude_deg_north_first"][-1]
+              assert np.any(f["source_downstream_exits_region"])
+          with Image.open(out / "macro-region-preview.png") as image:
+              assert image.width > 800 and image.height > 300
+          print("SOURCE ADAPTER OK: aligned source raster, cropped D8 boundary noted")
+          PY
+      - name: Generate NEW 1-km child relief from synthetic macro source
+        run: |
+          python scripts/condition_planetary_child_terrain_v02.py \
+            --macro-npz "$RUNNER_TEMP/source-geogrid-checkpoint/macro-region-source.npz" \
+            --macro-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/manifest.json" \
+            --lat 0 --lon 0 \
+            --half-width-km 85 --half-height-km 65 --spacing-km 1 \
+            --seed 1406 --relief-strength 2 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/child"
+
+      - name: Verify exact source anchors, nontrivial detail and new PNG
+        run: |
+          python - <<'PY'
+          import json, os
+          import numpy as np
+          from pathlib import Path
+          from PIL import Image
+          path = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint" / "child"
+          note = json.loads((path / "manifest.json").read_text(encoding="utf-8"))
+          assert note["is_accepted_Core_DomainData"] is False
+          assert note["max_parent_anchor_error_m"] < 1e-6
+          assert note["source_elevation_anchors_in_child"] >= 6
+          assert note["planet_year_earth_days"] == 202.755
+          with np.load(path / "child-terrain-generated.npz", allow_pickle=False) as arr:
+              assert arr["child_elevation_m"].shape == tuple(note["child_shape"])
+              assert np.max(np.abs(arr["new_local_relief_m"])) > 1
+              assert np.array_equal(arr["child_elevation_m"] >= 0,
+                                    arr["parent_interpolated_m"] >= 0)
+          with Image.open(path / "child-terrain-preview.png") as png:
+              assert png.width > 800
+          print("NON-EARTH CHILD: synthetic relief nontrivial; parent anchors exact")
+          PY
+      - name: Run accepted Core MFD on NEW child terrain and audit source D8 guide
+        run: |
+          python scripts/diagnose_planetary_child_mfd_v02.py \
+            --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
+            --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
+            --macro-npz "$RUNNER_TEMP/source-geogrid-checkpoint/macro-region-source.npz" \
+            --threshold-km2 15 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/child-mfd"
+
+      - name: Verify MFD conservation and visibly distinguish NEW flow from historical D8
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          import numpy as np
+          from PIL import Image
+          folder = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint" / "child-mfd"
+          note = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+          assert note["status"].startswith("P2_B_DIAGNOSTIC")
+          assert note["parent_child_consistency"].startswith("NOT YET ENFORCED")
+          assert note["source_reference"]["source_d8_visible_river_links"] > 0
+          assert note["outlets"]["boundary_inflow_missing"]
+          assert not note["child_MFD"]["lake_and_marine_handling"].startswith("IMPLEMENTED")
+          assert abs(note["mass_ledger"]["relative_balance_error"]) < 1e-9
+          with np.load(folder / "child-mfd-diagnostic.npz", allow_pickle=False) as field:
+              assert field["child_MFD_accumulation_km2"].shape == (131, 171)
+              assert field["child_MFD_major_channel_support_mask"].sum() > 0
+          with Image.open(folder / "child-mfd-comparison.png") as image:
+              assert image.width > 1000 and image.height > 400
+          print("P2-B MFD DIAGNOSTIC OK: mass conserved, D8 only source guide, no fake inflow")
+          PY
+
+      - name: P2-B2.1 review provisional basins, NOT actual lakes
+        run: |
+          python scripts/audit_planetary_child_lakes_v02.py \
+            --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
+            --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
+            --lake-min-area-km2 4 --lake-min-depth-m 2 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/child-lake-review"
+
+      - name: Confirm basin mask and spill evidence without false water claims
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import numpy as np
+          from PIL import Image
+
+          folder = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint" / "child-lake-review"
+          m = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+          assert m["status"] == "P2_B2_1_GEOMETRIC_PROSPECTIVE_LAKES_NOT_WATER_OCCUPANCY"
+          assert not m["physical_water_coverage_inferred"]
+          assert m["author_approved_lakes"] == 0
+          assert not m["external_macro_inflow_used"]
+          assert not m["macro_A8_D8_forced"]
+          assert m["threshold_qualified_cells"] <= m["fill_required_cells"]
+          assert m["candidate_spill_count"] <= m["threshold_qualified_basins"]
+          with np.load(folder / "child-lake-basin-review.npz", allow_pickle=False) as data:
+              assert data["required_fill_depth_m"].shape == (131, 171)
+              assert data["provisional_lake_basin_id"].shape == (131, 171)
+          with Image.open(folder / "child-lake-basin-review.png") as im:
+              assert im.width > 1000 and im.height > 400
+          print("P2-B2.1 SOURCE CHILD: provisional basins only, no water inference")
+          PY
+
+      - name: Sensitivity review (do not install universal lake thresholds)
+        run: |
+          python scripts/audit_planetary_child_lakes_v02.py \
+            --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
+            --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
+            --lake-min-area-km2 16 --lake-min-depth-m 10 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/child-lake-strict-review"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import numpy as np
+          from PIL import Image, ImageOps, ImageDraw
+
+          base = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint"
+          loose = base / "child-lake-review"
+          strict = base / "child-lake-strict-review"
+          a = json.loads((loose / "manifest.json").read_text(encoding="utf-8"))
+          b = json.loads((strict / "manifest.json").read_text(encoding="utf-8"))
+          with np.load(loose / "child-lake-basin-review.npz", allow_pickle=False) as d1, \
+               np.load(strict / "child-lake-basin-review.npz", allow_pickle=False) as d2:
+              mask_a = d1["provisional_lake_basin_id"] > 0
+              mask_b = d2["provisional_lake_basin_id"] > 0
+              assert not np.any(mask_b & ~mask_a)
+              np.testing.assert_array_equal(
+                  d1["required_fill_depth_m"], d2["required_fill_depth_m"]
+              )
+          assert b["threshold_qualified_basins"] <= a["threshold_qualified_basins"]
+          assert b["threshold_qualified_cells"] <= a["threshold_qualified_cells"]
+          assert not b["physical_water_coverage_inferred"]
+          canvases = [
+              Image.open(folder / "child-lake-basin-review.png").convert("RGB")
+              for folder in (loose, strict)
+          ]
+          width = 1400
+          thumbs = []
+          for pic in canvases:
+              thumbs.append(pic.resize(
+                  (width, round(pic.height * width / pic.width)),
+                  Image.Resampling.LANCZOS
+              ))
+          sheet = Image.new(
+              "RGB", (width, sum(x.height for x in thumbs) + 80), "#eee8da"
+          )
+          draw = ImageDraw.Draw(sheet)
+          y = 0
+          for im in thumbs:
+              sheet.paste(im, (0, y))
+              y += im.height + 40
+          sheet.save(base / "child-lake-threshold-comparison.png")
+          print("P2-B2.1 SENSITIVITY: strong thresholds cannot invent more basins")
+          PY
+
+      - name: Render explicit one-basin synthetic Core lake reference
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import numpy as np
+          from scripts.audit_planetary_child_lakes_v02 import (
+              audit_child_depressions, render_lake_review
+          )
+
+          rows = cols = 21
+          dem = np.empty((rows, cols), dtype=float)
+          for row in range(rows):
+              y = rows - row - .5
+              for col in range(cols):
+                  x = col + .5
+                  dem[row, col] = 200.0 - .8 * x + .03 * (y - 10.5)**2
+          dem[8:13, 8:13] -= 18.0
+          child = {
+              "child_elevation_m": dem,
+              "land_mask": np.ones((rows, cols), dtype=np.uint8),
+              "east_km": np.arange(cols, dtype=float),
+              "north_km_north_first": np.arange(rows - 1, -1, -1, dtype=float),
+          }
+          fields, note = audit_child_depressions(
+              child, lake_min_area_km2=2, lake_min_depth_m=1
+          )
+          assert note["threshold_qualified_basins"] == 1
+          assert note["candidate_spill_count"] == 1
+          assert note["small_grid_core_supernode_area_ledger"]["passed"]
+          output = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint" / "child-lake-bowl-fixture"
+          output.mkdir()
+          np.savez_compressed(output / "basin-fields.npz", **fields)
+          (output / "manifest.json").write_text(json.dumps(note, indent=2))
+          render_lake_review(child, fields, note, output / "one-basin-reference.png")
+          print("P2-B2.1 SMALL CORE LAKE: candidate spill and exact supernode mass balance")
+          PY
+
+
+      - name: P2-B2.2 map ORIGINAL macro A8 river-entry candidates with ZERO invented outside input
+        run: |
+          python scripts/condition_planetary_child_boundary_mfd_v02.py \
+            --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
+            --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
+            --macro-npz "$RUNNER_TEMP/source-geogrid-checkpoint/macro-region-source.npz" \
+            --lake-min-area-km2 16 --lake-min-depth-m 10 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/boundary-no-external"
+
+      - name: P2-B2.2 explicit HYPOTHETICAL external catchment and distinct ledger
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          import numpy as np
+          from scripts.condition_planetary_child_boundary_mfd_v02 import source_inlet_candidates
+          base = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint"
+          with np.load(base / "macro-region-source.npz", allow_pickle=False) as z:
+              macro = {k:z[k] for k in z.files}
+          with np.load(base / "child" / "child-terrain-generated.npz", allow_pickle=False) as z:
+              child = {k:z[k] for k in z.files}
+          child_manifest = json.loads((base / "child" / "manifest.json").read_text())
+          sites = source_inlet_candidates(macro, child, child_manifest)
+          print("Only A8 D8 prospective geometry:",len(sites))
+          assert len(sites) >= 1, "synthetic fixture must have incoming macro segment"
+          spec = {
+              "schema":"P2_B2_2_EXPLICIT_A8_INFLOW_SCENARIO",
+              "inflows":[{
+                  "source_link_key":sites[0]["key"],
+                  "external_area_km2":250.0,
+                  "area_semantics":"EXTERNAL_ONLY_AREA_EXCLUDING_CHILD",
+                  "operator_note":"SYNTHETIC HYPOTHESIS ONLY, deliberately not the old macro catchment value"
+              }]
+          }
+          (base/"hypothetical-external.json").write_text(json.dumps(spec,indent=2))
+          PY
+          python scripts/condition_planetary_child_boundary_mfd_v02.py \
+            --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
+            --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
+            --macro-npz "$RUNNER_TEMP/source-geogrid-checkpoint/macro-region-source.npz" \
+            --inflows-json "$RUNNER_TEMP/source-geogrid-checkpoint/hypothetical-external.json" \
+            --lake-min-area-km2 16 --lake-min-depth-m 10 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/boundary-external-hypothesis"
+
+      - name: Assert no double counting, lake status and scenario graphics
+        run: |
+          python - <<'PY'
+          import json,os
+          import numpy as np
+          from pathlib import Path
+          from PIL import Image,ImageDraw
+          b=Path(os.environ["RUNNER_TEMP"])/"source-geogrid-checkpoint"
+          p=json.loads((b/"boundary-no-external"/"manifest.json").read_text())
+          q=json.loads((b/"boundary-external-hypothesis"/"manifest.json").read_text())
+          assert p["external_inflow"]["injected_external_area_km2"]==0
+          assert q["external_inflow"]["injected_external_area_km2"]==250
+          assert q["source_A8_D8_candidate_count"]>=1
+          assert not q["lake_topology"]["actual_water_lakes_inferred"]
+          assert q["river_network_consistency_with_macro"]=="NOT YET VALIDATED"
+          assert abs(p["area_mass_ledger"]["balance_error_km2"])<1e-6
+          assert abs(q["area_mass_ledger"]["balance_error_km2"])<1e-6
+          with np.load(b/"boundary-no-external"/"boundary-routing-diagnostic.npz",allow_pickle=False) as a, \
+               np.load(b/"boundary-external-hypothesis"/"boundary-routing-diagnostic.npz",allow_pickle=False) as c:
+              x=a["mfd_contributing_area_with_explicit_inflows_km2"]
+              y=c["mfd_contributing_area_with_explicit_inflows_km2"]
+              assert x.shape==(131,171)
+              assert np.max(y-x)>50
+          imgs=[Image.open(b/f/"boundary-routing-preview.png").convert("RGB")
+                for f in ("boundary-no-external","boundary-external-hypothesis")]
+          w=1300
+          thumb=[im.resize((w,round(im.height*w/im.width))) for im in imgs]
+          panel=Image.new("RGB",(w,sum(t.height for t in thumb)+70),"#f1eade")
+          at=0
+          for t in thumb:
+              panel.paste(t,(0,at))
+              at+=t.height+35
+          panel.save(b/"boundary-comparison-zero-vs-explicit-scenario.png")
+          print("P2-B2.2: no invented macro area; +250 km2 explicit source, area ledger conserved")
+          PY
+
+      - name: P2-B2.3 original GLOBAL D8 first-entry partition (synthetic, re-entry-safe)
+        run: |
+          python scripts/trace_a8_external_first_entry_v02.py \
+            --global-a8 "$RUNNER_TEMP/synthetic-world/A8.zip" \
+            --macro-npz "$RUNNER_TEMP/source-geogrid-checkpoint/macro-region-source.npz" \
+            --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
+            --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/first-entry-global"
+
+      - name: Validate GLOBAL first-entry provenance and no automatic MFD injection
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          import numpy as np
+          base = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint"
+          result = json.loads((base / "first-entry-global/manifest.json").read_text())
+          assert result["status"] == "A8_GLOBAL_FIRST_ENTRY_MACRO_AREA_VERIFIED_NOT_CHILD_MFD"
+          assert result["full_global_D8_cycle_free"]
+          assert result["no_source_cell_counted_twice"]
+          assert result["original_A8_source_cells_partitioned_once"]
+          assert result["auto_injected_external_area_km2"] == 0
+          assert result["all_directed_external_area_km2"] >= result["old_A8_major_river_entry_area_km2"]
+          assert result["old_A8_major_river_inlets_matched"] >= 1
+          assert result["genuine_child_MFD_topology_validated"] is False
+          with np.load(base / "first-entry-global/a8-first-entry-preview-crop.npz", allow_pickle=False) as f:
+              assert f["first_entry_source_id"].ndim == 2
+          print("P2-B2.3: synthetic full A8 graph SOURCE PARTITION ONLY, child automatic inflow=0")
+          PY
+
+      - name: P2-B2.4 compare original macro river EXITS to connected Core MFD child terminal paths
+        run: |
+          python scripts/compare_planetary_child_mfd_outlets_v02.py \
+            --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
+            --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
+            --macro-npz "$RUNNER_TEMP/source-geogrid-checkpoint/macro-region-source.npz" \
+            --stream-threshold-km2 30 \
+            --matching-tolerance-km 30 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/macro-vs-MFD-outlets"
+
+      - name: Check real graph adjacency, explicit unmatched outlets and raster evidence
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import numpy as np
+          from PIL import Image
+
+          base = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint/macro-vs-MFD-outlets"
+          m = json.loads((base/"manifest.json").read_text(encoding="utf-8"))
+          assert m["status"] == "P2_B2_4_REFERENCE_EXIT_ALIGNMENT_NOT_ACCEPTED_HYDROLOGY"
+          assert not m["is_accepted_Core_DomainData"]
+          assert not m["is_author_approved_local_river_map"]
+          assert m["external_area_auto_injected_km2"] == 0
+          assert m["source_macro_A8_outlet_ledger"]["major_A8_river_links_exiting_child_box"] >= 1
+          ch = m["child_core_dominant_channel_ledger"]
+          assert ch["ordinary_adjacent_channel_edges"] > 0
+          assert len(ch["connected_boundary_endpoints"]) > 0
+          assert not ch["is_physical_discharge_or_approved_river"]
+          assert ch["no_external_A8_source_area_auto_injected"]
+          assert not m["coarse_to_fine_outlet_alignment"]["is_hydrologically_validated"]
+          with np.load(base / "connected-MFD-channel-reference.npz", allow_pickle=False) as data:
+              assert data["channel_mask"].shape == (131,171)
+              assert data["channel_edge_flat_from_to"].shape[1] == 2
+              assert data["channel_mask"].sum() > 0
+          with Image.open(base / "macro-vs-child-outlets.png") as image:
+              assert image.width > 1200 and image.height > 350
+          print("P2-B2.4: old macro exits vs connected new MFD paths; geometry only, no Q")
+          PY
+
+      - name: Operator visual checkpoint of SYNTHETIC macro vs MFD geography (JPEG in log)
+        run: |
+          python - <<'PY'
+          import base64, io, os
+          from pathlib import Path
+          from PIL import Image
+          root = Path(os.environ["RUNNER_TEMP"]) / "source-geogrid-checkpoint/macro-vs-MFD-outlets"
+          with Image.open(root / "macro-vs-child-outlets.png") as png:
+              rgb = png.convert("RGB")
+              rgb.thumbnail((1050, 500))
+              raw = io.BytesIO()
+              rgb.save(raw, "JPEG", quality=65, optimize=True)
+          print("P2B24_SYNTHETIC_PREVIEW_BEGIN")
+          print(base64.b64encode(raw.getvalue()).decode("ascii"))
+          print("P2B24_SYNTHETIC_PREVIEW_END")
+          PY
+
+      - name: P2-B2.5 bounded OPTIONAL parent-pinned river corridor trial, before vs after
+        run: |
+          python scripts/propose_planetary_river_corridor_v02.py \
+            --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
+            --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
+            --macro-npz "$RUNNER_TEMP/source-geogrid-checkpoint/macro-region-source.npz" \
+            --depth-m 15 --width-km 5 --anchor-taper-km 2 \
+            --boundary-taper-km 5 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/P2B25-optional-corridor-trial"
+
+      - name: Validate P2-B2.5 proposal remains explicitly REJECTED as canonical
+        run: |
+          python - <<'PY'
+          import json,os
+          import numpy as np
+          from pathlib import Path
+          from PIL import Image
+
+          base=Path(os.environ["RUNNER_TEMP"])/"source-geogrid-checkpoint"
+          folder=base/"P2B25-optional-corridor-trial"
+          note=json.loads((folder/"manifest.json").read_text())
+          assert note["status"]=="P2_B2_5_OPTIONAL_NONCANONICAL_DEM_TRIAL"
+          assert not note["accepted_into_Core_or_original_child"]
+          assert not note["new_P2B25_original_river_alignment_approved"]
+          assert note["source_anchor_correction_error_m"]<=1e-9
+          assert note["source_boundary_max_change_m"]==0
+          assert note["maximum_excavation_m"]<=15.001
+          assert note["relief_correction_is_negative_only"]
+          assert note["no_A8_auto_injected_area"]
+          with np.load(folder/"noncanonical-corridor-trial.npz",allow_pickle=False) as x:
+              assert x["new_child_elevation_m"].shape==(131,171)
+              assert x["before_channel"].shape==x["after_channel"].shape
+          with Image.open(folder/"before-after-corridor-trial.png") as png:
+              assert png.width>=1200
+          print("P2-B2.5: bounded optional terrain ONLY, parent anchors exactly fixed; no silent acceptance")
+          PY
+
+      - name: P2-B2.6 compare actual accepted Core MFD geometry with versus without lake proxies
+        run: |
+          python scripts/diagnose_planetary_child_lake_topology_v02.py \
+            --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
+            --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
+            --lake-min-area-km2 4 --lake-min-depth-m 2 \
+            --max-lake-supernodes 12 --max-total-candidate-cells 12000 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/B26-lake-proxy-comparison"
+
+      - name: P2-B2.6 validate mass ledger and ambiguity labels, not real lake occupancy
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import numpy as np
+          from PIL import Image
+
+          root = Path(os.environ["RUNNER_TEMP"])/"source-geogrid-checkpoint"
+          folder = root/"B26-lake-proxy-comparison"
+          m = json.loads((folder/"manifest.json").read_text(encoding="utf8"))
+          assert m["status"] == "P2_B2_6_GEOMETRIC_CORE_LAKE_SUPERNODE_REVIEW_NOT_REAL_WATER"
+          assert m["core_priority_flood_used"]
+          assert m["core_lake_candidate_extraction_used"]
+          assert not m["actual_lakes_inferred"]
+          assert not m["original_terrain_modified"]
+          assert not m["external_macro_A8_inflow_applied"]
+          assert not m["river_discharge_m3s_inferred"]
+          assert abs(m["no_lake_mass_balance"]["balance_error_km2"]) < 1e-7
+          if m["with_vs_without_lakes_comparable"]:
+              assert m["candidate_lake_mass_balance"] is not None
+              assert abs(m["candidate_lake_mass_balance"]["balance_error_km2"]) < 1e-7
+          else:
+              assert m["absolute_terminal_redistribution_km2"] is None
+          with np.load(folder/"lake-topology-comparison.npz", allow_pickle=False) as arrays:
+              assert arrays["virtual_fill_depth_m_NOT_WATER"].shape == (131,171)
+              assert arrays["geometric_candidate_id_NOT_WATER"].shape == (131,171)
+              assert arrays["lake_comparison_available_mask"].max() <= 1
+          with Image.open(folder/"lake-topology-review.png") as image:
+              assert image.width > 1000 and image.height > 900
+          print("P2-B2.6: Core candidate lake vs no-lake area; unknown remains unknown")
+          PY
+
+      - name: P2-B2.6 deliberate UNRESOLVED graph on the same synthetic DEM
+        run: |
+          python scripts/diagnose_planetary_child_lake_topology_v02.py \
+            --child-npz "$RUNNER_TEMP/source-geogrid-checkpoint/child/child-terrain-generated.npz" \
+            --child-manifest "$RUNNER_TEMP/source-geogrid-checkpoint/child/manifest.json" \
+            --lake-min-area-km2 4 --lake-min-depth-m 2 \
+            --max-lake-supernodes 0 \
+            --output "$RUNNER_TEMP/source-geogrid-checkpoint/B26-unresolved-review"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          base=Path(os.environ["RUNNER_TEMP"])/"source-geogrid-checkpoint/B26-unresolved-review"
+          m=json.loads((base/"manifest.json").read_text())
+          assert not m["with_vs_without_lakes_comparable"]
+          assert m["absolute_terminal_redistribution_km2"] is None
+          assert m["candidate_routing_status"].startswith(("UNRESOLVED","NO_THRESHOLD"))
+          assert not m["actual_lakes_inferred"]
+          print("P2-B2.6: deliberate unresolved lake routing not mistaken for zero effect")
+          PY
+
+      - name: "P2-B2.6 visual POSITIVE example: one geometric supernode vs ordinary MFD"
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          import numpy as np
+          from scripts.diagnose_planetary_child_lake_topology_v02 import (
+              audit_child_lake_routing, render_basin_topology
+          )
+          rows=cols=21
+          yy,xx=np.indices((rows,cols),dtype=float)
+          dem=230.-.8*xx+.03*(rows-yy-10.5)**2
+          dem[8:13,8:13]-=18.
+          toy={
+              "child_elevation_m":dem.astype("float32"),
+              "land_mask":np.ones((rows,cols),dtype="uint8"),
+              "east_km":np.arange(cols,dtype=float),
+              "north_km_north_first":np.arange(rows-1,-1,-1,dtype=float),
+          }
+          arr,ledger=audit_child_lake_routing(
+              toy,lake_min_area_km2=2,lake_min_depth_m=1
+          )
+          assert ledger["geometric_candidate_count"]==1
+          assert ledger["with_vs_without_lakes_comparable"]
+          assert ledger["candidate_lake_mass_balance"]["lake_supernode_count"]==1
+          assert abs(ledger["candidate_lake_mass_balance"]["balance_error_km2"])<1e-8
+          assert not ledger["actual_lakes_inferred"]
+          folder=Path(os.environ["RUNNER_TEMP"])/"source-geogrid-checkpoint/B26-known-bowl-reference"
+          folder.mkdir()
+          np.savez_compressed(folder/"lake-topology-comparison.npz",**arr)
+          (folder/"manifest.json").write_text(json.dumps(ledger,indent=2))
+          render_basin_topology(toy,arr,ledger,folder/"lake-topology-review.png")
+          print("P2-B2.6 POSITIVE Core-parity lake proxy example, NOT observed water")
+          PY
+
+      - name: P4-B SYNTHETIC map-first Core MFD drainage evidence (NOT RIVERS)
+        run: |
+          python - <<'PY'
+          import json, os
+          import numpy as np
+          from pathlib import Path
+          from PIL import Image
+          from scripts.render_region_cartographic_base_v02 import render_cartographic_base
+          import subprocess, sys, hashlib
+          root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
+          with np.load(root/'child/child-terrain-generated.npz',allow_pickle=False) as z:
+              child={k:z[k].copy() for k in z.files}
+          with np.load(root/'macro-vs-MFD-outlets/connected-MFD-channel-reference.npz',allow_pickle=False) as z:
+              candidate={k:z[k].copy() for k in z.files}
+          cm=json.loads((root/'child/manifest.json').read_text(encoding='utf8'))
+          pr=json.loads((root/'macro-vs-MFD-outlets/manifest.json').read_text(encoding='utf8'))
+          # This is only a synthetic DEM+cover for CI; NOT real Osvera ecology.
+          elevation=child['child_elevation_m']
+          cover={'cover_class_candidate':np.where(
+              elevation>np.median(elevation),1,2).astype('uint8')}
+          cv={'status':'P3_MVP_NONCANONICAL_SOURCE_CONDITIONED_COVER',
+              'cover_is_author_canon':False,'wetland_is_confirmed_water':False}
+          ledger=json.loads(Path('examples/world-fixtures/osvera-first-arc-author-ledger.json').read_text(encoding='utf8'))
+          ledger['world']['name']='SYNTHETIC'
+          p4=root/'P4B-synthetic-cartographic-source'
+          map_audit=render_cartographic_base(child,cover,cm,cv,ledger,p4,pixels_per_cell=4)
+          p4_child_npz=root/'child/child-terrain-generated.npz'
+          cover_file=p4/'synthetic-cover-candidates.npz'
+          np.savez_compressed(cover_file,**cover)
+          map_audit['input_sha256']={
+              'child_npz':hashlib.sha256(p4_child_npz.read_bytes()).hexdigest(),
+              'cover_npz':hashlib.sha256(cover_file.read_bytes()).hexdigest()
+          }
+          (p4/'region-cartographic-audit.json').write_text(
+              json.dumps(map_audit,indent=2), encoding='utf8')
+          path=root/'P4B-synthetic-drainage-evidence'
+          subprocess.check_call([
+              sys.executable,'-m','scripts.render_region_drainage_evidence_v02',
+              '--child-npz',str(p4_child_npz),
+              '--child-manifest',str(root/'child/manifest.json'),
+              '--projection-npz',str(root/'macro-vs-MFD-outlets/connected-MFD-channel-reference.npz'),
+              '--projection-manifest',str(root/'macro-vs-MFD-outlets/manifest.json'),
+              '--p4a-image',str(p4/'region-cartographic-base.png'),
+              '--p4a-audit',str(p4/'region-cartographic-audit.json'),
+              '--min-display-dominant-area-km2','100',
+              '--output',str(path),
+          ])
+          audit=json.loads((path/'drainage-evidence-audit.json').read_text())
+          assert audit['p4a_child_npz_sha256_lineage_verified']
+          assert audit['status']=='P4B_CONSERVATIVE_DRAINAGE_EVIDENCE_NOT_CANONICAL_RIVERS'
+          assert not audit['is_accepted_hydrology'] and not audit['is_water_occupancy_or_discharge']
+          assert audit['raw_candidate_ordinary_edges'] == (
+              pr['child_core_dominant_channel_ledger']['ordinary_adjacent_channel_edges'])
+          assert audit['all_strictly_downhill_edges']+audit['withheld_unsafe_ordinary_edges'] == audit['raw_candidate_ordinary_edges']
+          assert (audit['displayable_strictly_downhill_edges']+audit['omitted_minor_strict_edges_display_only']+audit['withheld_unsafe_ordinary_edges'] == audit['raw_candidate_ordinary_edges'])
+          assert audit['display_minimum_dominant_area_km2_NOT_Q']==100
+          assert audit['source_external_inflow_km2_applied']==0
+          with np.load(path/'drainage-evidence-masks.npz',allow_pickle=False) as z:
+              assert z['candidate_display_edges_NOT_CONFIRMED_RIVERS'].shape[1]==2
+          with Image.open(path/'drainage-evidence-sheet.png') as image:
+              assert image.width>600
+          print('P4B_SYNTHETIC_ONLY: Core MFD topology screened; not a water map')
+          PY
+
+      - name: P4-C1 SYNTHETIC boundary-inlet and child-channel reconciliation (NOT WATERSHED PROOF)
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
+          output=root/'P4C1-synthetic-boundary-evidence'
+          subprocess.check_call([
+              sys.executable,'-m','scripts.reconcile_region_boundary_corridors_v02',
+              '--macro-npz',str(root/'macro-region-source.npz'),
+              '--child-npz',str(root/'child/child-terrain-generated.npz'),
+              '--child-manifest',str(root/'child/manifest.json'),
+              '--projection-npz',str(root/'macro-vs-MFD-outlets/connected-MFD-channel-reference.npz'),
+              '--projection-manifest',str(root/'macro-vs-MFD-outlets/manifest.json'),
+              '--p4b-masks-npz',str(root/'P4B-synthetic-drainage-evidence/drainage-evidence-masks.npz'),
+              '--p4b-audit-json',str(root/'P4B-synthetic-drainage-evidence/drainage-evidence-audit.json'),
+              '--p4a-map-image',str(root/'P4B-synthetic-cartographic-source/region-cartographic-base.png'),
+              '--output',str(output),
+          ])
+          r=json.loads((output/'boundary-corridor-audit.json').read_text())
+          assert r['status']=='P4_C1_COARSE_INLET_TO_CHILD_DOMINANT_GRAPH_HINTS_NOT_RIVERS'
+          assert not r['same_macro_to_child_basin_identity_established']
+          assert not r['is_approved_river_map']
+          assert r['external_inflow_area_injected_km2']==0
+          assert r['p4b_child_projection_and_p4a_map_exact_file_lineage_verified']
+          assert len(r['inlet_results'])==r['source_macro_inlet_count']
+          print('P4C1_SYNTHETIC: A8 inlet/outlet references cannot assert same basin')
+          PY
+
+      - name: P4-C2 SYNTHETIC raw DEM + virtual-fill corridor sensitivity (NOT RIVERS)
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
+          output=root/'P4C2-synthetic-sensitivity'
+          subprocess.check_call([
+              sys.executable,'-m','scripts.audit_region_corridor_sensitivity_v02',
+              '--macro-npz',str(root/'macro-region-source.npz'),
+              '--child-npz',str(root/'child/child-terrain-generated.npz'),
+              '--child-manifest',str(root/'child/manifest.json'),
+              '--projection-npz',str(root/'macro-vs-MFD-outlets/connected-MFD-channel-reference.npz'),
+              '--projection-manifest',str(root/'macro-vs-MFD-outlets/manifest.json'),
+              '--p4b-masks-npz',str(root/'P4B-synthetic-drainage-evidence/drainage-evidence-masks.npz'),
+              '--p4b-audit-json',str(root/'P4B-synthetic-drainage-evidence/drainage-evidence-audit.json'),
+              '--p4c1-audit-json',str(root/'P4C1-synthetic-boundary-evidence/boundary-corridor-audit.json'),
+              '--p4a-map-image',str(root/'P4B-synthetic-cartographic-source/region-cartographic-base.png'),
+              '--thresholds-m','0','1','2','3','5','10',
+              '--output',str(output)
+          ])
+          a=json.loads((output/'corridor-sensitivity-audit.json').read_text())
+          assert a['status']=='P4_C2_RAW_DEM_ROUTE_SENSITIVITY_NOT_RIVERS'
+          assert a['P4C1_exact_file_lineage_verified']
+          assert not a['accepted_water_or_same_basin_identity']
+          assert not a['is_canonical_hydrology']
+          assert a['A8_D8_cumulative_area_not_imported_km2']==0
+          assert a['external_only_inflow_area_km2'].startswith('UNKNOWN')
+          for route in a['per_route']:
+              base=route['baseline_fill_reasons']
+              assert base['virtual_fill_limit_m_display_only']==2.
+              assert base['eligible_original_dem_downhill_edges']==base['reason_counts']['strict']
+              assert base['eligible_original_dem_downhill_edges'] + base['withheld_edges']==route['edge_count']
+              seq=[s['eligible_original_dem_downhill_edges'] for s in route['scenario_thresholds']]
+              assert seq==sorted(seq)
+              assert not route['strict_continuous_raw_dem_route_proved'] or base['withheld_edges']==0
+          assert (output/'corridor-sensitivity-sheet.png').is_file()
+          assert (output/'corridor-sensitivity-edges.csv').is_file()
+          print('P4C2_SYNTHETIC: threshold sensitivity is evidence only; no external water injected')
+          PY
+
+      - name: P4-D SYNTHETIC anchor provenance and raw-descent negatives (NOT RIVERS)
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
+          c2=root/'P4C2-synthetic-sensitivity'
+          a=json.loads((c2/'corridor-sensitivity-audit.json').read_text())
+          assert a['status']=='P4_C2_RAW_DEM_ROUTE_SENSITIVITY_NOT_RIVERS'
+          if a['P4C1_candidate_route_count']==1:
+              output=root/'P4D-synthetic-anchor-evidence'
+              subprocess.check_call([
+                  sys.executable,'-m','scripts.audit_region_anchor_alternative_drains_v02',
+                  '--macro-npz',str(root/'macro-region-source.npz'),
+                  '--child-npz',str(root/'child/child-terrain-generated.npz'),
+                  '--child-manifest',str(root/'child/manifest.json'),
+                  '--p4c2-audit-json',str(c2/'corridor-sensitivity-audit.json'),
+                  '--p4c2-edges-csv',str(c2/'corridor-sensitivity-edges.csv'),
+                  '--p4a-map-image',str(root/'P4B-synthetic-cartographic-source/region-cartographic-base.png'),
+                  '--output',str(output)
+              ])
+              result=json.loads((output/'anchor-gradient-audit.json').read_text())
+              assert result['prior_P4C2_source_file_hashes_verified']
+              assert not result['physical_basin_identity_or_river_verified']
+              assert result['macro_A8_upstream_area_injected_km2']==0
+              assert result['raw_uphill_or_flat_edges']==(
+                  result['complete_P4C2_partition']['raw_uphill_only']+
+                  result['complete_P4C2_partition']['both'])
+              assert (result['blocked_sources_with_immediate_alternative_raw_downhill']+
+                      result['blocked_sources_without_immediate_raw_downhill']==
+                      result['raw_uphill_or_flat_edges'])
+              assert (output/'anchor-gradient-evidence-sheet.png').is_file()
+          else:
+              # This generated crop has no selected inlet corridor. The
+              # synthetic toy regression suite exercises the full P4-D CLI.
+              assert a['P4C1_candidate_route_count']==0
+              print('P4D_SYNTHETIC: no selected inlet on crop, full CLI covered by toy tests')
+          PY
+
+      - name: P4-E SYNTHETIC alternative child relief (same anchors, NO new rivers)
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
+          previous=root/'P4D-synthetic-anchor-evidence'
+          if previous.exists():
+              output=root/'P4E-synthetic-relief-review'
+              subprocess.check_call([
+                  sys.executable,'-m','scripts.compare_region_relief_strength_v02',
+                  '--macro-npz',str(root/'macro-region-source.npz'),
+                  '--child-npz',str(root/'child/child-terrain-generated.npz'),
+                  '--child-manifest',str(root/'child/manifest.json'),
+                  '--cover-npz',str(root/'P4B-synthetic-cartographic-source/synthetic-cover-candidates.npz'),
+                  '--p4a-audit-json',str(root/'P4B-synthetic-cartographic-source/region-cartographic-audit.json'),
+                  '--p4d-audit-json',str(previous/'anchor-gradient-audit.json'),
+                  '--p4d-edges-csv',str(previous/'anchor-gradient-all-edges.csv'),
+                  '--output',str(output),
+              ])
+              audit=json.loads((output/'region-relief-comparison-audit.json').read_text())
+              assert audit['P4A_and_P4D_source_bytes_verified']
+              assert not audit['approved_hydrology'] and not audit['accepted_geography_or_rivers']
+              assert not audit['accepted_Core_MFD_or_P4C1_route_recomputed']
+              assert audit['A8_outside_only_catchment_area_injected_km2']==0
+              assert len(audit['variant_scores'])==3
+              assert audit['variant_scores'][-1]['baseline_bit_exact_replay']
+              assert (output/'region-relief-comparison-sheet.png').is_file()
+          else:
+              # The synthetic macro has no historical inlet for this crop.
+              # Dedicated toy tests still exercise a full positive P4-E CLI replay.
+              print('P4E_SYNTHETIC: no selected P4-D corridor; full CLI covered by generated toy fixtures')
+          PY
+
+      - name: P4-F SYNTHETIC independent MFD terrain reroutes and terminal topology (NOT RIVERS)
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
+          prior=root/'P4E-synthetic-relief-review'
+          if prior.exists():
+              output=root/'P4F-synthetic-MFD-variants'
+              cmd=[
+                  sys.executable,'-m','scripts.compare_region_mfd_variant_basins_v02',
+                  '--macro-npz',str(root/'macro-region-source.npz'),
+                  '--baseline-child-npz',str(root/'child/child-terrain-generated.npz'),
+                  '--child-manifest',str(root/'child/manifest.json'),
+                  '--baseline-projection-npz',str(root/'macro-vs-MFD-outlets/connected-MFD-channel-reference.npz'),
+                  '--baseline-projection-manifest',str(root/'macro-vs-MFD-outlets/manifest.json'),
+                  '--variant-0p5-npz',str(prior/'relief-strength-0p5-derived.npz'),
+                  '--variant-1p25-npz',str(prior/'relief-strength-1p25-derived.npz'),
+                  '--p4e-audit-json',str(prior/'region-relief-comparison-audit.json'),
+                  '--p4c1-audit-json',str(root/'P4C1-synthetic-boundary-evidence/boundary-corridor-audit.json'),
+                  '--terrain-0p5-png',str(prior/'region-relief-strength-0p5.png'),
+                  '--terrain-1p25-png',str(prior/'region-relief-strength-1p25.png'),
+                  '--terrain-2p0-png',str(prior/'region-relief-strength-2p0.png'),
+                  '--output',str(output)
+              ]
+              subprocess.check_call(cmd)
+              a=json.loads((output/'region-mfd-variant-topology-audit.json').read_text())
+              assert a['status']=='P4_F_INDEPENDENT_CORE_MFD_TERRAIN_VARIANT_TOPOLOGY_NOT_RIVERS'
+              assert a['source_existing_P4E_and_P4C1_SHA_checked']
+              assert a['baseline_P2B2p4_exact_replay_verified']
+              assert a['no_A8_external_inflow_injected_km2']==0
+              assert not a['geography_or_rivers_approved']
+              assert not a['P4C1_coarse_A8_to_new_MFD_basin_identity_proved']
+              assert len(a['variant_comparison'])==3
+              assert (output/'region-mfd-variant-topology-sheet.png').is_file()
+          else:
+              # Toy fixtures exercise the entire positive full P4-F CLI and SHA guard.
+              print('P4F_SYNTHETIC: P4-C1 crop has no single candidate; full CLI checked by 24 toy tests')
+          PY
+
+      - name: P4-G SYNTHETIC three threshold model channel scale morphology (NOT RIVERS)
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
+          p4e=root/'P4E-synthetic-relief-review'
+          p4f=root/'P4F-synthetic-MFD-variants'
+          if p4f.exists() and p4e.exists():
+              out=root/'P4G-synthetic-channel-scale'
+              cmd=[
+                sys.executable,'-m','scripts.compare_region_channel_scale_v02',
+                '--macro-npz',str(root/'macro-region-source.npz'),
+                '--child-manifest',str(root/'child/manifest.json'),
+                '--child-0p5-npz',str(p4e/'relief-strength-0p5-derived.npz'),
+                '--child-1p25-npz',str(p4e/'relief-strength-1p25-derived.npz'),
+                '--child-2p0-npz',str(root/'child/child-terrain-generated.npz'),
+                '--p4e-audit-json',str(p4e/'region-relief-comparison-audit.json'),
+                '--p4f-audit-json',str(p4f/'region-mfd-variant-topology-audit.json'),
+                '--p4f-0p5-npz',str(p4f/'mfd-strength-0p5-derived.npz'),
+                '--p4f-1p25-npz',str(p4f/'mfd-strength-1p25-derived.npz'),
+                '--p4f-2p0-npz',str(root/'macro-vs-MFD-outlets/connected-MFD-channel-reference.npz'),
+                '--terrain-0p5-png',str(p4e/'region-relief-strength-0p5.png'),
+                '--terrain-1p25-png',str(p4e/'region-relief-strength-1p25.png'),
+                '--terrain-2p0-png',str(p4e/'region-relief-strength-2p0.png'),
+                '--output',str(out),
+              ]
+              subprocess.check_call(cmd)
+              audit=json.loads((out/'region-channel-scale-audit.json').read_text())
+              assert audit['status']=='P4_G_THREE_THRESHOLD_MODEL_CHANNEL_MORPHOLOGY_NOT_RIVERS'
+              assert audit['P4F_threshold_30_bit_exact_all_3_variants']
+              assert audit['P4E_and_P4F_source_SHA256_verified']
+              assert audit['A8_old_D8_flow_imported_km2']==0
+              assert not audit['is_approved_physical_river_or_Q']
+              assert len(audit['morphology'])==9
+              assert (out/'region-model-network-threshold-3x3.png').is_file()
+          else:
+              # Toy fixtures also cover FULL P4-G CLI, SHA and deterministic png.
+              print('P4G_SYNTHETIC: source crop has no C1 selected inlet; toy CLI test is mandatory')
+          PY
+
+      - name: P4-H SYNTHETIC parent-only directional negative control (NO CANONICAL RIVERS)
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
+          p4e=root/'P4E-synthetic-relief-review'
+          p4f=root/'P4F-synthetic-MFD-variants'
+          p4g=root/'P4G-synthetic-channel-scale'
+          if p4e.exists() and p4f.exists() and p4g.exists():
+              out=root/'P4H-synthetic-directional-control'
+              subprocess.check_call([
+                sys.executable,'-m','scripts.diagnose_region_directional_bias_v02',
+                '--macro-npz',str(root/'macro-region-source.npz'),
+                '--baseline-child-npz',str(root/'child/child-terrain-generated.npz'),
+                '--child-manifest',str(root/'child/manifest.json'),
+                '--variant-0p5-npz',str(p4e/'relief-strength-0p5-derived.npz'),
+                '--variant-1p25-npz',str(p4e/'relief-strength-1p25-derived.npz'),
+                '--archived-0p5-npz',str(p4f/'mfd-strength-0p5-derived.npz'),
+                '--archived-1p25-npz',str(p4f/'mfd-strength-1p25-derived.npz'),
+                '--archived-2p0-npz',str(root/'macro-vs-MFD-outlets/connected-MFD-channel-reference.npz'),
+                '--p4f-audit-json',str(p4f/'region-mfd-variant-topology-audit.json'),
+                '--p4g-audit-json',str(p4g/'region-channel-scale-audit.json'),
+                '--terrain-0p5-png',str(p4e/'region-relief-strength-0p5.png'),
+                '--terrain-1p25-png',str(p4e/'region-relief-strength-1p25.png'),
+                '--terrain-2p0-png',str(p4e/'region-relief-strength-2p0.png'),
+                '--output',str(out),
+              ])
+              audit=json.loads((out/'p4h-directional-bias-audit.json').read_text())
+              assert audit['status']=='P4_H_PARENT_ONLY_NEGATIVE_CONTROL_AND_DIRECTIONAL_BIAS_NOT_RIVERS'
+              assert audit['P4G_parent_and_variant_source_sha_checked']
+              assert audit['prior_P4F_and_P4G_model_archives_bit_exact_replayed']
+              assert not audit['operator_accepted_geography']
+              assert audit['A8_external_area_autoinjected_km2']==0
+              assert len(audit['metrics'])==4
+              assert (out/'p4h-parent-vs-detail-directional-run-review.png').exists()
+          else:
+              # The synthetic macro crop has no matched inlet; 19 separate
+              # toy unit+CLI regression tests still run unconditionally.
+              print('P4H_SYNTHETIC: earlier inlet-specific artifact unavailable; dedicated CLI toy exercised')
+          PY
+
+      - name: P4-I SYNTHETIC source-anchored Hermite-vs-bilinear counterfactual (NOT RIVERS)
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
+          p4e=root/'P4E-synthetic-relief-review'
+          p4f=root/'P4F-synthetic-MFD-variants'
+          p4h=root/'P4H-synthetic-directional-control'
+          if p4e.exists() and p4f.exists() and p4h.exists():
+              out=root/'P4I-synthetic-interpolation-control'
+              subprocess.check_call([
+                sys.executable,'-m','scripts.compare_region_parent_interpolants_v02',
+                '--macro-npz',str(root/'macro-region-source.npz'),
+                '--baseline-child-npz',str(root/'child/child-terrain-generated.npz'),
+                '--child-manifest',str(root/'child/manifest.json'),
+                '--variant-0p5-npz',str(p4e/'relief-strength-0p5-derived.npz'),
+                '--variant-1p25-npz',str(p4e/'relief-strength-1p25-derived.npz'),
+                '--archived-0p5-npz',str(p4f/'mfd-strength-0p5-derived.npz'),
+                '--archived-1p25-npz',str(p4f/'mfd-strength-1p25-derived.npz'),
+                '--archived-2p0-npz',str(root/'macro-vs-MFD-outlets/connected-MFD-channel-reference.npz'),
+                '--p4f-audit-json',str(p4f/'region-mfd-variant-topology-audit.json'),
+                '--p4h-audit-json',str(p4h/'p4h-directional-bias-audit.json'),
+                '--terrain-0p5-png',str(p4e/'region-relief-strength-0p5.png'),
+                '--terrain-1p25-png',str(p4e/'region-relief-strength-1p25.png'),
+                '--terrain-2p0-png',str(p4e/'region-relief-strength-2p0.png'),
+                '--output',str(out),
+              ])
+              audit=json.loads((out/'p4i-parent-interpolant-audit.json').read_text())
+              assert audit['status']=='P4_I_HERMITE_VS_BILINEAR_PARENT_ANCHOR_CONTROL_NOT_RIVERS'
+              assert audit['P4H_source_sha256_all_input_verified']
+              assert audit['original_source_anchor_heights_both_interpolants_exact']
+              assert audit['P4F_archived_3_original_model_fields_exact_replay']
+              assert audit['A8_external_area_auto_injected_km2']==0
+              assert audit['not_author_accepted_geography_or_rivers']
+              assert len(audit['model_topology_original_vs_alt'])==4
+              assert (out/'p4i-interpolator-model-channel-review-2x3.png').is_file()
+          else:
+              # Public toy tests cover full CLI and SHA validation even when the
+              # synthetic source macro lacks P4-C1 matched historical inlet.
+              print('P4I_SYNTHETIC: prior inlet-specific artifact absent; full toy CLI test mandatory')
+          PY
+
+      - name: P4-J SYNTHETIC immutable topology display curves (NOT RIVERS)
+        run: |
+          python - <<'PY'
+          import json,os,subprocess,sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'source-geogrid-checkpoint'
+          p4e=root/'P4E-synthetic-relief-review'
+          p4i=root/'P4I-synthetic-interpolation-control'
+          if p4i.exists() and p4e.exists():
+              out=root/'P4J-synthetic-fixed-channel-curves'
+              subprocess.check_call([
+                  sys.executable,'-m','scripts.generalize_region_model_channel_geometry_v02',
+                  '--baseline-projection-npz',str(root/'macro-vs-MFD-outlets/connected-MFD-channel-reference.npz'),
+                  '--baseline-child-npz',str(root/'child/child-terrain-generated.npz'),
+                  '--p4i-audit-json',str(p4i/'p4i-parent-interpolant-audit.json'),
+                  '--terrain-png',str(p4e/'region-relief-strength-2p0.png'),
+                  '--output',str(out),
+              ])
+              summary=json.loads((out/'p4j-display-geometry-audit.json').read_text())
+              assert summary['status']=='P4_J_TOPOLOGY_PRESERVING_DISPLAY_GEOMETRY_ONLY_NOT_RIVERS'
+              assert summary['original_node_ids_and_edge_order_preserved']
+              assert summary['all_original_node_positions_exact']
+              assert not summary['channel_graph_topology_mutated']
+              assert summary['maximum_hausdorff_offset_km']<=.20
+              assert summary['independent_original_crossing_count']==0
+              assert summary['independent_display_crossing_count']==0
+              assert (out/'p4j-display-only-channel-curves.npz').is_file()
+          else:
+              # 18 independent public synthetic test cases include full CLI SHA
+              # replay and explicit independent 8-neighbor crossing rejection.
+              print('P4J_SYNTHETIC: earlier inlet-selected fixture unavailable; mandatory CLI toy tests run')
+          PY
+
+      - name: Snapshot small PUBLIC code for reproducible PRIVATE processing (NO ORIGINAL DATA)
+        run: |
+          mkdir -p "$RUNNER_TEMP/p4b-public-source-snapshot"
+          cp -r src scripts examples "$RUNNER_TEMP/p4b-public-source-snapshot/"
+          cp pyproject.toml "$RUNNER_TEMP/p4b-public-source-snapshot/"
+          echo "Public source checkout — no original A8/A12" > "$RUNNER_TEMP/p4b-public-source-snapshot/README-snapshot.txt"
+
+      - name: Publish public code snapshot only (not private planet arrays)
+        uses: actions/upload-artifact@v4
+        with:
+          name: p4b-public-source-checkout
+          path: ${{ runner.temp }}/p4b-public-source-snapshot
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload only synthetic adapter demonstration
+        uses: actions/upload-artifact@v4
+        with:
+          name: non-earth-geogrid-synthetic-demo
+          path: ${{ runner.temp }}/source-geogrid-checkpoint
+          if-no-files-found: error
+          retention-days: 14
