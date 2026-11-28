@@ -1640,6 +1640,7 @@ def build_continuous_river_network(
     *,
     skeleton: _ChannelSkeleton | None = None,
     normalize_false_confluences: bool = False,
+    repair_lake_outlet_return: bool = False,
     lake_features: dict[str, HydroFeature] | None = None,
     marine_candidates: tuple[MarineCandidate, ...] = (),
     marine_features: dict[str, MarineFeature] | None = None,
@@ -1764,7 +1765,7 @@ def build_continuous_river_network(
             )
             continue
 
-        trace = _trace_continuous(
+        trace_args = dict(
             adapter=adapter,
             field=field,
             accumulation=accumulation,
@@ -1776,6 +1777,29 @@ def build_continuous_river_network(
             marine_by_cell=marine_by_cell,
             marine_features=marine_features,
         )
+        trace = _trace_continuous(**trace_args)
+        if (
+            repair_lake_outlet_return
+            and start.kind is RiverNodeKind.LAKE_OUTLET
+            and trace.terminal.kind == "lake_inflow"
+            and trace.terminal.feature_id == start.feature_id
+        ):
+            # The shoreline-interpolated vector may enter the source lake again.
+            # Restart once at the already selected downstream receiver center;
+            # retain the original shoreline endpoint and do not change routing.
+            center = adapter.cell_center(*start.anchor_cell)
+            if start.anchor_cell in lake_by_cell:
+                raise HydrologyCapabilityError("lake spill receiver is inside lake support")
+            receiver_point = WorldPoint(x_km=center.x_km, y_km=center.y_km)
+            retry = _trace_continuous(**{**trace_args, "start_position": receiver_point})
+            if retry.terminal.kind == "lake_inflow" and retry.terminal.feature_id == start.feature_id:
+                raise HydrologyCapabilityError("lake outlet continuation returns to source lake")
+            trace = _TraceResult(
+                points=(start.position,) + retry.points,
+                terminal=retry.terminal,
+                traversed_cells=retry.traversed_cells,
+                catchment_area_km2=retry.catchment_area_km2,
+            )
         terminal = trace.terminal
         if terminal.kind == "confluence":
             assert terminal.anchor_cell is not None
@@ -1884,7 +1908,40 @@ def build_continuous_river_network(
         if outlet.receiver_cell not in marine_by_cell:
             stream_mask[outlet.receiver_cell] = True
 
-    return RiverNetwork(nodes=nodes, segments=segments), stream_mask
+    network = RiverNetwork(nodes=nodes, segments=segments)
+    if repair_lake_outlet_return:
+        _validate_lake_continuations(network)
+    return network, stream_mask
+
+
+def _validate_lake_continuations(network: RiverNetwork) -> None:
+    """Check downstream paths across lake features, including virtual lake links."""
+    outgoing = {}
+    lake_outlets = {}
+    for key, node in network.nodes.items():
+        if node.kind is RiverNodeKind.LAKE_OUTLET:
+            if node.feature_id in lake_outlets:
+                raise HydrologyCapabilityError("duplicate lake outlet")
+            lake_outlets[node.feature_id] = key
+    for segment in network.segments.values():
+        if segment.from_node in outgoing:
+            raise HydrologyCapabilityError("lake continuation graph bifurcates")
+        outgoing[segment.from_node] = segment.to_node
+    for feature_id, key in lake_outlets.items():
+        seen = set()
+        while True:
+            if key in seen:
+                raise HydrologyCapabilityError("cyclic lake feature continuation")
+            seen.add(key)
+            node = network.nodes[key]
+            if node.kind in {RiverNodeKind.DOMAIN_OUTLET, RiverNodeKind.MARINE_OUTLET}:
+                break
+            if node.kind is RiverNodeKind.LAKE_INFLOW:
+                key = lake_outlets.get(node.feature_id)
+            else:
+                key = outgoing.get(key)
+            if key is None:
+                raise HydrologyCapabilityError("lake continuation has no downstream terminal")
 
 
 def _legacy_direction_projection(field: ContinuousRoutingField) -> np.ndarray:
@@ -1902,7 +1959,14 @@ def _legacy_direction_projection(field: ContinuousRoutingField) -> np.ndarray:
             result[row, column] = np.int8(int(np.argmax(fractions)))
     return result
 
-def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> HydrologyState:
+def generate_hydrology_v02(
+    plan: GenerationPlan,
+    terrain: TerrainState,
+    *,
+    experimental_network_assembly: bool = False,
+) -> HydrologyState:
+    # Imported-DEM experiments opt in explicitly. Preserve the existing public
+    # pipeline's post-serialization confluence normalization and A08 baseline.
     if plan.plan_version != "0.2":
         raise HydrologyCapabilityError("continuous hydrology requires GenerationPlan 0.2")
     elevation = terrain.elevation_m
@@ -1930,7 +1994,9 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
                 )
             }
         )
-        baseline = generate_hydrology_v02(baseline_plan, terrain)
+        baseline = generate_hydrology_v02(
+            baseline_plan, terrain, experimental_network_assembly=experimental_network_assembly
+        )
         if baseline.continuous_routing is None:
             raise HydrologyCapabilityError(
                 "marine baseline requires continuous routing state"
@@ -2045,8 +2111,8 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         lakes,
         outlets,
         skeleton=channel_skeleton,
-        # Continuous traces can bypass proposed raster confluences at either scale.
-        normalize_false_confluences=True,
+        normalize_false_confluences=experimental_network_assembly,
+        repair_lake_outlet_return=experimental_network_assembly,
         lake_features=lake_features,
         marine_candidates=marine_candidates,
         marine_features=marine_features,
@@ -2060,6 +2126,7 @@ def generate_hydrology_v02(plan: GenerationPlan, terrain: TerrainState) -> Hydro
         outlets,
         skeleton=potential_skeleton,
         normalize_false_confluences=True,
+        repair_lake_outlet_return=experimental_network_assembly,
         lake_features=lake_features,
         marine_candidates=marine_candidates,
         marine_features=marine_features,
