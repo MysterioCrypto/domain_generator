@@ -44,6 +44,8 @@ on:
       - tests/test_imported_dem_native_network_v02.py
       - scripts/audit_native_network_spatial_v02.py
       - tests/test_native_regional_normalization_v02.py
+      - tests/test_lake_outlet_continuation_v02.py
+      - scripts/evaluate_lake_continuation_v02.py
       - src/domain_generator/hydrology/continuous.py
       - tests/test_region_anchor_alternative_drains_v02.py
       - tests/test_region_corridor_sensitivity_v02.py
@@ -73,7 +75,7 @@ jobs:
       - name: Install runtime and rendering environment
         run: python -m pip install -e ".[dev,render]"
       - name: Test source alignment and geographic graph boundary invariants
-        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py tests/test_planetary_child_mfd_outlet_alignment_v02.py tests/test_planetary_source_corridor_trial_v02.py tests/test_planetary_child_lake_topology_v02.py tests/test_region_drainage_evidence_v02.py tests/test_region_boundary_corridors_v02.py tests/test_region_corridor_sensitivity_v02.py tests/test_region_anchor_alternative_drains_v02.py tests/test_region_relief_strength_compare_v02.py tests/test_region_mfd_variant_basins_v02.py tests/test_region_channel_scale_v02.py tests/test_region_directional_bias_v02.py tests/test_region_parent_interpolants_v02.py tests/test_region_channel_display_geometry_v02.py tests/test_semantic_channel_reaches_v02.py tests/test_region_anisotropic_detail_v02.py tests/test_region_resolution_v02.py tests/test_region_continuous_trace_v02.py tests/test_imported_dem_native_network_v02.py tests/test_native_regional_normalization_v02.py -q
+        run: python -m pytest tests/test_planetary_geogrid_source_adapter_v02.py tests/test_planetary_child_terrain_v02.py tests/test_planetary_child_mfd_diagnostic_v02.py tests/test_planetary_child_lakes_v02.py tests/test_planetary_boundary_inflow_mfd_v02.py tests/test_a8_external_first_entry_v02.py tests/test_planetary_child_mfd_outlet_alignment_v02.py tests/test_planetary_source_corridor_trial_v02.py tests/test_planetary_child_lake_topology_v02.py tests/test_region_drainage_evidence_v02.py tests/test_region_boundary_corridors_v02.py tests/test_region_corridor_sensitivity_v02.py tests/test_region_anchor_alternative_drains_v02.py tests/test_region_relief_strength_compare_v02.py tests/test_region_mfd_variant_basins_v02.py tests/test_region_channel_scale_v02.py tests/test_region_directional_bias_v02.py tests/test_region_parent_interpolants_v02.py tests/test_region_channel_display_geometry_v02.py tests/test_semantic_channel_reaches_v02.py tests/test_region_anisotropic_detail_v02.py tests/test_region_resolution_v02.py tests/test_region_continuous_trace_v02.py tests/test_imported_dem_native_network_v02.py tests/test_native_regional_normalization_v02.py tests/test_lake_outlet_continuation_v02.py -q
       - name: Create SMALL synthetic source archives (NO PRIVATE PLANET DATA)
         run: |
           python - <<'PY'
