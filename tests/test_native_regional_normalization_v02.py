@@ -31,7 +31,7 @@ def test_native_regional_normalization(seed,legacy_valid,monkeypatch):
         return original(*args,**kwargs)
     with monkeypatch.context() as m:
         m.setattr(core,'build_continuous_river_network',legacy);old=core.generate_hydrology_v02(p,t)
-    new=core.generate_hydrology_v02(p,t)
+    new=core.generate_hydrology_v02(p,t,experimental_network_assembly=True)
     assert core._network_invariants(old.river_network)==legacy_valid
     assert core.validate_hydrology_v02(p,t,new,attempt_index=0).engine_invariants.passed
     assert new.potential_river_network==old.potential_river_network
